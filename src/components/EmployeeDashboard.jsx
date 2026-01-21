@@ -20,6 +20,9 @@ import {
 export default function EmployeeDashboard({ token, api }) {
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
+  const [pmsHistory, setPmsHistory] = useState([]);
+  const [correctionHistory, setCorrectionHistory] = useState([]);
+
   const [view, setView] = useState("dashboard"); 
   
   // --- Leave Form State ---
@@ -36,12 +39,13 @@ export default function EmployeeDashboard({ token, api }) {
 
   const [loading, setLoading] = useState(false);
 
-  // --- Camera State (Updated for Retake) ---
+  // --- Camera State (Fixed) ---
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
-  const [previewImage, setPreviewImage] = useState(null); // New state for preview
+  const [previewImage, setPreviewImage] = useState(null); 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const streamRef = useRef(null); // Fix for stream cleanup
 
   // --- Modal State ---
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
@@ -62,6 +66,15 @@ export default function EmployeeDashboard({ token, api }) {
       const l = await api.myLeaves(token);
       setAttendance(a);
       setLeaves(l);
+
+      // --- FETCH HISTORY ---
+      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      const pmsRes = await fetch(`${baseUrl}/api/my/pms`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if(pmsRes.ok) setPmsHistory(await pmsRes.json());
+
+      const corrRes = await fetch(`${baseUrl}/api/my/corrections`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if(corrRes.ok) setCorrectionHistory(await corrRes.json());
+
     } catch (err) {
       console.error("Error loading data", err);
     } finally {
@@ -73,13 +86,14 @@ export default function EmployeeDashboard({ token, api }) {
     load();
   }, []);
 
-  // --- CAMERA LOGIC (UPDATED WITH RETAKE) ---
+  // --- CAMERA LOGIC (FIXED) ---
   async function openCamera(type) {
     setActionType(type);
     setCameraOpen(true);
-    setPreviewImage(null); // Reset preview on open
+    setPreviewImage(null); 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      streamRef.current = stream; // Keep ref to stream
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (err) {
       alert("Camera access denied or unavailable.");
@@ -97,7 +111,7 @@ export default function EmployeeDashboard({ token, api }) {
     canvas.height = video.videoHeight;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    // Set preview instead of submitting immediately
+    // Preview
     const imageData = canvas.toDataURL("image/jpeg");
     setPreviewImage(imageData);
   }
@@ -118,18 +132,19 @@ export default function EmployeeDashboard({ token, api }) {
   }
 
   function closeCamera() {
-    setCameraOpen(false);
-    if (videoRef.current?.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach((t) => t.stop());
+    if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
     }
+    setCameraOpen(false);
+    setPreviewImage(null);
   }
 
   // --- PHASE 2: PMS SUBMISSION ---
   async function submitPMS(e) {
     e.preventDefault();
     try {
-        const month = new Date().toISOString().slice(0, 7); // YYYY-MM
-        // Using generic api.post if available, or fetch wrapper
+        const month = new Date().toISOString().slice(0, 7); 
         const res = await fetch(`${api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/pms/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -140,6 +155,7 @@ export default function EmployeeDashboard({ token, api }) {
         
         alert("Self-Evaluation Submitted Successfully!");
         setView("dashboard");
+        load(); // Refresh history
     } catch(err) { 
         alert("Submission failed: " + err.message); 
     }
@@ -163,6 +179,7 @@ export default function EmployeeDashboard({ token, api }) {
 
         alert("Correction Request Sent!");
         setView("dashboard");
+        load(); // Refresh history
       } catch (err) { 
           alert("Error: " + err.message); 
       }
@@ -339,6 +356,24 @@ export default function EmployeeDashboard({ token, api }) {
                       <button type="submit" className="btn" style={{marginTop:15}}>Submit Evaluation</button>
                   </div>
               </form>
+
+              {/* PMS HISTORY TABLE */}
+              <h4 style={{marginTop:30, color:'var(--red)'}}>My Evaluation History</h4>
+              <div style={{overflowX: 'auto'}}>
+                <table className="styled-table">
+                    <thead><tr><th>Month</th><th>Status</th><th>Score</th></tr></thead>
+                    <tbody>
+                        {pmsHistory.length === 0 && <tr><td colSpan="3">No history found.</td></tr>}
+                        {pmsHistory.map(p => (
+                            <tr key={p._id}>
+                                <td>{p.month}</td>
+                                <td><span className={`status-badge ${p.status === 'Approved' ? 'approved' : 'pending'}`}>{p.status}</span></td>
+                                <td>{p.manager_score || '-'}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+              </div>
           </div>
       )}
 
@@ -362,6 +397,24 @@ export default function EmployeeDashboard({ token, api }) {
                       <button type="submit" className="btn" style={{marginTop:15}}>Send Request</button>
                   </div>
               </form>
+
+              {/* CORRECTION HISTORY TABLE */}
+              <h4 style={{marginTop:30, color:'var(--red)'}}>My Correction Requests</h4>
+              <div style={{overflowX: 'auto'}}>
+                <table className="styled-table">
+                    <thead><tr><th>Date Requested</th><th>Reason</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {correctionHistory.length === 0 && <tr><td colSpan="3">No history found.</td></tr>}
+                        {correctionHistory.map(c => (
+                            <tr key={c._id}>
+                                <td>{new Date(c.created_at).toLocaleDateString()}</td>
+                                <td>{c.reason}</td>
+                                <td><span className={`status-badge ${c.status === 'Approved' ? 'approved' : c.status === 'Rejected' ? 'rejected' : 'pending'}`}>{c.status}</span></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+              </div>
           </div>
       )}
 
@@ -500,33 +553,31 @@ export default function EmployeeDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- CAMERA MODAL (UPDATED WITH PREVIEW & RETAKE) --- */}
+      {/* --- FIXED CAMERA MODAL (RETAKE FIX) --- */}
       {cameraOpen && (
-        <div className="modal-overlay">
+        <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
           <div className="camera-box" style={{background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
             <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
             
-            {!previewImage ? (
-                /* LIVE CAMERA VIEW */
-                <>
-                    <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000' }}></video>
-                    <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
-                        <button className="btn" onClick={capturePhoto}>Capture Photo</button>
-                        <button className="btn ghost" onClick={closeCamera}>Cancel</button>
-                    </div>
-                </>
-            ) : (
-                /* PREVIEW & RETAKE VIEW */
-                <>
-                    <img src={previewImage} style={{ width: "100%", borderRadius: "8px" }} alt="Preview" />
-                    <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
-                        <button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button>
-                        <button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button>
-                    </div>
-                </>
-            )}
+            {/* TOGGLE VISIBILITY INSTEAD OF UNMOUNTING */}
+            <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
+            {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
             
             <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
+            
+            <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
+              {!previewImage ? (
+                  <>
+                    <button className="btn" onClick={capturePhoto}>Capture</button>
+                    <button className="btn ghost" onClick={closeCamera}>Cancel</button>
+                  </>
+              ) : (
+                  <>
+                    <button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button>
+                    <button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button>
+                  </>
+              )}
+            </div>
           </div>
         </div>
       )}

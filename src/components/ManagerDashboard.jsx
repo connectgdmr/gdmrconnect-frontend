@@ -15,13 +15,20 @@ import {
   FaTimes,
   FaCloudUploadAlt,
   FaCalendarAlt, 
-  FaUsers 
+  FaUsers,
+  FaChartLine,        // Added for PMS
+  FaClipboardCheck    // Added for Corrections
 } from "react-icons/fa";
 
 export default function ManagerDashboard({ token, api }) {
   const [attendance, setAttendance] = useState([]);
   const [myLeaves, setMyLeaves] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
+  
+  // --- NEW: Manager Approval States ---
+  const [pendingPMS, setPendingPMS] = useState([]);
+  const [pendingCorrections, setPendingCorrections] = useState([]);
+
   const [view, setView] = useState("dashboard"); 
   
   // UPDATED: Leave Form State
@@ -33,10 +40,15 @@ export default function ManagerDashboard({ token, api }) {
   const [file, setFile] = useState(null);
   
   const [loading, setLoading] = useState(false);
+  
+  // --- CAMERA STATE (FIXED) ---
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
+  const [previewImage, setPreviewImage] = useState(null); // Added for Retake
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const streamRef = useRef(null); // Reference to stop stream properly
+
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalList, setModalList] = useState([]);
@@ -45,7 +57,7 @@ export default function ManagerDashboard({ token, api }) {
   const approvedLeaves = myLeaves.filter(l => l.status === 'Approved');
   const rejectedLeaves = myLeaves.filter(l => l.status === 'Rejected');
   
-  const MAX_WORDS = 30; // UPDATED: Word count limit
+  const MAX_WORDS = 30; 
   const MAX_FILE_SIZE_MB = 5;
 
   async function load() {
@@ -57,6 +69,17 @@ export default function ManagerDashboard({ token, api }) {
       setAttendance(a);
       setMyLeaves(l);
       setTeamMembers(t); 
+
+      // --- FETCH PENDING ACTIONS ---
+      // Determine Base URL (fallback to production if not set in api)
+      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      
+      const pmsRes = await fetch(`${baseUrl}/api/manager/pms`, { headers: {'Authorization': `Bearer ${token}`} });
+      if(pmsRes.ok) setPendingPMS(await pmsRes.json());
+
+      const corrRes = await fetch(`${baseUrl}/api/manager/corrections`, { headers: {'Authorization': `Bearer ${token}`} });
+      if(corrRes.ok) setPendingCorrections(await corrRes.json());
+
     } catch (err) {
       console.error("Error loading data", err);
     } finally {
@@ -68,11 +91,14 @@ export default function ManagerDashboard({ token, api }) {
     load();
   }, []);
 
+  // --- FIXED CAMERA LOGIC ---
   async function openCamera(type) {
     setActionType(type);
     setCameraOpen(true);
+    setPreviewImage(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      streamRef.current = stream; // Store stream to stop it later
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (err) {
       alert("Camera access denied or unavailable.");
@@ -89,8 +115,10 @@ export default function ManagerDashboard({ token, api }) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Show preview instead of auto-submitting
     const imageData = canvas.toDataURL("image/jpeg");
-    submitAttendance(imageData);
+    setPreviewImage(imageData);
   }
 
   async function submitAttendance(imageData) {
@@ -109,10 +137,40 @@ export default function ManagerDashboard({ token, api }) {
   }
 
   function closeCamera() {
-    setCameraOpen(false);
-    if (videoRef.current?.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach((t) => t.stop());
+    // Stop all tracks to turn off camera light
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     }
+    setCameraOpen(false);
+    setPreviewImage(null);
+  }
+
+  // --- MANAGER ACTIONS (APPROVE/REJECT) ---
+  async function finalizePMS(id, score) {
+      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      try {
+          await fetch(`${baseUrl}/api/manager/finalize-pms`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+              body: JSON.stringify({ id, manager_score: score })
+          });
+          alert("PMS Finalized");
+          load();
+      } catch(err) { alert(err.message); }
+  }
+
+  async function approveCorrection(id, action) {
+      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      try {
+          await fetch(`${baseUrl}/api/manager/approve-correction`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+              body: JSON.stringify({ id, action })
+          });
+          alert(`Correction ${action}`);
+          load();
+      } catch(err) { alert(err.message); }
   }
   
   // UPDATED LEAVE SUBMISSION
@@ -157,9 +215,7 @@ export default function ManagerDashboard({ token, api }) {
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-        // Size in bytes: 5MB = 5 * 1024 * 1024
         const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
-        
         if (selectedFile.size > maxSize) {
             alert(`File is too large. Maximum size allowed is ${MAX_FILE_SIZE_MB}MB.`);
             e.target.value = null; // Clear input
@@ -226,6 +282,10 @@ export default function ManagerDashboard({ token, api }) {
         .status-badge.pending { background: #fef3c7; color: #d97706; }
         .status-badge.checkin { color: #16a34a; }
         .status-badge.checkout { color: #dc2626; }
+        .styled-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .styled-table thead th { background-color: #fff3f3; color: #b91c1c; text-align: left; padding: 12px 15px; font-weight: 600; border-bottom: 2px solid #fee2e2; }
+        .styled-table tbody td { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; color: #444; }
+        .btn-small { padding: 4px 8px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; color: white; margin-right: 5px; }
       `}</style>
 
       {view === "dashboard" ? (
@@ -249,9 +309,13 @@ export default function ManagerDashboard({ token, api }) {
             <div className="quick-launch-grid">
               <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} color="green" />
               <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} color="#b91c1c" />
-              <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               <QuickLaunchItem icon={<FaUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} color="var(--red)" />
+              {/* NEW MANAGER VIEWS */}
+              <QuickLaunchItem icon={<FaChartLine />} label="Team PMS" onClick={() => setView("pms-reviews")} color="#6366f1" />
+              <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} color="#f59e0b" />
+              
               <QuickLaunchItem icon={<FaUsers />} label="Team Members" onClick={() => setView("team-members")} color="var(--red)" />
+              <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
               <QuickLaunchItem icon={<FaHistory />} label="My Logs" onClick={() => setView("attendance-log")} />
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
@@ -267,6 +331,64 @@ export default function ManagerDashboard({ token, api }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* --- NEW: PMS REVIEWS VIEW --- */}
+      {view === "pms-reviews" && (
+          <div className="card">
+              <h3>Pending PMS Reviews</h3>
+              <div style={{overflowX:'auto'}}>
+                <table className="styled-table">
+                    <thead><tr><th>Employee</th><th>Month</th><th>Scores</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {pendingPMS.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:20, color:'#999'}}>No pending reviews</td></tr>}
+                        {pendingPMS.filter(p => p.status === 'Submitted_by_Employee').map(p => (
+                            <tr key={p._id}>
+                                <td>{p.employee_name}</td>
+                                <td>{p.month}</td>
+                                <td>
+                                    {/* Display scores nicely if object, else raw */}
+                                    <div style={{fontSize:12}}>
+                                        {typeof p.self_evaluation === 'object' ? 
+                                            Object.entries(p.self_evaluation).map(([k,v]) => <div key={k}><b>{k}:</b> {v}</div>) 
+                                            : JSON.stringify(p.self_evaluation)}
+                                    </div>
+                                </td>
+                                <td>
+                                    <button className="btn-small" style={{background:'green'}} onClick={() => finalizePMS(p._id, 10)}>Approve</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+              </div>
+          </div>
+      )}
+
+      {/* --- NEW: CORRECTIONS VIEW --- */}
+      {view === "corrections" && (
+          <div className="card">
+              <h3>Pending Attendance Corrections</h3>
+              <div style={{overflowX:'auto'}}>
+                <table className="styled-table">
+                    <thead><tr><th>Employee</th><th>New Time</th><th>Reason</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {pendingCorrections.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:20, color:'#999'}}>No pending corrections</td></tr>}
+                        {pendingCorrections.filter(c => c.status === 'Pending').map(c => (
+                            <tr key={c._id}>
+                                <td>{c.employee_name}</td>
+                                <td>{new Date(c.new_time).toLocaleString()}</td>
+                                <td>{c.reason}</td>
+                                <td>
+                                    <button className="btn-small" style={{background:'green'}} onClick={() => approveCorrection(c._id, 'Approved')}>Approve</button>
+                                    <button className="btn-small" style={{background:'red'}} onClick={() => approveCorrection(c._id, 'Rejected')}>Reject</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+              </div>
+          </div>
       )}
 
       {view === "team-leaves" && <div style={{ marginTop: 16 }}><AdminLeavePage token={token} api={api} /></div>}
@@ -406,15 +528,30 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
+      {/* --- FIXED CAMERA MODAL (RETAKE & BLACK SCREEN FIX) --- */}
       {cameraOpen && (
-        <div className="camera-modal">
+        <div className="modal-overlay">
           <div className="camera-box">
             <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
-            <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000' }}></video>
+            
+            {/* TOGGLE VIDEO/IMAGE VISIBILITY (KEEP STREAM ALIVE) */}
+            <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
+            {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
+            
             <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
+            
             <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
-              <button className="btn" onClick={capturePhoto}>Capture & Submit</button>
-              <button className="btn ghost" onClick={closeCamera}>Cancel</button>
+              {!previewImage ? (
+                  <>
+                    <button className="btn" onClick={capturePhoto}>Capture</button>
+                    <button className="btn ghost" onClick={closeCamera}>Cancel</button>
+                  </>
+              ) : (
+                  <>
+                    <button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button>
+                    <button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button>
+                  </>
+              )}
             </div>
           </div>
         </div>
