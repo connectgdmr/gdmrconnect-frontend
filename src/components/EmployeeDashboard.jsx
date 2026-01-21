@@ -12,8 +12,9 @@ import {
   FaTimesCircle,
   FaTimes,
   FaCloudUploadAlt,
-  FaFileAlt,
-  FaCalendarAlt 
+  FaCalendarAlt,
+  FaChartLine,
+  FaEdit
 } from "react-icons/fa";
 
 export default function EmployeeDashboard({ token, api }) {
@@ -21,23 +22,28 @@ export default function EmployeeDashboard({ token, api }) {
   const [leaves, setLeaves] = useState([]);
   const [view, setView] = useState("dashboard"); 
   
-  // Leave Form State
+  // --- Leave Form State ---
   const [leaveDuration, setLeaveDuration] = useState("single"); // 'single' or 'multiple'
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  
   const [reason, setReason] = useState("");
   const [type, setType] = useState("full");
   const [file, setFile] = useState(null);
+  
+  // --- New Phase 2 States ---
+  const [pmsScores, setPmsScores] = useState({ kra1: "", kra2: "", kra3: "" });
+  const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
+
   const [loading, setLoading] = useState(false);
 
-  // Camera State
+  // --- Camera State (Updated for Retake) ---
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
+  const [previewImage, setPreviewImage] = useState(null); // New state for preview
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // Modal State
+  // --- Modal State ---
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalList, setModalList] = useState([]);
@@ -46,8 +52,8 @@ export default function EmployeeDashboard({ token, api }) {
   const approvedLeaves = leaves.filter(l => l.status === 'Approved');
   const rejectedLeaves = leaves.filter(l => l.status === 'Rejected');
   
-  const MAX_WORDS = 30; // UPDATED: Word count limit
-  const MAX_FILE_SIZE_MB = 5; // Max file size in MB
+  const MAX_WORDS = 30;
+  const MAX_FILE_SIZE_MB = 5;
 
   async function load() {
     setLoading(true);
@@ -67,9 +73,11 @@ export default function EmployeeDashboard({ token, api }) {
     load();
   }, []);
 
+  // --- CAMERA LOGIC (UPDATED WITH RETAKE) ---
   async function openCamera(type) {
     setActionType(type);
     setCameraOpen(true);
+    setPreviewImage(null); // Reset preview on open
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) videoRef.current.srcObject = stream;
@@ -88,8 +96,10 @@ export default function EmployeeDashboard({ token, api }) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Set preview instead of submitting immediately
     const imageData = canvas.toDataURL("image/jpeg");
-    submitAttendance(imageData);
+    setPreviewImage(imageData);
   }
 
   async function submitAttendance(imageData) {
@@ -114,11 +124,54 @@ export default function EmployeeDashboard({ token, api }) {
     }
   }
 
-  // UPDATED LEAVE SUBMISSION
+  // --- PHASE 2: PMS SUBMISSION ---
+  async function submitPMS(e) {
+    e.preventDefault();
+    try {
+        const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+        // Using generic api.post if available, or fetch wrapper
+        const res = await fetch(`${api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/pms/submit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ month, evaluation: pmsScores })
+        });
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.message);
+        
+        alert("Self-Evaluation Submitted Successfully!");
+        setView("dashboard");
+    } catch(err) { 
+        alert("Submission failed: " + err.message); 
+    }
+  }
+
+  // --- PHASE 2: ATTENDANCE CORRECTION ---
+  async function submitCorrection(e) {
+      e.preventDefault();
+      try {
+        const res = await fetch(`${api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/attendance/request-correction`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ 
+                new_time: correctionData.newTime,
+                reason: correctionData.reason,
+                attendance_id: "manual_entry" 
+            })
+        });
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.message);
+
+        alert("Correction Request Sent!");
+        setView("dashboard");
+      } catch (err) { 
+          alert("Error: " + err.message); 
+      }
+  }
+
+  // --- EXISTING LEAVE SUBMISSION ---
   async function applyLeave(e) {
     e.preventDefault();
     try {
-      // Determine dates based on single/multiple selection
       let payload = {
          type, 
          reason,
@@ -143,7 +196,6 @@ export default function EmployeeDashboard({ token, api }) {
   const handleReasonChange = (e) => {
     const val = e.target.value;
     const words = val.trim().split(/\s+/).filter(w => w.length > 0);
-    
     if (words.length <= MAX_WORDS) {
       setReason(val);
     }
@@ -153,15 +205,14 @@ export default function EmployeeDashboard({ token, api }) {
       return reason.trim() === "" ? 0 : reason.trim().split(/\s+/).filter(w => w.length > 0).length;
   }
   
-  // Handle File Upload with Size Check
+  // Handle File Upload
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
         const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
-        
         if (selectedFile.size > maxSize) {
             alert(`File is too large. Maximum size allowed is ${MAX_FILE_SIZE_MB}MB.`);
-            e.target.value = null; // Clear input
+            e.target.value = null; 
             setFile(null);
         } else {
             setFile(selectedFile);
@@ -204,7 +255,7 @@ export default function EmployeeDashboard({ token, api }) {
         .modern-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff; color: #333; }
         .modern-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; display: block; }
         .file-upload-label { display: flex; align-items: center; justify-content: center; padding: 20px; border: 2px dashed #ddd; border-radius: 8px; background: #fafafa; color: #666; cursor: pointer; gap: 10px; }
-        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; text-transform: capitalize; min-width: 80px; textXV-align: center; }
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; text-transform: capitalize; min-width: 80px; text-align: center; }
         .status-badge.approved { background: #dcfce7; color: #16a34a; }
         .status-badge.rejected { background: #fee2e2; color: #dc2626; }
         .status-badge.pending { background: #fef3c7; color: #d97706; }
@@ -242,6 +293,10 @@ export default function EmployeeDashboard({ token, api }) {
               <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} color="green" />
               <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} color="#b91c1c" />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
+              {/* NEW PHASE 2 BUTTONS */}
+              <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} color="#6366f1" />
+              <QuickLaunchItem icon={<FaEdit />} label="Correct Log" onClick={() => setView("correction")} color="#f59e0b" />
+              
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
@@ -259,30 +314,70 @@ export default function EmployeeDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- APPLY LEAVE (UPDATED) --- */}
+      {/* --- NEW PHASE 2: PMS VIEW --- */}
+      {view === "pms" && (
+          <div className="card" style={{marginTop: 16}}>
+              <h3>Monthly Self-Evaluation</h3>
+              <p className="small" style={{marginBottom:20}}>Please rate your performance for the current month. Once submitted, this cannot be edited.</p>
+              <form onSubmit={submitPMS}>
+                  <div style={{marginBottom:15}}>
+                    <label className="modern-label">KRA 1: Code Quality (1-10)</label>
+                    <input className="modern-input" type="number" min="1" max="10" required 
+                        onChange={e => setPmsScores({...pmsScores, kra1: e.target.value})} placeholder="Score" />
+                  </div>
+                  <div style={{marginBottom:15}}>
+                    <label className="modern-label">KRA 2: Delivery Speed (1-10)</label>
+                    <input className="modern-input" type="number" min="1" max="10" required 
+                        onChange={e => setPmsScores({...pmsScores, kra2: e.target.value})} placeholder="Score" />
+                  </div>
+                  <div style={{marginBottom:15}}>
+                    <label className="modern-label">KRA 3: Team Collaboration (1-10)</label>
+                    <input className="modern-input" type="number" min="1" max="10" required 
+                        onChange={e => setPmsScores({...pmsScores, kra3: e.target.value})} placeholder="Score" />
+                  </div>
+                  <div style={{display:'flex', justifyContent:'flex-end'}}>
+                      <button type="submit" className="btn" style={{marginTop:15}}>Submit Evaluation</button>
+                  </div>
+              </form>
+          </div>
+      )}
+
+      {/* --- NEW PHASE 2: CORRECTION VIEW --- */}
+      {view === "correction" && (
+          <div className="card" style={{marginTop: 16}}>
+              <h3>Request Attendance Correction</h3>
+              <p className="small" style={{marginBottom:20}}>You can request corrections up to 3 times per month.</p>
+              <form onSubmit={submitCorrection}>
+                  <div style={{marginBottom:15}}>
+                      <label className="modern-label">Correct Date & Time</label>
+                      <input className="modern-input" type="datetime-local" required 
+                          onChange={e => setCorrectionData({...correctionData, newTime: e.target.value})} />
+                  </div>
+                  <div style={{marginBottom:15}}>
+                      <label className="modern-label">Reason</label>
+                      <input className="modern-input" type="text" required placeholder="e.g. Forgot to punch out due to meeting..." 
+                          onChange={e => setCorrectionData({...correctionData, reason: e.target.value})} />
+                  </div>
+                  <div style={{display:'flex', justifyContent:'flex-end'}}>
+                      <button type="submit" className="btn" style={{marginTop:15}}>Send Request</button>
+                  </div>
+              </form>
+          </div>
+      )}
+
+      {/* --- APPLY LEAVE (EXISTING) --- */}
       {view === "apply-leave" && (
         <div className="card" style={{ marginTop: 16 }}>
           <form onSubmit={applyLeave}>
             
-            {/* Toggle Duration */}
             <div style={{display:'flex', gap:20, marginBottom:15}}>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
-                    <input 
-                        type="radio" 
-                        name="duration" 
-                        checked={leaveDuration === 'single'} 
-                        onChange={() => setLeaveDuration('single')} 
-                    />
+                    <input type="radio" name="duration" checked={leaveDuration === 'single'} onChange={() => setLeaveDuration('single')} />
                     <FaCalendarAlt style={{color: "var(--red)"}} />
                     <span style={{fontWeight:500}}>Single Day</span>
                 </label>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
-                    <input 
-                        type="radio" 
-                        name="duration" 
-                        checked={leaveDuration === 'multiple'} 
-                        onChange={() => setLeaveDuration('multiple')} 
-                    />
+                    <input type="radio" name="duration" checked={leaveDuration === 'multiple'} onChange={() => setLeaveDuration('multiple')} />
                     <FaCalendarAlt style={{color: "var(--red)"}} />
                     <span style={{fontWeight:500}}>Multiple Days</span>
                 </label>
@@ -291,29 +386,16 @@ export default function EmployeeDashboard({ token, api }) {
             <div className="form-row">
               <div style={{flex:1}}>
                 <label className="modern-label">{leaveDuration === 'single' ? 'Date' : 'Start Date'}</label>
-                <input
-                  className="modern-input"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  required
-                />
+                <input className="modern-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
               </div>
               
               {leaveDuration === 'multiple' && (
                   <div style={{flex:1}}>
                     <label className="modern-label">End Date</label>
-                    <input
-                      className="modern-input"
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      required
-                    />
+                    <input className="modern-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
                   </div>
               )}
 
-              {/* Show Leave Type only if Single Day (Assuming ranges are full days) */}
               {leaveDuration === 'single' && (
                   <div style={{flex:1}}>
                     <label className="modern-label">Leave Type</label>
@@ -327,14 +409,7 @@ export default function EmployeeDashboard({ token, api }) {
 
             <div style={{marginTop: 15}}>
               <label className="modern-label">Reason for Leave</label>
-              <textarea
-                className="modern-input"
-                style={{minHeight: "100px", resize: "vertical"}}
-                value={reason}
-                onChange={handleReasonChange}
-                required
-                placeholder="Reason (Max 30 words)..."
-              />
+              <textarea className="modern-input" style={{minHeight: "100px", resize: "vertical"}} value={reason} onChange={handleReasonChange} required placeholder="Reason (Max 30 words)..." />
               <div className="small" style={{textAlign:'right', marginTop:4, color: getWordCount() === MAX_WORDS ? 'red' : '#777'}}>
                  {getWordCount()}/{MAX_WORDS} words
               </div>
@@ -345,12 +420,7 @@ export default function EmployeeDashboard({ token, api }) {
               <label className="file-upload-label">
                 <FaCloudUploadAlt size={24} />
                 <span>{file ? file.name : "Click to upload a document (Max 5MB)"}</span>
-                <input 
-                    type="file" 
-                    accept=".pdf,.jpg,.jpeg,.png" 
-                    onChange={handleFileChange} 
-                    style={{display: "none"}} 
-                />
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} style={{display: "none"}} />
               </label>
             </div>
 
@@ -365,34 +435,17 @@ export default function EmployeeDashboard({ token, api }) {
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
           <div style={{overflowX: 'auto'}}>
             <table className="styled-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Attachment</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Attachment</th></tr></thead>
               <tbody>
                 {leaves.length === 0 ? (
                   <tr><td colSpan="4" style={{textAlign:"center", padding:20, color:"#999"}}>No leaves found.</td></tr>
                 ) : (
                   leaves.map((l) => (
                     <tr key={l._id}>
-                      <td style={{fontWeight:500}}>
-                          {l.from_date && l.to_date && l.from_date !== l.to_date 
-                             ? `${l.from_date} to ${l.to_date}` 
-                             : l.date}
-                      </td>
+                      <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
                       <td style={{textTransform:"capitalize"}}>{l.type}</td>
-                      <td>
-                        <span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span>
-                      </td>
-                      <td>
-                        {l.attachment_url ? (
-                          <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://erp-backend-production-d377.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a>
-                        ) : "-"}
-                      </td>
+                      <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
+                      <td>{l.attachment_url ? <a href={l.attachment_url} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))
                 )}
@@ -415,7 +468,7 @@ export default function EmployeeDashboard({ token, api }) {
                     <tr key={a._id}>
                       <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
                       <td>{new Date(a.time).toLocaleString()}</td>
-                      <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://erp-backend-production-d377.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{a.photo_url ? <a href={a.photo_url} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))
                 )}
@@ -447,16 +500,33 @@ export default function EmployeeDashboard({ token, api }) {
         </div>
       )}
 
+      {/* --- CAMERA MODAL (UPDATED WITH PREVIEW & RETAKE) --- */}
       {cameraOpen && (
-        <div className="camera-modal">
-          <div className="camera-box">
+        <div className="modal-overlay">
+          <div className="camera-box" style={{background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
             <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
-            <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000' }}></video>
+            
+            {!previewImage ? (
+                /* LIVE CAMERA VIEW */
+                <>
+                    <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000' }}></video>
+                    <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
+                        <button className="btn" onClick={capturePhoto}>Capture Photo</button>
+                        <button className="btn ghost" onClick={closeCamera}>Cancel</button>
+                    </div>
+                </>
+            ) : (
+                /* PREVIEW & RETAKE VIEW */
+                <>
+                    <img src={previewImage} style={{ width: "100%", borderRadius: "8px" }} alt="Preview" />
+                    <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
+                        <button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button>
+                        <button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button>
+                    </div>
+                </>
+            )}
+            
             <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
-            <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
-              <button className="btn" onClick={capturePhoto}>Capture & Submit</button>
-              <button className="btn ghost" onClick={closeCamera}>Cancel</button>
-            </div>
           </div>
         </div>
       )}

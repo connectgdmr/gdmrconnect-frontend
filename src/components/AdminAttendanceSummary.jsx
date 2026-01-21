@@ -1,11 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { FaFileCsv, FaFilePdf } from "react-icons/fa";
 
-// Helper function to convert data to CSV format
+// Helper function to convert data to CSV format (UPDATED for Phase 2)
 function convertToCSV(summary) {
-    let csv = 'Date,Present,Absent,On Leave,Not Checked-in\n';
+    // Header updated to reflect that Names are now included for Leaves
+    let csv = 'Date,Present,Absent,On Leave (Names),Not Checked-in\n';
+    
     Object.entries(summary.days).forEach(([date, d]) => {
-        csv += `${date},${d.present.length},${d.absent.length},${d.leave.length},${d.not_checked_in.length}\n`;
+        // --- PHASE 2: Export Names Logic ---
+        // Check if leave_names exists (from backend update) and join them
+        const leaveNames = d.leave_names && d.leave_names.length > 0 
+            ? d.leave_names.join(" | ") // Join with pipe separator to keep it in one CSV cell
+            : "None";
+
+        // Wrap leaveNames in quotes to handle any potential spaces or commas in names
+        csv += `${date},${d.present.length},${d.absent.length},"${leaveNames}",${d.not_checked_in.length}\n`;
     });
     return csv;
 }
@@ -18,6 +27,7 @@ function convertToPDFText(summary, month) {
   text += 'Date       | Present | Absent | On Leave | Not Checked-in\n';
   text += '----------------------------------------------------------\n';
   Object.entries(summary.days).forEach(([date, d]) => {
+      // PDF view keeps counts to maintain alignment
       text += `${date} | ${String(d.present.length).padEnd(7)} | ${String(d.absent.length).padEnd(6)} | ${String(d.leave.length).padEnd(8)} | ${d.not_checked_in.length}\n`;
   });
   text += '----------------------------------------------------------\n';
@@ -27,17 +37,18 @@ function convertToPDFText(summary, month) {
 export default function AdminAttendanceSummary({ token, api }) {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(false); // Change #4
+  const [loading, setLoading] = useState(false);
 
   async function loadSummary() {
-    setLoading(true); // Change #4
+    setLoading(true);
     try {
+        // This calls the updated backend endpoint which now returns 'leave_names'
         const data = await api.getAttendanceSummary(month, token);
         setSummary(data);
     } catch (error) {
         console.error("Error loading summary");
     } finally {
-        setLoading(false); // Change #4
+        setLoading(false);
     }
   }
 
@@ -69,7 +80,6 @@ export default function AdminAttendanceSummary({ token, api }) {
     }
   }
 
-  // Change #4: Loading Circle Logic
   if (loading || !summary) {
       return (
           <div className="card loader-container">
@@ -93,7 +103,7 @@ export default function AdminAttendanceSummary({ token, api }) {
                 style={{ width: "200px", marginBottom: 0 }}
             />
             
-            {/* Change #3: Export Buttons Aligned */}
+            {/* Export Buttons */}
             <div className="export-buttons">
                 <button 
                     className="btn ghost" 
@@ -131,6 +141,7 @@ export default function AdminAttendanceSummary({ token, api }) {
                   <td>{date}</td>
                   <td>{d.present.length}</td>
                   <td>{d.absent.length}</td>
+                  {/* Table displays count to keep UI clean; names are in CSV export */}
                   <td>{d.leave.length}</td>
                   <td>{d.not_checked_in.length}</td>
                 </tr>
