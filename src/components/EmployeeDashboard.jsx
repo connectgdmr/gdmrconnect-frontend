@@ -39,10 +39,13 @@ export default function EmployeeDashboard({ token, api }) {
 
   const [loading, setLoading] = useState(false);
 
-  // --- Camera State (Fixed) ---
+  // --- Camera State ---
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
   const [previewImage, setPreviewImage] = useState(null); 
+  // NEW: Loader state for submission
+  const [submittingPhoto, setSubmittingPhoto] = useState(false);
+  
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null); // Fix for stream cleanup
@@ -86,11 +89,12 @@ export default function EmployeeDashboard({ token, api }) {
     load();
   }, []);
 
-  // --- CAMERA LOGIC (FIXED) ---
+  // --- CAMERA LOGIC (FIXED WITH LOADER) ---
   async function openCamera(type) {
     setActionType(type);
     setCameraOpen(true);
     setPreviewImage(null); 
+    setSubmittingPhoto(false); // Ensure loader is off when opening
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream; // Keep ref to stream
@@ -117,17 +121,23 @@ export default function EmployeeDashboard({ token, api }) {
   }
 
   async function submitAttendance(imageData) {
+    setSubmittingPhoto(true); // START LOADER
     try {
       if (actionType === "checkin") {
         await api.checkinWithPhoto(token, imageData);
       } else {
         await api.checkoutWithPhoto(token, imageData);
       }
+      
+      // Artificial delay so user sees "Submitting..." message
+      await new Promise(r => setTimeout(r, 800));
+
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
       await load();
       closeCamera();
     } catch (err) {
       alert("Error submitting attendance: " + (err.message || ""));
+      setSubmittingPhoto(false); // Stop loader to allow retry
     }
   }
 
@@ -138,6 +148,7 @@ export default function EmployeeDashboard({ token, api }) {
     }
     setCameraOpen(false);
     setPreviewImage(null);
+    setSubmittingPhoto(false);
   }
 
   // --- PHASE 2: PMS SUBMISSION ---
@@ -284,6 +295,18 @@ export default function EmployeeDashboard({ token, api }) {
         .clickable-stat { cursor: pointer; transition: transform 0.2s; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; justify-content: center; align-items: center; }
         .modal-card { background: white; width: 450px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 80vh; }
+        
+        /* NEW: LOADER STYLE */
+        .loader {
+          border: 4px solid #f3f3f3;
+          border-top: 4px solid #3498db;
+          border-radius: 50%;
+          width: 30px;
+          height: 30px;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 10px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       `}</style>
 
       {view === "dashboard" ? (
@@ -473,7 +496,12 @@ export default function EmployeeDashboard({ token, api }) {
               <label className="file-upload-label">
                 <FaCloudUploadAlt size={24} />
                 <span>{file ? file.name : "Click to upload a document (Max 5MB)"}</span>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} style={{display: "none"}} />
+                <input 
+                    type="file" 
+                    accept=".pdf,.jpg,.jpeg,.png" 
+                    onChange={handleFileChange} 
+                    style={{display: "none"}} 
+                />
               </label>
             </div>
 
@@ -541,10 +569,10 @@ export default function EmployeeDashboard({ token, api }) {
               <button className="btn ghost" onClick={() => setLeaveModalOpen(false)}><FaTimes /></button>
             </div>
             <div style={{overflowY:'auto', flex:1}}>
-              {modalList.length === 0 ? <p style={{textAlign:'center', color:'#999'}}>No records found.</p> : modalList.map((l) => (
+               {modalList.map((l) => (
                   <div key={l._id} style={{padding:12, borderBottom:'1px solid #f9f9f9'}}>
                     <div style={{fontWeight:600}}>{l.date || l.from_date}</div>
-                    <div style={{fontSize:13, color:'#666'}}>"{l.reason || "No reason"}"</div>
+                    <div style={{fontSize:13, color:'#666'}}>"{l.reason}"</div>
                     <span className={`status-badge ${getStatusClass(l.status)}`} style={{marginTop:5}}>{l.status || 'Pending'}</span>
                   </div>
               ))}
@@ -553,31 +581,43 @@ export default function EmployeeDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- FIXED CAMERA MODAL (RETAKE FIX) --- */}
+      {/* --- FIXED CAMERA MODAL WITH LOADER --- */}
       {cameraOpen && (
         <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
           <div className="camera-box" style={{background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
-            <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
             
-            {/* TOGGLE VISIBILITY INSTEAD OF UNMOUNTING */}
-            <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
-            {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
-            
-            <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
-            
-            <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
-              {!previewImage ? (
-                  <>
-                    <button className="btn" onClick={capturePhoto}>Capture</button>
-                    <button className="btn ghost" onClick={closeCamera}>Cancel</button>
-                  </>
-              ) : (
-                  <>
-                    <button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button>
-                    <button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button>
-                  </>
-              )}
-            </div>
+            {submittingPhoto ? (
+                // --- LOADING UI ---
+                <div style={{ padding: "40px 20px" }}>
+                    <div className="loader"></div>
+                    <p style={{ marginTop: 15, fontWeight: 500, color: "#555" }}>
+                        Submitting attendance...
+                    </p>
+                    <p style={{ fontSize: "12px", color: "#888" }}>Please wait</p>
+                </div>
+            ) : (
+                // --- CAMERA UI ---
+                <>
+                    <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
+                    <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
+                    {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
+                    <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
+                    
+                    <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
+                        {!previewImage ? (
+                            <>
+                                <button className="btn" onClick={capturePhoto}>Capture</button>
+                                <button className="btn ghost" onClick={closeCamera}>Cancel</button>
+                            </>
+                        ) : (
+                            <>
+                                <button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button>
+                                <button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button>
+                            </>
+                        )}
+                    </div>
+                </>
+            )}
           </div>
         </div>
       )}

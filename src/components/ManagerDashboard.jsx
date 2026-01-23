@@ -41,13 +41,16 @@ export default function ManagerDashboard({ token, api }) {
   
   const [loading, setLoading] = useState(false);
   
-  // --- CAMERA STATE (FIXED) ---
+  // --- CAMERA STATE ---
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
-  const [previewImage, setPreviewImage] = useState(null); // Added for Retake
+  const [previewImage, setPreviewImage] = useState(null);
+  // NEW: State for the loader
+  const [submittingPhoto, setSubmittingPhoto] = useState(false); 
+  
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const streamRef = useRef(null); // Reference to stop stream properly
+  const streamRef = useRef(null);
 
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
@@ -71,7 +74,6 @@ export default function ManagerDashboard({ token, api }) {
       setTeamMembers(t); 
 
       // --- FETCH PENDING ACTIONS ---
-      // Determine Base URL (fallback to production if not set in api)
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       
       const pmsRes = await fetch(`${baseUrl}/api/manager/pms`, { headers: {'Authorization': `Bearer ${token}`} });
@@ -96,9 +98,10 @@ export default function ManagerDashboard({ token, api }) {
     setActionType(type);
     setCameraOpen(true);
     setPreviewImage(null);
+    setSubmittingPhoto(false); // Reset loader
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      streamRef.current = stream; // Store stream to stop it later
+      streamRef.current = stream; 
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (err) {
       alert("Camera access denied or unavailable.");
@@ -116,37 +119,42 @@ export default function ManagerDashboard({ token, api }) {
     canvas.height = video.videoHeight;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    // Show preview instead of auto-submitting
     const imageData = canvas.toDataURL("image/jpeg");
     setPreviewImage(imageData);
   }
 
   async function submitAttendance(imageData) {
+    setSubmittingPhoto(true); // SHOW LOADER
     try {
       if (actionType === "checkin") {
         await api.checkinWithPhoto(token, imageData);
       } else {
         await api.checkoutWithPhoto(token, imageData);
       }
+      
+      // Allow the loader to be seen briefly before the alert
+      await new Promise(resolve => setTimeout(resolve, 500)); 
+
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
       await load();
       closeCamera();
     } catch (err) {
       alert("Error submitting attendance: " + (err.message || ""));
+      setSubmittingPhoto(false); // Hide loader so they can retry
     }
   }
 
   function closeCamera() {
-    // Stop all tracks to turn off camera light
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
     }
     setCameraOpen(false);
     setPreviewImage(null);
+    setSubmittingPhoto(false);
   }
 
-  // --- MANAGER ACTIONS (APPROVE/REJECT) ---
+  // --- MANAGER ACTIONS ---
   async function finalizePMS(id, score) {
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
@@ -201,7 +209,6 @@ export default function ManagerDashboard({ token, api }) {
   const handleReasonChange = (e) => {
     const val = e.target.value;
     const words = val.trim().split(/\s+/).filter(w => w.length > 0);
-    
     if (words.length <= MAX_WORDS) {
       setReason(val);
     }
@@ -211,18 +218,15 @@ export default function ManagerDashboard({ token, api }) {
       return reason.trim() === "" ? 0 : reason.trim().split(/\s+/).filter(w => w.length > 0).length;
   }
   
-  // Handle File Upload with Size Check
+  // Handle File Upload
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
         const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
         if (selectedFile.size > maxSize) {
             alert(`File is too large. Maximum size allowed is ${MAX_FILE_SIZE_MB}MB.`);
-            e.target.value = null; // Clear input
-            setFile(null);
-        } else {
-            setFile(selectedFile);
-        }
+            e.target.value = null; setFile(null);
+        } else { setFile(selectedFile); }
     }
   };
 
@@ -286,6 +290,18 @@ export default function ManagerDashboard({ token, api }) {
         .styled-table thead th { background-color: #fff3f3; color: #b91c1c; text-align: left; padding: 12px 15px; font-weight: 600; border-bottom: 2px solid #fee2e2; }
         .styled-table tbody td { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; color: #444; }
         .btn-small { padding: 4px 8px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; color: white; margin-right: 5px; }
+        
+        /* LOADER CSS */
+        .loader {
+          border: 4px solid #f3f3f3;
+          border-top: 4px solid #3498db;
+          border-radius: 50%;
+          width: 30px;
+          height: 30px;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 10px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       `}</style>
 
       {view === "dashboard" ? (
@@ -347,7 +363,6 @@ export default function ManagerDashboard({ token, api }) {
                                 <td>{p.employee_name}</td>
                                 <td>{p.month}</td>
                                 <td>
-                                    {/* Display scores nicely if object, else raw */}
                                     <div style={{fontSize:12}}>
                                         {typeof p.self_evaluation === 'object' ? 
                                             Object.entries(p.self_evaluation).map(([k,v]) => <div key={k}><b>{k}:</b> {v}</div>) 
@@ -528,31 +543,46 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- FIXED CAMERA MODAL (RETAKE & BLACK SCREEN FIX) --- */}
+      {/* --- FIXED CAMERA MODAL WITH LOADER --- */}
       {cameraOpen && (
-        <div className="modal-overlay">
-          <div className="camera-box">
-            <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
+        <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
+          <div className="camera-box" style={{background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
             
-            {/* TOGGLE VIDEO/IMAGE VISIBILITY (KEEP STREAM ALIVE) */}
-            <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
-            {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
-            
-            <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
-            
-            <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
-              {!previewImage ? (
-                  <>
-                    <button className="btn" onClick={capturePhoto}>Capture</button>
-                    <button className="btn ghost" onClick={closeCamera}>Cancel</button>
-                  </>
-              ) : (
-                  <>
-                    <button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button>
-                    <button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button>
-                  </>
-              )}
-            </div>
+            {submittingPhoto ? (
+                // --- LOADING STATE ---
+                <div style={{ padding: "40px 20px" }}>
+                    <div className="loader"></div>
+                    <p style={{ marginTop: 15, fontWeight: 500, color: "#555" }}>
+                        Submitting attendance...
+                    </p>
+                    <p style={{ fontSize: "12px", color: "#888" }}>Please wait</p>
+                </div>
+            ) : (
+                // --- CAMERA / PREVIEW STATE ---
+                <>
+                    <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
+                    
+                    {/* TOGGLE VIDEO/IMAGE VISIBILITY */}
+                    <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
+                    {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
+                    
+                    <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
+                    
+                    <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
+                        {!previewImage ? (
+                            <>
+                                <button className="btn" onClick={capturePhoto}>Capture</button>
+                                <button className="btn ghost" onClick={closeCamera}>Cancel</button>
+                            </>
+                        ) : (
+                            <>
+                                <button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button>
+                                <button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button>
+                            </>
+                        )}
+                    </div>
+                </>
+            )}
           </div>
         </div>
       )}
