@@ -4,7 +4,7 @@ import HolidayCalendar from "./HolidayCalendar";
 import {
   FaCamera, FaSignOutAlt, FaCalendarPlus, FaCalendarCheck, FaHistory, FaArrowLeft, FaCheckCircle, 
   FaHourglassHalf, FaTimesCircle, FaUserCheck, FaTimes, FaCloudUploadAlt, FaCalendarAlt, FaUsers,
-  FaChartLine, FaClipboardCheck, FaBullhorn, FaEye // Added FaEye for view
+  FaChartLine, FaClipboardCheck, FaBullhorn, FaEye, FaBell
 } from "react-icons/fa";
 
 export default function ManagerDashboard({ token, api }) {
@@ -13,8 +13,8 @@ export default function ManagerDashboard({ token, api }) {
   const [teamMembers, setTeamMembers] = useState([]);
   const [teamLeaves, setTeamLeaves] = useState([]); 
   
-  // --- Notifications & Announcements ---
-  const [notificationCounts, setNotificationCounts] = useState({ leaves: 0, pms: 0, corrections: 0 });
+  // --- Notification & Announcement States ---
+  const [notificationCounts, setNotificationCounts] = useState({ leaves: 0, pms: 0, corrections: 0, announcements: 0 });
   const [announcements, setAnnouncements] = useState([]);
 
   // --- Manager Approval States ---
@@ -107,7 +107,7 @@ export default function ManagerDashboard({ token, api }) {
       streamRef.current = stream; 
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (err) {
-      alert("Camera access denied or unavailable.");
+      alert("Camera access denied.");
       setCameraOpen(false);
     }
   }
@@ -134,7 +134,7 @@ export default function ManagerDashboard({ token, api }) {
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
       await load();
     } catch (err) {
-      alert("Error submitting attendance: " + (err.message || ""));
+      alert("Error submitting: " + (err.message || ""));
       setSubmittingPhoto(false); 
     }
   }
@@ -168,7 +168,7 @@ export default function ManagerDashboard({ token, api }) {
               body: JSON.stringify({ employee_id: selectedEmployee, questions: pmsQuestions.filter(q => q.trim() !== ""), month })
           });
           if(res.ok) {
-              alert("PMS Assigned Successfully");
+              alert("PMS Questions Assigned Successfully");
               setPmsQuestions([""]); setSelectedEmployee("");
           }
       } catch(err) { alert("Error assigning PMS"); }
@@ -176,7 +176,7 @@ export default function ManagerDashboard({ token, api }) {
 
   async function finalizePMS(id) {
       const score = reviewScore[id];
-      if(!score) return alert("Please enter a score first");
+      if(!score) return alert("Please enter a score");
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
           await fetch(`${baseUrl}/api/manager/finalize-pms`, {
@@ -184,10 +184,13 @@ export default function ManagerDashboard({ token, api }) {
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ id, manager_score: score })
           });
-          alert("PMS Finalized"); load();
+          alert("PMS Finalized"); 
+          setViewPMSModalOpen(false); // Close modal
+          load();
       } catch(err) { alert(err.message); }
   }
 
+  // Opens the review modal to see Q&A
   function handleViewPMS(pms) {
       setSelectedPMS(pms);
       setViewPMSModalOpen(true);
@@ -220,13 +223,7 @@ export default function ManagerDashboard({ token, api }) {
   async function applyLeave(e) {
     e.preventDefault();
     try {
-      let payload = { 
-          type, 
-          reason, 
-          period: type === 'half' ? period : null, 
-          from_date: startDate, 
-          to_date: leaveDuration === 'single' ? startDate : endDate 
-      };
+      let payload = { type, reason, period: type === 'half' ? period : null, from_date: startDate, to_date: leaveDuration === 'single' ? startDate : endDate };
       await api.applyLeaveWithFile(payload, file, token);
       setStartDate(""); setEndDate(""); setReason(""); setFile(null);
       await load(); alert("Applied!"); setView("my-leaves"); 
@@ -325,7 +322,7 @@ export default function ManagerDashboard({ token, api }) {
               <QuickLaunchItem icon={<FaUsers />} label="Team Members" onClick={() => setView("team-members")} color="var(--red)" />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
-              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
+              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} badgeCount={notificationCounts.announcements} />
             </div>
           </div>
 
@@ -354,11 +351,12 @@ export default function ManagerDashboard({ token, api }) {
          </div>
       )}
 
-      {/* --- PMS MANAGER --- */}
+      {/* --- PMS MANAGER (ASSIGN & REVIEW) --- */}
       {view === "pms-manager" && (
           <div className="card">
               <h3>Performance Management System</h3>
               
+              {/* Assign Section */}
               <div style={{marginBottom: 30, borderBottom:'1px solid #eee', paddingBottom: 20}}>
                   <h4 style={{color:'#555'}}>1. Assign Questions</h4>
                   <form onSubmit={assignPMS} style={{marginTop:15}}>
@@ -376,6 +374,7 @@ export default function ManagerDashboard({ token, api }) {
                   </form>
               </div>
 
+              {/* Review Section */}
               <h4 style={{color:'#555'}}>2. Pending Reviews</h4>
               <div style={{overflowX:'auto'}}>
                 <table className="styled-table">
@@ -393,6 +392,7 @@ export default function ManagerDashboard({ token, api }) {
                 </table>
               </div>
 
+              {/* History Section */}
               <h4 style={{color:'#555', marginTop:30}}>3. Completed Reviews</h4>
               <div style={{overflowX:'auto'}}>
                 <table className="styled-table">
@@ -556,42 +556,7 @@ export default function ManagerDashboard({ token, api }) {
       )}
 
       {view === "attendance-log" && (
-        <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
-            <table className="styled-table">
-              <thead><tr><th>Type</th><th>Date / Time</th><th>Photo</th></tr></thead>
-              <tbody>
-                {attendance.map((a) => (
-                    <tr key={a._id}>
-                      <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
-                      <td>{new Date(a.time).toLocaleString()}</td>
-                      <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://erp-backend-production-d377.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
-                    </tr>
-                ))}
-              </tbody>
-            </table>
-        </div>
-      )}
-
-      {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
-
-      {leaveModalOpen && (
-        <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()}>
-            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15}}>
-              <h3 style={{ margin: 0, color: 'var(--red)' }}>{modalTitle}</h3>
-              <button className="btn ghost" onClick={() => setLeaveModalOpen(false)}><FaTimes /></button>
-            </div>
-            <div style={{overflowY:'auto', flex:1}}>
-               {modalList.map((l) => (
-                  <div key={l._id} style={{padding:12, borderBottom:'1px solid #f9f9f9'}}>
-                    <div style={{fontWeight:600}}>{l.date || l.from_date}</div>
-                    <div style={{fontSize:13, color:'#666'}}>"{l.reason || "No reason"}"</div>
-                    <span className={`status-badge ${getStatusClass(l.status)}`} style={{marginTop:5}}>{l.status || 'Pending'}</span>
-                  </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <div className="card"><table className="styled-table"><tbody>{attendance.map(a => <tr key={a._id}><td>{a.type}</td><td>{new Date(a.time).toLocaleString()}</td></tr>)}</tbody></table></div>
       )}
 
       {/* --- PMS REVIEW MODAL --- */}
@@ -625,7 +590,7 @@ export default function ManagerDashboard({ token, api }) {
                             className="modern-input" 
                             onChange={e => setReviewScore({...reviewScore, [selectedPMS._id]: e.target.value})}
                         />
-                        <button className="btn" style={{marginTop:10, width:'100%'}} onClick={() => { finalizePMS(selectedPMS._id); setViewPMSModalOpen(false); }}>Submit Score & Approve</button>
+                        <button className="btn" style={{marginTop:10, width:'100%'}} onClick={() => { finalizePMS(selectedPMS._id); }}>Submit Score & Approve</button>
                     </div>
                 )}
                 
