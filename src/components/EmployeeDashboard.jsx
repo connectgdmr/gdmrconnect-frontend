@@ -22,35 +22,33 @@ export default function EmployeeDashboard({ token, api }) {
   const [leaves, setLeaves] = useState([]);
   const [pmsHistory, setPmsHistory] = useState([]);
   const [correctionHistory, setCorrectionHistory] = useState([]);
-  
-  // --- NEW: Dynamic Questions from Manager ---
-  const [pmsQuestions, setPmsQuestions] = useState([]); 
-  const [pmsAnswers, setPmsAnswers] = useState({});
 
   const [view, setView] = useState("dashboard"); 
   
-  // Leave Form State
-  const [leaveDuration, setLeaveDuration] = useState("single"); 
+  // --- Leave Form State ---
+  const [leaveDuration, setLeaveDuration] = useState("single"); // 'single' or 'multiple'
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [type, setType] = useState("full");
   const [file, setFile] = useState(null);
   
-  // Correction State
+  // --- New Phase 2 States ---
+  const [pmsScores, setPmsScores] = useState({ kra1: "", kra2: "", kra3: "" });
   const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
 
   const [loading, setLoading] = useState(false);
 
-  // Camera State
+  // --- Camera State ---
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
   const [previewImage, setPreviewImage] = useState(null); 
-  const [submittingPhoto, setSubmittingPhoto] = useState(false); // LOADER STATE
+  // NEW: Loader state for submission
+  const [submittingPhoto, setSubmittingPhoto] = useState(false);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const streamRef = useRef(null); 
+  const streamRef = useRef(null); // Fix for stream cleanup
 
   // --- Modal State ---
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
@@ -72,37 +70,34 @@ export default function EmployeeDashboard({ token, api }) {
       setAttendance(a);
       setLeaves(l);
 
+      // --- FETCH HISTORY ---
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-      
-      // Fetch History
       const pmsRes = await fetch(`${baseUrl}/api/my/pms`, { headers: { 'Authorization': `Bearer ${token}` } });
       if(pmsRes.ok) setPmsHistory(await pmsRes.json());
 
       const corrRes = await fetch(`${baseUrl}/api/my/corrections`, { headers: { 'Authorization': `Bearer ${token}` } });
       if(corrRes.ok) setCorrectionHistory(await corrRes.json());
-      
-      // Fetch Assigned Questions
-      const questionsRes = await fetch(`${baseUrl}/api/employee/pms-assignment`, { headers: { 'Authorization': `Bearer ${token}` } });
-      if(questionsRes.ok) {
-          const data = await questionsRes.json();
-          setPmsQuestions(data.questions || []);
-      }
 
-    } catch (err) { console.error("Error loading data", err); } 
-    finally { setLoading(false); }
+    } catch (err) {
+      console.error("Error loading data", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
-  // --- CAMERA LOGIC ---
+  // --- CAMERA LOGIC (FIXED WITH LOADER) ---
   async function openCamera(type) {
     setActionType(type);
     setCameraOpen(true);
-    setPreviewImage(null);
-    setSubmittingPhoto(false);
+    setPreviewImage(null); 
+    setSubmittingPhoto(false); // Ensure loader is off when opening
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      streamRef.current = stream; 
+      streamRef.current = stream; // Keep ref to stream
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (err) {
       alert("Camera access denied or unavailable.");
@@ -114,30 +109,35 @@ export default function EmployeeDashboard({ token, api }) {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
+    
+    const context = canvas.getContext("2d");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    context = canvas.getContext("2d");
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    setPreviewImage(canvas.toDataURL("image/jpeg"));
+    
+    // Preview
+    const imageData = canvas.toDataURL("image/jpeg");
+    setPreviewImage(imageData);
   }
 
   async function submitAttendance(imageData) {
     setSubmittingPhoto(true); // START LOADER
     try {
-      if (actionType === "checkin") await api.checkinWithPhoto(token, imageData);
-      else await api.checkoutWithPhoto(token, imageData);
+      if (actionType === "checkin") {
+        await api.checkinWithPhoto(token, imageData);
+      } else {
+        await api.checkoutWithPhoto(token, imageData);
+      }
       
-      await new Promise(r => setTimeout(r, 500)); // Short delay
+      // Artificial delay so user sees "Submitting..." message
+      await new Promise(r => setTimeout(r, 800));
 
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
-      
-      // FIX: Stop loader & close immediately
-      setSubmittingPhoto(false); 
-      closeCamera(); 
       await load();
+      closeCamera();
     } catch (err) {
       alert("Error submitting attendance: " + (err.message || ""));
-      setSubmittingPhoto(false); 
+      setSubmittingPhoto(false); // Stop loader to allow retry
     }
   }
 
@@ -151,11 +151,7 @@ export default function EmployeeDashboard({ token, api }) {
     setSubmittingPhoto(false);
   }
 
-  // --- DYNAMIC PMS SUBMISSION ---
-  function handleAnswerChange(question, answer) {
-      setPmsAnswers(prev => ({ ...prev, [question]: answer }));
-  }
-
+  // --- PHASE 2: PMS SUBMISSION ---
   async function submitPMS(e) {
     e.preventDefault();
     try {
@@ -163,47 +159,96 @@ export default function EmployeeDashboard({ token, api }) {
         const res = await fetch(`${api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/pms/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ month, evaluation: pmsAnswers })
+            body: JSON.stringify({ month, evaluation: pmsScores })
         });
         const data = await res.json();
         if(!res.ok) throw new Error(data.message);
-        alert("PMS Submitted!");
+        
+        alert("Self-Evaluation Submitted Successfully!");
         setView("dashboard");
-        load(); 
-    } catch(err) { alert("Submission failed: " + err.message); }
+        load(); // Refresh history
+    } catch(err) { 
+        alert("Submission failed: " + err.message); 
+    }
   }
 
+  // --- PHASE 2: ATTENDANCE CORRECTION ---
   async function submitCorrection(e) {
       e.preventDefault();
       try {
         const res = await fetch(`${api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/attendance/request-correction`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ new_time: correctionData.newTime, reason: correctionData.reason })
+            body: JSON.stringify({ 
+                new_time: correctionData.newTime,
+                reason: correctionData.reason,
+                attendance_id: "manual_entry" 
+            })
         });
-        if(!res.ok) throw new Error("Failed");
-        alert("Request Sent!"); setView("my-leaves"); load();
-      } catch (err) { alert("Error sending request"); }
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.message);
+
+        alert("Correction Request Sent!");
+        setView("dashboard");
+        load(); // Refresh history
+      } catch (err) { 
+          alert("Error: " + err.message); 
+      }
   }
 
+  // --- EXISTING LEAVE SUBMISSION ---
   async function applyLeave(e) {
     e.preventDefault();
     try {
-      let payload = { type, reason, from_date: startDate, to_date: leaveDuration === 'single' ? startDate : endDate };
+      let payload = {
+         type, 
+         reason,
+         from_date: startDate,
+         to_date: leaveDuration === 'single' ? startDate : endDate
+      };
+
       await api.applyLeaveWithFile(payload, file, token);
-      setStartDate(""); setEndDate(""); setReason(""); setFile(null);
-      await load(); alert("Leave applied successfully!"); setView("my-leaves"); 
-    } catch (err) { alert("Error applying leave: " + (err.message || "")); }
+      setStartDate("");
+      setEndDate("");
+      setReason("");
+      setFile(null);
+      await load();
+      alert("Leave applied successfully!");
+      setView("my-leaves"); 
+    } catch (err) {
+      alert("Error applying leave: " + (err.message || ""));
+    }
   }
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile && selectedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        alert("File too large."); e.target.value = null; setFile(null);
-    } else { setFile(selectedFile); }
+  // Handle Reason Word Count
+  const handleReasonChange = (e) => {
+    const val = e.target.value;
+    const words = val.trim().split(/\s+/).filter(w => w.length > 0);
+    if (words.length <= MAX_WORDS) {
+      setReason(val);
+    }
   };
 
-  const handleStatClick = (title, list) => {
+  const getWordCount = () => {
+      return reason.trim() === "" ? 0 : reason.trim().split(/\s+/).filter(w => w.length > 0).length;
+  }
+  
+  // Handle File Upload
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+        const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
+        if (selectedFile.size > maxSize) {
+            alert(`File is too large. Maximum size allowed is ${MAX_FILE_SIZE_MB}MB.`);
+            e.target.value = null; 
+            setFile(null);
+        } else {
+            setFile(selectedFile);
+        }
+    }
+  };
+
+  function handleStatClick(title, list) {
     setModalTitle(title);
     setModalList(list);
     setLeaveModalOpen(true);
@@ -219,7 +264,11 @@ export default function EmployeeDashboard({ token, api }) {
   );
 
   const StatItem = ({ icon, label, count, colorClass, onClick }) => (
-    <div className="stat-row clickable-stat" onClick={onClick}>
+    <div 
+      className="stat-row clickable-stat" 
+      onClick={onClick}
+      title="Click to view details"
+    >
       <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
       <div className="stat-info">
         <span className="stat-count">{count}</span>
@@ -286,7 +335,7 @@ export default function EmployeeDashboard({ token, api }) {
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               {/* NEW PHASE 2 BUTTONS */}
               <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} color="#6366f1" />
-              {/* REMOVED: Correct Log from here */}
+              <QuickLaunchItem icon={<FaEdit />} label="Correct Log" onClick={() => setView("correction")} color="#f59e0b" />
               
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
@@ -305,24 +354,31 @@ export default function EmployeeDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- DYNAMIC PMS VIEW --- */}
+      {/* --- NEW PHASE 2: PMS VIEW --- */}
       {view === "pms" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Monthly Self-Evaluation</h3>
-              {pmsQuestions.length === 0 ? (
-                  <p style={{color:'#777'}}>No questions assigned by manager for this month.</p>
-              ) : (
-                  <form onSubmit={submitPMS}>
-                      {pmsQuestions.map((q, i) => (
-                          <div key={i} style={{marginBottom:15}}>
-                              <label className="modern-label">{q}</label>
-                              <textarea className="modern-input" required 
-                                  onChange={e => handleAnswerChange(q, e.target.value)} />
-                          </div>
-                      ))}
-                      <button type="submit" className="btn" style={{marginTop:10}}>Submit Evaluation</button>
-                  </form>
-              )}
+              <p className="small" style={{marginBottom:20}}>Please rate your performance for the current month. Once submitted, this cannot be edited.</p>
+              <form onSubmit={submitPMS}>
+                  <div style={{marginBottom:15}}>
+                    <label className="modern-label">KRA 1: Code Quality (1-10)</label>
+                    <input className="modern-input" type="number" min="1" max="10" required 
+                        onChange={e => setPmsScores({...pmsScores, kra1: e.target.value})} placeholder="Score" />
+                  </div>
+                  <div style={{marginBottom:15}}>
+                    <label className="modern-label">KRA 2: Delivery Speed (1-10)</label>
+                    <input className="modern-input" type="number" min="1" max="10" required 
+                        onChange={e => setPmsScores({...pmsScores, kra2: e.target.value})} placeholder="Score" />
+                  </div>
+                  <div style={{marginBottom:15}}>
+                    <label className="modern-label">KRA 3: Team Collaboration (1-10)</label>
+                    <input className="modern-input" type="number" min="1" max="10" required 
+                        onChange={e => setPmsScores({...pmsScores, kra3: e.target.value})} placeholder="Score" />
+                  </div>
+                  <div style={{display:'flex', justifyContent:'flex-end'}}>
+                      <button type="submit" className="btn" style={{marginTop:15}}>Submit Evaluation</button>
+                  </div>
+              </form>
 
               {/* PMS HISTORY TABLE */}
               <h4 style={{marginTop:30, color:'var(--red)'}}>My Evaluation History</h4>
@@ -344,7 +400,7 @@ export default function EmployeeDashboard({ token, api }) {
           </div>
       )}
 
-      {/* --- CORRECTION VIEW (Inside My Leaves Flow) --- */}
+      {/* --- NEW PHASE 2: CORRECTION VIEW --- */}
       {view === "correction" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Request Attendance Correction</h3>
@@ -385,7 +441,7 @@ export default function EmployeeDashboard({ token, api }) {
           </div>
       )}
 
-      {/* --- APPLY LEAVE --- */}
+      {/* --- APPLY LEAVE (EXISTING) --- */}
       {view === "apply-leave" && (
         <div className="card" style={{ marginTop: 16 }}>
           <form onSubmit={applyLeave}>
@@ -456,16 +512,8 @@ export default function EmployeeDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- MY LEAVES VIEW WITH CORRECTION BTN --- */}
       {view === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
-              <h3 style={{margin:0, color:'var(--red)'}}>My Leaves</h3>
-              {/* Correction Button Added Here */}
-              <button className="btn" style={{background:'#f59e0b', fontSize:'13px'}} onClick={() => setView("correction")}>
-                  <FaEdit style={{marginRight:5}}/> Correction
-              </button>
-          </div>
           <div style={{overflowX: 'auto'}}>
             <table className="styled-table">
               <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Attachment</th></tr></thead>
@@ -478,7 +526,7 @@ export default function EmployeeDashboard({ token, api }) {
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
                       <td style={{textTransform:"capitalize"}}>{l.type}</td>
                       <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
-                      <td>{l.attachment_url ? <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://erp-backend-production-d377.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{l.attachment_url ? <a href={l.attachment_url} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))
                 )}
@@ -501,7 +549,7 @@ export default function EmployeeDashboard({ token, api }) {
                     <tr key={a._id}>
                       <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
                       <td>{new Date(a.time).toLocaleString()}</td>
-                      <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://erp-backend-production-d377.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{a.photo_url ? <a href={a.photo_url} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))
                 )}
@@ -524,7 +572,7 @@ export default function EmployeeDashboard({ token, api }) {
                {modalList.map((l) => (
                   <div key={l._id} style={{padding:12, borderBottom:'1px solid #f9f9f9'}}>
                     <div style={{fontWeight:600}}>{l.date || l.from_date}</div>
-                    <div style={{fontSize:13, color:'#666'}}>"{l.reason || "No reason"}"</div>
+                    <div style={{fontSize:13, color:'#666'}}>"{l.reason}"</div>
                     <span className={`status-badge ${getStatusClass(l.status)}`} style={{marginTop:5}}>{l.status || 'Pending'}</span>
                   </div>
               ))}
@@ -551,11 +599,8 @@ export default function EmployeeDashboard({ token, api }) {
                 // --- CAMERA UI ---
                 <>
                     <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
-                    
-                    {/* TOGGLE VIDEO/IMAGE VISIBILITY */}
                     <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
                     {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
-                    
                     <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
                     
                     <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
