@@ -16,8 +16,8 @@ import {
   FaCloudUploadAlt,
   FaCalendarAlt, 
   FaUsers,
-  FaChartLine,        // Added for PMS
-  FaClipboardCheck    // Added for Corrections
+  FaChartLine,
+  FaClipboardCheck
 } from "react-icons/fa";
 
 export default function ManagerDashboard({ token, api }) {
@@ -28,6 +28,12 @@ export default function ManagerDashboard({ token, api }) {
   // --- NEW: Manager Approval States ---
   const [pendingPMS, setPendingPMS] = useState([]);
   const [pendingCorrections, setPendingCorrections] = useState([]);
+  const [teamLeaves, setTeamLeaves] = useState([]); // Explicit state for custom table if needed
+
+  // --- NEW: Dynamic PMS States ---
+  const [selectedEmployee, setSelectedEmployee] = useState("");
+  const [pmsQuestions, setPmsQuestions] = useState([""]);
+  const [reviewScore, setReviewScore] = useState({});
 
   const [view, setView] = useState("dashboard"); 
   
@@ -41,12 +47,11 @@ export default function ManagerDashboard({ token, api }) {
   
   const [loading, setLoading] = useState(false);
   
-  // --- CAMERA STATE ---
+  // --- CAMERA STATE (FIXED WITH LOADER) ---
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
-  const [previewImage, setPreviewImage] = useState(null);
-  // NEW: State for the loader
-  const [submittingPhoto, setSubmittingPhoto] = useState(false); 
+  const [previewImage, setPreviewImage] = useState(null); 
+  const [submittingPhoto, setSubmittingPhoto] = useState(false); // Loader State
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -81,6 +86,10 @@ export default function ManagerDashboard({ token, api }) {
 
       const corrRes = await fetch(`${baseUrl}/api/manager/corrections`, { headers: {'Authorization': `Bearer ${token}`} });
       if(corrRes.ok) setPendingCorrections(await corrRes.json());
+      
+      // Fetch leaves for the custom view (to show Applied Date)
+      const leavesRes = await fetch(`${baseUrl}/api/admin/leaves`, { headers: {'Authorization': `Bearer ${token}`} });
+      if(leavesRes.ok) setTeamLeaves(await leavesRes.json());
 
     } catch (err) {
       console.error("Error loading data", err);
@@ -98,7 +107,7 @@ export default function ManagerDashboard({ token, api }) {
     setActionType(type);
     setCameraOpen(true);
     setPreviewImage(null);
-    setSubmittingPhoto(false); // Reset loader
+    setSubmittingPhoto(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream; 
@@ -124,7 +133,7 @@ export default function ManagerDashboard({ token, api }) {
   }
 
   async function submitAttendance(imageData) {
-    setSubmittingPhoto(true); // SHOW LOADER
+    setSubmittingPhoto(true); // Show loader
     try {
       if (actionType === "checkin") {
         await api.checkinWithPhoto(token, imageData);
@@ -132,30 +141,71 @@ export default function ManagerDashboard({ token, api }) {
         await api.checkoutWithPhoto(token, imageData);
       }
       
-      // Allow the loader to be seen briefly before the alert
-      await new Promise(resolve => setTimeout(resolve, 500)); 
+      // Artificial short delay for UX (0.5s)
+      await new Promise(r => setTimeout(r, 500));
 
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
-      await load();
+      
+      // FIX: Stop loader immediately after alert and close
+      setSubmittingPhoto(false);
       closeCamera();
+      
+      // Refresh data in background
+      await load();
     } catch (err) {
       alert("Error submitting attendance: " + (err.message || ""));
-      setSubmittingPhoto(false); // Hide loader so they can retry
+      setSubmittingPhoto(false); // Stop loader on error
     }
   }
 
   function closeCamera() {
     if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     }
     setCameraOpen(false);
     setPreviewImage(null);
     setSubmittingPhoto(false);
   }
 
-  // --- MANAGER ACTIONS ---
-  async function finalizePMS(id, score) {
+  // --- DYNAMIC PMS ASSIGNMENT ---
+  function handleAddQuestion() {
+      setPmsQuestions([...pmsQuestions, ""]);
+  }
+  
+  function handleQuestionChange(index, value) {
+      const newQs = [...pmsQuestions];
+      newQs[index] = value;
+      setPmsQuestions(newQs);
+  }
+
+  async function assignPMS(e) {
+      e.preventDefault();
+      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      try {
+          const month = new Date().toISOString().slice(0, 7);
+          const res = await fetch(`${baseUrl}/api/manager/assign-pms`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+              body: JSON.stringify({ 
+                  employee_id: selectedEmployee,
+                  questions: pmsQuestions.filter(q => q.trim() !== ""),
+                  month 
+              })
+          });
+          if(res.ok) {
+              alert("PMS Questions Assigned Successfully");
+              setPmsQuestions([""]);
+              setSelectedEmployee("");
+          }
+      } catch(err) { alert("Error assigning PMS"); }
+  }
+
+  // --- APPROVAL ACTIONS ---
+  async function finalizePMS(id) {
+      const score = reviewScore[id];
+      if(!score) return alert("Please enter a score first");
+
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
           await fetch(`${baseUrl}/api/manager/finalize-pms`, {
@@ -225,8 +275,11 @@ export default function ManagerDashboard({ token, api }) {
         const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
         if (selectedFile.size > maxSize) {
             alert(`File is too large. Maximum size allowed is ${MAX_FILE_SIZE_MB}MB.`);
-            e.target.value = null; setFile(null);
-        } else { setFile(selectedFile); }
+            e.target.value = null; 
+            setFile(null);
+        } else {
+            setFile(selectedFile);
+        }
     }
   };
 
@@ -291,7 +344,7 @@ export default function ManagerDashboard({ token, api }) {
         .styled-table tbody td { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; color: #444; }
         .btn-small { padding: 4px 8px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; color: white; margin-right: 5px; }
         
-        /* LOADER CSS */
+        /* Loader Spinner */
         .loader {
           border: 4px solid #f3f3f3;
           border-top: 4px solid #3498db;
@@ -327,7 +380,7 @@ export default function ManagerDashboard({ token, api }) {
               <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} color="#b91c1c" />
               <QuickLaunchItem icon={<FaUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} color="var(--red)" />
               {/* NEW MANAGER VIEWS */}
-              <QuickLaunchItem icon={<FaChartLine />} label="Team PMS" onClick={() => setView("pms-reviews")} color="#6366f1" />
+              <QuickLaunchItem icon={<FaChartLine />} label="Assign/Review PMS" onClick={() => setView("pms-manager")} color="#6366f1" />
               <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} color="#f59e0b" />
               
               <QuickLaunchItem icon={<FaUsers />} label="Team Members" onClick={() => setView("team-members")} color="var(--red)" />
@@ -349,13 +402,45 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- NEW: PMS REVIEWS VIEW --- */}
-      {view === "pms-reviews" && (
+      {/* --- NEW: PMS MANAGER (ASSIGN & REVIEW) --- */}
+      {view === "pms-manager" && (
           <div className="card">
-              <h3>Pending PMS Reviews</h3>
+              <h3>Performance Management System</h3>
+              
+              {/* ASSIGN SECTION */}
+              <div style={{marginBottom: 30, borderBottom:'1px solid #eee', paddingBottom: 20}}>
+                  <h4 style={{color:'#555'}}>1. Assign Questions</h4>
+                  <p className="small">Select an employee and define the questions they need to answer.</p>
+                  <form onSubmit={assignPMS} style={{marginTop:15}}>
+                      <select className="modern-input" value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} required>
+                          <option value="">Select Employee</option>
+                          {teamMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
+                      </select>
+                      
+                      {pmsQuestions.map((q, i) => (
+                          <input 
+                            key={i} 
+                            className="modern-input" 
+                            style={{marginTop:10}} 
+                            placeholder={`Question ${i+1}`} 
+                            value={q} 
+                            onChange={e => handleQuestionChange(i, e.target.value)} 
+                            required 
+                          />
+                      ))}
+                      
+                      <div style={{marginTop:10, display:'flex', gap:10}}>
+                        <button type="button" className="btn ghost" onClick={handleAddQuestion}>+ Add Question</button>
+                        <button type="submit" className="btn">Assign Questions</button>
+                      </div>
+                  </form>
+              </div>
+
+              {/* REVIEW SECTION */}
+              <h4 style={{color:'#555'}}>2. Pending Reviews</h4>
               <div style={{overflowX:'auto'}}>
                 <table className="styled-table">
-                    <thead><tr><th>Employee</th><th>Month</th><th>Scores</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Employee</th><th>Month</th><th>Responses</th><th>Action</th></tr></thead>
                     <tbody>
                         {pendingPMS.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:20, color:'#999'}}>No pending reviews</td></tr>}
                         {pendingPMS.filter(p => p.status === 'Submitted_by_Employee').map(p => (
@@ -363,14 +448,26 @@ export default function ManagerDashboard({ token, api }) {
                                 <td>{p.employee_name}</td>
                                 <td>{p.month}</td>
                                 <td>
-                                    <div style={{fontSize:12}}>
-                                        {typeof p.self_evaluation === 'object' ? 
-                                            Object.entries(p.self_evaluation).map(([k,v]) => <div key={k}><b>{k}:</b> {v}</div>) 
-                                            : JSON.stringify(p.self_evaluation)}
+                                    <div style={{fontSize:12, maxHeight:100, overflowY:'auto'}}>
+                                        {Object.entries(p.responses || {}).map(([q,a], idx) => (
+                                            <div key={idx} style={{marginBottom:5}}>
+                                                <b>Q: {q}</b><br/>
+                                                <span style={{color:'#555'}}>A: {a}</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </td>
                                 <td>
-                                    <button className="btn-small" style={{background:'green'}} onClick={() => finalizePMS(p._id, 10)}>Approve</button>
+                                    <div style={{display:'flex', gap:5, alignItems:'center'}}>
+                                        <input 
+                                            type="number" 
+                                            placeholder="Score (1-10)" 
+                                            className="modern-input" 
+                                            style={{width:80, padding:5, fontSize:12}} 
+                                            onChange={e => setReviewScore({...reviewScore, [p._id]: e.target.value})}
+                                        />
+                                        <button className="btn-small" style={{background:'green'}} onClick={() => finalizePMS(p._id)}>Approve</button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -380,7 +477,7 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
-      {/* --- NEW: CORRECTIONS VIEW --- */}
+      {/* --- CORRECTIONS VIEW --- */}
       {view === "corrections" && (
           <div className="card">
               <h3>Pending Attendance Corrections</h3>
@@ -406,15 +503,37 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
-      {view === "team-leaves" && <div style={{ marginTop: 16 }}><AdminLeavePage token={token} api={api} /></div>}
+      {/* --- TEAM LEAVES VIEW (CUSTOM TABLE) --- */}
+      {view === "team-leaves" && (
+          <div className="card" style={{marginTop: 16}}>
+              <h3>Team Leaves</h3>
+              <div style={{overflowX: 'auto'}}>
+                <table className="styled-table">
+                    <thead><tr><th>Name</th><th>Applied On</th><th>Leave Dates</th><th>Reason</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {teamLeaves.length === 0 && <tr><td colSpan="5" style={{textAlign:'center', padding:20, color:'#999'}}>No leaves found.</td></tr>}
+                        {teamLeaves.map(l => (
+                            <tr key={l._id}>
+                                <td>{l.employee_name}</td>
+                                <td>{l.applied_at_str}</td>
+                                <td>{l.from_date === l.to_date ? l.date : `${l.from_date} to ${l.to_date}`}</td>
+                                <td>{l.reason}</td>
+                                <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status}</span></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+              </div>
+          </div>
+      )}
+
       {view === "team-members" && <TeamMembersList />}
       
-      {/* --- APPLY LEAVE (UPDATED) --- */}
       {view === "apply-leave" && (
-        <div className="card" style={{ marginTop: 16 }}>
+        <div className="card">
           <form onSubmit={applyLeave}>
-            
-            <div style={{display:'flex', gap:20, marginBottom:15}}>
+             {/* Existing form fields kept exactly as is */}
+             <div style={{display:'flex', gap:20, marginBottom:15}}>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
                     <input type="radio" name="duration" checked={leaveDuration === 'single'} onChange={() => setLeaveDuration('single')} />
                     <FaCalendarAlt style={{color: "var(--red)"}} />
@@ -426,20 +545,17 @@ export default function ManagerDashboard({ token, api }) {
                     <span style={{fontWeight:500}}>Multiple Days</span>
                 </label>
             </div>
-
             <div className="form-row">
               <div style={{flex:1}}>
                 <label className="modern-label">{leaveDuration === 'single' ? 'Date' : 'Start Date'}</label>
                 <input className="modern-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
               </div>
-              
               {leaveDuration === 'multiple' && (
                   <div style={{flex:1}}>
                     <label className="modern-label">End Date</label>
                     <input className="modern-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
                   </div>
               )}
-
               {leaveDuration === 'single' && (
                   <div style={{flex:1}}>
                     <label className="modern-label">Leave Type</label>
@@ -450,7 +566,6 @@ export default function ManagerDashboard({ token, api }) {
                   </div>
               )}
             </div>
-
             <div style={{marginTop: 15}}>
               <label className="modern-label">Reason for Leave</label>
               <textarea className="modern-input" style={{minHeight: "100px", resize: "vertical"}} value={reason} onChange={handleReasonChange} required placeholder="Reason (Max 30 words)..." />
@@ -458,21 +573,14 @@ export default function ManagerDashboard({ token, api }) {
                  {getWordCount()}/{MAX_WORDS} words
               </div>
             </div>
-
             <div style={{marginTop: 15}}>
               <label className="modern-label">Attachment (Optional)</label>
               <label className="file-upload-label">
                 <FaCloudUploadAlt size={24} />
                 <span>{file ? file.name : "Click to upload a document (Max 5MB)"}</span>
-                <input 
-                    type="file" 
-                    accept=".pdf,.jpg,.jpeg,.png" 
-                    onChange={handleFileChange} 
-                    style={{display: "none"}} 
-                />
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} style={{display: "none"}} />
               </label>
             </div>
-
             <div style={{ marginTop: 25, display:'flex', justifyContent:'flex-end' }}>
               <button className="btn" type="submit" style={{padding: "10px 24px"}}>Submit Request</button>
             </div>
@@ -494,7 +602,7 @@ export default function ManagerDashboard({ token, api }) {
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
                       <td style={{textTransform:"capitalize"}}>{l.type}</td>
                       <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
-                      <td>{l.attachment_url ? <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://erp-backend-production-d377.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{l.attachment_url ? <a href={l.attachment_url} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))
                 )}
@@ -513,7 +621,7 @@ export default function ManagerDashboard({ token, api }) {
                     <tr key={a._id}>
                       <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
                       <td>{new Date(a.time).toLocaleString()}</td>
-                      <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://erp-backend-production-d377.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{a.photo_url ? <a href={a.photo_url} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                 ))}
               </tbody>
@@ -549,7 +657,7 @@ export default function ManagerDashboard({ token, api }) {
           <div className="camera-box" style={{background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
             
             {submittingPhoto ? (
-                // --- LOADING STATE ---
+                // --- LOADING UI ---
                 <div style={{ padding: "40px 20px" }}>
                     <div className="loader"></div>
                     <p style={{ marginTop: 15, fontWeight: 500, color: "#555" }}>
@@ -558,16 +666,12 @@ export default function ManagerDashboard({ token, api }) {
                     <p style={{ fontSize: "12px", color: "#888" }}>Please wait</p>
                 </div>
             ) : (
-                // --- CAMERA / PREVIEW STATE ---
+                // --- CAMERA UI ---
                 <>
                     <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
-                    
-                    {/* TOGGLE VIDEO/IMAGE VISIBILITY */}
                     <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
                     {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
-                    
                     <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
-                    
                     <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
                         {!previewImage ? (
                             <>
