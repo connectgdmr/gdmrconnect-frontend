@@ -19,7 +19,8 @@ import {
   FaUserClock,
   FaUserSlash,
   FaTimes,
-  FaCalendarAlt 
+  FaCalendarAlt,
+  FaBullhorn // Added for Announcements
 } from "react-icons/fa";
 
 export default function AdminDashboard({ token, api }) {
@@ -41,6 +42,11 @@ export default function AdminDashboard({ token, api }) {
   const [detailTitle, setDetailTitle] = useState("");
   const [detailList, setDetailList] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // --- Announcement States (New Fix #8) ---
+  const [announcements, setAnnouncements] = useState([]);
+  const [annTitle, setAnnTitle] = useState("");
+  const [annMessage, setAnnMessage] = useState("");
 
   // Load Initial Data
   async function loadEmployees() {
@@ -64,10 +70,27 @@ export default function AdminDashboard({ token, api }) {
     }
   }
 
+  // Load Announcements
+  async function loadAnnouncements() {
+    try {
+      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      const res = await fetch(`${baseUrl}/api/announcements`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) setAnnouncements(await res.json());
+    } catch (err) {
+      console.error("Announcements load error:", err);
+    }
+  }
+
   useEffect(() => {
     loadEmployees();
     loadTodayStats();
   }, []);
+
+  useEffect(() => {
+    if (view === "announcements") loadAnnouncements();
+  }, [view]);
 
   // --- Actions ---
   async function addEmployee(data) {
@@ -79,6 +102,35 @@ export default function AdminDashboard({ token, api }) {
   async function deleteEmployee(id) {
     await api.deleteEmployee(id, token);
     await loadEmployees();
+  }
+
+  // --- Create Announcement (New Fix #8) ---
+  async function createAnnouncement() {
+    if (!annTitle || !annMessage) return alert("Please fill in both title and message");
+    
+    try {
+        const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+        const res = await fetch(`${baseUrl}/api/announcements`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({ title: annTitle, message: annMessage })
+        });
+
+        if (res.ok) {
+            alert("Announcement Posted Successfully!");
+            setAnnTitle("");
+            setAnnMessage("");
+            loadAnnouncements();
+        } else {
+            alert("Failed to post announcement");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Error posting announcement");
+    }
   }
 
   // --- Handle Click on Stat Item ---
@@ -181,6 +233,8 @@ export default function AdminDashboard({ token, api }) {
           display: flex; align-items: center; justify-content: center;
           font-size: 14px; color: #666; font-weight: bold;
         }
+        /* New Styles for Announcement Form */
+        .modern-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff; color: #333; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
 
@@ -277,18 +331,24 @@ export default function AdminDashboard({ token, api }) {
                 label="Holidays" 
                 onClick={() => setView("holidays")} 
               />
+              {/* NEW: Announcement Button */}
+              <QuickLaunchItem 
+                icon={<FaBullhorn />} 
+                label="Announcements" 
+                onClick={() => setView("announcements")} 
+              />
             </div>
           </div>
 
           {/* Widget 3: Employee Summary */}
           <div className="card dashboard-widget">
-             <h4 className="widget-title">Total Workforce</h4>
-             <div style={{display:'flex', justifyContent:'center', alignItems:'center', height:'100%', flexDirection:'column'}}>
+              <h4 className="widget-title">Total Workforce</h4>
+              <div style={{display:'flex', justifyContent:'center', alignItems:'center', height:'100%', flexDirection:'column'}}>
                 <div style={{fontSize:'48px', fontWeight:'bold', color:'var(--red)'}}>
                   {employees.length}
                 </div>
                 <div className="small">Active Employees</div>
-             </div>
+              </div>
           </div>
         </div>
       )}
@@ -349,12 +409,10 @@ export default function AdminDashboard({ token, api }) {
 
           <div style={{ marginTop: "16px" }}>
             {subView === "add" ? (
-              // ✅ FIXED: Passed api and token to EmployeeForm
               <EmployeeForm onAdd={addEmployee} api={api} token={token} />
             ) : loading ? (
               <div className="card">Loading...</div>
             ) : (
-              // ✅ FIXED: Passed onRefresh to EmployeeList
               <EmployeeList 
                 employees={employees} 
                 onDelete={deleteEmployee} 
@@ -399,6 +457,55 @@ export default function AdminDashboard({ token, api }) {
           <HolidayCalendar />
         </div>
       )}
+
+      {/* 7. ANNOUNCEMENTS (NEW) */}
+      {view === "announcements" && (
+        <div className="card" style={{ marginTop: "16px" }}>
+            <h3>Manage Announcements</h3>
+            
+            <div style={{ marginBottom: 30, borderBottom:'1px solid #eee', paddingBottom: 20 }}>
+                <h4>Create New Announcement</h4>
+                <div style={{ display:'flex', flexDirection:'column', gap:15 }}>
+                    <input 
+                        className="modern-input" 
+                        placeholder="Title (e.g. Office Closed on Friday)" 
+                        value={annTitle} 
+                        onChange={(e) => setAnnTitle(e.target.value)} 
+                    />
+                    <textarea 
+                        className="modern-input" 
+                        placeholder="Message details..." 
+                        style={{ minHeight: 80, resize:'vertical' }}
+                        value={annMessage} 
+                        onChange={(e) => setAnnMessage(e.target.value)} 
+                    />
+                    <div>
+                        <button className="btn" onClick={createAnnouncement}>Post Announcement</button>
+                    </div>
+                </div>
+            </div>
+
+            <h4>Announcement History</h4>
+            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+                {announcements.length === 0 ? (
+                    <p style={{ color: '#999', fontStyle: 'italic' }}>No announcements posted yet.</p>
+                ) : (
+                    announcements.map((ann) => (
+                        <div key={ann._id} style={{ padding: '15px', borderBottom: '1px solid #f0f0f0' }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                                <h4 style={{ margin: '0 0 5px 0', color: 'var(--red)' }}>{ann.title}</h4>
+                                <span style={{ fontSize: '12px', color: '#999' }}>
+                                    {new Date(ann.created_at).toLocaleString()}
+                                </span>
+                            </div>
+                            <p style={{ margin: 0, color: '#555', whiteSpace: 'pre-wrap' }}>{ann.message}</p>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+      )}
+
     </div>
   );
 }
