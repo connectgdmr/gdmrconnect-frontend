@@ -4,7 +4,7 @@ import HolidayCalendar from "./HolidayCalendar";
 import {
   FaCamera, FaSignOutAlt, FaCalendarPlus, FaCalendarCheck, FaHistory, FaArrowLeft, FaCheckCircle, 
   FaHourglassHalf, FaTimesCircle, FaUserCheck, FaTimes, FaCloudUploadAlt, FaCalendarAlt, FaUsers,
-  FaChartLine, FaClipboardCheck, FaBullhorn, FaEye // Added FaEye for view
+  FaChartLine, FaClipboardCheck, FaBullhorn, FaEye, FaBell // Added FaEye/FaBell
 } from "react-icons/fa";
 
 export default function ManagerDashboard({ token, api }) {
@@ -14,7 +14,7 @@ export default function ManagerDashboard({ token, api }) {
   const [teamLeaves, setTeamLeaves] = useState([]); 
   
   // --- Notifications & Announcements ---
-  const [notificationCounts, setNotificationCounts] = useState({ leaves: 0, pms: 0, corrections: 0 });
+  const [notificationCounts, setNotificationCounts] = useState({ leaves: 0, pms: 0, corrections: 0, announcements: 0 });
   const [announcements, setAnnouncements] = useState([]);
 
   // --- Manager Approval States ---
@@ -149,7 +149,7 @@ export default function ManagerDashboard({ token, api }) {
     setSubmittingPhoto(false);
   }
 
-  // --- PMS LOGIC ---
+  // --- DYNAMIC PMS LOGIC ---
   function handleAddQuestion() { setPmsQuestions([...pmsQuestions, ""]); }
   function handleQuestionChange(index, value) {
       const newQs = [...pmsQuestions];
@@ -168,7 +168,7 @@ export default function ManagerDashboard({ token, api }) {
               body: JSON.stringify({ employee_id: selectedEmployee, questions: pmsQuestions.filter(q => q.trim() !== ""), month })
           });
           if(res.ok) {
-              alert("PMS Assigned Successfully");
+              alert("PMS Questions Assigned Successfully");
               setPmsQuestions([""]); setSelectedEmployee("");
           }
       } catch(err) { alert("Error assigning PMS"); }
@@ -176,7 +176,7 @@ export default function ManagerDashboard({ token, api }) {
 
   async function finalizePMS(id) {
       const score = reviewScore[id];
-      if(!score) return alert("Please enter a score first");
+      if(!score) return alert("Please enter a score");
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
           await fetch(`${baseUrl}/api/manager/finalize-pms`, {
@@ -188,6 +188,7 @@ export default function ManagerDashboard({ token, api }) {
       } catch(err) { alert(err.message); }
   }
 
+  // Opens the review modal to see Q&A
   function handleViewPMS(pms) {
       setSelectedPMS(pms);
       setViewPMSModalOpen(true);
@@ -220,13 +221,7 @@ export default function ManagerDashboard({ token, api }) {
   async function applyLeave(e) {
     e.preventDefault();
     try {
-      let payload = { 
-          type, 
-          reason, 
-          period: type === 'half' ? period : null, 
-          from_date: startDate, 
-          to_date: leaveDuration === 'single' ? startDate : endDate 
-      };
+      let payload = { type, reason, period: type === 'half' ? period : null, from_date: startDate, to_date: leaveDuration === 'single' ? startDate : endDate };
       await api.applyLeaveWithFile(payload, file, token);
       setStartDate(""); setEndDate(""); setReason(""); setFile(null);
       await load(); alert("Applied!"); setView("my-leaves"); 
@@ -279,7 +274,6 @@ export default function ManagerDashboard({ token, api }) {
     <div>
       <style>{`
         .modern-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff; color: #333; }
-        .modern-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; display: block; }
         .file-upload-label { display: flex; align-items: center; justify-content: center; padding: 20px; border: 2px dashed #ddd; border-radius: 8px; background: #fafafa; color: #666; cursor: pointer; gap: 10px; }
         .clickable-stat { cursor: pointer; transition: transform 0.2s; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; justify-content: center; align-items: center; }
@@ -342,9 +336,9 @@ export default function ManagerDashboard({ token, api }) {
 
       {/* --- ANNOUNCEMENTS --- */}
       {view === "announcements" && (
-         <div className="card">
+         <div className="card" style={{marginTop: 16}}>
             <h3>Announcements</h3>
-            {announcements.length === 0 ? <p>No announcements.</p> : announcements.map(a => (
+            {announcements.length === 0 ? <p style={{color:'#777', padding:20, textAlign:'center'}}>No announcements.</p> : announcements.map(a => (
                 <div key={a._id} style={{borderBottom:'1px solid #eee', padding:'10px 0'}}>
                     <h4 style={{margin:0}}>{a.title}</h4>
                     <p style={{margin:'5px 0'}}>{a.message}</p>
@@ -354,11 +348,12 @@ export default function ManagerDashboard({ token, api }) {
          </div>
       )}
 
-      {/* --- PMS MANAGER --- */}
+      {/* --- PMS MANAGER (ASSIGN & REVIEW) --- */}
       {view === "pms-manager" && (
           <div className="card">
               <h3>Performance Management System</h3>
               
+              {/* Assign Section */}
               <div style={{marginBottom: 30, borderBottom:'1px solid #eee', paddingBottom: 20}}>
                   <h4 style={{color:'#555'}}>1. Assign Questions</h4>
                   <form onSubmit={assignPMS} style={{marginTop:15}}>
@@ -376,6 +371,7 @@ export default function ManagerDashboard({ token, api }) {
                   </form>
               </div>
 
+              {/* Review Section */}
               <h4 style={{color:'#555'}}>2. Pending Reviews</h4>
               <div style={{overflowX:'auto'}}>
                 <table className="styled-table">
@@ -393,6 +389,7 @@ export default function ManagerDashboard({ token, api }) {
                 </table>
               </div>
 
+              {/* History Section */}
               <h4 style={{color:'#555', marginTop:30}}>3. Completed Reviews</h4>
               <div style={{overflowX:'auto'}}>
                 <table className="styled-table">
@@ -594,7 +591,7 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- PMS REVIEW MODAL --- */}
+      {/* --- PMS VIEW MODAL --- */}
       {viewPMSModalOpen && selectedPMS && (
         <div className="modal-overlay" onClick={() => setViewPMSModalOpen(false)}>
           <div className="modal-card" onClick={e => e.stopPropagation()}>
@@ -639,7 +636,7 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- FIXED CAMERA MODAL WITH LOADER --- */}
+      {/* --- CAMERA MODAL --- */}
       {cameraOpen && (
         <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
           <div className="camera-box" style={{background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
