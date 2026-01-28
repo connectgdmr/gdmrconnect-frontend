@@ -14,7 +14,8 @@ import {
   FaCloudUploadAlt,
   FaCalendarAlt,
   FaChartLine,
-  FaEdit
+  FaEdit,
+  FaBullhorn // Added for Announcements
 } from "react-icons/fa";
 
 export default function EmployeeDashboard({ token, api }) {
@@ -22,19 +23,24 @@ export default function EmployeeDashboard({ token, api }) {
   const [leaves, setLeaves] = useState([]);
   const [pmsHistory, setPmsHistory] = useState([]);
   const [correctionHistory, setCorrectionHistory] = useState([]);
+  const [announcements, setAnnouncements] = useState([]); // Fix #8
+  
+  // --- Dynamic PMS Questions ---
+  const [pmsQuestions, setPmsQuestions] = useState([]); 
+  const [pmsAnswers, setPmsAnswers] = useState({});
 
   const [view, setView] = useState("dashboard"); 
   
   // --- Leave Form State ---
-  const [leaveDuration, setLeaveDuration] = useState("single"); // 'single' or 'multiple'
+  const [leaveDuration, setLeaveDuration] = useState("single"); 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [type, setType] = useState("full");
+  const [period, setPeriod] = useState("First Half"); // Fix #1: Initialized to prevent crash
   const [file, setFile] = useState(null);
   
-  // --- New Phase 2 States ---
-  const [pmsScores, setPmsScores] = useState({ kra1: "", kra2: "", kra3: "" });
+  // --- Correction State ---
   const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
 
   const [loading, setLoading] = useState(false);
@@ -43,12 +49,11 @@ export default function EmployeeDashboard({ token, api }) {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
   const [previewImage, setPreviewImage] = useState(null); 
-  // NEW: Loader state for submission
-  const [submittingPhoto, setSubmittingPhoto] = useState(false);
+  const [submittingPhoto, setSubmittingPhoto] = useState(false); // Loader State
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const streamRef = useRef(null); // Fix for stream cleanup
+  const streamRef = useRef(null); 
 
   // --- Modal State ---
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
@@ -70,13 +75,25 @@ export default function EmployeeDashboard({ token, api }) {
       setAttendance(a);
       setLeaves(l);
 
-      // --- FETCH HISTORY ---
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      
+      // Fetch History
       const pmsRes = await fetch(`${baseUrl}/api/my/pms`, { headers: { 'Authorization': `Bearer ${token}` } });
       if(pmsRes.ok) setPmsHistory(await pmsRes.json());
 
       const corrRes = await fetch(`${baseUrl}/api/my/corrections`, { headers: { 'Authorization': `Bearer ${token}` } });
       if(corrRes.ok) setCorrectionHistory(await corrRes.json());
+      
+      // Fetch Assigned Questions
+      const questionsRes = await fetch(`${baseUrl}/api/employee/pms-assignment`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if(questionsRes.ok) {
+          const data = await questionsRes.json();
+          setPmsQuestions(data.questions || []);
+      }
+
+      // Fix #8: Fetch Announcements
+      const annRes = await fetch(`${baseUrl}/api/announcements`, { headers: {'Authorization': `Bearer ${token}`} });
+      if(annRes.ok) setAnnouncements(await annRes.json());
 
     } catch (err) {
       console.error("Error loading data", err);
@@ -89,15 +106,15 @@ export default function EmployeeDashboard({ token, api }) {
     load();
   }, []);
 
-  // --- CAMERA LOGIC (FIXED WITH LOADER) ---
+  // --- CAMERA LOGIC ---
   async function openCamera(type) {
     setActionType(type);
     setCameraOpen(true);
     setPreviewImage(null); 
-    setSubmittingPhoto(false); // Ensure loader is off when opening
+    setSubmittingPhoto(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      streamRef.current = stream; // Keep ref to stream
+      streamRef.current = stream; 
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (err) {
       alert("Camera access denied or unavailable.");
@@ -110,18 +127,17 @@ export default function EmployeeDashboard({ token, api }) {
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
     
-    const context = canvas.getContext("2d");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
+    // Fix #2: Added 'const' to define context scope correctly
+    const context = canvas.getContext("2d"); 
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    // Preview
-    const imageData = canvas.toDataURL("image/jpeg");
-    setPreviewImage(imageData);
+    setPreviewImage(canvas.toDataURL("image/jpeg"));
   }
 
   async function submitAttendance(imageData) {
-    setSubmittingPhoto(true); // START LOADER
+    setSubmittingPhoto(true); // Start Loader
     try {
       if (actionType === "checkin") {
         await api.checkinWithPhoto(token, imageData);
@@ -129,15 +145,18 @@ export default function EmployeeDashboard({ token, api }) {
         await api.checkoutWithPhoto(token, imageData);
       }
       
-      // Artificial delay so user sees "Submitting..." message
-      await new Promise(r => setTimeout(r, 800));
+      // Artificial delay for UX (0.5s)
+      await new Promise(r => setTimeout(r, 500));
 
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
-      await load();
+      
+      // Fix #4: Stop loader immediately
+      setSubmittingPhoto(false); 
       closeCamera();
+      await load();
     } catch (err) {
       alert("Error submitting attendance: " + (err.message || ""));
-      setSubmittingPhoto(false); // Stop loader to allow retry
+      setSubmittingPhoto(false); // Stop loader to retry
     }
   }
 
@@ -151,7 +170,11 @@ export default function EmployeeDashboard({ token, api }) {
     setSubmittingPhoto(false);
   }
 
-  // --- PHASE 2: PMS SUBMISSION ---
+  // --- DYNAMIC PMS SUBMISSION ---
+  function handleAnswerChange(question, answer) {
+      setPmsAnswers(prev => ({ ...prev, [question]: answer }));
+  }
+
   async function submitPMS(e) {
     e.preventDefault();
     try {
@@ -159,20 +182,20 @@ export default function EmployeeDashboard({ token, api }) {
         const res = await fetch(`${api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/pms/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ month, evaluation: pmsScores })
+            body: JSON.stringify({ month, evaluation: pmsAnswers })
         });
         const data = await res.json();
         if(!res.ok) throw new Error(data.message);
         
-        alert("Self-Evaluation Submitted Successfully!");
+        alert("PMS Submitted Successfully!");
         setView("dashboard");
-        load(); // Refresh history
+        load(); 
     } catch(err) { 
         alert("Submission failed: " + err.message); 
     }
   }
 
-  // --- PHASE 2: ATTENDANCE CORRECTION ---
+  // --- ATTENDANCE CORRECTION ---
   async function submitCorrection(e) {
       e.preventDefault();
       try {
@@ -189,20 +212,22 @@ export default function EmployeeDashboard({ token, api }) {
         if(!res.ok) throw new Error(data.message);
 
         alert("Correction Request Sent!");
-        setView("dashboard");
-        load(); // Refresh history
+        setView("my-leaves"); // Return to My Leaves
+        load(); 
       } catch (err) { 
           alert("Error: " + err.message); 
       }
   }
 
-  // --- EXISTING LEAVE SUBMISSION ---
+  // --- APPLY LEAVE ---
   async function applyLeave(e) {
     e.preventDefault();
     try {
       let payload = {
          type, 
          reason,
+         // Fix #5: Send period if half day
+         period: type === 'half' ? period : null,
          from_date: startDate,
          to_date: leaveDuration === 'single' ? startDate : endDate
       };
@@ -333,13 +358,16 @@ export default function EmployeeDashboard({ token, api }) {
               <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} color="green" />
               <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} color="#b91c1c" />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
+              
               {/* NEW PHASE 2 BUTTONS */}
               <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} color="#6366f1" />
-              <QuickLaunchItem icon={<FaEdit />} label="Correct Log" onClick={() => setView("correction")} color="#f59e0b" />
+              {/* Fix #3: Removed Correct Log from here, moved to My Leaves */}
               
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
+              {/* Fix #8: Announcements Button */}
+              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
             </div>
           </div>
 
@@ -354,31 +382,40 @@ export default function EmployeeDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- NEW PHASE 2: PMS VIEW --- */}
+      {/* --- Fix #8: ANNOUNCEMENTS VIEW --- */}
+      {view === "announcements" && (
+         <div className="card" style={{marginTop: 16}}>
+            <h3>Announcements</h3>
+            {announcements.length === 0 ? <p style={{color:'#777', padding:20, textAlign:'center'}}>No announcements yet.</p> : announcements.map(a => (
+                <div key={a._id} style={{borderBottom:'1px solid #f0f0f0', padding:'15px 0'}}>
+                    <h4 style={{margin:'0 0 5px 0', color:'#333'}}>{a.title}</h4>
+                    <p style={{margin:'0 0 5px 0', color:'#555', fontSize:'14px'}}>{a.message}</p>
+                    <small style={{color:'#999'}}>{new Date(a.created_at).toLocaleString()}</small>
+                </div>
+            ))}
+         </div>
+      )}
+
+      {/* --- DYNAMIC PMS VIEW --- */}
       {view === "pms" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Monthly Self-Evaluation</h3>
-              <p className="small" style={{marginBottom:20}}>Please rate your performance for the current month. Once submitted, this cannot be edited.</p>
-              <form onSubmit={submitPMS}>
-                  <div style={{marginBottom:15}}>
-                    <label className="modern-label">KRA 1: Code Quality (1-10)</label>
-                    <input className="modern-input" type="number" min="1" max="10" required 
-                        onChange={e => setPmsScores({...pmsScores, kra1: e.target.value})} placeholder="Score" />
-                  </div>
-                  <div style={{marginBottom:15}}>
-                    <label className="modern-label">KRA 2: Delivery Speed (1-10)</label>
-                    <input className="modern-input" type="number" min="1" max="10" required 
-                        onChange={e => setPmsScores({...pmsScores, kra2: e.target.value})} placeholder="Score" />
-                  </div>
-                  <div style={{marginBottom:15}}>
-                    <label className="modern-label">KRA 3: Team Collaboration (1-10)</label>
-                    <input className="modern-input" type="number" min="1" max="10" required 
-                        onChange={e => setPmsScores({...pmsScores, kra3: e.target.value})} placeholder="Score" />
-                  </div>
-                  <div style={{display:'flex', justifyContent:'flex-end'}}>
-                      <button type="submit" className="btn" style={{marginTop:15}}>Submit Evaluation</button>
-                  </div>
-              </form>
+              {pmsQuestions.length === 0 ? (
+                  <p style={{color:'#777'}}>No questions assigned by manager for this month.</p>
+              ) : (
+                  <form onSubmit={submitPMS}>
+                      {pmsQuestions.map((q, i) => (
+                          <div key={i} style={{marginBottom:15}}>
+                              <label className="modern-label">{q}</label>
+                              <textarea className="modern-input" style={{minHeight:80}} required 
+                                  onChange={e => handleAnswerChange(q, e.target.value)} />
+                          </div>
+                      ))}
+                      <div style={{display:'flex', justifyContent:'flex-end'}}>
+                          <button type="submit" className="btn" style={{marginTop:15}}>Submit Evaluation</button>
+                      </div>
+                  </form>
+              )}
 
               {/* PMS HISTORY TABLE */}
               <h4 style={{marginTop:30, color:'var(--red)'}}>My Evaluation History</h4>
@@ -400,7 +437,7 @@ export default function EmployeeDashboard({ token, api }) {
           </div>
       )}
 
-      {/* --- NEW PHASE 2: CORRECTION VIEW --- */}
+      {/* --- CORRECTION VIEW --- */}
       {view === "correction" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Request Attendance Correction</h3>
@@ -421,7 +458,7 @@ export default function EmployeeDashboard({ token, api }) {
                   </div>
               </form>
 
-              {/* CORRECTION HISTORY TABLE */}
+              {/* CORRECTION HISTORY */}
               <h4 style={{marginTop:30, color:'var(--red)'}}>My Correction Requests</h4>
               <div style={{overflowX: 'auto'}}>
                 <table className="styled-table">
@@ -441,7 +478,7 @@ export default function EmployeeDashboard({ token, api }) {
           </div>
       )}
 
-      {/* --- APPLY LEAVE (EXISTING) --- */}
+      {/* --- APPLY LEAVE (UPDATED) --- */}
       {view === "apply-leave" && (
         <div className="card" style={{ marginTop: 16 }}>
           <form onSubmit={applyLeave}>
@@ -481,6 +518,17 @@ export default function EmployeeDashboard({ token, api }) {
                     </select>
                   </div>
               )}
+
+              {/* Fix #5: Half Day Period Selection */}
+              {type === 'half' && leaveDuration === 'single' && (
+                  <div style={{flex:1, marginLeft:10}}>
+                    <label className="modern-label">Period</label>
+                    <select className="modern-input" value={period} onChange={(e) => setPeriod(e.target.value)}>
+                      <option value="First Half">First Half (Morning)</option>
+                      <option value="Second Half">Second Half (Afternoon)</option>
+                    </select>
+                  </div>
+              )}
             </div>
 
             <div style={{marginTop: 15}}>
@@ -496,12 +544,7 @@ export default function EmployeeDashboard({ token, api }) {
               <label className="file-upload-label">
                 <FaCloudUploadAlt size={24} />
                 <span>{file ? file.name : "Click to upload a document (Max 5MB)"}</span>
-                <input 
-                    type="file" 
-                    accept=".pdf,.jpg,.jpeg,.png" 
-                    onChange={handleFileChange} 
-                    style={{display: "none"}} 
-                />
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} style={{display: "none"}} />
               </label>
             </div>
 
@@ -512,8 +555,15 @@ export default function EmployeeDashboard({ token, api }) {
         </div>
       )}
 
+      {/* --- MY LEAVES (With Correction Button Fix #3) --- */}
       {view === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
+              <h3 style={{margin:0, color:'var(--red)'}}>My Leaves</h3>
+              <button className="btn" style={{background:'#f59e0b', fontSize:'13px'}} onClick={() => setView("correction")}>
+                  <FaEdit style={{marginRight:5}}/> Request Correction
+              </button>
+          </div>
           <div style={{overflowX: 'auto'}}>
             <table className="styled-table">
               <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Attachment</th></tr></thead>
@@ -524,9 +574,9 @@ export default function EmployeeDashboard({ token, api }) {
                   leaves.map((l) => (
                     <tr key={l._id}>
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
-                      <td style={{textTransform:"capitalize"}}>{l.type}</td>
+                      <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
                       <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
-                      <td>{l.attachment_url ? <a href={l.attachment_url} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{l.attachment_url ? <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://erp-backend-production-d377.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))
                 )}
@@ -549,7 +599,7 @@ export default function EmployeeDashboard({ token, api }) {
                     <tr key={a._id}>
                       <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
                       <td>{new Date(a.time).toLocaleString()}</td>
-                      <td>{a.photo_url ? <a href={a.photo_url} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://erp-backend-production-d377.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))
                 )}
@@ -572,7 +622,7 @@ export default function EmployeeDashboard({ token, api }) {
                {modalList.map((l) => (
                   <div key={l._id} style={{padding:12, borderBottom:'1px solid #f9f9f9'}}>
                     <div style={{fontWeight:600}}>{l.date || l.from_date}</div>
-                    <div style={{fontSize:13, color:'#666'}}>"{l.reason}"</div>
+                    <div style={{fontSize:13, color:'#666'}}>"{l.reason || "No reason"}"</div>
                     <span className={`status-badge ${getStatusClass(l.status)}`} style={{marginTop:5}}>{l.status || 'Pending'}</span>
                   </div>
               ))}
@@ -581,13 +631,12 @@ export default function EmployeeDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- FIXED CAMERA MODAL WITH LOADER --- */}
+      {/* --- FIXED CAMERA MODAL WITH LOADER (Fix #4) --- */}
       {cameraOpen && (
         <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
           <div className="camera-box" style={{background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
             
             {submittingPhoto ? (
-                // --- LOADING UI ---
                 <div style={{ padding: "40px 20px" }}>
                     <div className="loader"></div>
                     <p style={{ marginTop: 15, fontWeight: 500, color: "#555" }}>
@@ -596,11 +645,13 @@ export default function EmployeeDashboard({ token, api }) {
                     <p style={{ fontSize: "12px", color: "#888" }}>Please wait</p>
                 </div>
             ) : (
-                // --- CAMERA UI ---
                 <>
                     <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
+                    
+                    {/* TOGGLE VISIBILITY */}
                     <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
                     {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
+                    
                     <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
                     
                     <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>

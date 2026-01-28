@@ -2,55 +2,51 @@ import React, { useEffect, useState, useRef } from "react";
 import AdminLeavePage from "./AdminLeavePage";
 import HolidayCalendar from "./HolidayCalendar"; 
 import {
-  FaCamera,
-  FaSignOutAlt,
-  FaCalendarPlus,
-  FaCalendarCheck,
-  FaHistory,
-  FaArrowLeft,
-  FaCheckCircle,
-  FaHourglassHalf,
-  FaTimesCircle,
-  FaUserCheck,
-  FaTimes,
-  FaCloudUploadAlt,
-  FaCalendarAlt, 
-  FaUsers,
-  FaChartLine,        // Added for PMS
-  FaClipboardCheck    // Added for Corrections
+  FaCamera, FaSignOutAlt, FaCalendarPlus, FaCalendarCheck, FaHistory, FaArrowLeft, FaCheckCircle, 
+  FaHourglassHalf, FaTimesCircle, FaUserCheck, FaTimes, FaCloudUploadAlt, FaCalendarAlt, FaUsers,
+  FaChartLine, FaClipboardCheck, FaBullhorn, FaBell
 } from "react-icons/fa";
 
 export default function ManagerDashboard({ token, api }) {
   const [attendance, setAttendance] = useState([]);
   const [myLeaves, setMyLeaves] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
+  const [teamLeaves, setTeamLeaves] = useState([]); 
   
-  // --- NEW: Manager Approval States ---
+  // --- Notification & Announcement States ---
+  const [notificationCounts, setNotificationCounts] = useState({ leaves: 0, pms: 0, corrections: 0 });
+  const [announcements, setAnnouncements] = useState([]);
+
+  // --- Manager Approval States ---
   const [pendingPMS, setPendingPMS] = useState([]);
   const [pendingCorrections, setPendingCorrections] = useState([]);
+  
+  // --- Dynamic PMS Assignment States ---
+  const [selectedEmployee, setSelectedEmployee] = useState("");
+  const [pmsQuestions, setPmsQuestions] = useState([""]); 
+  const [reviewScore, setReviewScore] = useState({}); 
 
   const [view, setView] = useState("dashboard"); 
   
-  // UPDATED: Leave Form State
+  // Leave Form State
   const [leaveDuration, setLeaveDuration] = useState("single");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [type, setType] = useState("full");
+  const [period, setPeriod] = useState("First Half"); // Fix #5
   const [file, setFile] = useState(null);
   
   const [loading, setLoading] = useState(false);
   
-  // --- CAMERA STATE ---
+  // Camera State
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
   const [previewImage, setPreviewImage] = useState(null);
-  // NEW: State for the loader
   const [submittingPhoto, setSubmittingPhoto] = useState(false); 
-  
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const streamRef = useRef(null);
+  const streamRef = useRef(null); 
 
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
@@ -73,7 +69,6 @@ export default function ManagerDashboard({ token, api }) {
       setMyLeaves(l);
       setTeamMembers(t); 
 
-      // --- FETCH PENDING ACTIONS ---
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       
       const pmsRes = await fetch(`${baseUrl}/api/manager/pms`, { headers: {'Authorization': `Bearer ${token}`} });
@@ -81,24 +76,29 @@ export default function ManagerDashboard({ token, api }) {
 
       const corrRes = await fetch(`${baseUrl}/api/manager/corrections`, { headers: {'Authorization': `Bearer ${token}`} });
       if(corrRes.ok) setPendingCorrections(await corrRes.json());
+      
+      const leavesRes = await fetch(`${baseUrl}/api/admin/leaves`, { headers: {'Authorization': `Bearer ${token}`} });
+      if(leavesRes.ok) setTeamLeaves(await leavesRes.json());
 
-    } catch (err) {
-      console.error("Error loading data", err);
-    } finally {
-      setLoading(false);
-    }
+      // Fix #7 & #8: Notifications and Announcements
+      const notifRes = await fetch(`${baseUrl}/api/notifications/counts`, { headers: {'Authorization': `Bearer ${token}`} });
+      if(notifRes.ok) setNotificationCounts(await notifRes.json());
+
+      const annRes = await fetch(`${baseUrl}/api/announcements`, { headers: {'Authorization': `Bearer ${token}`} });
+      if(annRes.ok) setAnnouncements(await annRes.json());
+
+    } catch (err) { console.error("Error loading data", err); } 
+    finally { setLoading(false); }
   }
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  // --- FIXED CAMERA LOGIC ---
+  // --- CAMERA LOGIC ---
   async function openCamera(type) {
     setActionType(type);
     setCameraOpen(true);
     setPreviewImage(null);
-    setSubmittingPhoto(false); // Reset loader
+    setSubmittingPhoto(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream; 
@@ -113,49 +113,68 @@ export default function ManagerDashboard({ token, api }) {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
-    
-    const context = canvas.getContext("2d");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d");
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    const imageData = canvas.toDataURL("image/jpeg");
-    setPreviewImage(imageData);
+    setPreviewImage(canvas.toDataURL("image/jpeg"));
   }
 
   async function submitAttendance(imageData) {
-    setSubmittingPhoto(true); // SHOW LOADER
+    setSubmittingPhoto(true); 
     try {
-      if (actionType === "checkin") {
-        await api.checkinWithPhoto(token, imageData);
-      } else {
-        await api.checkoutWithPhoto(token, imageData);
-      }
+      if (actionType === "checkin") await api.checkinWithPhoto(token, imageData);
+      else await api.checkoutWithPhoto(token, imageData);
       
-      // Allow the loader to be seen briefly before the alert
-      await new Promise(resolve => setTimeout(resolve, 500)); 
-
+      // Fix #4: No long delay
+      setSubmittingPhoto(false); 
+      closeCamera(); 
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
       await load();
-      closeCamera();
     } catch (err) {
       alert("Error submitting attendance: " + (err.message || ""));
-      setSubmittingPhoto(false); // Hide loader so they can retry
+      setSubmittingPhoto(false); 
     }
   }
 
   function closeCamera() {
     if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     }
     setCameraOpen(false);
     setPreviewImage(null);
     setSubmittingPhoto(false);
   }
 
-  // --- MANAGER ACTIONS ---
-  async function finalizePMS(id, score) {
+  // --- DYNAMIC PMS ---
+  function handleAddQuestion() { setPmsQuestions([...pmsQuestions, ""]); }
+  function handleQuestionChange(index, value) {
+      const newQs = [...pmsQuestions];
+      newQs[index] = value;
+      setPmsQuestions(newQs);
+  }
+
+  async function assignPMS(e) {
+      e.preventDefault();
+      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      try {
+          const month = new Date().toISOString().slice(0, 7);
+          const res = await fetch(`${baseUrl}/api/manager/assign-pms`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+              body: JSON.stringify({ employee_id: selectedEmployee, questions: pmsQuestions.filter(q => q.trim() !== ""), month })
+          });
+          if(res.ok) {
+              alert("PMS Questions Assigned Successfully");
+              setPmsQuestions([""]); setSelectedEmployee("");
+          }
+      } catch(err) { alert("Error assigning PMS"); }
+  }
+
+  async function finalizePMS(id) {
+      const score = reviewScore[id];
+      if(!score) return alert("Please enter a score first");
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
           await fetch(`${baseUrl}/api/manager/finalize-pms`, {
@@ -163,8 +182,7 @@ export default function ManagerDashboard({ token, api }) {
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ id, manager_score: score })
           });
-          alert("PMS Finalized");
-          load();
+          alert("PMS Finalized"); load();
       } catch(err) { alert(err.message); }
   }
 
@@ -176,72 +194,63 @@ export default function ManagerDashboard({ token, api }) {
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ id, action })
           });
-          alert(`Correction ${action}`);
-          load();
+          alert(`Correction ${action}`); load();
       } catch(err) { alert(err.message); }
   }
   
-  // UPDATED LEAVE SUBMISSION
+  // Fix #4 (Team Leaves Action): Add logic to approve leave via API
+  async function updateLeaveStatus(id, status) {
+       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+       try {
+          await fetch(`${baseUrl}/api/admin/leaves/${id}`, {
+              method: 'PUT',
+              headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+              body: JSON.stringify({ status })
+          });
+          alert("Status Updated"); load();
+       } catch(err) { alert(err.message); }
+  }
+
   async function applyLeave(e) {
     e.preventDefault();
     try {
-      let payload = {
-         type, 
-         reason,
-         from_date: startDate,
-         to_date: leaveDuration === 'single' ? startDate : endDate
+      let payload = { 
+          type, 
+          reason, 
+          period: type === 'half' ? period : null, // Fix #5
+          from_date: startDate, 
+          to_date: leaveDuration === 'single' ? startDate : endDate 
       };
-
       await api.applyLeaveWithFile(payload, file, token);
-      setStartDate("");
-      setEndDate("");
-      setReason("");
-      setFile(null);
-      await load();
-      alert("Leave applied successfully!");
-      setView("my-leaves"); 
-    } catch (err) {
-      alert("Error applying leave: " + (err.message || ""));
-    }
+      setStartDate(""); setEndDate(""); setReason(""); setFile(null);
+      await load(); alert("Applied!"); setView("my-leaves"); 
+    } catch (err) { alert(err.message); }
   }
   
-  // Handle Reason Word Count
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile && selectedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        alert("File too large."); e.target.value = null; setFile(null);
+    } else { setFile(selectedFile); }
+  };
+
   const handleReasonChange = (e) => {
     const val = e.target.value;
     const words = val.trim().split(/\s+/).filter(w => w.length > 0);
-    if (words.length <= MAX_WORDS) {
-      setReason(val);
-    }
+    if (words.length <= MAX_WORDS) setReason(val);
   };
-
-  const getWordCount = () => {
-      return reason.trim() === "" ? 0 : reason.trim().split(/\s+/).filter(w => w.length > 0).length;
-  }
-  
-  // Handle File Upload
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-        const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
-        if (selectedFile.size > maxSize) {
-            alert(`File is too large. Maximum size allowed is ${MAX_FILE_SIZE_MB}MB.`);
-            e.target.value = null; setFile(null);
-        } else { setFile(selectedFile); }
-    }
-  };
-
-  function handleStatClick(title, list) {
-    setModalTitle(title);
-    setModalList(list);
-    setLeaveModalOpen(true);
-  }
-
+  const getWordCount = () => reason.trim() === "" ? 0 : reason.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const handleStatClick = (title, list) => { setModalTitle(title); setModalList(list); setLeaveModalOpen(true); }
   const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
 
-  const QuickLaunchItem = ({ icon, label, onClick, color = "var(--red)" }) => (
-    <div className="quick-launch-item" onClick={onClick}>
+  // Fix #7: Badge Component
+  const Badge = ({count}) => count > 0 ? <span className="notification-badge">{count}</span> : null;
+
+  const QuickLaunchItem = ({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) => (
+    <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
       <div className="quick-launch-icon" style={{ color: color }}>{icon}</div>
       <div className="quick-launch-label">{label}</div>
+      {badgeCount > 0 && <span className="icon-badge">{badgeCount}</span>}
     </div>
   );
 
@@ -249,25 +258,6 @@ export default function ManagerDashboard({ token, api }) {
     <div className="stat-row clickable-stat" onClick={onClick}>
       <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
       <div className="stat-info"><span className="stat-count">{count}</span><span className="stat-label">{label}</span></div>
-    </div>
-  );
-
-  const TeamMembersList = () => (
-    <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
-        <div style={{overflowX: 'auto'}}>
-            <table className="styled-table">
-                <thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Position</th></tr></thead>
-                <tbody>
-                    {teamMembers.length === 0 ? (
-                        <tr><td colSpan="4" style={{textAlign:"center", padding:20, color:"#999"}}>No employees assigned.</td></tr>
-                    ) : (
-                        teamMembers.map((m) => (
-                            <tr key={m._id}><td style={{fontWeight:500}}>{m.name}</td><td>{m.email}</td><td>{m.department}</td><td>{m.position}</td></tr>
-                        ))
-                    )}
-                </tbody>
-            </table>
-        </div>
     </div>
   );
 
@@ -284,24 +274,13 @@ export default function ManagerDashboard({ token, api }) {
         .status-badge.approved { background: #dcfce7; color: #16a34a; }
         .status-badge.rejected { background: #fee2e2; color: #dc2626; }
         .status-badge.pending { background: #fef3c7; color: #d97706; }
-        .status-badge.checkin { color: #16a34a; }
-        .status-badge.checkout { color: #dc2626; }
         .styled-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        .styled-table thead th { background-color: #fff3f3; color: #b91c1c; text-align: left; padding: 12px 15px; font-weight: 600; border-bottom: 2px solid #fee2e2; }
-        .styled-table tbody td { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; color: #444; }
-        .btn-small { padding: 4px 8px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; color: white; margin-right: 5px; }
-        
-        /* LOADER CSS */
-        .loader {
-          border: 4px solid #f3f3f3;
-          border-top: 4px solid #3498db;
-          border-radius: 50%;
-          width: 30px;
-          height: 30px;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 10px auto;
-        }
+        .styled-table th, .styled-table td { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .btn-small { padding: 4px 8px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; color: white; margin-right: 5px; }
+        /* Fix #7: Badge Style */
+        .icon-badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
       `}</style>
 
       {view === "dashboard" ? (
@@ -325,16 +304,16 @@ export default function ManagerDashboard({ token, api }) {
             <div className="quick-launch-grid">
               <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} color="green" />
               <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} color="#b91c1c" />
-              <QuickLaunchItem icon={<FaUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} color="var(--red)" />
-              {/* NEW MANAGER VIEWS */}
-              <QuickLaunchItem icon={<FaChartLine />} label="Team PMS" onClick={() => setView("pms-reviews")} color="#6366f1" />
-              <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} color="#f59e0b" />
+              
+              {/* Fix #7: Badges */}
+              <QuickLaunchItem icon={<FaUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} color="var(--red)" badgeCount={notificationCounts.leaves} />
+              <QuickLaunchItem icon={<FaChartLine />} label="Assign/Review PMS" onClick={() => setView("pms-manager")} color="#6366f1" badgeCount={notificationCounts.pms} />
+              <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} color="#f59e0b" badgeCount={notificationCounts.corrections} />
               
               <QuickLaunchItem icon={<FaUsers />} label="Team Members" onClick={() => setView("team-members")} color="var(--red)" />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
-              <QuickLaunchItem icon={<FaHistory />} label="My Logs" onClick={() => setView("attendance-log")} />
-              <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
+              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
             </div>
           </div>
 
@@ -349,13 +328,44 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- NEW: PMS REVIEWS VIEW --- */}
-      {view === "pms-reviews" && (
+      {/* --- ANNOUNCEMENTS --- */}
+      {view === "announcements" && (
+         <div className="card">
+            <h3>Announcements</h3>
+            {announcements.length === 0 ? <p>No announcements.</p> : announcements.map(a => (
+                <div key={a._id} style={{borderBottom:'1px solid #eee', padding:'10px 0'}}>
+                    <h4 style={{margin:0}}>{a.title}</h4>
+                    <p style={{margin:'5px 0'}}>{a.message}</p>
+                    <small style={{color:'#888'}}>{new Date(a.created_at).toLocaleString()}</small>
+                </div>
+            ))}
+         </div>
+      )}
+
+      {/* --- PMS MANAGER --- */}
+      {view === "pms-manager" && (
           <div className="card">
-              <h3>Pending PMS Reviews</h3>
+              <h3>Performance Management System</h3>
+              <div style={{marginBottom: 30, borderBottom:'1px solid #eee', paddingBottom: 20}}>
+                  <h4 style={{color:'#555'}}>1. Assign Questions</h4>
+                  <form onSubmit={assignPMS} style={{marginTop:15}}>
+                      <select className="modern-input" value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} required>
+                          <option value="">Select Employee</option>
+                          {teamMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
+                      </select>
+                      {pmsQuestions.map((q, i) => (
+                          <input key={i} className="modern-input" style={{marginTop:10}} placeholder={`Question ${i+1}`} value={q} onChange={e => handleQuestionChange(i, e.target.value)} required />
+                      ))}
+                      <div style={{marginTop:10, display:'flex', gap:10}}>
+                        <button type="button" className="btn ghost" onClick={handleAddQuestion}>+ Add Question</button>
+                        <button type="submit" className="btn">Assign Questions</button>
+                      </div>
+                  </form>
+              </div>
+              <h4 style={{color:'#555'}}>2. Pending Reviews</h4>
               <div style={{overflowX:'auto'}}>
                 <table className="styled-table">
-                    <thead><tr><th>Employee</th><th>Month</th><th>Scores</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Employee</th><th>Month</th><th>Responses</th><th>Action</th></tr></thead>
                     <tbody>
                         {pendingPMS.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:20, color:'#999'}}>No pending reviews</td></tr>}
                         {pendingPMS.filter(p => p.status === 'Submitted_by_Employee').map(p => (
@@ -363,14 +373,17 @@ export default function ManagerDashboard({ token, api }) {
                                 <td>{p.employee_name}</td>
                                 <td>{p.month}</td>
                                 <td>
-                                    <div style={{fontSize:12}}>
-                                        {typeof p.self_evaluation === 'object' ? 
-                                            Object.entries(p.self_evaluation).map(([k,v]) => <div key={k}><b>{k}:</b> {v}</div>) 
-                                            : JSON.stringify(p.self_evaluation)}
+                                    <div style={{fontSize:12, maxHeight:100, overflowY:'auto'}}>
+                                        {Object.entries(p.responses || {}).map(([q,a], idx) => (
+                                            <div key={idx} style={{marginBottom:5}}><b>Q: {q}</b><br/><span style={{color:'#555'}}>A: {a}</span></div>
+                                        ))}
                                     </div>
                                 </td>
                                 <td>
-                                    <button className="btn-small" style={{background:'green'}} onClick={() => finalizePMS(p._id, 10)}>Approve</button>
+                                    <div style={{display:'flex', gap:5, alignItems:'center'}}>
+                                        <input type="number" placeholder="Score" className="modern-input" style={{width:60, padding:5}} onChange={e => setReviewScore({...reviewScore, [p._id]: e.target.value})}/>
+                                        <button className="btn-small" style={{background:'green'}} onClick={() => finalizePMS(p._id)}>Approve</button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -380,7 +393,7 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
-      {/* --- NEW: CORRECTIONS VIEW --- */}
+      {/* --- CORRECTIONS --- */}
       {view === "corrections" && (
           <div className="card">
               <h3>Pending Attendance Corrections</h3>
@@ -389,7 +402,7 @@ export default function ManagerDashboard({ token, api }) {
                     <thead><tr><th>Employee</th><th>New Time</th><th>Reason</th><th>Action</th></tr></thead>
                     <tbody>
                         {pendingCorrections.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:20, color:'#999'}}>No pending corrections</td></tr>}
-                        {pendingCorrections.filter(c => c.status === 'Pending').map(c => (
+                        {pendingCorrections.map(c => (
                             <tr key={c._id}>
                                 <td>{c.employee_name}</td>
                                 <td>{new Date(c.new_time).toLocaleString()}</td>
@@ -406,40 +419,71 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
-      {view === "team-leaves" && <div style={{ marginTop: 16 }}><AdminLeavePage token={token} api={api} /></div>}
-      {view === "team-members" && <TeamMembersList />}
+      {/* --- TEAM LEAVES (Fix #1 & #4) --- */}
+      {view === "team-leaves" && (
+          <div className="card" style={{marginTop: 16}}>
+              <h3>Team Leaves</h3>
+              <div style={{overflowX: 'auto'}}>
+                <table className="styled-table">
+                    <thead><tr><th>Name</th><th>Applied On</th><th>Leave Dates</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {teamLeaves.length === 0 && <tr><td colSpan="6" style={{textAlign:'center', padding:20, color:'#999'}}>No leaves found.</td></tr>}
+                        {teamLeaves.map(l => (
+                            <tr key={l._id}>
+                                <td>{l.employee_name}</td>
+                                <td>{l.applied_at_str}</td>
+                                <td>{l.from_date === l.to_date ? l.date : `${l.from_date} to ${l.to_date}`}</td>
+                                <td>{l.reason}</td>
+                                <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status}</span></td>
+                                <td>
+                                    {l.manager_status === 'Pending' && (
+                                        <div style={{display:'flex', gap:5}}>
+                                            <button className="btn-small" style={{background:'green'}} onClick={() => updateLeaveStatus(l._id, 'Approved')}>Approve</button>
+                                            <button className="btn-small" style={{background:'red'}} onClick={() => updateLeaveStatus(l._id, 'Rejected')}>Reject</button>
+                                        </div>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+              </div>
+          </div>
+      )}
+
+      {view === "team-members" && (
+        <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
+            <table className="styled-table">
+                <thead><tr><th>Name</th><th>Email</th><th>Dept</th><th>Position</th></tr></thead>
+                <tbody>{teamMembers.map(m => <tr key={m._id}><td>{m.name}</td><td>{m.email}</td><td>{m.department}</td><td>{m.position}</td></tr>)}</tbody>
+            </table>
+        </div>
+      )}
       
-      {/* --- APPLY LEAVE (UPDATED) --- */}
       {view === "apply-leave" && (
-        <div className="card" style={{ marginTop: 16 }}>
+        <div className="card">
           <form onSubmit={applyLeave}>
-            
-            <div style={{display:'flex', gap:20, marginBottom:15}}>
+             <div style={{display:'flex', gap:20, marginBottom:15}}>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
                     <input type="radio" name="duration" checked={leaveDuration === 'single'} onChange={() => setLeaveDuration('single')} />
-                    <FaCalendarAlt style={{color: "var(--red)"}} />
-                    <span style={{fontWeight:500}}>Single Day</span>
+                    <FaCalendarAlt style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Single Day</span>
                 </label>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
                     <input type="radio" name="duration" checked={leaveDuration === 'multiple'} onChange={() => setLeaveDuration('multiple')} />
-                    <FaCalendarAlt style={{color: "var(--red)"}} />
-                    <span style={{fontWeight:500}}>Multiple Days</span>
+                    <FaCalendarAlt style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Multiple Days</span>
                 </label>
             </div>
-
             <div className="form-row">
               <div style={{flex:1}}>
                 <label className="modern-label">{leaveDuration === 'single' ? 'Date' : 'Start Date'}</label>
                 <input className="modern-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
               </div>
-              
               {leaveDuration === 'multiple' && (
                   <div style={{flex:1}}>
                     <label className="modern-label">End Date</label>
                     <input className="modern-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
                   </div>
               )}
-
               {leaveDuration === 'single' && (
                   <div style={{flex:1}}>
                     <label className="modern-label">Leave Type</label>
@@ -449,30 +493,30 @@ export default function ManagerDashboard({ token, api }) {
                     </select>
                   </div>
               )}
+              {/* Fix #5: Half Day Period */}
+              {type === 'half' && leaveDuration === 'single' && (
+                  <div style={{flex:1, marginLeft:10}}>
+                    <label className="modern-label">Period</label>
+                    <select className="modern-input" value={period} onChange={(e) => setPeriod(e.target.value)}>
+                      <option value="First Half">First Half</option>
+                      <option value="Second Half">Second Half</option>
+                    </select>
+                  </div>
+              )}
             </div>
-
             <div style={{marginTop: 15}}>
               <label className="modern-label">Reason for Leave</label>
               <textarea className="modern-input" style={{minHeight: "100px", resize: "vertical"}} value={reason} onChange={handleReasonChange} required placeholder="Reason (Max 30 words)..." />
-              <div className="small" style={{textAlign:'right', marginTop:4, color: getWordCount() === MAX_WORDS ? 'red' : '#777'}}>
-                 {getWordCount()}/{MAX_WORDS} words
-              </div>
+              <div className="small" style={{textAlign:'right', marginTop:4, color: getWordCount() === MAX_WORDS ? 'red' : '#777'}}>{getWordCount()}/{MAX_WORDS} words</div>
             </div>
-
             <div style={{marginTop: 15}}>
               <label className="modern-label">Attachment (Optional)</label>
               <label className="file-upload-label">
                 <FaCloudUploadAlt size={24} />
                 <span>{file ? file.name : "Click to upload a document (Max 5MB)"}</span>
-                <input 
-                    type="file" 
-                    accept=".pdf,.jpg,.jpeg,.png" 
-                    onChange={handleFileChange} 
-                    style={{display: "none"}} 
-                />
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} style={{display: "none"}} />
               </label>
             </div>
-
             <div style={{ marginTop: 25, display:'flex', justifyContent:'flex-end' }}>
               <button className="btn" type="submit" style={{padding: "10px 24px"}}>Submit Request</button>
             </div>
@@ -492,7 +536,7 @@ export default function ManagerDashboard({ token, api }) {
                   myLeaves.map((l) => (
                     <tr key={l._id}>
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
-                      <td style={{textTransform:"capitalize"}}>{l.type}</td>
+                      <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
                       <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
                       <td>{l.attachment_url ? <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://erp-backend-production-d377.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
@@ -534,8 +578,8 @@ export default function ManagerDashboard({ token, api }) {
                {modalList.map((l) => (
                   <div key={l._id} style={{padding:12, borderBottom:'1px solid #f9f9f9'}}>
                     <div style={{fontWeight:600}}>{l.date || l.from_date}</div>
-                    <div style={{fontSize:13, color:'#666'}}>"{l.reason}"</div>
-                    <span className={`status-badge ${getStatusClass(l.status)}`} style={{marginTop:5}}>{l.status}</span>
+                    <div style={{fontSize:13, color:'#666'}}>"{l.reason || "No reason"}"</div>
+                    <span className={`status-badge ${getStatusClass(l.status)}`} style={{marginTop:5}}>{l.status || 'Pending'}</span>
                   </div>
               ))}
             </div>
@@ -549,7 +593,6 @@ export default function ManagerDashboard({ token, api }) {
           <div className="camera-box" style={{background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
             
             {submittingPhoto ? (
-                // --- LOADING STATE ---
                 <div style={{ padding: "40px 20px" }}>
                     <div className="loader"></div>
                     <p style={{ marginTop: 15, fontWeight: 500, color: "#555" }}>
@@ -558,27 +601,16 @@ export default function ManagerDashboard({ token, api }) {
                     <p style={{ fontSize: "12px", color: "#888" }}>Please wait</p>
                 </div>
             ) : (
-                // --- CAMERA / PREVIEW STATE ---
                 <>
                     <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
-                    
-                    {/* TOGGLE VIDEO/IMAGE VISIBILITY */}
                     <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
                     {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
-                    
                     <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
-                    
                     <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
                         {!previewImage ? (
-                            <>
-                                <button className="btn" onClick={capturePhoto}>Capture</button>
-                                <button className="btn ghost" onClick={closeCamera}>Cancel</button>
-                            </>
+                            <><button className="btn" onClick={capturePhoto}>Capture</button><button className="btn ghost" onClick={closeCamera}>Cancel</button></>
                         ) : (
-                            <>
-                                <button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button>
-                                <button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button>
-                            </>
+                            <><button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button><button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button></>
                         )}
                     </div>
                 </>
