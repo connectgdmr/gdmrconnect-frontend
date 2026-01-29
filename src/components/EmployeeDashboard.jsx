@@ -15,7 +15,8 @@ import {
   FaCalendarAlt,
   FaChartLine,
   FaEdit,
-  FaBullhorn // Added for Announcements
+  FaBullhorn,
+  FaEye // Added for viewing details
 } from "react-icons/fa";
 
 export default function EmployeeDashboard({ token, api }) {
@@ -23,7 +24,7 @@ export default function EmployeeDashboard({ token, api }) {
   const [leaves, setLeaves] = useState([]);
   const [pmsHistory, setPmsHistory] = useState([]);
   const [correctionHistory, setCorrectionHistory] = useState([]);
-  const [announcements, setAnnouncements] = useState([]); // Fix #8
+  const [announcements, setAnnouncements] = useState([]); 
   
   // --- Dynamic PMS Questions ---
   const [pmsQuestions, setPmsQuestions] = useState([]); 
@@ -37,7 +38,7 @@ export default function EmployeeDashboard({ token, api }) {
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [type, setType] = useState("full");
-  const [period, setPeriod] = useState("First Half"); // Fix #1: Initialized to prevent crash
+  const [period, setPeriod] = useState("First Half"); 
   const [file, setFile] = useState(null);
   
   // --- Correction State ---
@@ -59,6 +60,10 @@ export default function EmployeeDashboard({ token, api }) {
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalList, setModalList] = useState([]);
+  
+  // --- PMS Modal State ---
+  const [pmsModalOpen, setPmsModalOpen] = useState(false);
+  const [selectedPms, setSelectedPms] = useState(null);
 
   const pendingLeaves = leaves.filter(l => l.status === 'Pending');
   const approvedLeaves = leaves.filter(l => l.status === 'Approved');
@@ -91,7 +96,7 @@ export default function EmployeeDashboard({ token, api }) {
           setPmsQuestions(data.questions || []);
       }
 
-      // Fix #8: Fetch Announcements
+      // Fetch Announcements
       const annRes = await fetch(`${baseUrl}/api/announcements`, { headers: {'Authorization': `Bearer ${token}`} });
       if(annRes.ok) setAnnouncements(await annRes.json());
 
@@ -129,7 +134,6 @@ export default function EmployeeDashboard({ token, api }) {
     
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    // Fix #2: Added 'const' to define context scope correctly
     const context = canvas.getContext("2d"); 
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     
@@ -150,7 +154,6 @@ export default function EmployeeDashboard({ token, api }) {
 
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
       
-      // Fix #4: Stop loader immediately
       setSubmittingPhoto(false); 
       closeCamera();
       await load();
@@ -182,7 +185,8 @@ export default function EmployeeDashboard({ token, api }) {
         const res = await fetch(`${api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/pms/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ month, evaluation: pmsAnswers })
+            // UPDATED: Sending "responses" instead of "evaluation" to match backend expectation
+            body: JSON.stringify({ month, responses: pmsAnswers })
         });
         const data = await res.json();
         if(!res.ok) throw new Error(data.message);
@@ -193,6 +197,11 @@ export default function EmployeeDashboard({ token, api }) {
     } catch(err) { 
         alert("Submission failed: " + err.message); 
     }
+  }
+
+  function viewPMS(pmsData) {
+      setSelectedPms(pmsData);
+      setPmsModalOpen(true);
   }
 
   // --- ATTENDANCE CORRECTION ---
@@ -226,7 +235,6 @@ export default function EmployeeDashboard({ token, api }) {
       let payload = {
          type, 
          reason,
-         // Fix #5: Send period if half day
          period: type === 'half' ? period : null,
          from_date: startDate,
          to_date: leaveDuration === 'single' ? startDate : endDate
@@ -359,14 +367,12 @@ export default function EmployeeDashboard({ token, api }) {
               <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} color="#b91c1c" />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               
-              {/* NEW PHASE 2 BUTTONS */}
+              {/* UPDATED: PMS Capitalization */}
               <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} color="#6366f1" />
-              {/* Fix #3: Removed Correct Log from here, moved to My Leaves */}
               
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
-              {/* Fix #8: Announcements Button */}
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
             </div>
           </div>
@@ -382,7 +388,7 @@ export default function EmployeeDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- Fix #8: ANNOUNCEMENTS VIEW --- */}
+      {/* --- ANNOUNCEMENTS VIEW --- */}
       {view === "announcements" && (
          <div className="card" style={{marginTop: 16}}>
             <h3>Announcements</h3>
@@ -399,7 +405,8 @@ export default function EmployeeDashboard({ token, api }) {
       {/* --- DYNAMIC PMS VIEW --- */}
       {view === "pms" && (
           <div className="card" style={{marginTop: 16}}>
-              <h3>Monthly Self-Evaluation</h3>
+              {/* UPDATED: Capitalized Title */}
+              <h3>Monthly Self-Evaluation (PMS)</h3>
               {pmsQuestions.length === 0 ? (
                   <p style={{color:'#777'}}>No questions assigned by manager for this month.</p>
               ) : (
@@ -418,17 +425,23 @@ export default function EmployeeDashboard({ token, api }) {
               )}
 
               {/* PMS HISTORY TABLE */}
-              <h4 style={{marginTop:30, color:'var(--red)'}}>My Evaluation History</h4>
+              <h4 style={{marginTop:30, color:'var(--red)'}}>My PMS Evaluation History</h4>
               <div style={{overflowX: 'auto'}}>
                 <table className="styled-table">
-                    <thead><tr><th>Month</th><th>Status</th><th>Score</th></tr></thead>
+                    <thead><tr><th>Month</th><th>Status</th><th>Score</th><th>Action</th></tr></thead>
                     <tbody>
-                        {pmsHistory.length === 0 && <tr><td colSpan="3">No history found.</td></tr>}
+                        {pmsHistory.length === 0 && <tr><td colSpan="4">No history found.</td></tr>}
                         {pmsHistory.map(p => (
                             <tr key={p._id}>
                                 <td>{p.month}</td>
                                 <td><span className={`status-badge ${p.status === 'Approved' ? 'approved' : 'pending'}`}>{p.status}</span></td>
                                 <td>{p.manager_score || '-'}</td>
+                                {/* Added View Button */}
+                                <td>
+                                    <button className="btn ghost" style={{padding: "5px 10px", fontSize: "12px"}} onClick={() => viewPMS(p)}>
+                                        <FaEye /> View
+                                    </button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -519,7 +532,6 @@ export default function EmployeeDashboard({ token, api }) {
                   </div>
               )}
 
-              {/* Fix #5: Half Day Period Selection */}
               {type === 'half' && leaveDuration === 'single' && (
                   <div style={{flex:1, marginLeft:10}}>
                     <label className="modern-label">Period</label>
@@ -555,7 +567,7 @@ export default function EmployeeDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- MY LEAVES (With Correction Button Fix #3) --- */}
+      {/* --- MY LEAVES --- */}
       {view === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
@@ -630,8 +642,36 @@ export default function EmployeeDashboard({ token, api }) {
           </div>
         </div>
       )}
+      
+      {/* --- PMS DETAILS MODAL --- */}
+      {pmsModalOpen && selectedPms && (
+        <div className="modal-overlay" onClick={() => setPmsModalOpen(false)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{width: 600}}>
+            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15}}>
+              <h3 style={{ margin: 0, color: 'var(--red)' }}>PMS Evaluation Details</h3>
+              <button className="btn ghost" onClick={() => setPmsModalOpen(false)}><FaTimes /></button>
+            </div>
+            <div style={{overflowY:'auto', flex:1, maxHeight: '60vh'}}>
+               <p><strong>Month:</strong> {selectedPms.month}</p>
+               <p><strong>Manager Score:</strong> {selectedPms.manager_score || 'Pending'}</p>
+               <hr style={{margin: '10px 0', border: 0, borderTop: '1px solid #eee'}}/>
+               <h4 style={{marginBottom: 10}}>Q&A</h4>
+               {selectedPms.responses ? (
+                   Object.entries(selectedPms.responses).map(([q, a], idx) => (
+                       <div key={idx} style={{marginBottom: 15, background: '#f9f9f9', padding: 10, borderRadius: 6}}>
+                           <div style={{fontWeight: 600, marginBottom: 5, color: '#444'}}>Q: {q}</div>
+                           <div style={{color: '#666'}}>A: {a}</div>
+                       </div>
+                   ))
+               ) : (
+                   <p>No details available.</p>
+               )}
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* --- FIXED CAMERA MODAL WITH LOADER (Fix #4) --- */}
+      {/* --- CAMERA MODAL --- */}
       {cameraOpen && (
         <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
           <div className="camera-box" style={{background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
