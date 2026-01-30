@@ -31,7 +31,7 @@ export default function ManagerDashboard({ token, api }) {
   const [teamLeaves, setTeamLeaves] = useState([]); 
   
   // --- Notifications & Announcements ---
-  const [notificationCounts, setNotificationCounts] = useState({ leaves: 0, pms: 0, corrections: 0 });
+  const [notificationCounts, setNotificationCounts] = useState({ leaves: 0, pms: 0, corrections: 0 ,announcements: 0});
   const [announcements, setAnnouncements] = useState([]);
 
   // --- Manager Approval States ---
@@ -382,7 +382,7 @@ export default function ManagerDashboard({ token, api }) {
               <QuickLaunchItem icon={<FaUsers />} label="Team Members" onClick={() => setView("team-members")} color="var(--red)" />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
-              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
+              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} badgeCount={notificationCounts.announcements} />
             </div>
           </div>
 
