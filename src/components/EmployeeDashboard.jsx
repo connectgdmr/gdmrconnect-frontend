@@ -65,7 +65,7 @@ export default function EmployeeDashboard({ token, api }) {
   const [pmsModalOpen, setPmsModalOpen] = useState(false);
   const [selectedPms, setSelectedPms] = useState(null);
 
-  const [notificationCounts, setNotificationCounts] = useState({  pms: 0, announcements: 0});
+  const [notificationCounts, setNotificationCounts] = useState({leaves: 0, pms: 0, corrections: 0 , announcements: 0});
   
 
   const pendingLeaves = leaves.filter(l => l.status === 'Pending');
@@ -375,7 +375,7 @@ export default function EmployeeDashboard({ token, api }) {
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               
               {/* UPDATED: PMS Capitalization */}
-              <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} color="#6366f1" badgeCount={notificationCounts.pms}/>
+              <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} color="#6366f1"/>
               
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
