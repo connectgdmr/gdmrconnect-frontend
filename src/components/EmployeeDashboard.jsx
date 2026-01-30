@@ -65,6 +65,9 @@ export default function EmployeeDashboard({ token, api }) {
   const [pmsModalOpen, setPmsModalOpen] = useState(false);
   const [selectedPms, setSelectedPms] = useState(null);
 
+  const [notificationCounts, setNotificationCounts] = useState({  pms: 0, announcements: 0});
+  
+
   const pendingLeaves = leaves.filter(l => l.status === 'Pending');
   const approvedLeaves = leaves.filter(l => l.status === 'Approved');
   const rejectedLeaves = leaves.filter(l => l.status === 'Rejected');
@@ -95,6 +98,10 @@ export default function EmployeeDashboard({ token, api }) {
           const data = await questionsRes.json();
           setPmsQuestions(data.questions || []);
       }
+
+      // 6. Fetch Notifications
+      const notifRes = await fetch(`${baseUrl}/api/notifications/counts`, { headers: {'Authorization': `Bearer ${token}`} });
+      if(notifRes.ok) setNotificationCounts(await notifRes.json());
 
       // Fetch Announcements
       const annRes = await fetch(`${baseUrl}/api/announcements`, { headers: {'Authorization': `Bearer ${token}`} });
@@ -368,12 +375,12 @@ export default function EmployeeDashboard({ token, api }) {
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               
               {/* UPDATED: PMS Capitalization */}
-              <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} color="#6366f1" />
+              <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} color="#6366f1" badgeCount={notificationCounts.pms}/>
               
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
-              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
+              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} color="var(--red)" badgeCount={notificationCounts.announcements}/>
             </div>
           </div>
 
