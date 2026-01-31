@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import AdminLeavePage from "./AdminLeavePage"; // Keeping import if you use it elsewhere, though logic is handled inline here
+import AdminLeavePage from "./AdminLeavePage"; 
 import HolidayCalendar from "./HolidayCalendar"; 
 import {
   FaCamera, 
@@ -19,7 +19,7 @@ import {
   FaChartLine, 
   FaClipboardCheck, 
   FaBullhorn, 
-  FaEye, // Added FaEye for view
+  FaEye, 
   FaExclamationTriangle
 } from "react-icons/fa";
 
@@ -87,35 +87,28 @@ export default function ManagerDashboard({ token, api }) {
   async function load() {
     setLoading(true);
     try {
-      // 1. Fetch Personal Data
       const a = await api.myAttendance(token);
       const l = await api.myLeaves(token);
       setAttendance(a);
       setMyLeaves(l);
 
-      // 2. Fetch Team Data
       const t = await api.getManagerEmployees(token); 
       setTeamMembers(t); 
 
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       
-      // 3. Fetch PMS Submissions
       const pmsRes = await fetch(`${baseUrl}/api/manager/pms`, { headers: {'Authorization': `Bearer ${token}`} });
       if(pmsRes.ok) setPendingPMS(await pmsRes.json());
 
-      // 4. Fetch Corrections
       const corrRes = await fetch(`${baseUrl}/api/manager/corrections`, { headers: {'Authorization': `Bearer ${token}`} });
       if(corrRes.ok) setPendingCorrections(await corrRes.json());
       
-      // 5. Fetch Team Leaves
       const leavesRes = await fetch(`${baseUrl}/api/admin/leaves`, { headers: {'Authorization': `Bearer ${token}`} });
       if(leavesRes.ok) setTeamLeaves(await leavesRes.json());
 
-      // 6. Fetch Notifications
       const notifRes = await fetch(`${baseUrl}/api/notifications/counts`, { headers: {'Authorization': `Bearer ${token}`} });
       if(notifRes.ok) setNotificationCounts(await notifRes.json());
 
-      // 7. Fetch Announcements
       const annRes = await fetch(`${baseUrl}/api/announcements`, { headers: {'Authorization': `Bearer ${token}`} });
       if(annRes.ok) setAnnouncements(await annRes.json());
 
@@ -218,14 +211,13 @@ export default function ManagerDashboard({ token, api }) {
               body: JSON.stringify({ id, manager_score: score })
           });
           alert("PMS Review Finalized"); 
-          setViewPMSModalOpen(false); // Close modal on success
+          setViewPMSModalOpen(false); 
           load();
       } catch(err) { alert(err.message); }
   }
 
   function handleViewPMS(pms) {
       setSelectedPMS(pms);
-      // Initialize score state if it exists
       if(pms.manager_score) {
           setReviewScore(prev => ({...prev, [pms._id]: pms.manager_score}));
       }
@@ -371,14 +363,9 @@ export default function ManagerDashboard({ token, api }) {
             <div className="quick-launch-grid">
               <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} color="green" />
               <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} color="#b91c1c" />
-              
               <QuickLaunchItem icon={<FaUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} color="var(--red)" badgeCount={notificationCounts.leaves} />
-              
-              {/* UPDATED: Capitalized PMS */}
               <QuickLaunchItem icon={<FaChartLine />} label="PMS Management" onClick={() => setView("pms-manager")} color="#6366f1" badgeCount={notificationCounts.pms} />
-              
               <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} color="#f59e0b" badgeCount={notificationCounts.corrections} />
-              
               <QuickLaunchItem icon={<FaUsers />} label="Team Members" onClick={() => setView("team-members")} color="var(--red)" />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
@@ -397,7 +384,6 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- ANNOUNCEMENTS --- */}
       {view === "announcements" && (
          <div className="card">
             <h3>Announcements</h3>
@@ -411,12 +397,9 @@ export default function ManagerDashboard({ token, api }) {
          </div>
       )}
 
-      {/* --- PMS MANAGER (UPDATED CAPITALIZATION & VIEW LOGIC) --- */}
       {view === "pms-manager" && (
           <div className="card">
               <h3>Performance Management System (PMS)</h3>
-              
-              {/* SECTION 1: ASSIGN QUESTIONS */}
               <div style={{marginBottom: 30, borderBottom:'1px solid #eee', paddingBottom: 20, background:'#f8f9fa', padding:15, borderRadius:8}}>
                   <h4 style={{marginTop:0, color:'#b91c1c'}}>1. Assign Monthly Questions</h4>
                   <form onSubmit={assignPMS} style={{marginTop:15}}>
@@ -424,21 +407,17 @@ export default function ManagerDashboard({ token, api }) {
                           <option value="">Select Employee</option>
                           {teamMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
                       </select>
-                      
                       <div style={{marginTop:10}}>
                         {pmsQuestions.map((q, i) => (
                             <input key={i} className="modern-input" style={{marginTop:10}} placeholder={`Question ${i+1}`} value={q} onChange={e => handleQuestionChange(i, e.target.value)} required />
                         ))}
                       </div>
-                      
                       <div style={{marginTop:15, display:'flex', gap:10}}>
                         <button type="button" className="btn ghost" onClick={handleAddQuestion}>+ Add Another Question</button>
                         <button type="submit" className="btn">Assign Questions</button>
                       </div>
                   </form>
               </div>
-
-              {/* SECTION 2: PENDING REVIEWS */}
               <h4 style={{color:'#555'}}>2. Pending PMS Reviews</h4>
               <div style={{overflowX:'auto', marginBottom:30}}>
                 <table className="styled-table">
@@ -450,7 +429,6 @@ export default function ManagerDashboard({ token, api }) {
                                 <td>{p.employee_name}</td>
                                 <td>{p.month}</td>
                                 <td>
-                                    {/* UPDATED: View Button triggers modal */}
                                     <button className="btn-small" style={{background:'#6366f1'}} onClick={() => handleViewPMS(p)}>
                                         <FaEye /> View & Review
                                     </button>
@@ -460,8 +438,6 @@ export default function ManagerDashboard({ token, api }) {
                     </tbody>
                 </table>
               </div>
-
-              {/* SECTION 3: COMPLETED REVIEWS */}
               <h4 style={{color:'#555'}}>3. Completed PMS History</h4>
               <div style={{overflowX:'auto'}}>
                 <table className="styled-table">
@@ -485,7 +461,6 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
-      {/* --- CORRECTIONS --- */}
       {view === "corrections" && (
           <div className="card">
               <h3>Pending Attendance Corrections</h3>
@@ -511,7 +486,7 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
-      {/* --- TEAM LEAVES --- */}
+      {/* --- UPDATED TEAM LEAVES VIEW --- */}
       {view === "team-leaves" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Team Leave Requests</h3>
@@ -528,7 +503,8 @@ export default function ManagerDashboard({ token, api }) {
                                 <td>{l.reason}</td>
                                 <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status}</span></td>
                                 <td>
-                                    {l.manager_status === 'Pending' ? (
+                                    {/* CHANGE: Check 'l.status' to show buttons for all pending items */}
+                                    {l.status === 'Pending' ? (
                                         <div style={{display:'flex', gap:5}}>
                                             <button className="btn-small" style={{background:'green'}} onClick={() => updateLeaveStatus(l._id, 'Approved')}>Approve</button>
                                             <button className="btn-small" style={{background:'#b91c1c'}} onClick={() => updateLeaveStatus(l._id, 'Rejected')}>Reject</button>
@@ -547,7 +523,6 @@ export default function ManagerDashboard({ token, api }) {
 
       {view === "team-members" && <TeamMembersList />}
       
-      {/* --- MANAGER PERSONAL LEAVE APPLICATION --- */}
       {view === "apply-leave" && (
         <div className="card">
           <form onSubmit={applyLeave}>
@@ -653,7 +628,6 @@ export default function ManagerDashboard({ token, api }) {
 
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
 
-      {/* --- LEAVE DETAILS MODAL (FOR STATS CLICK) --- */}
       {leaveModalOpen && (
         <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>
           <div className="modal-card" onClick={e => e.stopPropagation()}>
@@ -674,7 +648,6 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- PMS REVIEW & VIEW MODAL (CRITICAL UPDATE) --- */}
       {viewPMSModalOpen && selectedPMS && (
         <div className="modal-overlay" onClick={() => setViewPMSModalOpen(false)}>
           <div className="modal-card" onClick={e => e.stopPropagation()}>
@@ -682,16 +655,12 @@ export default function ManagerDashboard({ token, api }) {
               <h3 style={{ margin: 0, color: 'var(--red)' }}>PMS Review Details</h3>
               <button className="btn ghost" onClick={() => setViewPMSModalOpen(false)}><FaTimes /></button>
             </div>
-            
             <div style={{overflowY:'auto', flex:1, paddingRight:5}}>
-                {/* Header Details */}
                 <div style={{background:'#fdf2f2', padding:10, borderRadius:6, marginBottom:20, display:'flex', flexDirection:'column', gap:5}}>
                     <div><b>Employee:</b> {selectedPMS.employee_name}</div>
                     <div><b>Month:</b> {selectedPMS.month}</div>
                     <div><b>Status:</b> <span className={`status-badge ${selectedPMS.status === 'Approved' ? 'approved' : 'pending'}`}>{selectedPMS.status}</span></div>
                 </div>
-
-                {/* Q&A Section */}
                 <h4 style={{marginBottom:15, color:'#333'}}>Employee Responses:</h4>
                 {(!selectedPMS.responses || Object.keys(selectedPMS.responses).length === 0) ? (
                     <p style={{fontStyle:'italic', color:'#999'}}>No responses found.</p>
@@ -703,8 +672,6 @@ export default function ManagerDashboard({ token, api }) {
                         </div>
                     ))
                 )}
-                
-                {/* Grading Section - Only if Pending */}
                 {selectedPMS.status === 'Submitted_by_Employee' && (
                     <div style={{marginTop:30, borderTop:'1px solid #eee', paddingTop:20}}>
                         <h4 style={{marginBottom:10}}>Manager Evaluation</h4>
@@ -726,8 +693,6 @@ export default function ManagerDashboard({ token, api }) {
                         </button>
                     </div>
                 )}
-                
-                {/* Final Score Display - Only if Approved */}
                 {selectedPMS.status === 'Approved' && (
                     <div style={{marginTop:20, textAlign:'center', padding:15, background:'#dcfce7', borderRadius:8}}>
                         <div style={{fontSize:18, fontWeight:'bold', color:'#16a34a'}}>Final Score: {selectedPMS.manager_score} / 10</div>
@@ -738,7 +703,6 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- CAMERA MODAL --- */}
       {cameraOpen && (
         <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
           <div className="camera-box" style={{background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
