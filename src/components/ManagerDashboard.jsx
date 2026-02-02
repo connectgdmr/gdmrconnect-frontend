@@ -486,31 +486,52 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
-      {/* --- UPDATED TEAM LEAVES VIEW --- */}
+      {/* --- UPDATED TEAM LEAVES VIEW (MATCHING ADMIN STYLE) --- */}
       {view === "team-leaves" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Team Leave Requests</h3>
               <div style={{overflowX: 'auto'}}>
                 <table className="styled-table">
-                    <thead><tr><th>Name</th><th>Applied On</th><th>Leave Dates</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Date / Period</th>
+                            <th>Reason</th>
+                            <th style={{textAlign:'center'}}>Manager</th>
+                            <th style={{textAlign:'center'}}>HR</th>
+                            <th style={{textAlign:'center'}}>Overall</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
                     <tbody>
-                        {teamLeaves.length === 0 && <tr><td colSpan="6" style={{textAlign:'center', padding:20, color:'#999'}}>No leave requests found.</td></tr>}
+                        {teamLeaves.length === 0 && <tr><td colSpan="7" style={{textAlign:'center', padding:20, color:'#999'}}>No leave requests found.</td></tr>}
                         {teamLeaves.map(l => (
                             <tr key={l._id}>
-                                <td>{l.employee_name}</td>
-                                <td>{l.applied_at_str}</td>
-                                <td>{l.from_date === l.to_date ? l.date : `${l.from_date} to ${l.to_date}`}</td>
-                                <td>{l.reason}</td>
-                                <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status}</span></td>
                                 <td>
-                                    {/* CHANGE: Check 'l.status' to show buttons for all pending items */}
+                                    <div style={{fontWeight:600}}>{l.employee_name}</div>
+                                    <div style={{fontSize:11, color:'#888'}}>{l.type === 'half' ? 'Half Day' : 'Full'}</div>
+                                </td>
+                                <td>
+                                    <div style={{fontSize:13}}>{l.from_date === l.to_date ? l.from_date : `${l.from_date} to ${l.to_date}`}</div>
+                                </td>
+                                <td style={{maxWidth:'250px', fontSize:12, color:'#555', lineHeight:'1.4'}}>{l.reason}</td>
+                                <td style={{textAlign:'center'}}>
+                                    <span className={`status-badge ${getStatusClass(l.status)}`}>{l.status}</span>
+                                </td>
+                                <td style={{textAlign:'center'}}>
+                                    <span className={`status-badge ${getStatusClass(l.hr_status || 'Pending')}`}>{l.hr_status || 'Pending'}</span>
+                                </td>
+                                <td style={{textAlign:'center'}}>
+                                    <span className={`status-badge ${getStatusClass(l.status)}`}>{l.status}</span>
+                                </td>
+                                <td>
                                     {l.status === 'Pending' ? (
                                         <div style={{display:'flex', gap:5}}>
-                                            <button className="btn-small" style={{background:'green'}} onClick={() => updateLeaveStatus(l._id, 'Approved')}>Approve</button>
-                                            <button className="btn-small" style={{background:'#b91c1c'}} onClick={() => updateLeaveStatus(l._id, 'Rejected')}>Reject</button>
+                                            <button className="btn-small" style={{background:'#16a34a', padding:'6px 12px'}} onClick={() => updateLeaveStatus(l._id, 'Approved')}>Approve</button>
+                                            <button className="btn-small" style={{background:'#dc2626', padding:'6px 12px'}} onClick={() => updateLeaveStatus(l._id, 'Rejected')}>Reject</button>
                                         </div>
                                     ) : (
-                                        <span style={{fontSize:12, color:'#888'}}>Processed</span>
+                                        <span style={{fontSize:12, color:'#888', fontStyle:'italic'}}>Processed</span>
                                     )}
                                 </td>
                             </tr>
