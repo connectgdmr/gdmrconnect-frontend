@@ -60,7 +60,6 @@ export default function ManagerDashboard({ token, api }) {
   const [file, setFile] = useState(null);
   
   const [loading, setLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false); // For button actions
   
   // --- Camera State ---
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -84,14 +83,14 @@ export default function ManagerDashboard({ token, api }) {
   const MAX_WORDS = 30; 
   const MAX_FILE_SIZE_MB = 5;
 
-  // --- INITIAL DATA LOADING (OPTIMIZED PARALLEL FETCH) ---
+  // --- INITIAL DATA LOADING ---
   const load = useCallback(async () => {
-    setLoading(true);
+    // Only set loading true if it's not already true (to prevent double loader flicker if called manually)
+    setLoading(true); 
     const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
     const headers = { 'Authorization': `Bearer ${token}` };
 
     try {
-      // Fetch everything at once for speed
       const results = await Promise.allSettled([
         api.myAttendance(token),
         api.myLeaves(token),
@@ -103,7 +102,6 @@ export default function ManagerDashboard({ token, api }) {
         fetch(`${baseUrl}/api/announcements`, { headers }).then(r => r.json())
       ]);
 
-      // Assign results safely
       if (results[0].status === 'fulfilled') setAttendance(results[0].value);
       if (results[1].status === 'fulfilled') setMyLeaves(results[1].value);
       if (results[2].status === 'fulfilled') setTeamMembers(results[2].value);
@@ -206,15 +204,19 @@ export default function ManagerDashboard({ token, api }) {
       if(!score) return alert("Please enter a score first");
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
+          setLoading(true);
           await fetch(`${baseUrl}/api/manager/finalize-pms`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ id, manager_score: score })
           });
+          await load();
           alert("PMS Review Finalized"); 
           setViewPMSModalOpen(false); 
-          load();
-      } catch(err) { alert(err.message); }
+      } catch(err) { 
+          alert(err.message); 
+          setLoading(false);
+      }
   }
 
   function handleViewPMS(pms) {
@@ -229,39 +231,47 @@ export default function ManagerDashboard({ token, api }) {
   async function approveCorrection(id, action) {
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
+          setLoading(true);
           await fetch(`${baseUrl}/api/manager/approve-correction`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ id, action })
           });
+          await load();
           alert(`Correction Request ${action}`); 
-          load();
-      } catch(err) { alert(err.message); }
+      } catch(err) { 
+          alert(err.message); 
+          setLoading(false);
+      }
   }
   
   // --- LEAVE STATUS UPDATE LOGIC (FIXED) ---
   async function updateLeaveStatus(id, status) {
-       setActionLoading(true);
+       // This forces the "Updating data..." loader to appear, hiding the old data
+       setLoading(true); 
        const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
        try {
+          // 1. Send the update
           await fetch(`${baseUrl}/api/admin/leaves/${id}`, {
               method: 'PUT',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ status })
           });
-          // Wait for load to finish to reflect changes
+          
+          // 2. Fetch fresh data (this keeps loading=true until done)
           await load();
+          
           alert(`Leave ${status} Successfully`); 
        } catch(err) { 
           alert(err.message); 
-       } finally {
-          setActionLoading(false);
+          setLoading(false); // Make sure to turn off loader if error
        }
   }
 
   // --- APPLY LEAVE (MANAGER PERSONAL) ---
   async function applyLeave(e) {
     e.preventDefault();
+    setLoading(true);
     try {
       let payload = { 
           type, 
@@ -275,7 +285,10 @@ export default function ManagerDashboard({ token, api }) {
       await load(); 
       alert("Leave Applied Successfully!"); 
       setView("my-leaves"); 
-    } catch (err) { alert(err.message); }
+    } catch (err) { 
+        alert(err.message); 
+        setLoading(false);
+    }
   }
   
   // --- HELPERS ---
@@ -342,12 +355,13 @@ export default function ManagerDashboard({ token, api }) {
         .styled-table { width: 100%; border-collapse: collapse; font-size: 14px; }
         .styled-table th, .styled-table td { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; }
         .styled-table th { background-color: #f8f9fa; color: #b91c1c; font-weight:600; text-align:left; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px auto; }
+        /* CHANGED LOADER COLOR TO RED HERE (#b91c1c) */
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #b91c1c; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .btn-small { padding: 5px 10px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; color: white; margin-right: 5px; display:inline-flex; align-items:center; gap:5px; }
         .icon-badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
         .qa-box { margin-bottom: 15px; background: #f9f9f9; padding: 12px; border-radius: 8px; border-left: 4px solid var(--red); }
-        .inline-loader { display: flex; justify-content: center; align-items: center; padding: 20px; color: #666; font-weight: 500; gap: 10px; }
+        .inline-loader { display: flex; justify-content: center; align-items: center; padding: 30px; color: #666; font-weight: 500; gap: 10px; flex-direction: column; }
       `}</style>
 
       {view === "dashboard" ? (
@@ -364,16 +378,18 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {/* INLINE LOADER (Inside page content) */}
+      {/* INLINE LOADER - Shows instead of content when loading */}
       {loading && (
         <div className="card" style={{ marginTop: 16 }}>
            <div className="inline-loader">
-              <div className="loader" style={{width: 20, height: 20, margin:0, borderWidth: 3}}></div>
-              <span>Updating data...</span>
+              <div className="loader" style={{width: 30, height: 30, borderWidth: 4}}></div>
+              <span style={{color: '#b91c1c'}}>Updating Data...</span>
            </div>
         </div>
       )}
 
+      {/* CONTENT - Only shows when NOT loading to ensure fresh data display */}
+      
       {!loading && view === "dashboard" && (
         <div className="dashboard-grid-container">
           <div className="card dashboard-widget">
@@ -402,7 +418,7 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {view === "announcements" && (
+      {!loading && view === "announcements" && (
          <div className="card">
             <h3>Announcements</h3>
             {announcements.length === 0 ? <p style={{color:'#777'}}>No announcements at this time.</p> : announcements.map(a => (
@@ -415,7 +431,7 @@ export default function ManagerDashboard({ token, api }) {
          </div>
       )}
 
-      {view === "pms-manager" && (
+      {!loading && view === "pms-manager" && (
           <div className="card">
               <h3>Performance Management System (PMS)</h3>
               <div style={{marginBottom: 30, borderBottom:'1px solid #eee', paddingBottom: 20, background:'#f8f9fa', padding:15, borderRadius:8}}>
@@ -479,7 +495,7 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
-      {view === "corrections" && (
+      {!loading && view === "corrections" && (
           <div className="card">
               <h3>Pending Attendance Corrections</h3>
               <div style={{overflowX:'auto'}}>
@@ -504,8 +520,8 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
-      {/* --- UPDATED TEAM LEAVES VIEW (MATCHING ADMIN STYLE) --- */}
-      {view === "team-leaves" && (
+      {/* --- TEAM LEAVES VIEW --- */}
+      {!loading && view === "team-leaves" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Team Leave Requests</h3>
               <div style={{overflowX: 'auto'}}>
@@ -545,14 +561,8 @@ export default function ManagerDashboard({ token, api }) {
                                 <td>
                                     {l.status === 'Pending' ? (
                                         <div style={{display:'flex', gap:5}}>
-                                            {actionLoading ? (
-                                                <span style={{fontSize:12, color:'#666'}}>Updating...</span>
-                                            ) : (
-                                              <>
-                                                <button className="btn-small" style={{background:'#16a34a', padding:'6px 12px'}} onClick={() => updateLeaveStatus(l._id, 'Approved')}>Approve</button>
-                                                <button className="btn-small" style={{background:'#dc2626', padding:'6px 12px'}} onClick={() => updateLeaveStatus(l._id, 'Rejected')}>Reject</button>
-                                              </>
-                                            )}
+                                            <button className="btn-small" style={{background:'#16a34a', padding:'6px 12px'}} onClick={() => updateLeaveStatus(l._id, 'Approved')}>Approve</button>
+                                            <button className="btn-small" style={{background:'#dc2626', padding:'6px 12px'}} onClick={() => updateLeaveStatus(l._id, 'Rejected')}>Reject</button>
                                         </div>
                                     ) : (
                                         <span style={{fontSize:12, color:'#888', fontStyle:'italic'}}>Processed</span>
@@ -566,9 +576,9 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
-      {view === "team-members" && <TeamMembersList />}
+      {!loading && view === "team-members" && <TeamMembersList />}
       
-      {view === "apply-leave" && (
+      {!loading && view === "apply-leave" && (
         <div className="card">
           <form onSubmit={applyLeave}>
              <h3 style={{marginTop:0}}>Apply for Leave</h3>
@@ -632,7 +642,7 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {view === "my-leaves" && (
+      {!loading && view === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
           <div style={{overflowX: 'auto'}}>
             <table className="styled-table">
@@ -653,7 +663,7 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {view === "attendance-log" && (
+      {!loading && view === "attendance-log" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
             <table className="styled-table">
               <thead><tr><th>Type</th><th>Date / Time</th><th>Photo</th></tr></thead>
@@ -671,6 +681,7 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
+      {/* Holidays and Modals always render as overlays/separate */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
 
       {leaveModalOpen && (
