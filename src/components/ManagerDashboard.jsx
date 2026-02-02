@@ -60,7 +60,6 @@ export default function ManagerDashboard({ token, api }) {
   const [file, setFile] = useState(null);
   
   const [loading, setLoading] = useState(false);
-  const [teamLeavesLoading, setTeamLeavesLoading] = useState(false); // NEW: Loader State
   
   // --- Camera State ---
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -242,7 +241,6 @@ export default function ManagerDashboard({ token, api }) {
   // --- LEAVE STATUS UPDATE LOGIC ---
   async function updateLeaveStatus(id, status) {
        const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-       setTeamLeavesLoading(true); // START LOADER
        try {
           await fetch(`${baseUrl}/api/admin/leaves/${id}`, {
               method: 'PUT',
@@ -250,12 +248,8 @@ export default function ManagerDashboard({ token, api }) {
               body: JSON.stringify({ status })
           });
           alert("Leave Status Updated"); 
-          await load();
-       } catch(err) { 
-         alert(err.message); 
-       } finally {
-         setTeamLeavesLoading(false); // STOP LOADER
-       }
+          load();
+       } catch(err) { alert(err.message); }
   }
 
   // --- APPLY LEAVE (MANAGER PERSONAL) ---
@@ -342,7 +336,6 @@ export default function ManagerDashboard({ token, api }) {
         .styled-table th, .styled-table td { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; }
         .styled-table th { background-color: #f8f9fa; color: #b91c1c; font-weight:600; text-align:left; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px auto; }
-        .loader-red { border: 4px solid #f3f3f3; border-top: 4px solid #b91c1c; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .btn-small { padding: 5px 10px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; color: white; margin-right: 5px; display:inline-flex; align-items:center; gap:5px; }
         .icon-badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
@@ -493,44 +486,38 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
-      {/* --- UPDATED TEAM LEAVES VIEW WITH RED CIRCULAR LOADER --- */}
+      {/* --- UPDATED TEAM LEAVES VIEW --- */}
       {view === "team-leaves" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Team Leave Requests</h3>
-              {teamLeavesLoading ? (
-                  <div style={{textAlign: 'center', padding: '40px'}}>
-                      <div className="loader-red"></div>
-                      <p style={{color: '#b91c1c', fontWeight: '500'}}>Updating record...</p>
-                  </div>
-              ) : (
-                  <div style={{overflowX: 'auto'}}>
-                    <table className="styled-table">
-                        <thead><tr><th>Name</th><th>Applied On</th><th>Leave Dates</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
-                        <tbody>
-                            {teamLeaves.length === 0 && <tr><td colSpan="6" style={{textAlign:'center', padding:20, color:'#999'}}>No leave requests found.</td></tr>}
-                            {teamLeaves.map(l => (
-                                <tr key={l._id}>
-                                    <td>{l.employee_name}</td>
-                                    <td>{l.applied_at_str}</td>
-                                    <td>{l.from_date === l.to_date ? l.date : `${l.from_date} to ${l.to_date}`}</td>
-                                    <td>{l.reason}</td>
-                                    <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status}</span></td>
-                                    <td>
-                                        {l.status === 'Pending' ? (
-                                            <div style={{display:'flex', gap:5}}>
-                                                <button className="btn-small" style={{background:'green'}} onClick={() => updateLeaveStatus(l._id, 'Approved')}>Approve</button>
-                                                <button className="btn-small" style={{background:'#b91c1c'}} onClick={() => updateLeaveStatus(l._id, 'Rejected')}>Reject</button>
-                                            </div>
-                                        ) : (
-                                            <span style={{fontSize:12, color:'#888'}}>Processed</span>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                  </div>
-              )}
+              <div style={{overflowX: 'auto'}}>
+                <table className="styled-table">
+                    <thead><tr><th>Name</th><th>Applied On</th><th>Leave Dates</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {teamLeaves.length === 0 && <tr><td colSpan="6" style={{textAlign:'center', padding:20, color:'#999'}}>No leave requests found.</td></tr>}
+                        {teamLeaves.map(l => (
+                            <tr key={l._id}>
+                                <td>{l.employee_name}</td>
+                                <td>{l.applied_at_str}</td>
+                                <td>{l.from_date === l.to_date ? l.date : `${l.from_date} to ${l.to_date}`}</td>
+                                <td>{l.reason}</td>
+                                <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status}</span></td>
+                                <td>
+                                    {/* CHANGE: Check 'l.status' to show buttons for all pending items */}
+                                    {l.status === 'Pending' ? (
+                                        <div style={{display:'flex', gap:5}}>
+                                            <button className="btn-small" style={{background:'green'}} onClick={() => updateLeaveStatus(l._id, 'Approved')}>Approve</button>
+                                            <button className="btn-small" style={{background:'#b91c1c'}} onClick={() => updateLeaveStatus(l._id, 'Rejected')}>Reject</button>
+                                        </div>
+                                    ) : (
+                                        <span style={{fontSize:12, color:'#888'}}>Processed</span>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+              </div>
           </div>
       )}
 
