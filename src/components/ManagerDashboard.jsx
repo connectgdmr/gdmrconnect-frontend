@@ -59,6 +59,7 @@ export default function ManagerDashboard({ token, api }) {
   const [period, setPeriod] = useState("First Half"); 
   const [file, setFile] = useState(null);
   
+  // --- Loading States ---
   const [loading, setLoading] = useState(false);
   
   // --- Camera State ---
@@ -84,9 +85,10 @@ export default function ManagerDashboard({ token, api }) {
   const MAX_FILE_SIZE_MB = 5;
 
   // --- INITIAL DATA LOADING ---
-  const load = useCallback(async () => {
-    // Only set loading true if it's not already true (to prevent double loader flicker if called manually)
+  const load = useCallback(async (isAction = false) => {
+    // Only show loader if it's a manual action or initial load
     setLoading(true); 
+    
     const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
     const headers = { 'Authorization': `Bearer ${token}` };
 
@@ -156,7 +158,7 @@ export default function ManagerDashboard({ token, api }) {
       setSubmittingPhoto(false); 
       closeCamera(); 
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
-      await load();
+      await load(true);
     } catch (err) {
       alert("Error submitting attendance: " + (err.message || ""));
       setSubmittingPhoto(false); 
@@ -186,6 +188,7 @@ export default function ManagerDashboard({ token, api }) {
       e.preventDefault();
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
+          setLoading(true);
           const month = new Date().toISOString().slice(0, 7);
           const res = await fetch(`${baseUrl}/api/manager/assign-pms`, {
               method: 'POST',
@@ -196,7 +199,11 @@ export default function ManagerDashboard({ token, api }) {
               alert("PMS Questions Assigned Successfully");
               setPmsQuestions([""]); setSelectedEmployee("");
           }
-      } catch(err) { alert("Error assigning PMS"); }
+          await load(true);
+      } catch(err) { 
+          alert("Error assigning PMS"); 
+          setLoading(false);
+      }
   }
 
   async function finalizePMS(id) {
@@ -210,7 +217,7 @@ export default function ManagerDashboard({ token, api }) {
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ id, manager_score: score })
           });
-          await load();
+          await load(true);
           alert("PMS Review Finalized"); 
           setViewPMSModalOpen(false); 
       } catch(err) { 
@@ -231,13 +238,13 @@ export default function ManagerDashboard({ token, api }) {
   async function approveCorrection(id, action) {
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
-          setLoading(true);
+          setLoading(true); // Trigger full page loader inside content
           await fetch(`${baseUrl}/api/manager/approve-correction`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ id, action })
           });
-          await load();
+          await load(true);
           alert(`Correction Request ${action}`); 
       } catch(err) { 
           alert(err.message); 
@@ -245,26 +252,21 @@ export default function ManagerDashboard({ token, api }) {
       }
   }
   
-  // --- LEAVE STATUS UPDATE LOGIC (FIXED) ---
+  // --- LEAVE STATUS UPDATE LOGIC ---
   async function updateLeaveStatus(id, status) {
-       // This forces the "Updating data..." loader to appear, hiding the old data
-       setLoading(true); 
+       setLoading(true); // Trigger full page loader inside content
        const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
        try {
-          // 1. Send the update
           await fetch(`${baseUrl}/api/admin/leaves/${id}`, {
               method: 'PUT',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ status })
           });
-          
-          // 2. Fetch fresh data (this keeps loading=true until done)
-          await load();
-          
+          await load(true); // Wait for data refresh
           alert(`Leave ${status} Successfully`); 
        } catch(err) { 
           alert(err.message); 
-          setLoading(false); // Make sure to turn off loader if error
+          setLoading(false);
        }
   }
 
@@ -282,7 +284,7 @@ export default function ManagerDashboard({ token, api }) {
       };
       await api.applyLeaveWithFile(payload, file, token);
       setStartDate(""); setEndDate(""); setReason(""); setFile(null);
-      await load(); 
+      await load(true); 
       alert("Leave Applied Successfully!"); 
       setView("my-leaves"); 
     } catch (err) { 
@@ -355,13 +357,13 @@ export default function ManagerDashboard({ token, api }) {
         .styled-table { width: 100%; border-collapse: collapse; font-size: 14px; }
         .styled-table th, .styled-table td { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; }
         .styled-table th { background-color: #f8f9fa; color: #b91c1c; font-weight:600; text-align:left; }
-        /* CHANGED LOADER COLOR TO RED HERE (#b91c1c) */
+        /* RED LOADER STYLE */
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #b91c1c; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .btn-small { padding: 5px 10px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; color: white; margin-right: 5px; display:inline-flex; align-items:center; gap:5px; }
         .icon-badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
         .qa-box { margin-bottom: 15px; background: #f9f9f9; padding: 12px; border-radius: 8px; border-left: 4px solid var(--red); }
-        .inline-loader { display: flex; justify-content: center; align-items: center; padding: 30px; color: #666; font-weight: 500; gap: 10px; flex-direction: column; }
+        .inline-loader { display: flex; justify-content: center; align-items: center; padding: 40px; color: #666; font-weight: 500; gap: 10px; flex-direction: column; }
       `}</style>
 
       {view === "dashboard" ? (
@@ -378,17 +380,17 @@ export default function ManagerDashboard({ token, api }) {
         </div>
       )}
 
-      {/* INLINE LOADER - Shows instead of content when loading */}
+      {/* --- INLINE LOADER (Replaces content during updates) --- */}
       {loading && (
         <div className="card" style={{ marginTop: 16 }}>
            <div className="inline-loader">
-              <div className="loader" style={{width: 30, height: 30, borderWidth: 4}}></div>
-              <span style={{color: '#b91c1c'}}>Updating Data...</span>
+              <div className="loader" style={{width: 40, height: 40, borderWidth: 4}}></div>
+              <span style={{color: '#b91c1c', marginTop: 10}}>Updating Data...</span>
            </div>
         </div>
       )}
 
-      {/* CONTENT - Only shows when NOT loading to ensure fresh data display */}
+      {/* --- MAIN CONTENT (Hidden when loading) --- */}
       
       {!loading && view === "dashboard" && (
         <div className="dashboard-grid-container">
@@ -495,22 +497,34 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
+      {/* --- CORRECTIONS VIEW (UPDATED TO SHOW STATUS COLUMN) --- */}
       {!loading && view === "corrections" && (
           <div className="card">
               <h3>Pending Attendance Corrections</h3>
               <div style={{overflowX:'auto'}}>
                 <table className="styled-table">
-                    <thead><tr><th>Employee</th><th>New Time</th><th>Reason</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Employee</th><th>New Time</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
                     <tbody>
-                        {pendingCorrections.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:20, color:'#999'}}>No pending corrections found.</td></tr>}
+                        {pendingCorrections.length === 0 && <tr><td colSpan="5" style={{textAlign:'center', padding:20, color:'#999'}}>No pending corrections found.</td></tr>}
                         {pendingCorrections.map(c => (
                             <tr key={c._id}>
                                 <td>{c.employee_name}</td>
                                 <td>{new Date(c.new_time).toLocaleString()}</td>
                                 <td>{c.reason}</td>
+                                <td><span className={`status-badge ${getStatusClass(c.status)}`}>{c.status}</span></td>
                                 <td>
-                                    <button className="btn-small" style={{background:'green'}} onClick={() => approveCorrection(c._id, 'Approved')}><FaCheckCircle /> Approve</button>
-                                    <button className="btn-small" style={{background:'#b91c1c'}} onClick={() => approveCorrection(c._id, 'Rejected')}><FaTimesCircle /> Reject</button>
+                                    {c.status === 'Pending' ? (
+                                      <div style={{display:'flex', gap:5}}>
+                                        <button className="btn-small" style={{background:'green'}} onClick={() => approveCorrection(c._id, 'Approved')}>
+                                          <FaCheckCircle /> Approve
+                                        </button>
+                                        <button className="btn-small" style={{background:'#b91c1c'}} onClick={() => approveCorrection(c._id, 'Rejected')}>
+                                          <FaTimesCircle /> Reject
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <span style={{color:'#888', fontStyle:'italic', fontSize:12}}>Processed</span>
+                                    )}
                                 </td>
                             </tr>
                         ))}
@@ -520,7 +534,7 @@ export default function ManagerDashboard({ token, api }) {
           </div>
       )}
 
-      {/* --- TEAM LEAVES VIEW --- */}
+      {/* --- TEAM LEAVES VIEW (FIXED STATUS DISPLAY) --- */}
       {!loading && view === "team-leaves" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Team Leave Requests</h3>
@@ -549,17 +563,23 @@ export default function ManagerDashboard({ token, api }) {
                                     <div style={{fontSize:13}}>{l.from_date === l.to_date ? l.from_date : `${l.from_date} to ${l.to_date}`}</div>
                                 </td>
                                 <td style={{maxWidth:'250px', fontSize:12, color:'#555', lineHeight:'1.4'}}>{l.reason}</td>
+                                {/* MANAGER STATUS COLUMN */}
                                 <td style={{textAlign:'center'}}>
-                                    <span className={`status-badge ${getStatusClass(l.status)}`}>{l.status}</span>
+                                    <span className={`status-badge ${getStatusClass(l.manager_status || 'Pending')}`}>
+                                      {l.manager_status || 'Pending'}
+                                    </span>
                                 </td>
                                 <td style={{textAlign:'center'}}>
-                                    <span className={`status-badge ${getStatusClass(l.hr_status || 'Pending')}`}>{l.hr_status || 'Pending'}</span>
+                                    <span className={`status-badge ${getStatusClass(l.admin_status || 'Pending')}`}>
+                                      {l.admin_status || 'Pending'}
+                                    </span>
                                 </td>
                                 <td style={{textAlign:'center'}}>
                                     <span className={`status-badge ${getStatusClass(l.status)}`}>{l.status}</span>
                                 </td>
                                 <td>
-                                    {l.status === 'Pending' ? (
+                                    {/* BUTTONS ONLY SHOW IF MANAGER HAS NOT ACTED YET */}
+                                    {(!l.manager_status || l.manager_status === 'Pending') ? (
                                         <div style={{display:'flex', gap:5}}>
                                             <button className="btn-small" style={{background:'#16a34a', padding:'6px 12px'}} onClick={() => updateLeaveStatus(l._id, 'Approved')}>Approve</button>
                                             <button className="btn-small" style={{background:'#dc2626', padding:'6px 12px'}} onClick={() => updateLeaveStatus(l._id, 'Rejected')}>Reject</button>
