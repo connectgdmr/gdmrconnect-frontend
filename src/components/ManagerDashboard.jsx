@@ -23,7 +23,8 @@ import {
   FaLock,
   FaDownload,
   FaPlus,
-  FaTrash
+  FaTrash,
+  FaEdit // <-- ADDED: This missing import was causing the fatal White Screen crash!
 } from "react-icons/fa";
 
 export default function ManagerDashboard({ token, api, passwordChanged = true }) {
@@ -100,14 +101,15 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   const load = useCallback(async (isAction = false) => {
     setLoading(true); 
     
-    const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+    // Safely check for api to prevent crashes if it isn't passed correctly
+    const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
     const headers = { 'Authorization': `Bearer ${token}` };
 
     try {
       const results = await Promise.allSettled([
-        api.myAttendance(token),
-        api.myLeaves(token),
-        api.getManagerEmployees(token),
+        api?.myAttendance ? api.myAttendance(token) : Promise.resolve([]),
+        api?.myLeaves ? api.myLeaves(token) : Promise.resolve([]),
+        api?.getManagerEmployees ? api.getManagerEmployees(token) : Promise.resolve([]),
         fetch(`${baseUrl}/api/manager/pms`, { headers }).then(r => r.json()),
         fetch(`${baseUrl}/api/manager/corrections`, { headers }).then(r => r.json()),
         fetch(`${baseUrl}/api/admin/leaves`, { headers }).then(r => r.json()),
@@ -117,16 +119,16 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         fetch(`${baseUrl}/api/admin/pms-dashboard?month=${dashboardMonth}`, { headers }).then(r => r.json())
       ]);
 
-      if (results[0].status === 'fulfilled') setAttendance(results[0].value);
-      if (results[1].status === 'fulfilled') setMyLeaves(results[1].value);
-      if (results[2].status === 'fulfilled') setTeamMembers(results[2].value);
-      if (results[3].status === 'fulfilled') setPendingPMS(results[3].value);
-      if (results[4].status === 'fulfilled') setPendingCorrections(results[4].value);
-      if (results[5].status === 'fulfilled') setTeamLeaves(results[5].value);
-      if (results[6].status === 'fulfilled') setNotificationCounts(results[6].value);
-      if (results[7].status === 'fulfilled') setAnnouncements(results[7].value);
+      if (results[0].status === 'fulfilled' && Array.isArray(results[0].value)) setAttendance(results[0].value);
+      if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) setMyLeaves(results[1].value);
+      if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) setTeamMembers(results[2].value);
+      if (results[3].status === 'fulfilled' && Array.isArray(results[3].value)) setPendingPMS(results[3].value);
+      if (results[4].status === 'fulfilled' && Array.isArray(results[4].value)) setPendingCorrections(results[4].value);
+      if (results[5].status === 'fulfilled' && Array.isArray(results[5].value)) setTeamLeaves(results[5].value);
+      if (results[6].status === 'fulfilled' && results[6].value) setNotificationCounts(results[6].value);
+      if (results[7].status === 'fulfilled' && Array.isArray(results[7].value)) setAnnouncements(results[7].value);
       
-      if (results[8].status === 'fulfilled') {
+      if (results[8].status === 'fulfilled' && results[8].value) {
           setTemplateSessions(results[8].value.sessions || []);
       }
       if (results[9].status === 'fulfilled' && Array.isArray(results[9].value)) {
@@ -138,7 +140,8 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
     } finally { 
       setLoading(false); 
     }
-  }, [api, token, dashboardMonth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, dashboardMonth]); // FIXED: Removed 'api' from dependency array to stop the infinite "Updating Data" loop
 
   useEffect(() => { load(); }, [load]);
 
@@ -155,7 +158,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       }
 
       try {
-          const res = await fetch(`${api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/my/set-password`, {
+          const res = await fetch(`${api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/my/set-password`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
               body: JSON.stringify({ password: newPassword })
@@ -254,7 +257,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
 
   async function savePmsTemplate(e) {
       e.preventDefault();
-      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
           setLoading(true);
           const res = await fetch(`${baseUrl}/api/admin/pms-template`, {
@@ -285,7 +288,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   }
 
   async function finalizePMS(id) {
-      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       
       // Map manager scores back to array format
       const scoresArr = Object.keys(managerScores).map(q => ({
@@ -316,7 +319,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // --- EXPORT CSV ---
   async function downloadReport() {
       try {
-          const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+          const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
           const res = await fetch(`${baseUrl}/api/admin/export-pms?month=${dashboardMonth}`, {
               headers: { 'Authorization': `Bearer ${token}` }
           });
@@ -337,7 +340,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
 
   // --- CORRECTION LOGIC ---
   async function approveCorrection(id, action) {
-      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
           setLoading(true); 
           await fetch(`${baseUrl}/api/manager/approve-correction`, {
@@ -356,7 +359,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // --- LEAVE STATUS UPDATE LOGIC ---
   async function updateLeaveStatus(id, status) {
        setLoading(true); 
-       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+       const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
        try {
           await fetch(`${baseUrl}/api/admin/leaves/${id}`, {
               method: 'PUT',
@@ -500,10 +503,19 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         </div>
       )}
 
+      {/* --- ADDED DEDICATED CHANGE PASSWORD BUTTON TO HEADER --- */}
       {view === "dashboard" ? (
-        <div className="dashboard-header-card card">
-          <h2 style={{ color: "var(--red)", margin: 0 }}>Manager Dashboard</h2>
-          <p className="small">Manage your team and your own attendance</p>
+        <div className="dashboard-header-card card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2 style={{ color: "var(--red)", margin: 0 }}>Manager Dashboard</h2>
+            <p className="small">Manage your team and your own attendance</p>
+          </div>
+          <button 
+            onClick={() => {setPassError(""); setNewPassword(""); setShowPasswordModal(true);}}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            <FaLock /> Change Password
+          </button>
         </div>
       ) : (
         <div className="dashboard-header-card card" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -530,18 +542,16 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
             <div className="quick-launch-grid">
               <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} color="green" />
               <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} color="#b91c1c" />
-              <QuickLaunchItem icon={<FaUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} color="var(--red)" badgeCount={notificationCounts.leaves} />
+              <QuickLaunchItem icon={<FaUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} color="var(--red)" badgeCount={notificationCounts?.leaves || 0} />
               
               <QuickLaunchItem icon={<FaEdit />} label="PMS Form Builder" onClick={() => setView("pms-builder")} color="#10b981" />
-              <QuickLaunchItem icon={<FaChartLine />} label="PMS Reviews" onClick={() => setView("pms-manager")} color="#6366f1" badgeCount={notificationCounts.pms} />
+              <QuickLaunchItem icon={<FaChartLine />} label="PMS Reviews" onClick={() => setView("pms-manager")} color="#6366f1" badgeCount={notificationCounts?.pms || 0} />
               <QuickLaunchItem icon={<FaUsers />} label="Dept Dashboard" onClick={() => setView("dept-dashboard")} color="#8b5cf6" />
               
-              <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} color="#f59e0b" badgeCount={notificationCounts.corrections} />
+              <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} color="#f59e0b" badgeCount={notificationCounts?.corrections || 0} />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
-              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} color="var(--red)" badgeCount={notificationCounts.announcements} />
-              
-              <QuickLaunchItem icon={<FaLock />} label="Change Password" onClick={() => {setPassError(""); setNewPassword(""); setShowPasswordModal(true);}} color="#f59e0b" />
+              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} color="var(--red)" badgeCount={notificationCounts?.announcements || 0} />
             </div>
           </div>
 
@@ -974,7 +984,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                     <p style={{fontStyle:'italic', color:'#999'}}>No responses found.</p>
                 ) : (
                     selectedPMS.responses.map((resp, idx) => {
-                        // Find if there's a pre-existing manager score for display mode
                         const existingMgrScore = selectedPMS.manager_scores?.find(m => m.question === resp.question);
                         const isPending = selectedPMS.status === 'Pending Review';
 
@@ -982,7 +991,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                         <div key={idx} className="qa-box" style={{marginBottom: 20, background: '#f9f9f9', padding: 15, borderRadius: 8, borderLeft: '4px solid #ddd'}}>
                             <div style={{fontWeight:600, marginBottom:8, color:'#222'}}>{resp.question}</div>
                             
-                            {/* IF Employee gave a Self Score, show it and ask for Manager Score */}
                             {resp.self_score && (
                                 <div>
                                     <div style={{display: 'flex', gap: 20, marginBottom: 10, alignItems: 'center'}}>
@@ -1006,7 +1014,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                                 </div>
                             )}
 
-                            {/* IF Employee gave a Descriptive Answer */}
                             {resp.descriptive_answer && (
                                 <div style={{marginBottom: 10}}>
                                     <div style={{fontSize: 12, color: '#666'}}>Answer:</div>
