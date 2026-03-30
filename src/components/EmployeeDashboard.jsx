@@ -116,10 +116,19 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     load();
   }, []);
 
-  // --- SET STRONG PASSWORD (NEW) ---
+  // --- SET STRONG PASSWORD (NEW - REQ 1) ---
   async function handleSetPassword(e) {
       e.preventDefault();
       setPassError("");
+
+      // Validate Strong Password: Min 8 chars, 1 Upper, 1 Lower, 1 Number, 1 Special Char
+      const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      
+      if (!strongRegex.test(newPassword)) {
+          setPassError("Password must be at least 8 characters long, and include an uppercase letter, a lowercase letter, a number, and a special character (@, $, !, %, *, ?, &).");
+          return;
+      }
+
       try {
           const res = await fetch(`${api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/my/set-password`, {
               method: 'POST',
@@ -196,7 +205,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     setSubmittingPhoto(false);
   }
 
-  // --- DYNAMIC PMS 2.0 SUBMISSION ---
+  // --- DYNAMIC PMS 2.0 SUBMISSION (REQ 2.2 & 2.3) ---
   function handlePmsChange(sessionId, questionIdx, questionText, field, value) {
       const key = `${sessionId}_${questionIdx}`;
       setPmsResponses(prev => ({
@@ -375,18 +384,19 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
             <div className="modal-card">
                 <h3 style={{color: "var(--red)", marginTop: 0}}>Set Secure Password</h3>
                 <p className="small">Please set a strong password to secure your account.</p>
-                {passError && <div className="alert" style={{marginBottom: 15}}>{passError}</div>}
+                {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px'}}>{passError}</div>}
                 
                 <form onSubmit={handleSetPassword}>
                     <label className="modern-label">New Password</label>
                     <input 
                         type="password" 
                         className="modern-input" 
-                        placeholder="1 Uppercase, 1 Number, 1 Special Char"
+                        placeholder="1 Uppercase, 1 Lowercase, 1 Number, 1 Special Char"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         required
                     />
+                    <small style={{display: 'block', marginTop: 5, color: '#666'}}>Must be at least 8 characters long.</small>
                     <button className="btn" style={{width: '100%', marginTop: 20, padding: 12}}>Save Password</button>
                 </form>
             </div>
@@ -473,7 +483,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                                   <div key={qIdx} style={{marginTop: 20}}>
                                       <label className="modern-label" style={{fontSize: 14, color: '#333'}}>{q.text}</label>
                                       
-                                      {/* SCORE TYPE (1-10) */}
+                                      {/* RESPONSE TYPE 1: SCORE TYPE (1-10) */}
                                       {q.type === 'scale' ? (
                                           <div style={{display:'flex', alignItems:'center', gap: 15, marginTop: 10, marginBottom: 10}}>
                                               <input 
@@ -486,7 +496,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                                               <span style={{fontWeight: 'bold', fontSize: 18, minWidth: 60, textAlign: 'right'}}>{currentScore} / 10</span>
                                           </div>
                                       ) : (
-                                      /* DESCRIPTIVE TYPE */
+                                      /* RESPONSE TYPE 2: DESCRIPTIVE TYPE */
                                           <textarea 
                                               className="modern-input" 
                                               style={{minHeight:80, marginTop: 10, marginBottom: 10}} 
@@ -496,7 +506,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                                           />
                                       )}
                                       
-                                      {/* REMARKS SECTION */}
+                                      {/* RESPONSE TYPE 3: REMARKS SECTION */}
                                       <input 
                                           type="text" 
                                           className="modern-input" 
@@ -513,7 +523,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                   </form>
               )}
 
-              {/* PMS HISTORY TABLE */}
+              {/* PMS HISTORY TABLE (REQ 2.7) */}
               <h4 style={{marginTop:40, color:'var(--red)', borderTop: '1px solid #eee', paddingTop: 20}}>My PMS Evaluation History</h4>
               <div style={{overflowX: 'auto'}}>
                 <table className="styled-table">
