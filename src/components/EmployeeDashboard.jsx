@@ -16,7 +16,8 @@ import {
   FaChartLine,
   FaEdit,
   FaBullhorn,
-  FaEye
+  FaEye,
+  FaLock
 } from "react-icons/fa";
 
 export default function EmployeeDashboard({ token, api, passwordChanged = true }) {
@@ -116,7 +117,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     load();
   }, []);
 
-  // --- SET STRONG PASSWORD (NEW - REQ 1) ---
+  // --- SET STRONG PASSWORD ---
   async function handleSetPassword(e) {
       e.preventDefault();
       setPassError("");
@@ -140,6 +141,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
           
           alert("Password updated successfully!");
           setShowPasswordModal(false);
+          setNewPassword(""); // clear input
       } catch (err) {
           setPassError(err.message);
       }
@@ -205,7 +207,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     setSubmittingPhoto(false);
   }
 
-  // --- DYNAMIC PMS 2.0 SUBMISSION (REQ 2.2 & 2.3) ---
+  // --- DYNAMIC PMS 2.0 SUBMISSION ---
   function handlePmsChange(sessionId, questionIdx, questionText, field, value) {
       const key = `${sessionId}_${questionIdx}`;
       setPmsResponses(prev => ({
@@ -364,7 +366,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         .styled-table tbody td { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; color: #444; }
         .clickable-stat { cursor: pointer; transition: transform 0.2s; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; justify-content: center; align-items: center; }
-        .modal-card { background: white; width: 450px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 80vh; }
+        .modal-card { background: white; width: 450px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 80vh; position: relative; }
         
         .loader {
           border: 4px solid #f3f3f3;
@@ -378,10 +380,21 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       `}</style>
 
-      {/* FORCE PASSWORD RESET MODAL */}
+      {/* PASSWORD RESET MODAL */}
       {showPasswordModal && (
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
             <div className="modal-card">
+                {/* Only show close button if password was already set previously (manual change) */}
+                {passwordChanged && (
+                    <button 
+                        className="btn ghost" 
+                        style={{ position: 'absolute', top: 15, right: 15, padding: 5 }} 
+                        onClick={() => setShowPasswordModal(false)}
+                    >
+                        <FaTimes />
+                    </button>
+                )}
+                
                 <h3 style={{color: "var(--red)", marginTop: 0}}>Set Secure Password</h3>
                 <p className="small">Please set a strong password to secure your account.</p>
                 {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px'}}>{passError}</div>}
@@ -432,6 +445,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
+              
+              {/* NEW CHANGE PASSWORD BUTTON */}
+              <QuickLaunchItem icon={<FaLock />} label="Change Password" onClick={() => {setPassError(""); setNewPassword(""); setShowPasswordModal(true);}} color="#f59e0b" />
             </div>
           </div>
 
@@ -460,7 +476,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
          </div>
       )}
 
-      {/* --- DYNAMIC PMS VIEW (REQ 2.1 - 2.3) --- */}
+      {/* --- DYNAMIC PMS VIEW --- */}
       {view === "pms" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Monthly Performance Self-Evaluation</h3>
@@ -523,7 +539,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                   </form>
               )}
 
-              {/* PMS HISTORY TABLE (REQ 2.7) */}
+              {/* PMS HISTORY TABLE */}
               <h4 style={{marginTop:40, color:'var(--red)', borderTop: '1px solid #eee', paddingTop: 20}}>My PMS Evaluation History</h4>
               <div style={{overflowX: 'auto'}}>
                 <table className="styled-table">
