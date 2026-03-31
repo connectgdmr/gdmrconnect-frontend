@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import HolidayCalendar from "./HolidayCalendar"; 
+// ADDED IMPORTS FOR DELEGATED ADMIN PAGES
+import AdminLeavePage from "./AdminLeavePage";
+import AdminAttendancePage from "./AdminAttendancePage";
 import {
   FaCamera,
   FaSignOutAlt,
@@ -17,8 +20,10 @@ import {
   FaEdit,
   FaBullhorn,
   FaEye,
-  FaEyeSlash, // Added EyeSlash for toggle
-  FaLock
+  FaEyeSlash, 
+  FaLock,
+  FaUserShield, // ADDED: Icon for Delegated Access
+  FaClipboardList // ADDED: Icon for Delegated Attendance
 } from "react-icons/fa";
 
 export default function EmployeeDashboard({ token, api, passwordChanged = true }) {
@@ -43,6 +48,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   // --- Dynamic PMS V2 State ---
   const [pmsTemplate, setPmsTemplate] = useState({ sessions: [] }); 
   const [pmsResponses, setPmsResponses] = useState({});
+
+  // --- DELEGATED ADMIN STATE (NEW) ---
+  const [delegatedGrants, setDelegatedGrants] = useState([]);
 
   const [view, setView] = useState("dashboard"); 
   
@@ -113,6 +121,13 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       // Fetch Announcements
       const annRes = await fetch(`${baseUrl}/api/announcements`, { headers: {'Authorization': `Bearer ${token}`} });
       if(annRes.ok) setAnnouncements(await annRes.json());
+
+      // NEW: Fetch Delegated Admin Grants
+      const grantsRes = await fetch(`${baseUrl}/api/my/delegated-access`, { headers: {'Authorization': `Bearer ${token}`} });
+      if(grantsRes.ok) {
+          const grantsData = await grantsRes.json();
+          setDelegatedGrants(grantsData);
+      }
 
     } catch (err) {
       console.error("Error loading data", err);
@@ -401,9 +416,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* Utility for input containers with icons */
         .password-input-wrapper { position: relative; display: flex; align-items: center; margin-bottom: 15px; }
         .password-toggle-icon { position: absolute; right: 12px; cursor: pointer; color: #666; font-size: 16px; top: 38px; }
+        .delegation-alert { background: #e0e7ff; color: #4f46e5; border-left: 4px solid #4f46e5; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
       `}</style>
 
       {/* PASSWORD RESET MODAL */}
@@ -492,6 +507,11 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         <div className="dashboard-header-card card">
           <h2 style={{ color: "var(--red)", margin: 0 }}>My Dashboard</h2>
           <p className="small">Manage your attendance and leaves</p>
+          {delegatedGrants.length > 0 && (
+             <div style={{ marginTop: 10, display: 'inline-block', background: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
+                Active Delegated Permissions Detected
+             </div>
+          )}
         </div>
       ) : (
         <div className="dashboard-header-card card" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -518,7 +538,6 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
               
-              {/* CHANGE PASSWORD BUTTON */}
               <QuickLaunchItem 
                 icon={<FaLock />} 
                 label="Change Password" 
@@ -531,6 +550,24 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                 }} 
                 color="#f59e0b" 
               />
+
+              {/* UNLOCKED DELEGATED OPTIONS */}
+              {delegatedGrants.length > 0 && (
+                <>
+                   <QuickLaunchItem 
+                     icon={<FaUserShield />} 
+                     label="Admin: Leave Approvals" 
+                     onClick={() => setView("delegated-leaves")} 
+                     color="#4f46e5" 
+                   />
+                   <QuickLaunchItem 
+                     icon={<FaClipboardList />} 
+                     label="Admin: Daily Attendance" 
+                     onClick={() => setView("delegated-attendance")} 
+                     color="#4f46e5" 
+                   />
+                </>
+              )}
             </div>
           </div>
 
@@ -544,6 +581,28 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
           </div>
         </div>
       )}
+
+      {/* --- DELEGATED ADMIN VIEWS (NEW) --- */}
+      {view === "delegated-leaves" && (
+         <div style={{ marginTop: "16px" }}>
+            <div className="delegation-alert">
+               🛡️ You are currently viewing the Leave Approval interface using temporary Delegated Access. 
+               Please follow all company guidelines when approving or viewing these records.
+            </div>
+            <AdminLeavePage token={token} api={api} />
+         </div>
+      )}
+
+      {view === "delegated-attendance" && (
+         <div style={{ marginTop: "16px" }}>
+            <div className="delegation-alert">
+               🛡️ You are currently viewing the Daily Attendance Logs using temporary Delegated Access. 
+               Please follow all company guidelines when modifying or viewing these records.
+            </div>
+            <AdminAttendancePage token={token} api={api} />
+         </div>
+      )}
+
 
       {/* --- ANNOUNCEMENTS VIEW --- */}
       {view === "announcements" && (
