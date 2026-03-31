@@ -590,7 +590,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
             <p className="small">Manage your team and your own attendance</p>
             {delegatedGrants.length > 0 && (
                <div style={{ marginTop: 10, display: 'inline-block', background: '#e0e7ff', color: '#4f46e5', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
-                  🌟 You have special Admin privileges active.
+                You have special Admin privileges active.
                </div>
             )}
           </div>
