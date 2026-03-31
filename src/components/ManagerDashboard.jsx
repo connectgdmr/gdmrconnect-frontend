@@ -68,7 +68,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   const [viewPMSModalOpen, setViewPMSModalOpen] = useState(false);
   const [selectedPMS, setSelectedPMS] = useState(null);
 
-  // --- DELEGATED ADMIN STATE (NEW) ---
+  // --- DELEGATED ADMIN STATE ---
   const [delegatedGrants, setDelegatedGrants] = useState([]);
 
   // --- Department Dashboard State ---
@@ -132,7 +132,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         fetch(`${baseUrl}/api/announcements`, { headers }).then(r => r.json()),
         fetch(`${baseUrl}/api/pms-template`, { headers }).then(r => r.json()),
         fetch(`${baseUrl}/api/admin/pms-dashboard?month=${dashboardMonth}`, { headers }).then(r => r.json()),
-        // NEW: Fetch Delegated Admin Grants
+        // Fetch Delegated Admin Grants
         fetch(`${baseUrl}/api/my/delegated-access`, { headers }).then(r => r.json())
       ]);
 
@@ -151,7 +151,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       if (results[9].status === 'fulfilled' && Array.isArray(results[9].value)) {
           setDeptDashboard(results[9].value);
       }
-      // NEW: Set Delegated Grants
+      // Set Delegated Grants
       if (results[10].status === 'fulfilled' && Array.isArray(results[10].value)) {
           setDelegatedGrants(results[10].value);
       }
@@ -171,13 +171,11 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       e.preventDefault();
       setPassError("");
 
-      // 1. Check if passwords match
       if (newPassword !== confirmPassword) {
           setPassError("New Password and Confirm Password do not match.");
           return;
       }
 
-      // 2. Validate Strong Password
       const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
       
       if (!strongRegex.test(newPassword)) {
@@ -189,7 +187,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           const res = await fetch(`${api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/my/set-password`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              // Passing old password as well for backend logic
               body: JSON.stringify({ oldPassword: oldPassword, password: newPassword })
           });
           const data = await res.json();
@@ -197,7 +194,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           
           alert("Password updated successfully!");
           setShowPasswordModal(false);
-          // Clear inputs
           setOldPassword("");
           setNewPassword("");
           setConfirmPassword("");
@@ -325,7 +321,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   async function finalizePMS(id) {
       const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       
-      // Map manager scores back to array format
       const scoresArr = Object.keys(managerScores).map(q => ({
           question: q,
           score: managerScores[q]
@@ -506,13 +501,13 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         .password-input-wrapper { position: relative; display: flex; align-items: center; margin-bottom: 15px; }
         .password-toggle-icon { position: absolute; right: 12px; cursor: pointer; color: #666; font-size: 16px; top: 38px; }
         .delegation-alert { background: #e0e7ff; color: #4f46e5; border-left: 4px solid #4f46e5; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
+        .icon-badge-blue { background: #4f46e5 !important; }
       `}</style>
 
       {/* PASSWORD RESET MODAL */}
       {showPasswordModal && (
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
             <div className="modal-card">
-                {/* Universal Close Button */}
                 <button 
                     className="btn ghost" 
                     style={{ position: 'absolute', top: 15, right: 15, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 
@@ -532,7 +527,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                 {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px'}}>{passError}</div>}
                 
                 <form onSubmit={handleSetPassword}>
-                    {/* CURRENT PASSWORD */}
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
                         <label className="modern-label">Current Password</label>
                         <input 
@@ -549,7 +543,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                         </span>
                     </div>
 
-                    {/* NEW PASSWORD */}
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
                         <label className="modern-label">New Password</label>
                         <input 
@@ -567,7 +560,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                         <small style={{display: 'block', marginTop: 5, color: '#666'}}>Must be at least 8 characters long.</small>
                     </div>
 
-                    {/* CONFIRM PASSWORD */}
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
                         <label className="modern-label">Confirm New Password</label>
                         <input 
@@ -590,14 +582,15 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         </div>
       )}
 
+      {/* HEADER LOGIC */}
       {view === "dashboard" ? (
         <div className="dashboard-header-card card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h2 style={{ color: "var(--red)", margin: 0 }}>Manager Dashboard</h2>
             <p className="small">Manage your team and your own attendance</p>
             {delegatedGrants.length > 0 && (
-               <div style={{ marginTop: 10, display: 'inline-block', background: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
-                  Active Delegated Permissions Detected
+               <div style={{ marginTop: 10, display: 'inline-block', background: '#e0e7ff', color: '#4f46e5', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
+                  🌟 You have special Admin privileges active.
                </div>
             )}
           </div>
@@ -632,6 +625,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         </div>
       )}
       
+      {/* DASHBOARD GRID */}
       {!loading && view === "dashboard" && (
         <div className="dashboard-grid-container">
           <div className="card dashboard-widget">
@@ -650,22 +644,15 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} color="var(--red)" badgeCount={notificationCounts?.announcements || 0} />
               
-              {/* UNLOCKED DELEGATED OPTIONS */}
+              {/* CONSOLIDATED DELEGATED PORTAL BUTTON */}
               {delegatedGrants.length > 0 && (
-                <>
-                   <QuickLaunchItem 
-                     icon={<FaUserShield />} 
-                     label="Admin: Leave Approvals" 
-                     onClick={() => setView("delegated-leaves")} 
-                     color="#4f46e5" 
-                   />
-                   <QuickLaunchItem 
-                     icon={<FaClipboardList />} 
-                     label="Admin: Daily Attendance" 
-                     onClick={() => setView("delegated-attendance")} 
-                     color="#4f46e5" 
-                   />
-                </>
+                <QuickLaunchItem 
+                    icon={<FaUserShield />} 
+                    label="Admin Portal (Special Access)" 
+                    onClick={() => setView("delegated-admin-portal")} 
+                    color="#4f46e5" 
+                    badgeCount={delegatedGrants.length}
+                />
               )}
             </div>
           </div>
@@ -681,8 +668,35 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         </div>
       )}
 
-      {/* --- DELEGATED ADMIN VIEWS (NEW) --- */}
-      {view === "delegated-leaves" && (
+      {/* --- DELEGATED ADMIN PORTAL HUB (NEW) --- */}
+      {!loading && view === "delegated-admin-portal" && (
+         <div className="card" style={{ marginTop: "16px" }}>
+            <h2 style={{ color: '#4f46e5', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <FaUserShield /> Temporary Admin Portal
+            </h2>
+            <p style={{ color: '#666', marginBottom: 30 }}>
+                You have been granted temporary administrative permissions. Select an action below to proceed.
+            </p>
+
+            <div className="quick-launch-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                <QuickLaunchItem 
+                     icon={<FaClipboardList />} 
+                     label="Manage Leave Approvals" 
+                     onClick={() => setView("delegated-leaves")} 
+                     color="#4f46e5" 
+                />
+                <QuickLaunchItem 
+                     icon={<FaHistory />} 
+                     label="Manage Daily Attendance" 
+                     onClick={() => setView("delegated-attendance")} 
+                     color="#4f46e5" 
+                />
+            </div>
+         </div>
+      )}
+
+      {/* --- SUB-VIEWS FOR DELEGATED ADMIN --- */}
+      {!loading && view === "delegated-leaves" && (
          <div style={{ marginTop: "16px" }}>
             <div className="delegation-alert">
                🛡️ You are currently viewing the Leave Approval interface using temporary Delegated Access. 
@@ -692,7 +706,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
          </div>
       )}
 
-      {view === "delegated-attendance" && (
+      {!loading && view === "delegated-attendance" && (
          <div style={{ marginTop: "16px" }}>
             <div className="delegation-alert">
                🛡️ You are currently viewing the Daily Attendance Logs using temporary Delegated Access. 
