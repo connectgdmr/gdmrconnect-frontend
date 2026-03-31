@@ -19,12 +19,13 @@ import {
   FaChartLine, 
   FaClipboardCheck, 
   FaBullhorn, 
-  FaEye, 
+  FaEye,
+  FaEyeSlash, // Added EyeSlash for toggle
   FaLock,
   FaDownload,
   FaPlus,
   FaTrash,
-  FaEdit // <-- ADDED: This missing import was causing the fatal White Screen crash!
+  FaEdit 
 } from "react-icons/fa";
 
 export default function ManagerDashboard({ token, api, passwordChanged = true }) {
@@ -44,8 +45,15 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
 
   // --- Password State ---
   const [showPasswordModal, setShowPasswordModal] = useState(!passwordChanged);
+  const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [passError, setPassError] = useState("");
+
+  // Visibility toggles for the 3 password fields
+  const [showOldPass, setShowOldPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   
   // --- Dynamic PMS Template Builder State ---
   const [templateSessions, setTemplateSessions] = useState([]);
@@ -150,6 +158,13 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       e.preventDefault();
       setPassError("");
 
+      // 1. Check if passwords match
+      if (newPassword !== confirmPassword) {
+          setPassError("New Password and Confirm Password do not match.");
+          return;
+      }
+
+      // 2. Validate Strong Password
       const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
       
       if (!strongRegex.test(newPassword)) {
@@ -161,14 +176,21 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           const res = await fetch(`${api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/my/set-password`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              body: JSON.stringify({ password: newPassword })
+              // Passing old password as well for backend logic
+              body: JSON.stringify({ oldPassword: oldPassword, password: newPassword })
           });
           const data = await res.json();
           if(!res.ok) throw new Error(data.message);
           
           alert("Password updated successfully!");
           setShowPasswordModal(false);
+          // Clear inputs
+          setOldPassword("");
           setNewPassword("");
+          setConfirmPassword("");
+          setShowOldPass(false);
+          setShowNewPass(false);
+          setShowConfirmPass(false);
       } catch (err) {
           setPassError(err.message);
       }
@@ -453,7 +475,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         .file-upload-label { display: flex; align-items: center; justify-content: center; padding: 20px; border: 2px dashed #ddd; border-radius: 8px; background: #fafafa; color: #666; cursor: pointer; gap: 10px; }
         .clickable-stat { cursor: pointer; transition: transform 0.2s; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; justify-content: center; align-items: center; }
-        .modal-card { background: white; width: 500px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 85vh; }
+        .modal-card { background: white; width: 500px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 85vh; position: relative; }
         .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; text-transform: capitalize; min-width: 80px; text-align: center; }
         .status-badge.approved { background: #dcfce7; color: #16a34a; }
         .status-badge.rejected { background: #fee2e2; color: #dc2626; }
@@ -467,36 +489,88 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         .icon-badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
         .qa-box { margin-bottom: 15px; background: #f9f9f9; padding: 12px; border-radius: 8px; border-left: 4px solid var(--red); }
         .inline-loader { display: flex; justify-content: center; align-items: center; padding: 40px; color: #666; font-weight: 500; gap: 10px; flex-direction: column; }
+        
+        /* Utility for input containers with icons */
+        .password-input-wrapper { position: relative; display: flex; align-items: center; margin-bottom: 15px; }
+        .password-toggle-icon { position: absolute; right: 12px; cursor: pointer; color: #666; font-size: 16px; top: 38px; }
       `}</style>
 
       {/* PASSWORD RESET MODAL */}
       {showPasswordModal && (
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
             <div className="modal-card">
-                {passwordChanged && (
-                    <button 
-                        className="btn ghost" 
-                        style={{ position: 'absolute', top: 15, right: 15, padding: 5 }} 
-                        onClick={() => setShowPasswordModal(false)}
-                    >
-                        <FaTimes />
-                    </button>
-                )}
+                {/* Universal Close Button */}
+                <button 
+                    className="btn ghost" 
+                    style={{ position: 'absolute', top: 15, right: 15, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 
+                    onClick={() => {
+                        setShowPasswordModal(false);
+                        setPassError("");
+                        setOldPassword("");
+                        setNewPassword("");
+                        setConfirmPassword("");
+                    }}
+                >
+                    <FaTimes />
+                </button>
+
                 <h3 style={{color: "var(--red)", marginTop: 0}}>Set Secure Password</h3>
                 <p className="small">Please set a strong password to secure your account.</p>
                 {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px'}}>{passError}</div>}
                 
                 <form onSubmit={handleSetPassword}>
-                    <label className="modern-label">New Password</label>
-                    <input 
-                        type="password" 
-                        className="modern-input" 
-                        placeholder="1 Uppercase, 1 Lowercase, 1 Number, 1 Special Char"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        required
-                    />
-                    <small style={{display: 'block', marginTop: 5, color: '#666'}}>Must be at least 8 characters long.</small>
+                    {/* CURRENT PASSWORD */}
+                    <div style={{ position: 'relative', marginBottom: '15px' }}>
+                        <label className="modern-label">Current Password</label>
+                        <input 
+                            type={showOldPass ? "text" : "password"} 
+                            className="modern-input" 
+                            style={{ paddingRight: '40px' }}
+                            placeholder="Enter current password"
+                            value={oldPassword}
+                            onChange={(e) => setOldPassword(e.target.value)}
+                            required
+                        />
+                        <span className="password-toggle-icon" onClick={() => setShowOldPass(!showOldPass)}>
+                            {showOldPass ? <FaEyeSlash /> : <FaEye />}
+                        </span>
+                    </div>
+
+                    {/* NEW PASSWORD */}
+                    <div style={{ position: 'relative', marginBottom: '15px' }}>
+                        <label className="modern-label">New Password</label>
+                        <input 
+                            type={showNewPass ? "text" : "password"} 
+                            className="modern-input" 
+                            style={{ paddingRight: '40px' }}
+                            placeholder="1 Uppercase, 1 Lowercase, 1 Number, 1 Special Char"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            required
+                        />
+                        <span className="password-toggle-icon" onClick={() => setShowNewPass(!showNewPass)}>
+                            {showNewPass ? <FaEyeSlash /> : <FaEye />}
+                        </span>
+                        <small style={{display: 'block', marginTop: 5, color: '#666'}}>Must be at least 8 characters long.</small>
+                    </div>
+
+                    {/* CONFIRM PASSWORD */}
+                    <div style={{ position: 'relative', marginBottom: '15px' }}>
+                        <label className="modern-label">Confirm New Password</label>
+                        <input 
+                            type={showConfirmPass ? "text" : "password"} 
+                            className="modern-input" 
+                            style={{ paddingRight: '40px' }}
+                            placeholder="Re-enter new password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                        />
+                        <span className="password-toggle-icon" onClick={() => setShowConfirmPass(!showConfirmPass)}>
+                            {showConfirmPass ? <FaEyeSlash /> : <FaEye />}
+                        </span>
+                    </div>
+
                     <button className="btn" style={{width: '100%', marginTop: 20, padding: 12}}>Save Password</button>
                 </form>
             </div>
@@ -511,7 +585,13 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
             <p className="small">Manage your team and your own attendance</p>
           </div>
           <button 
-            onClick={() => {setPassError(""); setNewPassword(""); setShowPasswordModal(true);}}
+            onClick={() => {
+              setPassError(""); 
+              setOldPassword("");
+              setNewPassword("");
+              setConfirmPassword("");
+              setShowPasswordModal(true);
+            }}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
           >
             <FaLock /> Change Password
@@ -1065,9 +1145,20 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         </div>
       )}
 
+      {/* --- CAMERA MODAL --- */}
       {cameraOpen && (
         <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
-          <div className="camera-box" style={{background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
+          <div className="camera-box" style={{position: 'relative', background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
+            
+            {/* Added Close X button for Camera Modal */}
+            <button 
+                className="btn ghost" 
+                style={{ position: 'absolute', top: 10, right: 10, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 
+                onClick={closeCamera}
+            >
+                <FaTimes />
+            </button>
+
             {submittingPhoto ? (
                 <div style={{ padding: "40px 20px" }}>
                     <div className="loader"></div>
@@ -1082,9 +1173,15 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                     <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
                     <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
                         {!previewImage ? (
-                            <><button className="btn" onClick={capturePhoto}>Capture</button><button className="btn ghost" onClick={closeCamera}>Cancel</button></>
+                            <>
+                                <button className="btn" onClick={capturePhoto}>Capture</button>
+                                <button className="btn ghost" onClick={closeCamera}>Cancel</button>
+                            </>
                         ) : (
-                            <><button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button><button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button></>
+                            <>
+                                <button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button>
+                                <button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button>
+                            </>
                         )}
                     </div>
                 </>

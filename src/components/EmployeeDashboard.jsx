@@ -17,6 +17,7 @@ import {
   FaEdit,
   FaBullhorn,
   FaEye,
+  FaEyeSlash, // Added EyeSlash for toggle
   FaLock
 } from "react-icons/fa";
 
@@ -29,8 +30,15 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   
   // --- New Password State ---
   const [showPasswordModal, setShowPasswordModal] = useState(!passwordChanged);
+  const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [passError, setPassError] = useState("");
+  
+  // Visibility toggles for the 3 password fields
+  const [showOldPass, setShowOldPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
 
   // --- Dynamic PMS V2 State ---
   const [pmsTemplate, setPmsTemplate] = useState({ sessions: [] }); 
@@ -115,6 +123,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- SET STRONG PASSWORD ---
@@ -122,7 +131,13 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       e.preventDefault();
       setPassError("");
 
-      // Validate Strong Password: Min 8 chars, 1 Upper, 1 Lower, 1 Number, 1 Special Char
+      // 1. Check if passwords match
+      if (newPassword !== confirmPassword) {
+          setPassError("New Password and Confirm Password do not match.");
+          return;
+      }
+
+      // 2. Validate Strong Password: Min 8 chars, 1 Upper, 1 Lower, 1 Number, 1 Special Char
       const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
       
       if (!strongRegex.test(newPassword)) {
@@ -134,14 +149,21 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
           const res = await fetch(`${api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/my/set-password`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              body: JSON.stringify({ password: newPassword })
+              // Passing old password as well for your backend logic
+              body: JSON.stringify({ oldPassword: oldPassword, password: newPassword })
           });
           const data = await res.json();
           if(!res.ok) throw new Error(data.message);
           
           alert("Password updated successfully!");
           setShowPasswordModal(false);
-          setNewPassword(""); // clear input
+          // Clear inputs
+          setOldPassword("");
+          setNewPassword(""); 
+          setConfirmPassword("");
+          setShowOldPass(false);
+          setShowNewPass(false);
+          setShowConfirmPass(false);
       } catch (err) {
           setPassError(err.message);
       }
@@ -378,38 +400,88 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
           margin: 0 auto 10px auto;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Utility for input containers with icons */
+        .password-input-wrapper { position: relative; display: flex; align-items: center; margin-bottom: 15px; }
+        .password-toggle-icon { position: absolute; right: 12px; cursor: pointer; color: #666; font-size: 16px; top: 38px; }
       `}</style>
 
       {/* PASSWORD RESET MODAL */}
       {showPasswordModal && (
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
             <div className="modal-card">
-                {/* Only show close button if password was already set previously (manual change) */}
-                {passwordChanged && (
-                    <button 
-                        className="btn ghost" 
-                        style={{ position: 'absolute', top: 15, right: 15, padding: 5 }} 
-                        onClick={() => setShowPasswordModal(false)}
-                    >
-                        <FaTimes />
-                    </button>
-                )}
+                {/* Universal Close Button */}
+                <button 
+                    className="btn ghost" 
+                    style={{ position: 'absolute', top: 15, right: 15, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 
+                    onClick={() => {
+                        setShowPasswordModal(false);
+                        setPassError("");
+                        setOldPassword("");
+                        setNewPassword("");
+                        setConfirmPassword("");
+                    }}
+                >
+                    <FaTimes />
+                </button>
                 
                 <h3 style={{color: "var(--red)", marginTop: 0}}>Set Secure Password</h3>
                 <p className="small">Please set a strong password to secure your account.</p>
                 {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px'}}>{passError}</div>}
                 
                 <form onSubmit={handleSetPassword}>
-                    <label className="modern-label">New Password</label>
-                    <input 
-                        type="password" 
-                        className="modern-input" 
-                        placeholder="1 Uppercase, 1 Lowercase, 1 Number, 1 Special Char"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        required
-                    />
-                    <small style={{display: 'block', marginTop: 5, color: '#666'}}>Must be at least 8 characters long.</small>
+                    {/* CURRENT PASSWORD */}
+                    <div style={{ position: 'relative', marginBottom: '15px' }}>
+                        <label className="modern-label">Current Password</label>
+                        <input 
+                            type={showOldPass ? "text" : "password"} 
+                            className="modern-input" 
+                            style={{ paddingRight: '40px' }}
+                            placeholder="Enter current password"
+                            value={oldPassword}
+                            onChange={(e) => setOldPassword(e.target.value)}
+                            required
+                        />
+                        <span className="password-toggle-icon" onClick={() => setShowOldPass(!showOldPass)}>
+                            {showOldPass ? <FaEyeSlash /> : <FaEye />}
+                        </span>
+                    </div>
+
+                    {/* NEW PASSWORD */}
+                    <div style={{ position: 'relative', marginBottom: '15px' }}>
+                        <label className="modern-label">New Password</label>
+                        <input 
+                            type={showNewPass ? "text" : "password"} 
+                            className="modern-input" 
+                            style={{ paddingRight: '40px' }}
+                            placeholder="1 Uppercase, 1 Lowercase, 1 Number, 1 Special Char"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            required
+                        />
+                        <span className="password-toggle-icon" onClick={() => setShowNewPass(!showNewPass)}>
+                            {showNewPass ? <FaEyeSlash /> : <FaEye />}
+                        </span>
+                        <small style={{display: 'block', marginTop: 5, color: '#666'}}>Must be at least 8 characters long.</small>
+                    </div>
+
+                    {/* CONFIRM PASSWORD */}
+                    <div style={{ position: 'relative', marginBottom: '15px' }}>
+                        <label className="modern-label">Confirm New Password</label>
+                        <input 
+                            type={showConfirmPass ? "text" : "password"} 
+                            className="modern-input" 
+                            style={{ paddingRight: '40px' }}
+                            placeholder="Re-enter new password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                        />
+                        <span className="password-toggle-icon" onClick={() => setShowConfirmPass(!showConfirmPass)}>
+                            {showConfirmPass ? <FaEyeSlash /> : <FaEye />}
+                        </span>
+                    </div>
+
                     <button className="btn" style={{width: '100%', marginTop: 20, padding: 12}}>Save Password</button>
                 </form>
             </div>
@@ -446,8 +518,19 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
               
-              {/* NEW CHANGE PASSWORD BUTTON */}
-              <QuickLaunchItem icon={<FaLock />} label="Change Password" onClick={() => {setPassError(""); setNewPassword(""); setShowPasswordModal(true);}} color="#f59e0b" />
+              {/* CHANGE PASSWORD BUTTON */}
+              <QuickLaunchItem 
+                icon={<FaLock />} 
+                label="Change Password" 
+                onClick={() => {
+                  setPassError(""); 
+                  setOldPassword("");
+                  setNewPassword(""); 
+                  setConfirmPassword("");
+                  setShowPasswordModal(true);
+                }} 
+                color="#f59e0b" 
+              />
             </div>
           </div>
 
@@ -828,8 +911,17 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       {/* --- CAMERA MODAL --- */}
       {cameraOpen && (
         <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
-          <div className="camera-box" style={{background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
+          <div className="camera-box" style={{position: 'relative', background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
             
+            {/* Added Close X button for Camera Modal */}
+            <button 
+                className="btn ghost" 
+                style={{ position: 'absolute', top: 10, right: 10, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 
+                onClick={closeCamera}
+            >
+                <FaTimes />
+            </button>
+
             {submittingPhoto ? (
                 <div style={{ padding: "40px 20px" }}>
                     <div className="loader"></div>
