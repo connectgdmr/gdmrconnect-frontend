@@ -19,7 +19,7 @@ import {
 /**
  * Groups a flat array of attendance records by date for an individual employee.
  * This is used to display a clean table of Check-in vs Check-out times per day.
- * * @param {Array} records - The raw attendance records from the API.
+ * @param {Array} records - The raw attendance records from the API.
  * @returns {Array} - The grouped and chronologically sorted attendance array.
  */
 function groupAttendance(records) {
@@ -79,7 +79,7 @@ export default function AdminAttendancePage({ token, api }) {
   const [attendance, setAttendance] = useState([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
   
-  // --- Today's Stats States (NEWLY IMPORTED FROM ADMIN DASHBOARD) ---
+  // --- Today's Stats States ---
   const [statsLoading, setStatsLoading] = useState(false);
   const [stats, setStats] = useState({
     present: 0,
@@ -87,6 +87,12 @@ export default function AdminAttendancePage({ token, api }) {
     leave: 0,
     not_checked_in: 0,
   });
+
+  // --- Modal State for Clickable Stats (NEWLY ADDED) ---
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailTitle, setDetailTitle] = useState("");
+  const [detailList, setDetailList] = useState([]);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // ============================================================================
   // API DATA FETCHING
@@ -102,7 +108,7 @@ export default function AdminAttendancePage({ token, api }) {
           const res = await api.todayStats(token);
           setStats(res);
       } else {
-          // Fallback if todayStats isn't bound to the api prop
+          // Fallback if todayStats isn't directly bound to the api prop
           const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
           const res = await fetch(`${baseUrl}/api/admin/today-stats`, {
               headers: { 'Authorization': `Bearer ${token}` }
@@ -176,6 +182,50 @@ export default function AdminAttendancePage({ token, api }) {
   }
 
   // ============================================================================
+  // CLICKABLE STATS LOGIC (NEWLY ADDED)
+  // ============================================================================
+  
+  /**
+   * Handles clicks on the Today's Stats widgets to show who is Present/Absent/etc.
+   */
+  async function handleStatClick(type, title) {
+    setDetailTitle(title);
+    setDetailModalOpen(true);
+    setDetailLoading(true);
+    setDetailList([]);
+
+    try {
+      const now = new Date();
+      const monthStr = now.toISOString().slice(0, 7); 
+      
+      // Fetch the detailed summary for the current month
+      const summaryData = await api.getAttendanceSummary(monthStr, token);
+      const todayStr = now.toISOString().slice(0, 10); 
+      const todayData = summaryData.days && summaryData.days[todayStr];
+
+      if (todayData && todayData[type]) {
+        const listData = todayData[type];
+        
+        // Enrich the IDs with actual employee details from our loaded employees list
+        const enrichedList = listData.map(item => {
+            const id = typeof item === 'object' ? item._id : item;
+            const empDef = employees.find(e => e._id === id);
+            return empDef || (typeof item === 'object' ? item : { name: "Unknown", _id: id, email: "N/A" });
+        });
+        
+        setDetailList(enrichedList);
+      } else {
+        setDetailList([]); 
+      }
+    } catch (err) {
+      console.error("Error fetching details", err);
+      alert("Could not load stat details. Ensure you have the required permissions.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  // ============================================================================
   // EFFECTS & FILTER LOGIC
   // ============================================================================
 
@@ -185,7 +235,7 @@ export default function AdminAttendancePage({ token, api }) {
     loadEmployees();
     loadCompleteLogs();
     
-    // Auto-set the date filter to today's date for convenience
+    // Auto-set the date filter to today's date for convenience in the logs view
     const today = new Date().toISOString().split('T')[0];
     setLogDateFilter(today);
     
@@ -214,12 +264,10 @@ export default function AdminAttendancePage({ token, api }) {
     let matchesSearch = true;
     let matchesDate = true;
 
-    // Search by employee name in logs
     if (searchTerm) {
         matchesSearch = log.employee_name?.toLowerCase().includes(searchTerm.toLowerCase());
     }
 
-    // Filter by specific date
     if (logDateFilter) {
         const logDateStr = new Date(log.time).toISOString().split('T')[0];
         matchesDate = logDateStr === logDateFilter;
@@ -257,9 +305,9 @@ export default function AdminAttendancePage({ token, api }) {
       return "-";
   };
 
-  // Reusable Stat Widget Component
-  const StatItem = ({ icon, label, count, colorClass }) => (
-    <div className="stat-row clickable-stat" style={{ flex: 1, minWidth: '200px' }}>
+  // Reusable Stat Widget Component (Now accepts onClick)
+  const StatItem = ({ icon, label, count, colorClass, onClick }) => (
+    <div className="stat-row clickable-stat" style={{ flex: 1, minWidth: '200px' }} onClick={onClick}>
       <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
       <div className="stat-info">
         <span className="stat-count">{statsLoading ? "..." : count}</span>
@@ -274,10 +322,9 @@ export default function AdminAttendancePage({ token, api }) {
 
   return (
     <div>
-      {/* Inline styles specifically for the Stat widgets and grid layouts */}
       <style>{`
         .clickable-stat {
-          cursor: default;
+          cursor: pointer;
           transition: transform 0.2s, box-shadow 0.2s;
           background: #fff;
           border: 1px solid #eee;
@@ -314,6 +361,39 @@ export default function AdminAttendancePage({ token, api }) {
           gap: 15px;
           margin-bottom: 20px;
         }
+        
+        /* Modals for Clickable Stats Details */
+        .detail-modal-overlay {
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          background: rgba(0,0,0,0.6); z-index: 5000;
+          display: flex; justify-content: center; align-items: center;
+          animation: fadeIn 0.2s;
+        }
+        .detail-modal-card {
+          background: white; width: 450px; max-width: 90%;
+          border-radius: 12px; padding: 20px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+          display: flex; flex-direction: column; max-height: 80vh;
+        }
+        .detail-header {
+          display: flex; justify-content: space-between; align-items: center;
+          margin-bottom: 15px; border-bottom: 2px solid #fee2e2; padding-bottom: 15px;
+        }
+        .detail-list {
+          overflow-y: auto; flex: 1; padding-right: 5px;
+        }
+        .detail-item {
+          padding: 12px 10px; border-bottom: 1px solid #f1f5f9;
+          display: flex; align-items: center; gap: 15px;
+          transition: background 0.2s;
+        }
+        .detail-item:hover { background: #f8fafc; border-radius: 6px; }
+        .detail-avatar {
+          width: 36px; height: 36px; background: var(--red); color: white; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 16px; font-weight: bold;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
 
       {/* Page Header */}
@@ -355,7 +435,7 @@ export default function AdminAttendancePage({ token, api }) {
       </div>
 
       {/* ========================================================= */}
-      {/* TODAY'S STATS WIDGETS (ADDED PER FEEDBACK)                */}
+      {/* TODAY'S STATS WIDGETS (NOW FULLY CLICKABLE)               */}
       {/* ========================================================= */}
       <div className="stats-grid-container">
           <StatItem 
@@ -363,24 +443,28 @@ export default function AdminAttendancePage({ token, api }) {
             label="Present Today" 
             count={stats.present} 
             colorClass="text-green"
+            onClick={() => handleStatClick('present', 'Present Today')}
           />
           <StatItem 
             icon={<FaTimesCircle />} 
             label="Absent Today" 
             count={stats.absent} 
             colorClass="text-red"
+            onClick={() => handleStatClick('absent', 'Absent Today')}
           />
           <StatItem 
             icon={<FaUserClock />} 
             label="On Leave Today" 
             count={stats.leave} 
             colorClass="text-dark-red"
+            onClick={() => handleStatClick('leave', 'On Leave Today')}
           />
           <StatItem 
             icon={<FaUserSlash />} 
             label="Not Checked In" 
             count={stats.not_checked_in} 
             colorClass="text-orange"
+            onClick={() => handleStatClick('not_checked_in', 'Not Checked In')}
           />
       </div>
 
@@ -514,6 +598,48 @@ export default function AdminAttendancePage({ token, api }) {
                  </div>
               )}
           </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL: CLICKABLE STATS DETAILS (NEW UI)                   */}
+      {/* ========================================================= */}
+      {detailModalOpen && (
+        <div className="detail-modal-overlay" onClick={() => setDetailModalOpen(false)}>
+          <div className="detail-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="detail-header">
+              <h3 style={{ margin: 0, color: 'var(--red)' }}>{detailTitle}</h3>
+              <button className="btn ghost" onClick={() => setDetailModalOpen(false)} style={{padding:'6px', background: '#f1f5f9', borderRadius: '50%'}}>
+                <FaTimes size={14} color="#64748b"/>
+              </button>
+            </div>
+            
+            <div className="detail-list">
+              {detailLoading ? (
+                <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                   <div className="loader" style={{margin: '0 auto'}}></div>
+                   <p style={{color: '#64748b', marginTop: 15}}>Loading details...</p>
+                </div>
+              ) : detailList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+                   <FaUserSlash size={30} style={{opacity: 0.2, marginBottom: 10}}/>
+                   <p style={{margin: 0}}>No employees found in this category for today.</p>
+                </div>
+              ) : (
+                detailList.map((emp, idx) => (
+                  <div key={emp._id || idx} className="detail-item">
+                    <div className="detail-avatar">
+                      {emp.name ? emp.name.charAt(0).toUpperCase() : "?"}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '15px' }}>{emp.name || "Unknown Employee"}</div>
+                      <div className="small" style={{color: '#64748b'}}>{emp.email || emp.position || emp.department || "General"}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ========================================================= */}
