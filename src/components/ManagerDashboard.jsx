@@ -1,10 +1,14 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
+
 // ============================================================================
 // IMPORTING ADMIN COMPONENTS FOR DELEGATED ACCESS
+// These components are utilized when a Manager is granted special
+// permissions by the Master Admin to view organization-wide data.
 // ============================================================================
 import AdminLeavePage from "./AdminLeavePage"; 
 import AdminAttendancePage from "./AdminAttendancePage";
 import HolidayCalendar from "./HolidayCalendar"; 
+
 import {
   FaCamera, 
   FaSignOutAlt, 
@@ -31,7 +35,9 @@ import {
   FaTrash,
   FaEdit,
   FaUserShield, 
-  FaClipboardList 
+  FaClipboardList,
+  FaCheckSquare,
+  FaRegSquare
 } from "react-icons/fa";
 
 export default function ManagerDashboard({ token, api, passwordChanged = true }) {
@@ -69,7 +75,8 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // 3. DYNAMIC PMS TEMPLATE BUILDER & REVIEW STATES
   // ============================================================================
   const [templateSessions, setTemplateSessions] = useState([]);
-  const [assignedEmployees, setAssignedEmployees] = useState([]); // NEW: For employee-wise assignment
+  // FIX: Explicit state to track assigned employees to prevent blanketing the whole org
+  const [assignedEmployees, setAssignedEmployees] = useState([]); 
   
   // PMS Review & Grading State
   const [managerScores, setManagerScores] = useState({}); 
@@ -157,7 +164,12 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       if (results[7].status === 'fulfilled' && Array.isArray(results[7].value)) setAnnouncements(results[7].value);
       
       if (results[8].status === 'fulfilled' && results[8].value) {
-          setTemplateSessions(results[8].value.sessions || []);
+          // We don't overwrite templateSessions here if the manager is actively editing
+          // So we only load it if it's the first time
+          if (templateSessions.length === 0 && results[8].value.sessions) {
+              // Optional: Load previous template as a starting point, but usually builders start fresh
+              // setTemplateSessions(results[8].value.sessions || []);
+          }
       }
       if (results[9].status === 'fulfilled' && Array.isArray(results[9].value)) {
           setDeptDashboard(results[9].value);
@@ -171,7 +183,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
     } finally { 
       setLoading(false); 
     }
-  }, [token, dashboardMonth, api]); 
+  }, [token, dashboardMonth, api, templateSessions.length]); 
 
   useEffect(() => { load(); }, [load]);
 
@@ -272,7 +284,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   }
 
   // ============================================================================
-  // PMS TEMPLATE BUILDER LOGIC (WITH EMPLOYEE ASSIGNMENT)
+  // PMS TEMPLATE BUILDER LOGIC (WITH STRICT EMPLOYEE ASSIGNMENT)
   // ============================================================================
   const handleAddSession = () => setTemplateSessions([...templateSessions, { name: "", questions: [{ text: "", type: "scale" }] }]);
   const handleRemoveSession = (sIdx) => setTemplateSessions(templateSessions.filter((_, i) => i !== sIdx));
@@ -317,11 +329,22 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       setAssignedEmployees([]);
   };
 
+  /**
+   * Submits the newly constructed PMS template to the backend.
+   * FIX: Strongly binds the `assigned_to` array so it only goes to selected employees.
+   * FIX: Clears the form entirely upon successful assignment.
+   */
   async function savePmsTemplate(e) {
       e.preventDefault();
       
+      // Validation to ensure it doesn't accidentally assign to no one or everyone by default
       if (assignedEmployees.length === 0) {
-          alert("Please assign this PMS template to at least one employee.");
+          alert("Action Required: Please select at least one employee to assign this evaluation form to.");
+          return;
+      }
+      
+      if (templateSessions.length === 0) {
+          alert("Action Required: Please create at least one session with questions.");
           return;
       }
 
@@ -333,33 +356,54 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ 
                   sessions: templateSessions,
-                  assigned_to: assignedEmployees // NEW: Pushing the specific employee assignments
+                  // Explicit strict array of user IDs
+                  assigned_to: assignedEmployees 
               })
           });
-          if(res.ok) alert("PMS Evaluation Form Assigned and Saved Successfully!");
-          else alert("Failed to save template.");
+          
+          if(res.ok) {
+              alert("Success! PMS Evaluation Form has been assigned and saved.");
+              
+              // FIX: Clear the form data from the Manager's UI completely after submission
+              setTemplateSessions([]);
+              setAssignedEmployees([]);
+              
+              // Return to the dashboard view to signify completion
+              setView("dashboard");
+          } else {
+              const errData = await res.json();
+              alert(`Failed to save template: ${errData.message || 'Unknown error'}`);
+          }
           await load(true);
       } catch(err) { 
-          alert("Error saving PMS Template"); 
+          alert("Network Error saving PMS Template"); 
+      } finally {
           setLoading(false);
       }
   }
 
   // ============================================================================
-  // PMS REVIEW & GRADING LOGIC (UNRESTRICTED SCROLLING)
+  // PMS REVIEW & GRADING LOGIC (UNRESTRICTED SCROLLING & SESSION NAMES)
   // ============================================================================
+  
   function handleViewPMS(pms) {
       setSelectedPMS(pms);
-      setManagerFeedback(pms.manager_feedback || "");
       
+      // Initialize state with previous data if it exists, otherwise clear it
+      setManagerFeedback(pms.manager_feedback || "");
       const scores = {};
       if(pms.manager_scores) {
           pms.manager_scores.forEach(m => scores[m.question] = m.score);
       }
       setManagerScores(scores);
+      
       setViewPMSModalOpen(true);
   }
 
+  /**
+   * Submits the manager's scores and feedback.
+   * FIX: Clears local review state upon completion.
+   */
   async function finalizePMS(id) {
       const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       
@@ -368,9 +412,15 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           score: managerScores[q]
       }));
 
+      // Validation
+      if (!managerFeedback.trim()) {
+          alert("Please provide overall remarks and feedback before finalizing.");
+          return;
+      }
+
       try {
           setLoading(true);
-          await fetch(`${baseUrl}/api/manager/finalize-pms`, {
+          const res = await fetch(`${baseUrl}/api/manager/finalize-pms`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ 
@@ -379,14 +429,42 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                   manager_feedback: managerFeedback
               })
           });
-          await load(true);
-          alert("PMS Review Finalized Successfully"); 
-          setViewPMSModalOpen(false); 
+          
+          if (res.ok) {
+              alert("PMS Review Finalized Successfully!"); 
+              
+              // FIX: Clear the manager's review state to prevent bleed-over into the next review
+              setManagerScores({});
+              setManagerFeedback("");
+              setViewPMSModalOpen(false); 
+              setSelectedPMS(null);
+              
+              await load(true);
+          } else {
+              alert("Failed to finalize review.");
+          }
       } catch(err) { 
           alert(err.message); 
+      } finally {
           setLoading(false);
       }
   }
+
+  // Helper function to group the selected PMS responses by session name
+  const getGroupedResponses = () => {
+      if (!selectedPMS || !selectedPMS.responses) return {};
+      
+      const groups = {};
+      selectedPMS.responses.forEach(resp => {
+          // Fallback to "General Evaluation" if session_name is missing from older backend data
+          const sName = resp.session_name || "General Evaluation";
+          if (!groups[sName]) {
+              groups[sName] = [];
+          }
+          groups[sName].push(resp);
+      });
+      return groups;
+  };
 
   // ============================================================================
   // EXPORT CSV & CORRECTIONS & LEAVES
@@ -397,7 +475,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           const res = await fetch(`${baseUrl}/api/admin/export-pms?month=${dashboardMonth}`, {
               headers: { 'Authorization': `Bearer ${token}` }
           });
-          if(!res.ok) throw new Error("Failed to download");
+          if(!res.ok) throw new Error("Failed to download report data from server.");
           
           const blob = await res.blob();
           const url = window.URL.createObjectURL(blob);
@@ -422,7 +500,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
               body: JSON.stringify({ id, action })
           });
           await load(true);
-          alert(`Correction Request ${action}`); 
+          alert(`Correction Request ${action} successfully.`); 
       } catch(err) { 
           alert(err.message); 
           setLoading(false);
@@ -458,7 +536,13 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           to_date: leaveDuration === 'single' ? startDate : endDate 
       };
       await api.applyLeaveWithFile(payload, file, token);
-      setStartDate(""); setEndDate(""); setReason(""); setFile(null);
+      
+      // Clear form
+      setStartDate(""); 
+      setEndDate(""); 
+      setReason(""); 
+      setFile(null);
+      
       await load(true); 
       alert("Leave Applied Successfully!"); 
       setView("my-leaves"); 
@@ -469,7 +553,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   }
   
   // ============================================================================
-  // HELPERS
+  // UTILITY HELPERS
   // ============================================================================
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -485,7 +569,13 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   };
   
   const getWordCount = () => reason.trim() === "" ? 0 : reason.trim().split(/\s+/).filter(w => w.length > 0).length;
-  const handleStatClick = (title, list) => { setModalTitle(title); setModalList(list); setLeaveModalOpen(true); }
+  
+  const handleStatClick = (title, list) => { 
+      setModalTitle(title); 
+      setModalList(list); 
+      setLeaveModalOpen(true); 
+  };
+  
   const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
 
   // ============================================================================
@@ -512,7 +602,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
             <table className="styled-table">
                 <thead><tr><th>Name</th><th>Email</th><th>Dept</th><th>Position</th></tr></thead>
                 <tbody>
-                    {teamMembers.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:20}}>No team members found.</td></tr>}
+                    {teamMembers.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:20}}>No team members found in your department.</td></tr>}
                     {teamMembers.map(m => <tr key={m._id}><td>{m.name}</td><td>{m.email}</td><td>{m.department}</td><td>{m.position}</td></tr>)}
                 </tbody>
             </table>
@@ -534,7 +624,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         
         /* Adjusted the viewPMSModalOpen dimensions for better full-content scrolling */
         .modal-card { background: white; width: 500px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 85vh; position: relative; }
-        .modal-card.large { width: 750px; max-width: 95%; max-height: 90vh; } 
+        .modal-card.large { width: 800px; max-width: 95%; max-height: 90vh; } 
         
         .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; text-transform: capitalize; min-width: 80px; text-align: center; }
         .status-badge.approved { background: #dcfce7; color: #16a34a; }
@@ -547,17 +637,19 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .btn-small { padding: 5px 10px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; color: white; margin-right: 5px; display:inline-flex; align-items:center; gap:5px; }
         .icon-badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
+        
         .qa-box { margin-bottom: 15px; background: #f9f9f9; padding: 12px; border-radius: 8px; border-left: 4px solid var(--red); transition: background 0.2s; }
         .qa-box:hover { background: #f1f5f9; }
+        
         .inline-loader { display: flex; justify-content: center; align-items: center; padding: 40px; color: #666; font-weight: 500; gap: 10px; flex-direction: column; }
         
         .password-input-wrapper { position: relative; display: flex; align-items: center; margin-bottom: 15px; }
         .password-toggle-icon { position: absolute; right: 12px; cursor: pointer; color: #666; font-size: 16px; top: 38px; }
         .delegation-alert { background: #e0e7ff; color: #4f46e5; border-left: 4px solid #4f46e5; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
         
-        .employee-chip { display: flex; align-items: center; gap: 8px; background: #fff; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+        .employee-chip { display: flex; align-items: center; gap: 8px; background: #fff; padding: 10px 14px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; color: #555; }
         .employee-chip:hover { border-color: var(--red); background: #fff5f5; }
-        .employee-chip.selected { background: var(--red); color: white; border-color: var(--red); }
+        .employee-chip.selected { background: var(--red); color: white; border-color: var(--red); box-shadow: 0 4px 6px rgba(220, 38, 38, 0.2); }
       `}</style>
 
       {/* PASSWORD RESET MODAL */}
@@ -787,29 +879,33 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       )}
 
       {/* ============================================================================ */}
-      {/* --- PMS TEMPLATE BUILDER (WITH EMPLOYEE ASSIGNMENT) ---                      */}
+      {/* --- PMS TEMPLATE BUILDER (WITH STRICT EMPLOYEE ASSIGNMENT) ---               */}
       {/* ============================================================================ */}
       {!loading && view === "pms-builder" && (
           <div className="card">
               <h3>Create Department PMS Evaluation Form</h3>
-              <p className="small" style={{marginBottom: 20}}>Structure performance reviews and directly assign them to specific employees in your department.</p>
+              <p className="small" style={{marginBottom: 20}}>Structure performance reviews and explicitly assign them to specific employees in your department.</p>
               
               <form onSubmit={savePmsTemplate}>
                   
-                  {/* --- NEW SECTION: EMPLOYEE ASSIGNMENT --- */}
+                  {/* --- NEW SECTION: STRICT EMPLOYEE ASSIGNMENT --- */}
                   <div style={{marginBottom: 30, background: '#fef2f2', padding: 20, borderRadius: 8, border: '1px solid #fee2e2'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15}}>
-                          <h4 style={{margin: 0, color: 'var(--red)'}}>1. Assign To Employees</h4>
+                          <h4 style={{margin: 0, color: 'var(--red)'}}>1. Assign To Employees (Required)</h4>
                           <div>
-                              <button type="button" className="btn-small ghost" onClick={selectAllEmployees} style={{color: '#16a34a'}}>Select All</button>
-                              <button type="button" className="btn-small ghost" onClick={clearAllEmployees} style={{color: '#dc2626'}}>Clear All</button>
+                              <button type="button" className="btn-small ghost" onClick={selectAllEmployees} style={{color: '#16a34a', fontWeight: 'bold'}}>
+                                  <FaCheckSquare style={{marginRight: 4}}/> Select All
+                              </button>
+                              <button type="button" className="btn-small ghost" onClick={clearAllEmployees} style={{color: '#dc2626', fontWeight: 'bold'}}>
+                                  <FaRegSquare style={{marginRight: 4}}/> Clear All
+                              </button>
                           </div>
                       </div>
                       
                       {teamMembers.length === 0 ? (
                           <p style={{color: '#777', fontStyle: 'italic', fontSize: 13}}>No team members available for assignment.</p>
                       ) : (
-                          <div style={{display: 'flex', flexWrap: 'wrap', gap: 10}}>
+                          <div style={{display: 'flex', flexWrap: 'wrap', gap: 12}}>
                               {teamMembers.map(emp => (
                                   <label 
                                       key={emp._id} 
@@ -821,7 +917,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                                           checked={assignedEmployees.includes(emp._id)}
                                           onChange={() => toggleEmployeeAssignment(emp._id)}
                                       />
-                                      <FaUserCheck style={{opacity: assignedEmployees.includes(emp._id) ? 1 : 0.3}} />
+                                      <FaUserCheck style={{opacity: assignedEmployees.includes(emp._id) ? 1 : 0.4}} />
                                       {emp.name} 
                                   </label>
                               ))}
@@ -837,7 +933,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                               <h4 style={{margin:0}}>Session {sIdx + 1}</h4>
                               <input 
                                   className="modern-input" style={{flex: 1}} 
-                                  placeholder="e.g. Work Productivity" 
+                                  placeholder="Session Title (e.g., Work Productivity)" 
                                   value={session.name} 
                                   onChange={e => handleSessionNameChange(sIdx, e.target.value)} 
                                   required 
@@ -870,16 +966,22 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                                       </button>
                                   </div>
                               ))}
-                              <button type="button" className="btn-small ghost" style={{marginTop: 5, color: '#10b981'}} onClick={() => handleAddQuestion(sIdx)}>
-                                  <FaPlus /> Add Question
+                              <button type="button" className="btn-small ghost" style={{marginTop: 5, color: '#10b981', fontWeight: 'bold'}} onClick={() => handleAddQuestion(sIdx)}>
+                                  <FaPlus style={{marginRight: 4}}/> Add Question
                               </button>
                           </div>
                       </div>
                   ))}
 
+                  {templateSessions.length === 0 && (
+                      <div style={{textAlign: 'center', padding: '30px', background: '#f8f9fa', border: '1px dashed #ccc', borderRadius: 8, color: '#888', marginBottom: 20}}>
+                          Click "Add New Session" below to start building the form.
+                      </div>
+                  )}
+
                   <div style={{display:'flex', justifyContent: 'space-between', marginTop: 20}}>
-                      <button type="button" className="btn ghost" onClick={handleAddSession}><FaPlus /> Add New Session</button>
-                      <button type="submit" className="btn">Assign & Save PMS Form</button>
+                      <button type="button" className="btn ghost" onClick={handleAddSession}><FaPlus style={{marginRight: 6}}/> Add New Session</button>
+                      <button type="submit" className="btn" style={{padding: '10px 20px', fontSize: '15px'}}>Assign & Save PMS Form</button>
                   </div>
               </form>
           </div>
@@ -948,8 +1050,8 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                                 <td>{p.month}</td>
                                 <td><span className="status-badge pending">{p.status}</span></td>
                                 <td>
-                                    <button className="btn-small" style={{background:'#6366f1'}} onClick={() => handleViewPMS(p)}>
-                                        <FaEye /> View & Grade
+                                    <button className="btn-small" style={{background:'#6366f1', padding: '6px 12px'}} onClick={() => handleViewPMS(p)}>
+                                        <FaEye style={{marginRight: 4}}/> View & Grade
                                     </button>
                                 </td>
                             </tr>
@@ -958,7 +1060,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                 </table>
               </div>
 
-              <h4 style={{color:'#555'}}>Completed PMS History</h4>
+              <h4 style={{color:'#555', borderTop: '2px solid #eee', paddingTop: 20}}>Completed PMS History</h4>
               <div style={{overflowX:'auto'}}>
                 <table className="styled-table">
                     <thead><tr><th>Employee</th><th>Month</th><th>Status</th><th>Action</th></tr></thead>
@@ -969,8 +1071,8 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                                 <td>{p.month}</td>
                                 <td><span className="status-badge approved">Completed</span></td>
                                 <td>
-                                    <button className="btn-small" style={{background:'#888'}} onClick={() => handleViewPMS(p)}>
-                                        <FaEye /> View Details
+                                    <button className="btn-small ghost" style={{border: '1px solid #888', color: '#555', padding: '6px 12px'}} onClick={() => handleViewPMS(p)}>
+                                        <FaEye style={{marginRight: 4}}/> View Details
                                     </button>
                                 </td>
                             </tr>
@@ -992,7 +1094,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                         {pendingCorrections.length === 0 && <tr><td colSpan="5" style={{textAlign:'center', padding:20, color:'#999'}}>No pending corrections found.</td></tr>}
                         {pendingCorrections.map(c => (
                             <tr key={c._id}>
-                                <td>{c.employee_name}</td>
+                                <td style={{fontWeight: 'bold'}}>{c.employee_name}</td>
                                 <td>{new Date(c.new_time).toLocaleString()}</td>
                                 <td>{c.reason}</td>
                                 <td><span className={`status-badge ${getStatusClass(c.status)}`}>{c.status}</span></td>
@@ -1158,7 +1260,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
                       <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
                       <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
-                      <td>{l.attachment_url ? <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://erp-backend-production-d377.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{l.attachment_url ? <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://gdmrconnect-backend-production.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                 ))}
               </tbody>
@@ -1177,7 +1279,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                     <tr key={a._id}>
                       <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
                       <td>{new Date(a.time).toLocaleString()}</td>
-                      <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://erp-backend-production-d377.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://gdmrconnect-backend-production.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                 ))}
               </tbody>
@@ -1209,97 +1311,109 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       )}
 
       {/* ============================================================================ */}
-      {/* --- PMS DETAILS & MANAGER GRADING MODAL (UNRESTRICTED SCROLLING) ---         */}
+      {/* --- PMS DETAILS & MANAGER GRADING MODAL (WITH SESSION NAMES) ---             */}
       {/* ============================================================================ */}
       {viewPMSModalOpen && selectedPMS && (
         <div className="modal-overlay" style={{zIndex: 4000}} onClick={() => setViewPMSModalOpen(false)}>
-          {/* Using the "large" class to make the modal spacious and unrestricted */}
           <div className="modal-card large" onClick={e => e.stopPropagation()} style={{ padding: '25px' }}>
             
             {/* Sticky Header */}
             <div style={{display:'flex', justifyContent:'space-between', marginBottom:15, borderBottom:'2px solid #fee2e2', paddingBottom:15}}>
               <div>
                   <h3 style={{ margin: 0, color: 'var(--red)', fontSize: '22px' }}>PMS Review Submissions</h3>
-                  <span className="small" style={{color: '#666'}}>Reviewing responses for {selectedPMS.employee_name}</span>
+                  <span className="small" style={{color: '#666'}}>Reviewing responses for <strong>{selectedPMS.employee_name}</strong> ({selectedPMS.month})</span>
               </div>
               <button className="btn ghost" style={{background: '#f1f5f9', borderRadius: '50%', padding: '10px'}} onClick={() => setViewPMSModalOpen(false)}>
                   <FaTimes size={16} color="#333" />
               </button>
             </div>
 
-            {/* Scrollable Content Area - Removed arbitrary flex limits, ensured strong overflow-y */}
+            {/* Scrollable Content Area */}
             <div style={{ overflowY: 'auto', paddingRight: '15px', flex: 1, display: 'flex', flexDirection: 'column' }}>
                 
                 <div style={{background:'#f8f9fa', padding:15, borderRadius:8, marginBottom:25, display:'flex', gap: 20, border: '1px solid #e2e8f0'}}>
-                    <div><span style={{color: '#64748b', fontSize: 12, display: 'block'}}>Employee Name</span> <strong>{selectedPMS.employee_name}</strong></div>
-                    <div><span style={{color: '#64748b', fontSize: 12, display: 'block'}}>Evaluation Month</span> <strong>{selectedPMS.month}</strong></div>
-                    <div><span style={{color: '#64748b', fontSize: 12, display: 'block'}}>Current Status</span> <span className={`status-badge ${selectedPMS.status === 'Manager Review Completed' ? 'approved' : 'pending'}`}>{selectedPMS.status}</span></div>
+                    <div style={{flex: 1}}><span style={{color: '#64748b', fontSize: 12, display: 'block'}}>Employee Name</span> <strong style={{fontSize: 15}}>{selectedPMS.employee_name}</strong></div>
+                    <div style={{flex: 1}}><span style={{color: '#64748b', fontSize: 12, display: 'block'}}>Evaluation Month</span> <strong style={{fontSize: 15}}>{selectedPMS.month}</strong></div>
+                    <div style={{flex: 1}}>
+                        <span style={{color: '#64748b', fontSize: 12, display: 'block', marginBottom: 4}}>Current Status</span> 
+                        <span className={`status-badge ${selectedPMS.status === 'Manager Review Completed' ? 'approved' : 'pending'}`}>{selectedPMS.status}</span>
+                    </div>
                 </div>
                 
                 <h4 style={{marginBottom:15, color:'#333', background: '#fff', position: 'sticky', top: 0, zIndex: 10, paddingBottom: 10, borderBottom: '1px solid #eee'}}>
                     Submitted Responses ({selectedPMS.responses?.length || 0} Total)
                 </h4>
                 
-                {/* Dynamically Mapping all responses without slice or restrictions */}
                 {(!selectedPMS.responses || selectedPMS.responses.length === 0) ? (
                     <p style={{fontStyle:'italic', color:'#999', textAlign: 'center', padding: 40}}>No responses found in this submission.</p>
                 ) : (
-                    selectedPMS.responses.map((resp, idx) => {
-                        const existingMgrScore = selectedPMS.manager_scores?.find(m => m.question === resp.question);
-                        const isPending = selectedPMS.status === 'Pending Review';
-
-                        return (
-                        <div key={idx} className="qa-box" style={{marginBottom: 20, background: '#fff', padding: '20px', borderRadius: 8, borderLeft: '4px solid var(--red)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'}}>
-                            <div style={{fontWeight:600, marginBottom:12, color:'#1e293b', fontSize: '15px'}}>
-                                {idx + 1}. {resp.question}
-                            </div>
+                    // FIX: Dynamically mapping the responses Grouped by Session Name
+                    Object.entries(getGroupedResponses()).map(([sessionName, responsesInSession], sessionIndex) => (
+                        <div key={sessionIndex} style={{marginBottom: '30px'}}>
                             
-                            {resp.self_score && (
-                                <div style={{marginBottom: 15}}>
-                                    <div style={{display: 'flex', gap: 30, marginBottom: 10, alignItems: 'center'}}>
-                                        <div style={{background: '#f1f5f9', padding: '8px 16px', borderRadius: '6px'}}>
-                                            <span style={{fontSize: 12, color: '#64748b', display: 'block'}}>Self Score</span> 
-                                            <strong style={{fontSize: 18, color: '#0f172a'}}>{resp.self_score}</strong><span style={{fontSize: 14, color: '#94a3b8'}}>/10</span>
-                                        </div>
-                                        
-                                        {!isPending && existingMgrScore && (
-                                            <div style={{background: '#fef2f2', padding: '8px 16px', borderRadius: '6px'}}>
-                                                <span style={{fontSize: 12, color: '#dc2626', display: 'block'}}>Manager Score</span> 
-                                                <strong style={{fontSize: 18, color: '#b91c1c'}}>{existingMgrScore.score}</strong><span style={{fontSize: 14, color: '#f87171'}}>/10</span>
-                                            </div>
-                                        )}
+                            {/* SESSION HEADER */}
+                            <h5 style={{ color: 'var(--red)', borderBottom: '2px solid #fecaca', paddingBottom: '8px', marginBottom: '15px', fontSize: '16px', textTransform: 'uppercase' }}>
+                                Session: {sessionName}
+                            </h5>
+
+                            {responsesInSession.map((resp, idx) => {
+                                const existingMgrScore = selectedPMS.manager_scores?.find(m => m.question === resp.question);
+                                const isPending = selectedPMS.status === 'Pending Review';
+
+                                return (
+                                <div key={idx} className="qa-box" style={{marginBottom: 20, background: '#fff', padding: '20px', borderRadius: 8, borderLeft: '4px solid var(--red)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'}}>
+                                    <div style={{fontWeight:600, marginBottom:12, color:'#1e293b', fontSize: '15px'}}>
+                                        Q: {resp.question}
                                     </div>
                                     
-                                    {isPending && (
-                                        <div style={{marginTop: 15, background: '#f8fafc', padding: 15, border: '1px solid #cbd5e1', borderRadius: 6}}>
-                                            <label className="modern-label" style={{fontSize: 13, color: '#0f172a'}}>Assign Manager Score (1-10)</label>
-                                            <input 
-                                                type="number" min="1" max="10" className="modern-input" required
-                                                style={{ maxWidth: '150px' }}
-                                                value={managerScores[resp.question] || ""}
-                                                onChange={(e) => setManagerScores({...managerScores, [resp.question]: e.target.value})}
-                                            />
+                                    {resp.self_score && (
+                                        <div style={{marginBottom: 15}}>
+                                            <div style={{display: 'flex', gap: 30, marginBottom: 10, alignItems: 'center'}}>
+                                                <div style={{background: '#f1f5f9', padding: '8px 16px', borderRadius: '6px'}}>
+                                                    <span style={{fontSize: 12, color: '#64748b', display: 'block'}}>Self Score</span> 
+                                                    <strong style={{fontSize: 18, color: '#0f172a'}}>{resp.self_score}</strong><span style={{fontSize: 14, color: '#94a3b8'}}>/10</span>
+                                                </div>
+                                                
+                                                {!isPending && existingMgrScore && (
+                                                    <div style={{background: '#fef2f2', padding: '8px 16px', borderRadius: '6px'}}>
+                                                        <span style={{fontSize: 12, color: '#dc2626', display: 'block'}}>Manager Score</span> 
+                                                        <strong style={{fontSize: 18, color: '#b91c1c'}}>{existingMgrScore.score}</strong><span style={{fontSize: 14, color: '#f87171'}}>/10</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            
+                                            {isPending && (
+                                                <div style={{marginTop: 15, background: '#f8fafc', padding: 15, border: '1px solid #cbd5e1', borderRadius: 6}}>
+                                                    <label className="modern-label" style={{fontSize: 13, color: '#0f172a'}}>Assign Manager Score (1-10)</label>
+                                                    <input 
+                                                        type="number" min="1" max="10" className="modern-input" required
+                                                        style={{ maxWidth: '150px' }}
+                                                        value={managerScores[resp.question] || ""}
+                                                        onChange={(e) => setManagerScores({...managerScores, [resp.question]: e.target.value})}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {resp.descriptive_answer && (
+                                        <div style={{marginBottom: 15}}>
+                                            <div style={{fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 'bold'}}>Employee Answer:</div>
+                                            <div style={{background: '#f8fafc', padding: 15, borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 14, color: '#334155', whiteSpace: 'pre-wrap'}}>
+                                                {resp.descriptive_answer}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {resp.remarks && (
+                                        <div style={{fontSize: 13, color: '#475569', marginTop: 10, background: '#f1f5f9', padding: '8px 12px', borderRadius: '4px', borderLeft: '3px solid #94a3b8'}}>
+                                            <strong>Employee Remarks:</strong> {resp.remarks}
                                         </div>
                                     )}
                                 </div>
-                            )}
-
-                            {resp.descriptive_answer && (
-                                <div style={{marginBottom: 15}}>
-                                    <div style={{fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 'bold'}}>Employee Answer:</div>
-                                    <div style={{background: '#f8fafc', padding: 15, borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 14, color: '#334155', whiteSpace: 'pre-wrap'}}>
-                                        {resp.descriptive_answer}
-                                    </div>
-                                </div>
-                            )}
-
-                            {resp.remarks && (
-                                <div style={{fontSize: 13, color: '#475569', marginTop: 10, background: '#f1f5f9', padding: '8px 12px', borderRadius: '4px', borderLeft: '3px solid #94a3b8'}}>
-                                    <strong>Employee Remarks:</strong> {resp.remarks}
-                                </div>
-                            )}
+                            )})}
                         </div>
-                    )})
+                    ))
                 )}
                 
                 {/* MANAGER FINAL FEEDBACK & SUBMIT */}

@@ -1,14 +1,31 @@
 import React, { useEffect, useState } from "react";
-import { FaSearch, FaFilter, FaTimes, FaList, FaThLarge, FaCalendarAlt } from "react-icons/fa";
+import { 
+  FaSearch, 
+  FaFilter, 
+  FaTimes, 
+  FaList, 
+  FaThLarge, 
+  FaCalendarAlt,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaUserClock,
+  FaUserSlash
+} from "react-icons/fa";
 
 // ============================================================================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS & DATA FORMATTING
 // ============================================================================
 
-// Helper function to group records by date for individual employee view
+/**
+ * Groups a flat array of attendance records by date for an individual employee.
+ * This is used to display a clean table of Check-in vs Check-out times per day.
+ * * @param {Array} records - The raw attendance records from the API.
+ * @returns {Array} - The grouped and chronologically sorted attendance array.
+ */
 function groupAttendance(records) {
   const groups = {};
   
+  // Iterate through records and bucket them by their calendar date
   records.forEach(rec => {
     const date = rec.date;
     if (!groups[date]) {
@@ -18,22 +35,25 @@ function groupAttendance(records) {
         absent: null,
       };
     }
+    // Assign the record to the correct type slot (checkin, checkout, or absent)
     groups[date][rec.type] = rec;
   });
   
+  // Convert the grouped object back into an array for rendering
   return Object.entries(groups)
     .map(([date, records]) => ({
       date,
       checkin: records.checkin,
       checkout: records.checkout,
       absent: records.absent,
+      // Use the latest available time for accurate sorting
       sortTime: new Date(records.checkout?.time || records.checkin?.time || records.absent?.time).getTime()
     }))
-    .sort((a, b) => b.sortTime - a.sortTime);
+    .sort((a, b) => b.sortTime - a.sortTime); // Sort descending (newest first)
 }
 
 // ============================================================================
-// MAIN COMPONENT
+// MAIN COMPONENT EXPORT
 // ============================================================================
 
 export default function AdminAttendancePage({ token, api }) {
@@ -43,8 +63,8 @@ export default function AdminAttendancePage({ token, api }) {
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
   
-  // --- Master Logs States (NEW FEATURE FOR COMPLETE VISIBILITY) ---
-  const [viewMode, setViewMode] = useState("grid"); // "grid" or "logs"
+  // --- Master Logs States (COMPLETE VISIBILITY FEATURE) ---
+  const [viewMode, setViewMode] = useState("grid"); // Toggles between "grid" or "logs"
   const [allAttendanceLogs, setAllAttendanceLogs] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
 
@@ -53,17 +73,52 @@ export default function AdminAttendancePage({ token, api }) {
   const [selectedDept, setSelectedDept] = useState("All");
   const [logDateFilter, setLogDateFilter] = useState(""); // Filter for master logs
 
-  // --- Modal States for Individual Details ---
+  // --- Modal States for Individual Employee Details ---
   const [showModal, setShowModal] = useState(false);
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [attendance, setAttendance] = useState([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
   
+  // --- Today's Stats States (NEWLY IMPORTED FROM ADMIN DASHBOARD) ---
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [stats, setStats] = useState({
+    present: 0,
+    absent: 0,
+    leave: 0,
+    not_checked_in: 0,
+  });
+
   // ============================================================================
-  // DATA FETCHING
+  // API DATA FETCHING
   // ============================================================================
 
-  // 1. Load Employee List for Grid View
+  /**
+   * 1. Load the overall summary statistics for today.
+   */
+  async function loadTodayStats() {
+    setStatsLoading(true);
+    try {
+      if (api.todayStats) {
+          const res = await api.todayStats(token);
+          setStats(res);
+      } else {
+          // Fallback if todayStats isn't bound to the api prop
+          const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+          const res = await fetch(`${baseUrl}/api/admin/today-stats`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) setStats(await res.json());
+      }
+    } catch (err) {
+      console.error("Stats load error:", err);
+    } finally {
+      setStatsLoading(false);
+    }
+  }
+
+  /**
+   * 2. Load Employee List for the Grid View.
+   */
   async function loadEmployees() {
     setLoading(true);
     try {
@@ -81,7 +136,9 @@ export default function AdminAttendancePage({ token, api }) {
     }
   }
 
-  // 2. Load Master Attendance Logs for Complete View Mode
+  /**
+   * 3. Load Master Attendance Logs for the Complete View Mode.
+   */
   async function loadCompleteLogs() {
     setLoadingLogs(true);
     try {
@@ -98,7 +155,9 @@ export default function AdminAttendancePage({ token, api }) {
     }
   }
 
-  // 3. Load attendance for one specific employee (triggered on card click)
+  /**
+   * 4. Load attendance for one specific employee (triggered on card click).
+   */
   async function openEmployeeDetails(emp) {
     setSelectedEmp(emp);
     setShowModal(true);
@@ -110,6 +169,7 @@ export default function AdminAttendancePage({ token, api }) {
       setAttendance(groupAttendance(records));
     } catch (err) {
       console.error("Error loading attendance", err);
+      alert("Failed to load employee attendance records.");
     } finally {
       setLoadingDetails(false);
     }
@@ -119,14 +179,20 @@ export default function AdminAttendancePage({ token, api }) {
   // EFFECTS & FILTER LOGIC
   // ============================================================================
 
-  // Run initial data fetch
+  // Run initial data fetch on component mount
   useEffect(() => {
+    loadTodayStats();
     loadEmployees();
     loadCompleteLogs();
+    
+    // Auto-set the date filter to today's date for convenience
+    const today = new Date().toISOString().split('T')[0];
+    setLogDateFilter(today);
+    
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filter Logic for Grid View
+  // Filter Logic for Employee Grid View
   useEffect(() => {
     let result = employees;
 
@@ -191,14 +257,67 @@ export default function AdminAttendancePage({ token, api }) {
       return "-";
   };
 
+  // Reusable Stat Widget Component
+  const StatItem = ({ icon, label, count, colorClass }) => (
+    <div className="stat-row clickable-stat" style={{ flex: 1, minWidth: '200px' }}>
+      <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
+      <div className="stat-info">
+        <span className="stat-count">{statsLoading ? "..." : count}</span>
+        <span className="stat-label">{label}</span>
+      </div>
+    </div>
+  );
+
   // ============================================================================
-  // RENDER
+  // COMPONENT RENDER
   // ============================================================================
 
   return (
     <div>
+      {/* Inline styles specifically for the Stat widgets and grid layouts */}
+      <style>{`
+        .clickable-stat {
+          cursor: default;
+          transition: transform 0.2s, box-shadow 0.2s;
+          background: #fff;
+          border: 1px solid #eee;
+          padding: 15px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          gap: 15px;
+        }
+        .clickable-stat:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+          border-color: #e5e5e5;
+        }
+        .stat-icon-box {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-size: 20px;
+        }
+        .text-green { background: #dcfce7; color: #16a34a; }
+        .text-red { background: #fee2e2; color: #dc2626; }
+        .text-dark-red { background: #fce8e8; color: #991b1b; }
+        .text-orange { background: #fef3c7; color: #d97706; }
+        .stat-info { display: flex; flex-direction: column; }
+        .stat-count { font-size: 24px; font-weight: bold; color: #333; line-height: 1; }
+        .stat-label { font-size: 13px; color: #666; margin-top: 4px; }
+        .stats-grid-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 15px;
+          margin-bottom: 20px;
+        }
+      `}</style>
+
       {/* Page Header */}
-      <div className="dashboard-header-card card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="dashboard-header-card card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div>
               <h2 style={{ color: "var(--red)", margin: 0 }}>Attendance Logs</h2>
               <p className="small">Monitor complete employee check-ins and check-outs</p>
@@ -213,7 +332,8 @@ export default function AdminAttendancePage({ token, api }) {
                       borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
                       background: viewMode === "grid" ? '#fff' : 'transparent',
                       color: viewMode === "grid" ? 'var(--red)' : '#64748b',
-                      boxShadow: viewMode === "grid" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      boxShadow: viewMode === "grid" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.2s ease'
                   }}
               >
                   <FaThLarge /> Employee Grid
@@ -225,12 +345,43 @@ export default function AdminAttendancePage({ token, api }) {
                       borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
                       background: viewMode === "logs" ? '#fff' : 'transparent',
                       color: viewMode === "logs" ? 'var(--red)' : '#64748b',
-                      boxShadow: viewMode === "logs" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      boxShadow: viewMode === "logs" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.2s ease'
                   }}
               >
                   <FaList /> Complete Logs
               </button>
           </div>
+      </div>
+
+      {/* ========================================================= */}
+      {/* TODAY'S STATS WIDGETS (ADDED PER FEEDBACK)                */}
+      {/* ========================================================= */}
+      <div className="stats-grid-container">
+          <StatItem 
+            icon={<FaCheckCircle />} 
+            label="Present Today" 
+            count={stats.present} 
+            colorClass="text-green"
+          />
+          <StatItem 
+            icon={<FaTimesCircle />} 
+            label="Absent Today" 
+            count={stats.absent} 
+            colorClass="text-red"
+          />
+          <StatItem 
+            icon={<FaUserClock />} 
+            label="On Leave Today" 
+            count={stats.leave} 
+            colorClass="text-dark-red"
+          />
+          <StatItem 
+            icon={<FaUserSlash />} 
+            label="Not Checked In" 
+            count={stats.not_checked_in} 
+            colorClass="text-orange"
+          />
       </div>
 
       {/* Global Filter Bar */}
@@ -313,7 +464,7 @@ export default function AdminAttendancePage({ token, api }) {
                  <div className="loader-container" style={{ padding: 40 }}><div className="loader"></div></div>
               ) : filteredLogs.length === 0 ? (
                  <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
-                     No attendance logs found matching the selected criteria.
+                     No attendance logs found matching the selected criteria. Try adjusting the date filter.
                  </div>
               ) : (
                  <div style={{ overflowX: 'auto' }}>

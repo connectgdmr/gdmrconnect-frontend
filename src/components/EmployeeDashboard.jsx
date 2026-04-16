@@ -312,22 +312,40 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   // ============================================================================
   // DYNAMIC PMS 2.0 SUBMISSION LOGIC
   // ============================================================================
-  function handlePmsChange(sessionId, questionIdx, questionText, field, value) {
+  
+  /**
+   * Captures responses from the employee in real-time.
+   * FIX: The sessionName is now explicitly saved in the local state.
+   */
+  function handlePmsChange(sessionId, sessionName, questionIdx, questionText, field, value) {
       const key = `${sessionId}_${questionIdx}`;
       setPmsResponses(prev => ({
           ...prev,
           [key]: { 
               ...prev[key], 
+              session_name: sessionName, // Binding the session name here
               question: questionText,
               [field]: value 
           }
       }));
   }
 
+  /**
+   * Submits the completely filled PMS form to the backend.
+   * FIX: Clears the form upon successful submission so data doesn't persist.
+   */
   async function submitPMS(e) {
     e.preventDefault();
+    
+    // Safety check - ensure they actually answered something
+    const responsesArray = Object.values(pmsResponses);
+    if (responsesArray.length === 0) {
+        alert("Please provide at least one response before submitting.");
+        return;
+    }
+
     try {
-        const responsesArray = Object.values(pmsResponses);
+        setLoading(true);
         const res = await fetch(`${api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/pms/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -337,10 +355,16 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         if(!res.ok) throw new Error(data.message);
         
         alert("Self Assessment Submitted Successfully! It is now locked for Manager Review.");
+        
+        // FIX: Clear the form data from the Employee UI completely after submission
+        setPmsResponses({});
+        
         setView("dashboard");
-        load(); 
+        await load(); 
     } catch(err) { 
         alert("Submission failed: " + err.message); 
+    } finally {
+        setLoading(false);
     }
   }
 
@@ -348,6 +372,22 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       setSelectedPms(pmsData);
       setPmsModalOpen(true);
   }
+
+  // Helper function to group the selected PMS responses by session name for viewing
+  const getGroupedResponses = () => {
+      if (!selectedPms || !selectedPms.responses) return {};
+      
+      const groups = {};
+      selectedPms.responses.forEach(resp => {
+          // Fallback to "General Evaluation" if session_name is missing from older data
+          const sName = resp.session_name || "General Evaluation";
+          if (!groups[sName]) {
+              groups[sName] = [];
+          }
+          groups[sName].push(resp);
+      });
+      return groups;
+  };
 
   // ============================================================================
   // ATTENDANCE CORRECTION LOGIC
@@ -497,7 +537,8 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; justify-content: center; align-items: center; }
         
         .modal-card { background: white; width: 450px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 80vh; position: relative; }
-        .modal-card.large { width: 650px; max-width: 95%; max-height: 85vh; }
+        /* Expanded dimensions for unrestricted scrolling */
+        .modal-card.large { width: 750px; max-width: 95%; max-height: 85vh; padding: 25px; }
         
         .loader {
           border: 4px solid #f3f3f3;
@@ -514,7 +555,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         .password-toggle-icon { position: absolute; right: 12px; cursor: pointer; color: #666; font-size: 16px; top: 38px; }
         .delegation-alert { background: #e0e7ff; color: #4f46e5; border-left: 4px solid #4f46e5; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
         .icon-badge { position: absolute; top: -5px; right: -5px; background: #4f46e5; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
-        .qa-box { margin-bottom: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid var(--red); }
+        .qa-box { margin-bottom: 20px; background: #f9f9f9; padding: 20px; border-radius: 8px; border-left: 4px solid var(--red); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
       `}</style>
 
       {/* ============================================================================ */}
@@ -761,12 +802,14 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
               <h3>Monthly Performance Self-Evaluation</h3>
               
               {!pmsTemplate || !pmsTemplate.sessions || pmsTemplate.sessions.length === 0 ? (
-                  <p style={{color:'#777'}}>No active evaluation sessions available for this month.</p>
+                  <p style={{color:'#777', padding: 20, textAlign: 'center', border: '1px dashed #ccc', borderRadius: 8}}>
+                      No active evaluation sessions available for this month.
+                  </p>
               ) : (
                   <form onSubmit={submitPMS}>
                       {pmsTemplate.sessions.map((session, sIdx) => (
-                          <div key={sIdx} style={{marginBottom: 30, padding: 20, background: '#f9fafb', borderRadius: 8, border: '1px solid #eee'}}>
-                              <h4 style={{color: 'var(--red)', marginTop: 0, borderBottom: '2px solid #fee2e2', paddingBottom: 10}}>
+                          <div key={sIdx} style={{marginBottom: 30, padding: 25, background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb'}}>
+                              <h4 style={{color: 'var(--red)', marginTop: 0, borderBottom: '2px solid #fecaca', paddingBottom: 10, fontSize: 18}}>
                                   Session {sIdx + 1}: {session.name}
                               </h4>
                               
@@ -775,28 +818,33 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                                   const currentScore = pmsResponses[responseKey]?.self_score || 5;
 
                                   return (
-                                  <div key={qIdx} style={{marginTop: 20}}>
-                                      <label className="modern-label" style={{fontSize: 14, color: '#333'}}>{q.text}</label>
+                                  <div key={qIdx} style={{marginTop: 25, padding: '15px', background: '#fff', borderRadius: '8px', border: '1px solid #f1f5f9'}}>
+                                      <label className="modern-label" style={{fontSize: 15, color: '#1e293b', marginBottom: 12}}>{q.text}</label>
                                       
                                       {/* RESPONSE TYPE 1: SCORE TYPE (1-10) */}
                                       {q.type === 'scale' ? (
-                                          <div style={{display:'flex', alignItems:'center', gap: 15, marginTop: 10, marginBottom: 10}}>
+                                          <div style={{display:'flex', alignItems:'center', gap: 20, marginTop: 10, marginBottom: 15}}>
                                               <input 
                                                   type="range" min="1" max="10" 
                                                   value={currentScore}
-                                                  onChange={(e) => handlePmsChange(sIdx, qIdx, q.text, 'self_score', e.target.value)}
+                                                  /* FIX: Added session.name dynamically here so it is saved */
+                                                  onChange={(e) => handlePmsChange(sIdx, session.name, qIdx, q.text, 'self_score', e.target.value)}
                                                   required
-                                                  style={{flex: 1, accentColor: 'var(--red)'}}
+                                                  style={{flex: 1, accentColor: 'var(--red)', cursor: 'pointer'}}
                                               />
-                                              <span style={{fontWeight: 'bold', fontSize: 18, minWidth: 60, textAlign: 'right'}}>{currentScore} / 10</span>
+                                              <div style={{background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', minWidth: '80px', textAlign: 'center'}}>
+                                                  <strong style={{fontSize: 20, color: 'var(--red)'}}>{currentScore}</strong>
+                                                  <span style={{color: '#64748b'}}>/10</span>
+                                              </div>
                                           </div>
                                       ) : (
                                       /* RESPONSE TYPE 2: DESCRIPTIVE TYPE */
                                           <textarea 
                                               className="modern-input" 
-                                              style={{minHeight:80, marginTop: 10, marginBottom: 10}} 
+                                              style={{minHeight: 100, marginTop: 10, marginBottom: 15, resize: 'vertical'}} 
                                               placeholder="Enter your descriptive answer here..."
-                                              onChange={(e) => handlePmsChange(sIdx, qIdx, q.text, 'descriptive_answer', e.target.value)}
+                                              /* FIX: Added session.name dynamically */
+                                              onChange={(e) => handlePmsChange(sIdx, session.name, qIdx, q.text, 'descriptive_answer', e.target.value)}
                                               required 
                                           />
                                       )}
@@ -805,37 +853,41 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                                       <input 
                                           type="text" 
                                           className="modern-input" 
+                                          style={{background: '#f8fafc', borderStyle: 'dashed'}}
                                           placeholder="Remarks / Context explaining your response (Optional)" 
-                                          onChange={(e) => handlePmsChange(sIdx, qIdx, q.text, 'remarks', e.target.value)}
+                                          /* FIX: Added session.name dynamically */
+                                          onChange={(e) => handlePmsChange(sIdx, session.name, qIdx, q.text, 'remarks', e.target.value)}
                                       />
                                   </div>
                               )})}
                           </div>
                       ))}
                       <div style={{display:'flex', justifyContent:'flex-end'}}>
-                          <button type="submit" className="btn" style={{padding: '12px 30px', fontSize: 16}}>Submit Evaluation</button>
+                          <button type="submit" className="btn" style={{padding: '15px 40px', fontSize: 16, borderRadius: 30}}>
+                              {loading ? 'Submitting...' : 'Submit Evaluation securely'}
+                          </button>
                       </div>
                   </form>
               )}
 
               {/* PMS HISTORY TABLE */}
-              <h4 style={{marginTop:40, color:'var(--red)', borderTop: '1px solid #eee', paddingTop: 20}}>My PMS Evaluation History</h4>
+              <h4 style={{marginTop:40, color:'var(--red)', borderTop: '2px solid #eee', paddingTop: 20}}>My PMS Evaluation History</h4>
               <div style={{overflowX: 'auto'}}>
                 <table className="styled-table">
                     <thead><tr><th>Month</th><th>Status</th><th>Action</th></tr></thead>
                     <tbody>
-                        {pmsHistory.length === 0 && <tr><td colSpan="3" style={{textAlign: 'center', color: '#999'}}>No history found.</td></tr>}
+                        {pmsHistory.length === 0 && <tr><td colSpan="3" style={{textAlign: 'center', color: '#999', padding: 20}}>No history found.</td></tr>}
                         {pmsHistory.map(p => (
                             <tr key={p._id}>
-                                <td>{p.month}</td>
+                                <td style={{fontWeight: 'bold'}}>{p.month}</td>
                                 <td>
                                     <span className={`status-badge ${p.status === 'Manager Review Completed' ? 'approved' : 'pending'}`}>
                                         {p.status}
                                     </span>
                                 </td>
                                 <td>
-                                    <button className="btn ghost" style={{padding: "5px 10px", fontSize: "12px"}} onClick={() => viewPMS(p)}>
-                                        <FaEye /> View
+                                    <button className="btn ghost" style={{padding: "6px 12px", fontSize: "13px", border: '1px solid #ccc'}} onClick={() => viewPMS(p)}>
+                                        <FaEye style={{marginRight: 4}}/> View
                                     </button>
                                 </td>
                             </tr>
@@ -1051,9 +1103,10 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         </div>
       )}
       
+      {/* FIX: Displays the History of PMS Submissions WITH GROUPED SESSION NAMES */}
       {pmsModalOpen && selectedPms && (
         <div className="modal-overlay" onClick={() => setPmsModalOpen(false)}>
-          <div className="modal-card large" onClick={e => e.stopPropagation()}>
+          <div className="modal-card large" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
             
             {/* Sticky Header */}
             <div style={{display:'flex', justifyContent:'space-between', marginBottom:15, borderBottom:'2px solid #fee2e2', paddingBottom:15}}>
@@ -1078,44 +1131,63 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                {selectedPms.manager_feedback && (
                    <div style={{background: '#fef2f2', padding: 15, borderRadius: 8, marginTop: 15, border: '1px solid #fee2e2'}}>
                        <h4 style={{margin: '0 0 10px 0', color: 'var(--red)'}}>Manager Remarks</h4>
-                       <p style={{margin: 0, fontSize: 14}}>{selectedPms.manager_feedback}</p>
+                       <p style={{margin: 0, fontSize: 14, whiteSpace: 'pre-wrap'}}>{selectedPms.manager_feedback}</p>
                    </div>
                )}
 
                <h4 style={{marginTop: 25, borderBottom: '1px solid #eee', paddingBottom: 10}}>Evaluation Breakdown</h4>
-               {selectedPms.responses && selectedPms.responses.length > 0 ? (
-                   selectedPms.responses.map((resp, idx) => {
-                       const mgrScoreObj = selectedPms.manager_scores?.find(m => m.question === resp.question);
-
-                       return (
-                       <div key={idx} className="qa-box" style={{marginBottom: 20, background: '#f9f9f9', padding: 15, borderRadius: 8, borderLeft: '4px solid #ddd'}}>
-                           <div style={{fontWeight: 600, marginBottom: 8, color: '#222'}}>{resp.question}</div>
-                           
-                           {resp.self_score && (
-                               <div style={{display: 'flex', gap: 20, marginBottom: 10}}>
-                                   <div><span style={{fontSize: 12, color: '#666'}}>Self Score:</span> <strong style={{fontSize: 16}}>{resp.self_score}</strong>/10</div>
-                                   {mgrScoreObj && <div><span style={{fontSize: 12, color: '#666'}}>Manager Score:</span> <strong style={{fontSize: 16, color: 'var(--red)'}}>{mgrScoreObj.score}</strong>/10</div>}
-                               </div>
-                           )}
-
-                           {resp.descriptive_answer && (
-                               <div style={{marginBottom: 10}}>
-                                   <div style={{fontSize: 12, color: '#666'}}>Answer:</div>
-                                   <div style={{background: '#fff', padding: 10, borderRadius: 4, border: '1px solid #eee', fontSize: 14}}>
-                                       {resp.descriptive_answer}
-                                   </div>
-                               </div>
-                           )}
-
-                           {resp.remarks && (
-                               <div style={{fontSize: 13, fontStyle: 'italic', color: '#555', marginTop: 10}}>
-                                   <strong>Remarks:</strong> {resp.remarks}
-                               </div>
-                           )}
-                       </div>
-                   )})
+               
+               {(!selectedPms.responses || selectedPms.responses.length === 0) ? (
+                   <p style={{color: '#999', fontStyle: 'italic', textAlign: 'center', padding: 20}}>No details available.</p>
                ) : (
-                   <p style={{color: '#999', fontStyle: 'italic'}}>No details available.</p>
+                   /* FIX: Mapping the grouped responses dynamically */
+                   Object.entries(getGroupedResponses()).map(([sessionName, responsesInSession], sessionIndex) => (
+                       <div key={sessionIndex} style={{marginBottom: '30px'}}>
+                           <h5 style={{ color: 'var(--red)', borderBottom: '2px solid #fecaca', paddingBottom: '8px', marginBottom: '15px', fontSize: '15px', textTransform: 'uppercase' }}>
+                               Session: {sessionName}
+                           </h5>
+                           
+                           {responsesInSession.map((resp, idx) => {
+                               const mgrScoreObj = selectedPms.manager_scores?.find(m => m.question === resp.question);
+
+                               return (
+                               <div key={idx} className="qa-box">
+                                   <div style={{fontWeight: 600, marginBottom: 8, color: '#222'}}>{resp.question}</div>
+                                   
+                                   {resp.self_score && (
+                                       <div style={{display: 'flex', gap: 20, marginBottom: 10}}>
+                                           <div style={{background: '#fff', padding: '6px 12px', borderRadius: '4px', border: '1px solid #e2e8f0'}}>
+                                               <span style={{fontSize: 12, color: '#666', display: 'block'}}>Self Score</span> 
+                                               <strong style={{fontSize: 16}}>{resp.self_score}</strong>/10
+                                           </div>
+                                           {mgrScoreObj && (
+                                               <div style={{background: '#fef2f2', padding: '6px 12px', borderRadius: '4px', border: '1px solid #fecaca'}}>
+                                                   <span style={{fontSize: 12, color: '#dc2626', display: 'block'}}>Manager Score</span> 
+                                                   <strong style={{fontSize: 16, color: 'var(--red)'}}>{mgrScoreObj.score}</strong>/10
+                                               </div>
+                                           )}
+                                       </div>
+                                   )}
+
+                                   {resp.descriptive_answer && (
+                                       <div style={{marginBottom: 10}}>
+                                           <div style={{fontSize: 12, color: '#666', fontWeight: 'bold', marginBottom: 4}}>Answer:</div>
+                                           <div style={{background: '#fff', padding: 12, borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 14, whiteSpace: 'pre-wrap'}}>
+                                               {resp.descriptive_answer}
+                                           </div>
+                                       </div>
+                                   )}
+
+                                   {resp.remarks && (
+                                       <div style={{fontSize: 13, fontStyle: 'italic', color: '#475569', marginTop: 10, background: '#f1f5f9', padding: '8px 10px', borderRadius: '4px'}}>
+                                           <strong>Remarks:</strong> {resp.remarks}
+                                       </div>
+                                   )}
+                               </div>
+                               );
+                           })}
+                       </div>
+                   ))
                )}
             </div>
           </div>
