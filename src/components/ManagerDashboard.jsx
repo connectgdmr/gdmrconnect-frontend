@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
+// ============================================================================
 // IMPORTING ADMIN COMPONENTS FOR DELEGATED ACCESS
+// ============================================================================
 import AdminLeavePage from "./AdminLeavePage"; 
 import AdminAttendancePage from "./AdminAttendancePage";
 import HolidayCalendar from "./HolidayCalendar"; 
@@ -28,26 +30,30 @@ import {
   FaPlus,
   FaTrash,
   FaEdit,
-  FaUserShield, // ADDED: Icon for Delegated Access
-  FaClipboardList // ADDED: Icon for Delegated Attendance
+  FaUserShield, 
+  FaClipboardList 
 } from "react-icons/fa";
 
 export default function ManagerDashboard({ token, api, passwordChanged = true }) {
-  // --- Data States ---
+  // ============================================================================
+  // 1. CORE DATA STATES
+  // ============================================================================
   const [attendance, setAttendance] = useState([]);
   const [myLeaves, setMyLeaves] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [teamLeaves, setTeamLeaves] = useState([]); 
   
-  // --- Notifications & Announcements ---
+  // Notifications & Announcements
   const [notificationCounts, setNotificationCounts] = useState({ leaves: 0, pms: 0, corrections: 0, announcements: 0 });
   const [announcements, setAnnouncements] = useState([]);
 
-  // --- Manager Approval States ---
+  // Manager Approval States
   const [pendingPMS, setPendingPMS] = useState([]);
   const [pendingCorrections, setPendingCorrections] = useState([]);
 
-  // --- Password State ---
+  // ============================================================================
+  // 2. PASSWORD MANAGEMENT STATES
+  // ============================================================================
   const [showPasswordModal, setShowPasswordModal] = useState(!passwordChanged);
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -59,26 +65,29 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   
-  // --- Dynamic PMS Template Builder State ---
+  // ============================================================================
+  // 3. DYNAMIC PMS TEMPLATE BUILDER & REVIEW STATES
+  // ============================================================================
   const [templateSessions, setTemplateSessions] = useState([]);
+  const [assignedEmployees, setAssignedEmployees] = useState([]); // NEW: For employee-wise assignment
   
-  // --- PMS Review & Grading State ---
+  // PMS Review & Grading State
   const [managerScores, setManagerScores] = useState({}); 
   const [managerFeedback, setManagerFeedback] = useState("");
   const [viewPMSModalOpen, setViewPMSModalOpen] = useState(false);
   const [selectedPMS, setSelectedPMS] = useState(null);
 
-  // --- DELEGATED ADMIN STATE ---
+  // ============================================================================
+  // 4. DELEGATED ADMIN & DASHBOARD STATES
+  // ============================================================================
   const [delegatedGrants, setDelegatedGrants] = useState([]);
-
-  // --- Department Dashboard State ---
   const [deptDashboard, setDeptDashboard] = useState([]);
   const [dashboardMonth, setDashboardMonth] = useState(new Date().toISOString().slice(0, 7));
 
-  // --- Navigation State ---
+  // Navigation State
   const [view, setView] = useState("dashboard"); 
   
-  // --- Leave Form State ---
+  // Leave Form State
   const [leaveDuration, setLeaveDuration] = useState("single");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -87,10 +96,15 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   const [period, setPeriod] = useState("First Half"); 
   const [file, setFile] = useState(null);
   
-  // --- Loading States ---
+  // Loading & Modal States
   const [loading, setLoading] = useState(false);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalList, setModalList] = useState([]);
   
-  // --- Camera State ---
+  // ============================================================================
+  // 5. CAMERA & HARDWARE STATES
+  // ============================================================================
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
   const [previewImage, setPreviewImage] = useState(null);
@@ -99,12 +113,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   const canvasRef = useRef(null);
   const streamRef = useRef(null); 
 
-  // --- Modal State (General) ---
-  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
-  const [modalTitle, setModalTitle] = useState("");
-  const [modalList, setModalList] = useState([]);
-
-  // --- Derived States ---
+  // Derived States
   const pendingLeaves = myLeaves.filter(l => l.status === 'Pending');
   const approvedLeaves = myLeaves.filter(l => l.status === 'Approved');
   const rejectedLeaves = myLeaves.filter(l => l.status === 'Rejected');
@@ -112,11 +121,13 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   const MAX_WORDS = 30; 
   const MAX_FILE_SIZE_MB = 5;
 
-  // --- INITIAL DATA LOADING ---
+  // ============================================================================
+  // INITIAL DATA LOADING
+  // ============================================================================
   const load = useCallback(async (isAction = false) => {
     setLoading(true); 
     
-    // Safely check for api to prevent crashes if it isn't passed correctly
+    // Safely check for api to prevent crashes
     const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
     const headers = { 'Authorization': `Bearer ${token}` };
 
@@ -132,10 +143,10 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         fetch(`${baseUrl}/api/announcements`, { headers }).then(r => r.json()),
         fetch(`${baseUrl}/api/pms-template`, { headers }).then(r => r.json()),
         fetch(`${baseUrl}/api/admin/pms-dashboard?month=${dashboardMonth}`, { headers }).then(r => r.json()),
-        // Fetch Delegated Admin Grants
         fetch(`${baseUrl}/api/my/delegated-access`, { headers }).then(r => r.json())
       ]);
 
+      // Map results to state safely
       if (results[0].status === 'fulfilled' && Array.isArray(results[0].value)) setAttendance(results[0].value);
       if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) setMyLeaves(results[1].value);
       if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) setTeamMembers(results[2].value);
@@ -151,7 +162,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       if (results[9].status === 'fulfilled' && Array.isArray(results[9].value)) {
           setDeptDashboard(results[9].value);
       }
-      // Set Delegated Grants
       if (results[10].status === 'fulfilled' && Array.isArray(results[10].value)) {
           setDelegatedGrants(results[10].value);
       }
@@ -161,12 +171,13 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
     } finally { 
       setLoading(false); 
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, dashboardMonth]); 
+  }, [token, dashboardMonth, api]); 
 
   useEffect(() => { load(); }, [load]);
 
-  // --- SET STRONG PASSWORD ---
+  // ============================================================================
+  // PASSWORD MANAGEMENT
+  // ============================================================================
   async function handleSetPassword(e) {
       e.preventDefault();
       setPassError("");
@@ -205,7 +216,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       }
   }
 
-  // --- CAMERA LOGIC ---
+  // ============================================================================
+  // CAMERA & ATTENDANCE LOGIC
+  // ============================================================================
   async function openCamera(type) {
     setActionType(type);
     setCameraOpen(true);
@@ -258,7 +271,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
     setSubmittingPhoto(false);
   }
 
-  // --- PMS TEMPLATE BUILDER LOGIC ---
+  // ============================================================================
+  // PMS TEMPLATE BUILDER LOGIC (WITH EMPLOYEE ASSIGNMENT)
+  // ============================================================================
   const handleAddSession = () => setTemplateSessions([...templateSessions, { name: "", questions: [{ text: "", type: "scale" }] }]);
   const handleRemoveSession = (sIdx) => setTemplateSessions(templateSessions.filter((_, i) => i !== sIdx));
   
@@ -286,17 +301,42 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       setTemplateSessions(newS);
   };
 
+  const toggleEmployeeAssignment = (empId) => {
+      if (assignedEmployees.includes(empId)) {
+          setAssignedEmployees(assignedEmployees.filter(id => id !== empId));
+      } else {
+          setAssignedEmployees([...assignedEmployees, empId]);
+      }
+  };
+
+  const selectAllEmployees = () => {
+      setAssignedEmployees(teamMembers.map(emp => emp._id));
+  };
+
+  const clearAllEmployees = () => {
+      setAssignedEmployees([]);
+  };
+
   async function savePmsTemplate(e) {
       e.preventDefault();
+      
+      if (assignedEmployees.length === 0) {
+          alert("Please assign this PMS template to at least one employee.");
+          return;
+      }
+
       const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
           setLoading(true);
           const res = await fetch(`${baseUrl}/api/admin/pms-template`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-              body: JSON.stringify({ sessions: templateSessions })
+              body: JSON.stringify({ 
+                  sessions: templateSessions,
+                  assigned_to: assignedEmployees // NEW: Pushing the specific employee assignments
+              })
           });
-          if(res.ok) alert("PMS Evaluation Form Saved Successfully!");
+          if(res.ok) alert("PMS Evaluation Form Assigned and Saved Successfully!");
           else alert("Failed to save template.");
           await load(true);
       } catch(err) { 
@@ -305,7 +345,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       }
   }
 
-  // --- PMS REVIEW LOGIC ---
+  // ============================================================================
+  // PMS REVIEW & GRADING LOGIC (UNRESTRICTED SCROLLING)
+  // ============================================================================
   function handleViewPMS(pms) {
       setSelectedPMS(pms);
       setManagerFeedback(pms.manager_feedback || "");
@@ -338,7 +380,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
               })
           });
           await load(true);
-          alert("PMS Review Finalized"); 
+          alert("PMS Review Finalized Successfully"); 
           setViewPMSModalOpen(false); 
       } catch(err) { 
           alert(err.message); 
@@ -346,7 +388,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       }
   }
 
-  // --- EXPORT CSV ---
+  // ============================================================================
+  // EXPORT CSV & CORRECTIONS & LEAVES
+  // ============================================================================
   async function downloadReport() {
       try {
           const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
@@ -368,7 +412,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       }
   }
 
-  // --- CORRECTION LOGIC ---
   async function approveCorrection(id, action) {
       const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
@@ -386,7 +429,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       }
   }
   
-  // --- LEAVE STATUS UPDATE LOGIC ---
   async function updateLeaveStatus(id, status) {
        setLoading(true); 
        const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
@@ -404,7 +446,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
        }
   }
 
-  // --- APPLY LEAVE (MANAGER PERSONAL) ---
   async function applyLeave(e) {
     e.preventDefault();
     setLoading(true);
@@ -427,7 +468,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
     }
   }
   
-  // --- HELPERS ---
+  // ============================================================================
+  // HELPERS
+  // ============================================================================
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile && selectedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
@@ -445,7 +488,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   const handleStatClick = (title, list) => { setModalTitle(title); setModalList(list); setLeaveModalOpen(true); }
   const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
 
-  // --- UI COMPONENTS ---
+  // ============================================================================
+  // REUSABLE UI COMPONENTS
+  // ============================================================================
   const QuickLaunchItem = ({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) => (
     <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
       <div className="quick-launch-icon" style={{ color: color }}>{icon}</div>
@@ -475,6 +520,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
     </div>
   );
 
+  // ============================================================================
+  // RENDER
+  // ============================================================================
   return (
     <div>
       <style>{`
@@ -483,7 +531,11 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         .file-upload-label { display: flex; align-items: center; justify-content: center; padding: 20px; border: 2px dashed #ddd; border-radius: 8px; background: #fafafa; color: #666; cursor: pointer; gap: 10px; }
         .clickable-stat { cursor: pointer; transition: transform 0.2s; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; justify-content: center; align-items: center; }
+        
+        /* Adjusted the viewPMSModalOpen dimensions for better full-content scrolling */
         .modal-card { background: white; width: 500px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 85vh; position: relative; }
+        .modal-card.large { width: 750px; max-width: 95%; max-height: 90vh; } 
+        
         .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; text-transform: capitalize; min-width: 80px; text-align: center; }
         .status-badge.approved { background: #dcfce7; color: #16a34a; }
         .status-badge.rejected { background: #fee2e2; color: #dc2626; }
@@ -495,13 +547,17 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .btn-small { padding: 5px 10px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; color: white; margin-right: 5px; display:inline-flex; align-items:center; gap:5px; }
         .icon-badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
-        .qa-box { margin-bottom: 15px; background: #f9f9f9; padding: 12px; border-radius: 8px; border-left: 4px solid var(--red); }
+        .qa-box { margin-bottom: 15px; background: #f9f9f9; padding: 12px; border-radius: 8px; border-left: 4px solid var(--red); transition: background 0.2s; }
+        .qa-box:hover { background: #f1f5f9; }
         .inline-loader { display: flex; justify-content: center; align-items: center; padding: 40px; color: #666; font-weight: 500; gap: 10px; flex-direction: column; }
         
         .password-input-wrapper { position: relative; display: flex; align-items: center; margin-bottom: 15px; }
         .password-toggle-icon { position: absolute; right: 12px; cursor: pointer; color: #666; font-size: 16px; top: 38px; }
         .delegation-alert { background: #e0e7ff; color: #4f46e5; border-left: 4px solid #4f46e5; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
-        .icon-badge-blue { background: #4f46e5 !important; }
+        
+        .employee-chip { display: flex; align-items: center; gap: 8px; background: #fff; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+        .employee-chip:hover { border-color: var(--red); background: #fff5f5; }
+        .employee-chip.selected { background: var(--red); color: white; border-color: var(--red); }
       `}</style>
 
       {/* PASSWORD RESET MODAL */}
@@ -668,7 +724,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         </div>
       )}
 
-      {/* --- DELEGATED ADMIN PORTAL HUB (NEW) --- */}
+      {/* --- DELEGATED ADMIN PORTAL HUB --- */}
       {!loading && view === "delegated-admin-portal" && (
          <div className="card" style={{ marginTop: "16px" }}>
             <h2 style={{ color: '#4f46e5', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -730,13 +786,51 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
          </div>
       )}
 
-      {/* --- PMS TEMPLATE BUILDER (REQ 2.1 & 2.9) --- */}
+      {/* ============================================================================ */}
+      {/* --- PMS TEMPLATE BUILDER (WITH EMPLOYEE ASSIGNMENT) ---                      */}
+      {/* ============================================================================ */}
       {!loading && view === "pms-builder" && (
           <div className="card">
               <h3>Create Department PMS Evaluation Form</h3>
-              <p className="small" style={{marginBottom: 20}}>Structure performance reviews through sessions and categorized questions for your department.</p>
+              <p className="small" style={{marginBottom: 20}}>Structure performance reviews and directly assign them to specific employees in your department.</p>
               
               <form onSubmit={savePmsTemplate}>
+                  
+                  {/* --- NEW SECTION: EMPLOYEE ASSIGNMENT --- */}
+                  <div style={{marginBottom: 30, background: '#fef2f2', padding: 20, borderRadius: 8, border: '1px solid #fee2e2'}}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15}}>
+                          <h4 style={{margin: 0, color: 'var(--red)'}}>1. Assign To Employees</h4>
+                          <div>
+                              <button type="button" className="btn-small ghost" onClick={selectAllEmployees} style={{color: '#16a34a'}}>Select All</button>
+                              <button type="button" className="btn-small ghost" onClick={clearAllEmployees} style={{color: '#dc2626'}}>Clear All</button>
+                          </div>
+                      </div>
+                      
+                      {teamMembers.length === 0 ? (
+                          <p style={{color: '#777', fontStyle: 'italic', fontSize: 13}}>No team members available for assignment.</p>
+                      ) : (
+                          <div style={{display: 'flex', flexWrap: 'wrap', gap: 10}}>
+                              {teamMembers.map(emp => (
+                                  <label 
+                                      key={emp._id} 
+                                      className={`employee-chip ${assignedEmployees.includes(emp._id) ? 'selected' : ''}`}
+                                  >
+                                      <input
+                                          type="checkbox"
+                                          style={{display: 'none'}}
+                                          checked={assignedEmployees.includes(emp._id)}
+                                          onChange={() => toggleEmployeeAssignment(emp._id)}
+                                      />
+                                      <FaUserCheck style={{opacity: assignedEmployees.includes(emp._id) ? 1 : 0.3}} />
+                                      {emp.name} 
+                                  </label>
+                              ))}
+                          </div>
+                      )}
+                  </div>
+
+                  <h4 style={{marginBottom: 15, borderBottom: '2px solid #eee', paddingBottom: 10}}>2. Build Evaluation Sessions</h4>
+                  
                   {templateSessions.map((session, sIdx) => (
                       <div key={sIdx} style={{marginBottom: 25, padding: 15, background: '#f8f9fa', border: '1px solid #ddd', borderRadius: 8}}>
                           <div style={{display:'flex', gap: 10, alignItems: 'center', marginBottom: 15}}>
@@ -785,13 +879,13 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
 
                   <div style={{display:'flex', justifyContent: 'space-between', marginTop: 20}}>
                       <button type="button" className="btn ghost" onClick={handleAddSession}><FaPlus /> Add New Session</button>
-                      <button type="submit" className="btn">Save PMS Form</button>
+                      <button type="submit" className="btn">Assign & Save PMS Form</button>
                   </div>
               </form>
           </div>
       )}
 
-      {/* --- DEPARTMENT PERFORMANCE DASHBOARD (REQ 2.8 & 3.0) --- */}
+      {/* --- DEPARTMENT PERFORMANCE DASHBOARD --- */}
       {!loading && view === "dept-dashboard" && (
           <div className="card">
               <div style={{display:'flex', justifyContent: 'space-between', alignItems:'center', marginBottom: 20}}>
@@ -839,7 +933,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           </div>
       )}
 
-      {/* --- PMS REVIEWS LIST (REQ 2.4) --- */}
+      {/* --- PMS REVIEWS LIST --- */}
       {!loading && view === "pms-manager" && (
           <div className="card">
               <h3>Pending PMS Reviews</h3>
@@ -1091,7 +1185,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         </div>
       )}
 
-      {/* Holidays and Modals always render as overlays/separate */}
+      {/* Holidays and Modals */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
 
       {leaveModalOpen && (
@@ -1114,48 +1208,74 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         </div>
       )}
 
-      {/* --- PMS DETAILS & MANAGER GRADING MODAL --- */}
+      {/* ============================================================================ */}
+      {/* --- PMS DETAILS & MANAGER GRADING MODAL (UNRESTRICTED SCROLLING) ---         */}
+      {/* ============================================================================ */}
       {viewPMSModalOpen && selectedPMS && (
-        <div className="modal-overlay" onClick={() => setViewPMSModalOpen(false)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()} style={{width: 650}}>
-            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15, borderBottom:'1px solid #eee', paddingBottom:10}}>
-              <h3 style={{ margin: 0, color: 'var(--red)' }}>PMS Review Details</h3>
-              <button className="btn ghost" onClick={() => setViewPMSModalOpen(false)}><FaTimes /></button>
+        <div className="modal-overlay" style={{zIndex: 4000}} onClick={() => setViewPMSModalOpen(false)}>
+          {/* Using the "large" class to make the modal spacious and unrestricted */}
+          <div className="modal-card large" onClick={e => e.stopPropagation()} style={{ padding: '25px' }}>
+            
+            {/* Sticky Header */}
+            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15, borderBottom:'2px solid #fee2e2', paddingBottom:15}}>
+              <div>
+                  <h3 style={{ margin: 0, color: 'var(--red)', fontSize: '22px' }}>PMS Review Submissions</h3>
+                  <span className="small" style={{color: '#666'}}>Reviewing responses for {selectedPMS.employee_name}</span>
+              </div>
+              <button className="btn ghost" style={{background: '#f1f5f9', borderRadius: '50%', padding: '10px'}} onClick={() => setViewPMSModalOpen(false)}>
+                  <FaTimes size={16} color="#333" />
+              </button>
             </div>
-            <div style={{overflowY:'auto', flex:1, paddingRight:10, maxHeight: '65vh'}}>
-                <div style={{background:'#fdf2f2', padding:10, borderRadius:6, marginBottom:20, display:'flex', flexDirection:'column', gap:5}}>
-                    <div><b>Employee:</b> {selectedPMS.employee_name}</div>
-                    <div><b>Month:</b> {selectedPMS.month}</div>
-                    <div><b>Status:</b> <span className={`status-badge ${selectedPMS.status === 'Manager Review Completed' ? 'approved' : 'pending'}`}>{selectedPMS.status}</span></div>
+
+            {/* Scrollable Content Area - Removed arbitrary flex limits, ensured strong overflow-y */}
+            <div style={{ overflowY: 'auto', paddingRight: '15px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                
+                <div style={{background:'#f8f9fa', padding:15, borderRadius:8, marginBottom:25, display:'flex', gap: 20, border: '1px solid #e2e8f0'}}>
+                    <div><span style={{color: '#64748b', fontSize: 12, display: 'block'}}>Employee Name</span> <strong>{selectedPMS.employee_name}</strong></div>
+                    <div><span style={{color: '#64748b', fontSize: 12, display: 'block'}}>Evaluation Month</span> <strong>{selectedPMS.month}</strong></div>
+                    <div><span style={{color: '#64748b', fontSize: 12, display: 'block'}}>Current Status</span> <span className={`status-badge ${selectedPMS.status === 'Manager Review Completed' ? 'approved' : 'pending'}`}>{selectedPMS.status}</span></div>
                 </div>
                 
-                <h4 style={{marginBottom:15, color:'#333'}}>Employee Responses:</h4>
+                <h4 style={{marginBottom:15, color:'#333', background: '#fff', position: 'sticky', top: 0, zIndex: 10, paddingBottom: 10, borderBottom: '1px solid #eee'}}>
+                    Submitted Responses ({selectedPMS.responses?.length || 0} Total)
+                </h4>
+                
+                {/* Dynamically Mapping all responses without slice or restrictions */}
                 {(!selectedPMS.responses || selectedPMS.responses.length === 0) ? (
-                    <p style={{fontStyle:'italic', color:'#999'}}>No responses found.</p>
+                    <p style={{fontStyle:'italic', color:'#999', textAlign: 'center', padding: 40}}>No responses found in this submission.</p>
                 ) : (
                     selectedPMS.responses.map((resp, idx) => {
                         const existingMgrScore = selectedPMS.manager_scores?.find(m => m.question === resp.question);
                         const isPending = selectedPMS.status === 'Pending Review';
 
                         return (
-                        <div key={idx} className="qa-box" style={{marginBottom: 20, background: '#f9f9f9', padding: 15, borderRadius: 8, borderLeft: '4px solid #ddd'}}>
-                            <div style={{fontWeight:600, marginBottom:8, color:'#222'}}>{resp.question}</div>
+                        <div key={idx} className="qa-box" style={{marginBottom: 20, background: '#fff', padding: '20px', borderRadius: 8, borderLeft: '4px solid var(--red)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'}}>
+                            <div style={{fontWeight:600, marginBottom:12, color:'#1e293b', fontSize: '15px'}}>
+                                {idx + 1}. {resp.question}
+                            </div>
                             
                             {resp.self_score && (
-                                <div>
-                                    <div style={{display: 'flex', gap: 20, marginBottom: 10, alignItems: 'center'}}>
-                                        <div><span style={{fontSize: 12, color: '#666'}}>Employee Self Score:</span> <strong style={{fontSize: 16}}>{resp.self_score}</strong>/10</div>
+                                <div style={{marginBottom: 15}}>
+                                    <div style={{display: 'flex', gap: 30, marginBottom: 10, alignItems: 'center'}}>
+                                        <div style={{background: '#f1f5f9', padding: '8px 16px', borderRadius: '6px'}}>
+                                            <span style={{fontSize: 12, color: '#64748b', display: 'block'}}>Self Score</span> 
+                                            <strong style={{fontSize: 18, color: '#0f172a'}}>{resp.self_score}</strong><span style={{fontSize: 14, color: '#94a3b8'}}>/10</span>
+                                        </div>
                                         
                                         {!isPending && existingMgrScore && (
-                                            <div><span style={{fontSize: 12, color: '#666'}}>Manager Score:</span> <strong style={{fontSize: 16, color: 'var(--red)'}}>{existingMgrScore.score}</strong>/10</div>
+                                            <div style={{background: '#fef2f2', padding: '8px 16px', borderRadius: '6px'}}>
+                                                <span style={{fontSize: 12, color: '#dc2626', display: 'block'}}>Manager Score</span> 
+                                                <strong style={{fontSize: 18, color: '#b91c1c'}}>{existingMgrScore.score}</strong><span style={{fontSize: 14, color: '#f87171'}}>/10</span>
+                                            </div>
                                         )}
                                     </div>
                                     
                                     {isPending && (
-                                        <div style={{marginTop: 10, background: '#fff', padding: 10, border: '1px solid #eee', borderRadius: 4}}>
-                                            <label className="modern-label" style={{fontSize: 12}}>Assign Manager Score (1-10)</label>
+                                        <div style={{marginTop: 15, background: '#f8fafc', padding: 15, border: '1px solid #cbd5e1', borderRadius: 6}}>
+                                            <label className="modern-label" style={{fontSize: 13, color: '#0f172a'}}>Assign Manager Score (1-10)</label>
                                             <input 
                                                 type="number" min="1" max="10" className="modern-input" required
+                                                style={{ maxWidth: '150px' }}
                                                 value={managerScores[resp.question] || ""}
                                                 onChange={(e) => setManagerScores({...managerScores, [resp.question]: e.target.value})}
                                             />
@@ -1165,17 +1285,17 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                             )}
 
                             {resp.descriptive_answer && (
-                                <div style={{marginBottom: 10}}>
-                                    <div style={{fontSize: 12, color: '#666'}}>Answer:</div>
-                                    <div style={{background: '#fff', padding: 10, borderRadius: 4, border: '1px solid #eee', fontSize: 14}}>
+                                <div style={{marginBottom: 15}}>
+                                    <div style={{fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 'bold'}}>Employee Answer:</div>
+                                    <div style={{background: '#f8fafc', padding: 15, borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 14, color: '#334155', whiteSpace: 'pre-wrap'}}>
                                         {resp.descriptive_answer}
                                     </div>
                                 </div>
                             )}
 
                             {resp.remarks && (
-                                <div style={{fontSize: 13, fontStyle: 'italic', color: '#555', marginTop: 10}}>
-                                    <strong>Remarks:</strong> {resp.remarks}
+                                <div style={{fontSize: 13, color: '#475569', marginTop: 10, background: '#f1f5f9', padding: '8px 12px', borderRadius: '4px', borderLeft: '3px solid #94a3b8'}}>
+                                    <strong>Employee Remarks:</strong> {resp.remarks}
                                 </div>
                             )}
                         </div>
@@ -1184,19 +1304,19 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                 
                 {/* MANAGER FINAL FEEDBACK & SUBMIT */}
                 {selectedPMS.status === 'Pending Review' && (
-                    <div style={{marginTop:30, borderTop:'1px solid #eee', paddingTop:20}}>
-                        <h4 style={{marginBottom:10}}>Manager Final Evaluation</h4>
+                    <div style={{marginTop:30, borderTop:'2px solid #eee', paddingTop:25, paddingBottom: 20}}>
+                        <h4 style={{marginBottom:15, color: '#0f172a'}}>Manager Final Evaluation & Summary</h4>
                         <label className="modern-label">Overall Remarks & Feedback</label>
                         <textarea 
                             className="modern-input" 
-                            style={{minHeight: 100}}
-                            placeholder="Provide constructive feedback..."
+                            style={{minHeight: 120, resize: 'vertical'}}
+                            placeholder="Provide constructive feedback and summarize the evaluation..."
                             value={managerFeedback}
                             onChange={e => setManagerFeedback(e.target.value)}
                         />
                         <button 
                             className="btn" 
-                            style={{marginTop:15, width:'100%', fontSize:'15px'}} 
+                            style={{marginTop:20, width:'100%', fontSize:'16px', padding: '15px'}} 
                             onClick={() => finalizePMS(selectedPMS._id)}
                         >
                             Submit Scores & Finalize Review
@@ -1205,9 +1325,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                 )}
                 
                 {selectedPMS.status === 'Manager Review Completed' && selectedPMS.manager_feedback && (
-                    <div style={{marginTop:20, padding:15, background:'#fef2f2', borderRadius:8, border: '1px solid #fee2e2'}}>
-                        <h4 style={{margin: '0 0 10px 0', color:'var(--red)'}}>Your Final Remarks:</h4>
-                        <p style={{margin: 0, fontSize: 14}}>{selectedPMS.manager_feedback}</p>
+                    <div style={{marginTop:20, padding:20, background:'#fef2f2', borderRadius:8, border: '1px solid #fecaca'}}>
+                        <h4 style={{margin: '0 0 10px 0', color:'var(--red)'}}>Your Final Official Remarks:</h4>
+                        <p style={{margin: 0, fontSize: 14, color: '#450a0a', whiteSpace: 'pre-wrap'}}>{selectedPMS.manager_feedback}</p>
                     </div>
                 )}
             </div>
@@ -1220,7 +1340,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
           <div className="camera-box" style={{position: 'relative', background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
             
-            {/* Added Close X button for Camera Modal */}
             <button 
                 className="btn ghost" 
                 style={{ position: 'absolute', top: 10, right: 10, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 

@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef } from "react";
 import HolidayCalendar from "./HolidayCalendar"; 
 
-// ==========================================
+// ============================================================================
 // DELEGATED ADMIN IMPORTS
-// These are only rendered if the user has 
-// active special permissions from the Admin.
-// ==========================================
+// These are dynamically rendered only if the standard employee
+// has been granted active special permissions from the Admin.
+// ============================================================================
 import AdminLeavePage from "./AdminLeavePage";
 import AdminAttendancePage from "./AdminAttendancePage";
 
@@ -34,18 +34,18 @@ import {
 } from "react-icons/fa";
 
 export default function EmployeeDashboard({ token, api, passwordChanged = true }) {
-  // ---------------------------------------------------------
+  // ============================================================================
   // 1. CORE DATA STATES
-  // ---------------------------------------------------------
+  // ============================================================================
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [pmsHistory, setPmsHistory] = useState([]);
   const [correctionHistory, setCorrectionHistory] = useState([]);
   const [announcements, setAnnouncements] = useState([]); 
   
-  // ---------------------------------------------------------
+  // ============================================================================
   // 2. PASSWORD MANAGEMENT STATES
-  // ---------------------------------------------------------
+  // ============================================================================
   const [showPasswordModal, setShowPasswordModal] = useState(!passwordChanged);
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -57,27 +57,27 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
 
-  // ---------------------------------------------------------
+  // ============================================================================
   // 3. PMS (PERFORMANCE MANAGEMENT) STATES
-  // ---------------------------------------------------------
+  // ============================================================================
   const [pmsTemplate, setPmsTemplate] = useState({ sessions: [] }); 
   const [pmsResponses, setPmsResponses] = useState({});
 
-  // ---------------------------------------------------------
+  // ============================================================================
   // 4. SPECIAL ACCESS (DELEGATED ADMIN) STATE
   // Stores temporary permissions granted by the master Admin
-  // ---------------------------------------------------------
+  // ============================================================================
   const [delegatedGrants, setDelegatedGrants] = useState([]);
 
-  // ---------------------------------------------------------
+  // ============================================================================
   // 5. NAVIGATION & UI STATES
-  // ---------------------------------------------------------
+  // ============================================================================
   const [view, setView] = useState("dashboard"); 
   const [loading, setLoading] = useState(false);
   
-  // ---------------------------------------------------------
+  // ============================================================================
   // 6. FORM STATES (LEAVES & CORRECTIONS)
-  // ---------------------------------------------------------
+  // ============================================================================
   const [leaveDuration, setLeaveDuration] = useState("single"); 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -87,9 +87,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const [file, setFile] = useState(null);
   const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
 
-  // ---------------------------------------------------------
+  // ============================================================================
   // 7. CAMERA & HARDWARE STATES
-  // ---------------------------------------------------------
+  // ============================================================================
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
   const [previewImage, setPreviewImage] = useState(null); 
@@ -99,18 +99,18 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const canvasRef = useRef(null);
   const streamRef = useRef(null); 
 
-  // ---------------------------------------------------------
+  // ============================================================================
   // 8. MODAL STATES
-  // ---------------------------------------------------------
+  // ============================================================================
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalList, setModalList] = useState([]);
   const [pmsModalOpen, setPmsModalOpen] = useState(false);
   const [selectedPms, setSelectedPms] = useState(null);
   
-  // ---------------------------------------------------------
+  // ============================================================================
   // 9. DERIVED DATA
-  // ---------------------------------------------------------
+  // ============================================================================
   const pendingLeaves = leaves.filter(l => l.status === 'Pending');
   const approvedLeaves = leaves.filter(l => l.status === 'Approved');
   const rejectedLeaves = leaves.filter(l => l.status === 'Rejected');
@@ -118,51 +118,51 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const MAX_WORDS = 30;
   const MAX_FILE_SIZE_MB = 5;
 
-  // =========================================================
+  // ============================================================================
   // DATA FETCHING LOGIC
-  // =========================================================
+  // ============================================================================
   async function load() {
     setLoading(true);
     const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
     const headers = { 'Authorization': `Bearer ${token}` };
 
     try {
-      // Fetch Core Attendance
+      // 1. Fetch Core Attendance
       const attRes = await fetch(`${baseUrl}/api/my/attendance`, { headers });
       if (attRes.ok) {
           const attData = await attRes.json();
           setAttendance(attData);
       }
 
-      // Fetch Core Leaves
+      // 2. Fetch Core Leaves
       const leaveRes = await fetch(`${baseUrl}/api/my/leaves`, { headers });
       if (leaveRes.ok) {
           const leaveData = await leaveRes.json();
           setLeaves(leaveData);
       }
 
-      // Fetch PMS History
+      // 3. Fetch PMS History
       const pmsRes = await fetch(`${baseUrl}/api/my/pms`, { headers });
       if (pmsRes.ok) {
           const pmsData = await pmsRes.json();
           setPmsHistory(pmsData);
       }
 
-      // Fetch Corrections
+      // 4. Fetch Corrections
       const corrRes = await fetch(`${baseUrl}/api/my/corrections`, { headers });
       if (corrRes.ok) {
           const corrData = await corrRes.json();
           setCorrectionHistory(corrData);
       }
       
-      // Fetch Dynamic PMS Template
+      // 5. Fetch Dynamic PMS Template
       const templateRes = await fetch(`${baseUrl}/api/pms-template`, { headers });
       if (templateRes.ok) {
           const templateData = await templateRes.json();
           setPmsTemplate(templateData);
       }
 
-      // Fetch Announcements
+      // 6. Fetch Announcements
       const annRes = await fetch(`${baseUrl}/api/announcements`, { headers });
       if (annRes.ok) {
           const annData = await annRes.json();
@@ -170,7 +170,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       }
 
       // ---------------------------------------------------
-      // FETCH DELEGATED ADMIN GRANTS (SPECIAL ACCESS)
+      // 7. FETCH DELEGATED ADMIN GRANTS (SPECIAL ACCESS)
       // ---------------------------------------------------
       try {
           const grantsRes = await fetch(`${baseUrl}/api/my/delegated-access`, { headers });
@@ -203,9 +203,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // =========================================================
+  // ============================================================================
   // PASSWORD UPDATE LOGIC
-  // =========================================================
+  // ============================================================================
   async function handleSetPassword(e) {
       e.preventDefault();
       setPassError("");
@@ -245,9 +245,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       }
   }
 
-  // =========================================================
+  // ============================================================================
   // HARDWARE INTERACTION (CAMERA)
-  // =========================================================
+  // ============================================================================
   async function openCamera(type) {
     setActionType(type);
     setCameraOpen(true);
@@ -309,9 +309,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     setSubmittingPhoto(false);
   }
 
-  // =========================================================
+  // ============================================================================
   // DYNAMIC PMS 2.0 SUBMISSION LOGIC
-  // =========================================================
+  // ============================================================================
   function handlePmsChange(sessionId, questionIdx, questionText, field, value) {
       const key = `${sessionId}_${questionIdx}`;
       setPmsResponses(prev => ({
@@ -349,9 +349,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       setPmsModalOpen(true);
   }
 
-  // =========================================================
+  // ============================================================================
   // ATTENDANCE CORRECTION LOGIC
-  // =========================================================
+  // ============================================================================
   async function submitCorrection(e) {
       e.preventDefault();
       try {
@@ -375,9 +375,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       }
   }
 
-  // =========================================================
+  // ============================================================================
   // LEAVE APPLICATION LOGIC
-  // =========================================================
+  // ============================================================================
   async function applyLeave(e) {
     e.preventDefault();
     try {
@@ -450,9 +450,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
 
   const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
 
-  // =========================================================
+  // ============================================================================
   // REUSABLE UI COMPONENTS
-  // =========================================================
+  // ============================================================================
   const QuickLaunchItem = ({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) => (
     <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
       <div className="quick-launch-icon" style={{ color: color }}>{icon}</div>
@@ -475,9 +475,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     </div>
   );
 
-  // =========================================================
+  // ============================================================================
   // MAIN RENDER METHOD
-  // =========================================================
+  // ============================================================================
   return (
     <div>
       <style>{`
@@ -495,7 +495,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         .styled-table tbody td { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; color: #444; }
         .clickable-stat { cursor: pointer; transition: transform 0.2s; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; justify-content: center; align-items: center; }
+        
         .modal-card { background: white; width: 450px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 80vh; position: relative; }
+        .modal-card.large { width: 650px; max-width: 95%; max-height: 85vh; }
         
         .loader {
           border: 4px solid #f3f3f3;
@@ -512,11 +514,12 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         .password-toggle-icon { position: absolute; right: 12px; cursor: pointer; color: #666; font-size: 16px; top: 38px; }
         .delegation-alert { background: #e0e7ff; color: #4f46e5; border-left: 4px solid #4f46e5; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
         .icon-badge { position: absolute; top: -5px; right: -5px; background: #4f46e5; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
+        .qa-box { margin-bottom: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid var(--red); }
       `}</style>
 
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {/* PASSWORD RESET MODAL */}
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {showPasswordModal && (
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
             <div className="modal-card">
@@ -598,9 +601,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         </div>
       )}
 
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {/* HEADER LOGIC WITH SPECIAL ACCESS ALERT */}
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {view === "dashboard" ? (
         <div className="dashboard-header-card card">
           <h2 style={{ color: "var(--red)", margin: 0 }}>My Dashboard</h2>
@@ -624,9 +627,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         </div>
       )}
 
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {/* DASHBOARD WIDGETS */}
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {view === "dashboard" && (
         <div className="dashboard-grid-container">
           <div className="card dashboard-widget">
@@ -679,10 +682,10 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         </div>
       )}
 
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {/* DELEGATED ADMIN PORTAL HUB (SPECIAL ACCESS VIEW) */}
-      {/* ---------------------------------------------------- */}
-      {/* For Employees: Show BOTH Attendance and Leave tools */}
+      {/* ============================================================================ */}
+      {/* For Employees: Show BOTH Attendance and Leave tools if granted */}
       {view === "special-access" && (
          <div className="card" style={{ marginTop: "16px" }}>
             <h2 style={{ color: '#4f46e5', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -709,9 +712,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
          </div>
       )}
 
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {/* SUB-VIEWS FOR DELEGATED ADMIN */}
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {view === "delegated-leaves" && (
          <div style={{ marginTop: "16px" }}>
             <div className="delegation-alert">
@@ -729,14 +732,14 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                🛡️ You are viewing the Daily Attendance Logs using temporary Delegated Access. 
                Please follow all company guidelines when modifying or viewing these records.
             </div>
-            {/* Using the standard AdminAttendancePage component, passing down tokens and api */}
+            {/* Using the updated AdminAttendancePage component which supports full logs */}
             <AdminAttendancePage token={token} api={api} />
          </div>
       )}
 
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {/* ANNOUNCEMENTS VIEW */}
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {view === "announcements" && (
          <div className="card" style={{marginTop: 16}}>
             <h3>Announcements</h3>
@@ -750,9 +753,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
          </div>
       )}
 
-      {/* ---------------------------------------------------- */}
-      {/* DYNAMIC PMS VIEW */}
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
+      {/* DYNAMIC PMS VIEW (SELF-EVALUATION) */}
+      {/* ============================================================================ */}
       {view === "pms" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Monthly Performance Self-Evaluation</h3>
@@ -843,9 +846,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
           </div>
       )}
 
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {/* CORRECTION VIEW */}
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {view === "correction" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Request Attendance Correction</h3>
@@ -886,9 +889,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
           </div>
       )}
 
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {/* APPLY LEAVE */}
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {view === "apply-leave" && (
         <div className="card" style={{ marginTop: 16 }}>
           <form onSubmit={applyLeave}>
@@ -964,9 +967,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         </div>
       )}
 
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {/* MY LEAVES */}
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {view === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
@@ -987,7 +990,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
                       <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
                       <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
-                      <td>{l.attachment_url ? <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://erp-backend-production-d377.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{l.attachment_url ? <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://gdmrconnect-backend-production.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))
                 )}
@@ -997,23 +1000,23 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         </div>
       )}
 
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {/* MY ATTENDANCE LOG */}
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {view === "attendance-log" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
-           {loading ? <p style={{padding:20}}>Loading...</p> : (
+           {loading ? <div className="loader-container" style={{padding: 40}}><div className="loader"></div></div> : (
             <table className="styled-table">
               <thead><tr><th>Type</th><th>Date / Time</th><th>Photo</th></tr></thead>
               <tbody>
                 {attendance.length === 0 ? (
-                  <tr><td colSpan="3" style={{textAlign:"center", padding:20, color:"#999"}}>No records.</td></tr>
+                  <tr><td colSpan="3" style={{textAlign:"center", padding:20, color:"#999"}}>No records found.</td></tr>
                 ) : (
                   attendance.map((a) => (
                     <tr key={a._id}>
                       <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
                       <td>{new Date(a.time).toLocaleString()}</td>
-                      <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://erp-backend-production-d377.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://gdmrconnect-backend-production.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))
                 )}
@@ -1023,9 +1026,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         </div>
       )}
 
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {/* UTILITY MODALS (Holidays, Details, PMS, Camera) */}
-      {/* ---------------------------------------------------- */}
+      {/* ============================================================================ */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
 
       {leaveModalOpen && (
@@ -1050,13 +1053,21 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       
       {pmsModalOpen && selectedPms && (
         <div className="modal-overlay" onClick={() => setPmsModalOpen(false)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()} style={{width: 650}}>
-            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15}}>
-              <h3 style={{ margin: 0, color: 'var(--red)' }}>PMS Evaluation Details</h3>
-              <button className="btn ghost" onClick={() => setPmsModalOpen(false)}><FaTimes /></button>
+          <div className="modal-card large" onClick={e => e.stopPropagation()}>
+            
+            {/* Sticky Header */}
+            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15, borderBottom:'2px solid #fee2e2', paddingBottom:15}}>
+              <div>
+                  <h3 style={{ margin: 0, color: 'var(--red)' }}>PMS Evaluation Details</h3>
+                  <span className="small" style={{color: '#666'}}>Evaluation for {selectedPms.month}</span>
+              </div>
+              <button className="btn ghost" style={{background: '#f1f5f9', borderRadius: '50%', padding: '10px'}} onClick={() => setPmsModalOpen(false)}>
+                  <FaTimes size={16} color="#333" />
+              </button>
             </div>
-            <div style={{overflowY:'auto', flex:1, maxHeight: '60vh', paddingRight: 10}}>
-               <p><strong>Month:</strong> {selectedPms.month}</p>
+
+            {/* Scrollable Content Area */}
+            <div style={{overflowY:'auto', flex:1, paddingRight: 10}}>
                <p>
                    <strong>Status:</strong> 
                    <span className={`status-badge ${selectedPms.status === 'Manager Review Completed' ? 'approved' : 'pending'}`} style={{marginLeft: 10}}>
@@ -1077,7 +1088,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                        const mgrScoreObj = selectedPms.manager_scores?.find(m => m.question === resp.question);
 
                        return (
-                       <div key={idx} style={{marginBottom: 20, background: '#f9f9f9', padding: 15, borderRadius: 8, borderLeft: '4px solid #ddd'}}>
+                       <div key={idx} className="qa-box" style={{marginBottom: 20, background: '#f9f9f9', padding: 15, borderRadius: 8, borderLeft: '4px solid #ddd'}}>
                            <div style={{fontWeight: 600, marginBottom: 8, color: '#222'}}>{resp.question}</div>
                            
                            {resp.self_score && (
@@ -1104,7 +1115,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                        </div>
                    )})
                ) : (
-                   <p>No details available.</p>
+                   <p style={{color: '#999', fontStyle: 'italic'}}>No details available.</p>
                )}
             </div>
           </div>
