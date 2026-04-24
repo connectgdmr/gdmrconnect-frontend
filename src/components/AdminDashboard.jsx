@@ -21,11 +21,17 @@ import {
   FaTimes,
   FaCalendarAlt,
   FaBullhorn,
-  FaUserShield, // <-- ADDED: For the Grant Access feature
-  FaTrash
+  FaUserShield, 
+  FaTrash,
+  FaEdit,      // <-- ADDED for Announcement Edit
+  FaSave,      // <-- ADDED for Announcement Save
+  FaUndo       // <-- ADDED for Announcement Recall
 } from "react-icons/fa";
 
 export default function AdminDashboard({ token, api }) {
+  // ============================================================================
+  // CORE STATES
+  // ============================================================================
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState("dashboard"); 
@@ -45,23 +51,34 @@ export default function AdminDashboard({ token, api }) {
   const [detailList, setDetailList] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  // --- Announcement States ---
+  // ============================================================================
+  // ANNOUNCEMENT STATES (EXPANDED)
+  // ============================================================================
   const [announcements, setAnnouncements] = useState([]);
   const [annTitle, setAnnTitle] = useState("");
   const [annMessage, setAnnMessage] = useState("");
+  
+  // New states to handle Editing Announcements
+  const [editingAnnId, setEditingAnnId] = useState(null);
+  const [editAnnTitle, setEditAnnTitle] = useState("");
+  const [editAnnMessage, setEditAnnMessage] = useState("");
 
-  // --- Grant Access States (NEW FEATURE) ---
+  // ============================================================================
+  // GRANT ACCESS STATES 
+  // ============================================================================
   const [accessGrants, setAccessGrants] = useState([]);
   const [grantData, setGrantData] = useState({
       employeeId: "",
-      accessLevel: "view_only", // 'view_only' | 'view_edit'
-      scope: "today",           // 'today' | 'custom_date'
+      accessLevel: "view_only", 
+      scope: "today",           
       customDate: "",
-      expiry: "end_of_day",     // 'end_of_day' | 'custom_time'
+      expiry: "end_of_day",     
       customExpiryTime: ""
   });
 
-  // --- Data Loading ---
+  // ============================================================================
+  // DATA LOADING FUNCTIONS
+  // ============================================================================
   async function loadEmployees() {
     setLoading(true);
     try {
@@ -89,13 +106,17 @@ export default function AdminDashboard({ token, api }) {
       const res = await fetch(`${baseUrl}/api/announcements`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) setAnnouncements(await res.json());
+      if (res.ok) {
+          const data = await res.json();
+          // Sort newest first
+          const sorted = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          setAnnouncements(sorted);
+      }
     } catch (err) {
       console.error("Announcements load error:", err);
     }
   }
 
-  // Load Active Access Grants (NEW)
   async function loadAccessGrants() {
       try {
           const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
@@ -118,7 +139,9 @@ export default function AdminDashboard({ token, api }) {
     if (view === "grant-access") loadAccessGrants();
   }, [view]);
 
-  // --- Actions ---
+  // ============================================================================
+  // EMPLOYEE ACTIONS
+  // ============================================================================
   async function addEmployee(data) {
     await api.addEmployee(data, token);
     await loadEmployees();
@@ -126,11 +149,16 @@ export default function AdminDashboard({ token, api }) {
   }
 
   async function deleteEmployee(id) {
+    if(!window.confirm("Are you sure you want to delete this employee?")) return;
     await api.deleteEmployee(id, token);
     await loadEmployees();
   }
 
-  // --- Create Announcement ---
+  // ============================================================================
+  // ANNOUNCEMENT ACTIONS (CREATE, EDIT, RECALL/DELETE)
+  // ============================================================================
+  
+  // CREATE
   async function createAnnouncement() {
     if (!annTitle || !annMessage) return alert("Please fill in both title and message");
     
@@ -159,7 +187,74 @@ export default function AdminDashboard({ token, api }) {
     }
   }
 
-  // --- Submit Grant Access Form (NEW) ---
+  // INITIATE EDIT
+  function startEditAnnouncement(ann) {
+      setEditingAnnId(ann._id);
+      setEditAnnTitle(ann.title);
+      setEditAnnMessage(ann.message);
+  }
+
+  // CANCEL EDIT
+  function cancelEditAnnouncement() {
+      setEditingAnnId(null);
+      setEditAnnTitle("");
+      setEditAnnMessage("");
+  }
+
+  // SAVE EDIT (UPDATE)
+  async function updateAnnouncement(id) {
+      if (!editAnnTitle || !editAnnMessage) return alert("Title and message cannot be empty.");
+      
+      try {
+          const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+          const res = await fetch(`${baseUrl}/api/announcements/${id}`, {
+              method: 'PUT',
+              headers: { 
+                  'Content-Type': 'application/json', 
+                  'Authorization': `Bearer ${token}` 
+              },
+              body: JSON.stringify({ title: editAnnTitle, message: editAnnMessage })
+          });
+
+          if (res.ok) {
+              alert("Announcement Updated Successfully!");
+              setEditingAnnId(null);
+              loadAnnouncements();
+          } else {
+              alert("Failed to update announcement");
+          }
+      } catch (err) {
+          console.error(err);
+          alert("Error updating announcement");
+      }
+  }
+
+  // RECALL / DELETE
+  async function recallAnnouncement(id) {
+      if (!window.confirm("Are you sure you want to recall (delete) this announcement? This will remove it from all employee views immediately.")) return;
+
+      try {
+          const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+          const res = await fetch(`${baseUrl}/api/announcements/${id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (res.ok) {
+              alert("Announcement Recalled Successfully.");
+              loadAnnouncements();
+          } else {
+              alert("Failed to recall announcement.");
+          }
+      } catch (err) {
+          console.error(err);
+          alert("Error recalling announcement.");
+      }
+  }
+
+  // ============================================================================
+  // GRANT ACCESS ACTIONS 
+  // ============================================================================
   async function handleGrantAccessSubmit(e) {
       e.preventDefault();
       if (!grantData.employeeId) return alert("Please select an employee.");
@@ -184,7 +279,6 @@ export default function AdminDashboard({ token, api }) {
 
           if (res.ok) {
               alert("Temporary Access Granted Successfully!");
-              // Reset form
               setGrantData({
                   employeeId: "",
                   accessLevel: "view_only",
@@ -193,7 +287,7 @@ export default function AdminDashboard({ token, api }) {
                   expiry: "end_of_day",
                   customExpiryTime: ""
               });
-              loadAccessGrants(); // Refresh the list
+              loadAccessGrants(); 
           } else {
               const errData = await res.json();
               alert(`Failed to grant access: ${errData.message}`);
@@ -204,7 +298,6 @@ export default function AdminDashboard({ token, api }) {
       }
   }
 
-  // --- Revoke Access (NEW) ---
   async function revokeAccess(grantId) {
       if (!window.confirm("Are you sure you want to revoke this access immediately?")) return;
 
@@ -224,7 +317,9 @@ export default function AdminDashboard({ token, api }) {
       }
   }
 
-  // --- Handle Click on Stat Item ---
+  // ============================================================================
+  // DASHBOARD STAT CLICK HANDLER
+  // ============================================================================
   async function handleStatClick(type, title) {
     setDetailTitle(title);
     setDetailModalOpen(true);
@@ -257,8 +352,9 @@ export default function AdminDashboard({ token, api }) {
     }
   }
 
-  // --- Sub-Components ---
-
+  // ============================================================================
+  // REUSABLE COMPONENTS
+  // ============================================================================
   const QuickLaunchItem = ({ icon, label, onClick }) => (
     <div className="quick-launch-item" onClick={onClick}>
       <div className="quick-launch-icon">{icon}</div>
@@ -280,11 +376,12 @@ export default function AdminDashboard({ token, api }) {
     </div>
   );
 
-  // --- Main Render ---
-
+  // ============================================================================
+  // MAIN RENDER
+  // ============================================================================
   return (
     <div>
-      {/* ---------------- CSS for Modal & Clickable Stats ---------------- */}
+      {/* ---------------- COMPONENT CSS ---------------- */}
       <style>{`
         .clickable-stat {
           cursor: pointer;
@@ -330,10 +427,95 @@ export default function AdminDashboard({ token, api }) {
         .grant-form-col { flex: 1; }
         .radio-group { display: flex; gap: 15px; align-items: center; margin-top: 8px; }
         .radio-label { display: flex; align-items: center; gap: 5px; font-size: 14px; cursor: pointer; color: #444; }
+        
+        /* New Announcement Styles */
+        .announcement-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid var(--red);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: box-shadow 0.2s;
+        }
+        .announcement-card:hover {
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .announcement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .announcement-title {
+            margin: 0;
+            color: #1e293b;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .announcement-date {
+            font-size: 12px;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .announcement-body {
+            color: #475569;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            margin-bottom: 15px;
+        }
+        .announcement-actions {
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 15px;
+        }
+        .btn-action-edit {
+            background: #f8fafc;
+            color: #3b82f6;
+            border: 1px solid #bfdbfe;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 600;
+        }
+        .btn-action-edit:hover { background: #eff6ff; }
+        
+        .btn-action-recall {
+            background: #fef2f2;
+            color: #ef4444;
+            border: 1px solid #fecaca;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 600;
+        }
+        .btn-action-recall:hover { background: #fee2e2; }
+
+        .edit-mode-card {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
 
-      {/* Header Area */}
+      {/* ---------------- HEADER AREA ---------------- */}
       {view === "dashboard" ? (
         <div className="dashboard-header-card card">
           <h2 style={{ color: "var(--red)", margin: 0 }}>Dashboard</h2>
@@ -348,11 +530,10 @@ export default function AdminDashboard({ token, api }) {
         </div>
       )}
 
-      {/* DASHBOARD HOME VIEW (Widgets) */}
+      {/* ---------------- DASHBOARD WIDGETS ---------------- */}
       {view === "dashboard" && (
         <div className="dashboard-grid-container">
           
-          {/* Widget 1: Attendance Overview */}
           <div className="card dashboard-widget">
             <h4 className="widget-title">Today's Attendance</h4>
             <div className="stats-list">
@@ -387,7 +568,6 @@ export default function AdminDashboard({ token, api }) {
             </div>
           </div>
 
-          {/* Widget 2: Quick Launch */}
           <div className="card dashboard-widget">
             <h4 className="widget-title">Quick Launch</h4>
             <div className="quick-launch-grid">
@@ -431,7 +611,6 @@ export default function AdminDashboard({ token, api }) {
                 label="Announcements" 
                 onClick={() => setView("announcements")} 
               />
-              {/* NEW: Grant Access Button */}
               <QuickLaunchItem 
                 icon={<FaUserShield />} 
                 label="Grant Access" 
@@ -440,7 +619,6 @@ export default function AdminDashboard({ token, api }) {
             </div>
           </div>
 
-          {/* Widget 3: Employee Summary */}
           <div className="card dashboard-widget">
               <h4 className="widget-title">Total Workforce</h4>
               <div style={{display:'flex', justifyContent:'center', alignItems:'center', height:'100%', flexDirection:'column'}}>
@@ -453,7 +631,7 @@ export default function AdminDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- Details Modal --- */}
+      {/* ---------------- DETAILS MODAL ---------------- */}
       {detailModalOpen && (
         <div className="detail-modal-overlay" onClick={() => setDetailModalOpen(false)}>
           <div className="detail-modal-card" onClick={e => e.stopPropagation()}>
@@ -487,7 +665,7 @@ export default function AdminDashboard({ token, api }) {
         </div>
       )}
 
-      {/* --- INNER PAGES --- */}
+      {/* ---------------- INNER PAGES ---------------- */}
 
       {/* 1. EMPLOYEES */}
       {view === "employees" && (
@@ -558,47 +736,101 @@ export default function AdminDashboard({ token, api }) {
         </div>
       )}
 
-      {/* 7. ANNOUNCEMENTS */}
+      {/* 7. ANNOUNCEMENTS (UPGRADED WITH EDIT/RECALL/DELETE) */}
       {view === "announcements" && (
-        <div className="card" style={{ marginTop: "16px" }}>
-            <h3>Manage Announcements</h3>
+        <div className="card" style={{ marginTop: "16px", background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
+            <h3 style={{color: 'var(--red)'}}>Manage Announcements</h3>
+            <p style={{color: '#64748b', marginBottom: 20}}>Broadcast messages to all employee dashboards.</p>
             
-            <div style={{ marginBottom: 30, borderBottom:'1px solid #eee', paddingBottom: 20 }}>
-                <h4>Create New Announcement</h4>
+            {/* Create Form */}
+            <div className="card" style={{ marginBottom: 30 }}>
+                <h4 style={{marginTop: 0, borderBottom: '1px solid #f1f5f9', paddingBottom: 10}}>Create New Announcement</h4>
                 <div style={{ display:'flex', flexDirection:'column', gap:15 }}>
                     <input 
                         className="modern-input" 
-                        placeholder="Title (e.g. Office Closed on Friday)" 
+                        placeholder="Announcement Title (e.g. Office Closed on Friday)" 
                         value={annTitle} 
                         onChange={(e) => setAnnTitle(e.target.value)} 
                     />
                     <textarea 
                         className="modern-input" 
-                        placeholder="Message details..." 
-                        style={{ minHeight: 80, resize:'vertical' }}
+                        placeholder="Detailed message..." 
+                        style={{ minHeight: 100, resize:'vertical' }}
                         value={annMessage} 
                         onChange={(e) => setAnnMessage(e.target.value)} 
                     />
-                    <div>
-                        <button className="btn" onClick={createAnnouncement}>Post Announcement</button>
+                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+                        <button className="btn" onClick={createAnnouncement} style={{padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8}}>
+                            <FaBullhorn /> Post Announcement
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <h4>Announcement History</h4>
-            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+            <h4 style={{marginBottom: 15, color: '#334155'}}>Announcement History & Management</h4>
+            
+            {/* Announcement List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {announcements.length === 0 ? (
-                    <p style={{ color: '#999', fontStyle: 'italic' }}>No announcements posted yet.</p>
+                    <div className="card" style={{ textAlign: 'center', color: '#94a3b8', padding: '40px' }}>
+                        <FaBullhorn size={40} style={{opacity: 0.2, marginBottom: 15}}/>
+                        <p style={{margin: 0}}>No announcements currently active.</p>
+                    </div>
                 ) : (
                     announcements.map((ann) => (
-                        <div key={ann._id} style={{ padding: '15px', borderBottom: '1px solid #f0f0f0' }}>
-                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                                <h4 style={{ margin: '0 0 5px 0', color: 'var(--red)' }}>{ann.title}</h4>
-                                <span style={{ fontSize: '12px', color: '#999' }}>
-                                    {new Date(ann.created_at).toLocaleString()}
-                                </span>
-                            </div>
-                            <p style={{ margin: 0, color: '#555', whiteSpace: 'pre-wrap' }}>{ann.message}</p>
+                        <div key={ann._id}>
+                            {editingAnnId === ann._id ? (
+                                /* EDIT MODE */
+                                <div className="edit-mode-card">
+                                    <h4 style={{marginTop: 0, color: '#3b82f6'}}>Editing Announcement</h4>
+                                    <input 
+                                        className="modern-input" 
+                                        style={{marginBottom: 10}}
+                                        value={editAnnTitle} 
+                                        onChange={(e) => setEditAnnTitle(e.target.value)} 
+                                    />
+                                    <textarea 
+                                        className="modern-input" 
+                                        style={{ minHeight: 100, resize:'vertical', marginBottom: 15 }}
+                                        value={editAnnMessage} 
+                                        onChange={(e) => setEditAnnMessage(e.target.value)} 
+                                    />
+                                    <div style={{display: 'flex', gap: 10}}>
+                                        <button className="btn" style={{background: '#3b82f6', display: 'flex', alignItems: 'center', gap: 5}} onClick={() => updateAnnouncement(ann._id)}>
+                                            <FaSave /> Save Changes
+                                        </button>
+                                        <button className="btn ghost" onClick={cancelEditAnnouncement}>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                /* DISPLAY MODE (Employee View Style) */
+                                <div className="announcement-card">
+                                    <div className="announcement-header">
+                                        <h4 className="announcement-title">{ann.title}</h4>
+                                        <span className="announcement-date">
+                                            {new Date(ann.created_at).toLocaleString('en-US', { 
+                                                month: 'short', day: 'numeric', year: 'numeric', 
+                                                hour: '2-digit', minute: '2-digit' 
+                                            })}
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="announcement-body">
+                                        {ann.message}
+                                    </div>
+                                    
+                                    <div className="announcement-actions">
+                                        <button className="btn-action-edit" onClick={() => startEditAnnouncement(ann)}>
+                                            <FaEdit /> Edit
+                                        </button>
+                                        <button className="btn-action-recall" onClick={() => recallAnnouncement(ann._id)}>
+                                            <FaUndo /> Recall / Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ))
                 )}
