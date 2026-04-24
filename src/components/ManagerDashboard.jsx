@@ -163,7 +163,12 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       if (results[4].status === 'fulfilled' && Array.isArray(results[4].value)) setPendingCorrections(results[4].value);
       if (results[5].status === 'fulfilled' && Array.isArray(results[5].value)) setTeamLeaves(results[5].value);
       if (results[6].status === 'fulfilled' && results[6].value) setNotificationCounts(results[6].value);
-      if (results[7].status === 'fulfilled' && Array.isArray(results[7].value)) setAnnouncements(results[7].value);
+      
+      if (results[7].status === 'fulfilled' && Array.isArray(results[7].value)) {
+          // Sort announcements natively so newest are on top
+          const sortedAnns = results[7].value.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          setAnnouncements(sortedAnns);
+      }
       
       if (results[8].status === 'fulfilled' && results[8].value) {
           if (templateSessions.length === 0 && results[8].value.sessions) {
@@ -594,10 +599,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // ============================================================================
   return (
     <div>
-      {/* CRITICAL CSS UPDATE:
-        We use `!important` tags here specifically to prevent global stylesheets (like App.css) 
-        from forcing a `white-space: nowrap` which causes the tables to stretch out and require horizontal scrolling.
-      */}
       <style>{`
         /* Form & Base Styles */
         .modern-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff; color: #333; }
@@ -671,6 +672,47 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         .employee-chip { display: flex; align-items: center; gap: 8px; background: #fff; padding: 10px 14px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; color: #555; }
         .employee-chip:hover { border-color: var(--red); background: #fff5f5; }
         .employee-chip.selected { background: var(--red); color: white; border-color: var(--red); box-shadow: 0 4px 6px rgba(220, 38, 38, 0.2); }
+
+        /* Unified Announcement Styles for Consistency */
+        .announcement-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid var(--red);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: box-shadow 0.2s;
+        }
+        .announcement-card:hover {
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .announcement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .announcement-title {
+            margin: 0;
+            color: #1e293b;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .announcement-date {
+            font-size: 12px;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .announcement-body {
+            color: #475569;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            margin-bottom: 5px;
+        }
       `}</style>
 
       {/* PASSWORD RESET MODAL */}
@@ -885,17 +927,38 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
          </div>
       )}
 
-      {/* --- ANNOUNCEMENTS --- */}
+      {/* --- ANNOUNCEMENTS (UPGRADED UI - NO EDIT CONTROLS) --- */}
       {!loading && view === "announcements" && (
-         <div className="card">
-            <h3>Announcements</h3>
-            {announcements.length === 0 ? <p style={{color:'#777'}}>No announcements at this time.</p> : announcements.map(a => (
-                <div key={a._id} style={{borderBottom:'1px solid #eee', padding:'15px 0'}}>
-                    <h4 style={{margin:'0 0 5px 0', color:'#333'}}>{a.title}</h4>
-                    <p style={{margin:'5px 0', color:'#555'}}>{a.message}</p>
-                    <small style={{color:'#999'}}>{new Date(a.created_at).toLocaleString()}</small>
-                </div>
-            ))}
+         <div className="card" style={{ marginTop: "16px", background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
+            <h3 style={{color: 'var(--red)'}}>Company Announcements</h3>
+            <p style={{color: '#64748b', marginBottom: 20}}>View the latest news and updates from the administration.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {announcements.length === 0 ? (
+                    <div className="card" style={{ textAlign: 'center', color: '#94a3b8', padding: '40px' }}>
+                        <FaBullhorn size={40} style={{opacity: 0.2, marginBottom: 15}}/>
+                        <p style={{margin: 0}}>No announcements currently active.</p>
+                    </div>
+                ) : (
+                    announcements.map((ann) => (
+                        <div key={ann._id} className="announcement-card">
+                            <div className="announcement-header">
+                                <h4 className="announcement-title">{ann.title}</h4>
+                                <span className="announcement-date">
+                                    {new Date(ann.created_at).toLocaleString('en-US', { 
+                                        month: 'short', day: 'numeric', year: 'numeric', 
+                                        hour: '2-digit', minute: '2-digit' 
+                                    })}
+                                </span>
+                            </div>
+                            
+                            <div className="announcement-body">
+                                {ann.message}
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
          </div>
       )}
 
@@ -1545,8 +1608,8 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                 </div>
             ) : (
                 <>
-                    <h4 style={{marginBottom: 10}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
-                    <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", display: previewImage ? 'none' : 'block' }}></video>
+                    <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
+                    <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
                     {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
                     <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
                     <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>

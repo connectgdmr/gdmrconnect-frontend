@@ -166,7 +166,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       const annRes = await fetch(`${baseUrl}/api/announcements`, { headers });
       if (annRes.ok) {
           const annData = await annRes.json();
-          setAnnouncements(annData);
+          // Sort newest first
+          const sorted = annData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          setAnnouncements(sorted);
       }
 
       // ---------------------------------------------------
@@ -556,6 +558,47 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         .delegation-alert { background: #e0e7ff; color: #4f46e5; border-left: 4px solid #4f46e5; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
         .icon-badge { position: absolute; top: -5px; right: -5px; background: #4f46e5; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
         .qa-box { margin-bottom: 20px; background: #f9f9f9; padding: 20px; border-radius: 8px; border-left: 4px solid var(--red); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        
+        /* New Announcement Styles */
+        .announcement-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid var(--red);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: box-shadow 0.2s;
+        }
+        .announcement-card:hover {
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .announcement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .announcement-title {
+            margin: 0;
+            color: #1e293b;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .announcement-date {
+            font-size: 12px;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .announcement-body {
+            color: #475569;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            margin-bottom: 5px;
+        }
       `}</style>
 
       {/* ============================================================================ */}
@@ -779,19 +822,40 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* ANNOUNCEMENTS VIEW */}
+      {/* ANNOUNCEMENTS VIEW (UPGRADED UI - NO EDIT CONTROLS) */}
       {/* ============================================================================ */}
       {view === "announcements" && (
-         <div className="card" style={{marginTop: 16}}>
-            <h3>Announcements</h3>
-            {announcements.length === 0 ? <p style={{color:'#777', padding:20, textAlign:'center'}}>No announcements yet.</p> : announcements.map(a => (
-                <div key={a._id} style={{borderBottom:'1px solid #f0f0f0', padding:'15px 0'}}>
-                    <h4 style={{margin:'0 0 5px 0', color:'#333'}}>{a.title}</h4>
-                    <p style={{margin:'0 0 5px 0', color:'#555', fontSize:'14px'}}>{a.message}</p>
-                    <small style={{color:'#999'}}>{new Date(a.created_at).toLocaleString()}</small>
-                </div>
-            ))}
-         </div>
+        <div className="card" style={{ marginTop: "16px", background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
+            <h3 style={{color: 'var(--red)'}}>Company Announcements</h3>
+            <p style={{color: '#64748b', marginBottom: 20}}>View the latest news and updates from the administration.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {announcements.length === 0 ? (
+                    <div className="card" style={{ textAlign: 'center', color: '#94a3b8', padding: '40px' }}>
+                        <FaBullhorn size={40} style={{opacity: 0.2, marginBottom: 15}}/>
+                        <p style={{margin: 0}}>No announcements currently active.</p>
+                    </div>
+                ) : (
+                    announcements.map((ann) => (
+                        <div key={ann._id} className="announcement-card">
+                            <div className="announcement-header">
+                                <h4 className="announcement-title">{ann.title}</h4>
+                                <span className="announcement-date">
+                                    {new Date(ann.created_at).toLocaleString('en-US', { 
+                                        month: 'short', day: 'numeric', year: 'numeric', 
+                                        hour: '2-digit', minute: '2-digit' 
+                                    })}
+                                </span>
+                            </div>
+                            
+                            <div className="announcement-body">
+                                {ann.message}
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
       )}
 
       {/* ============================================================================ */}
