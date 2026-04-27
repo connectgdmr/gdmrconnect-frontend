@@ -140,7 +140,7 @@ export default function AdminDashboard({ token, api }) {
   }, [view]);
 
   // ============================================================================
-  // EMPLOYEE ACTIONS
+  // EMPLOYEE ACTIONS (INCLUDING NEW PROMOTE ACTION)
   // ============================================================================
   async function addEmployee(data) {
     await api.addEmployee(data, token);
@@ -152,6 +152,31 @@ export default function AdminDashboard({ token, api }) {
     if(!window.confirm("Are you sure you want to delete this employee?")) return;
     await api.deleteEmployee(id, token);
     await loadEmployees();
+  }
+
+  // --- NEW: PROMOTE TO MANAGER ---
+  async function promoteToManager(empId) {
+      if(!window.confirm("Are you sure you want to promote this employee to Manager? They will automatically be assigned as the manager for all other employees in their department.")) return;
+      
+      try {
+          const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+          const res = await fetch(`${baseUrl}/api/admin/employees/${empId}/promote`, {
+              method: 'PUT',
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (res.ok) {
+              const data = await res.json();
+              alert(data.message || "Employee successfully promoted to Manager!");
+              await loadEmployees(); // Refresh the list to show new roles and managers
+          } else {
+              const errData = await res.json();
+              alert(errData.message || "Failed to promote employee.");
+          }
+      } catch (err) {
+          console.error(err);
+          alert("Error promoting employee due to network issues.");
+      }
   }
 
   // ============================================================================
@@ -695,6 +720,7 @@ export default function AdminDashboard({ token, api }) {
                 employees={employees} 
                 onDelete={deleteEmployee} 
                 onRefresh={loadEmployees} 
+                onPromote={promoteToManager}  // <-- FIX: Passing the promote function down here!
               />
             )}
           </div>
@@ -736,7 +762,7 @@ export default function AdminDashboard({ token, api }) {
         </div>
       )}
 
-      {/* 7. ANNOUNCEMENTS (UPGRADED WITH EDIT/RECALL/DELETE) */}
+      {/* 7. ANNOUNCEMENTS */}
       {view === "announcements" && (
         <div className="card" style={{ marginTop: "16px", background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
             <h3 style={{color: 'var(--red)'}}>Manage Announcements</h3>
