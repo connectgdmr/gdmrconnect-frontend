@@ -5,10 +5,12 @@ import {
     FaSearch, 
     FaFilter, 
     FaUserTie, 
-    FaUser 
+    FaUser,
+    FaEye,
+    FaEdit
 } from "react-icons/fa";
 
-export default function EmployeeList({ employees, onDelete, onRefresh, onPromote }) {
+export default function EmployeeList({ employees, onDelete, onRefresh, onPromote, onEdit, onView }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [roleFilter, setRoleFilter] = useState("All");
 
@@ -99,11 +101,18 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPromote
                     font-size: 11px; 
                     font-weight: 700; 
                     text-transform: uppercase; 
+                    margin-top: 6px;
                 }
                 .role-manager { background: #e0e7ff; color: #4f46e5; border: 1px solid #c7d2fe; }
                 .role-employee { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 
                 /* Action Buttons */
+                .action-btn-group {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    flex-wrap: wrap;
+                }
                 .btn-action {
                     display: inline-flex;
                     align-items: center;
@@ -114,12 +123,16 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPromote
                     font-weight: 600;
                     border: none;
                     cursor: pointer;
-                    transition: opacity 0.2s;
-                    margin-right: 8px;
+                    transition: opacity 0.2s, transform 0.1s;
                 }
+                .btn-action:active { transform: scale(0.95); }
                 .btn-action:hover { opacity: 0.8; }
+                
+                /* Specific Button Colors based on your screenshot */
+                .btn-view { background: #3b82f6; color: white; }
+                .btn-edit { background: #f59e0b; color: white; }
                 .btn-promote { background: #10b981; color: white; }
-                .btn-delete { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+                .btn-remove { background: #ef4444; color: white; }
             `}</style>
 
             {/* HEADER: Search & Filters */}
@@ -153,9 +166,9 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPromote
                     <thead>
                         <tr>
                             <th>Employee Details</th>
-                            <th>Department & Role</th>
-                            <th>Direct Manager</th>
-                            <th>Actions</th>
+                            <th>Role & Position</th>
+                            <th>Manager Auth</th>
+                            <th>Administrative Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -176,7 +189,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPromote
 
                                     {/* Column 2: Department & Role Badge */}
                                     <td>
-                                        <div style={{ fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                                        <div style={{ fontWeight: 600, color: '#334155', fontSize: '14px' }}>
                                             {emp.department || "No Department"}
                                         </div>
                                         <span className={`role-badge ${emp.role === 'manager' ? 'role-manager' : 'role-employee'}`}>
@@ -196,26 +209,44 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPromote
                                         )}
                                     </td>
 
-                                    {/* Column 4: Administrative Actions */}
+                                    {/* Column 4: Administrative Actions (Restored & Updated) */}
                                     <td>
-                                        {/* Only show "Promote to Manager" if the user is currently a standard employee */}
-                                        {emp.role === "employee" && (
+                                        <div className="action-btn-group">
                                             <button 
-                                                className="btn-action btn-promote"
-                                                onClick={() => onPromote(emp._id)}
-                                                title="Promote this user to Department Manager"
+                                                className="btn-action btn-view"
+                                                onClick={() => onView && onView(emp)}
+                                                title="View employee details"
                                             >
-                                                <FaUserShield /> Promote
+                                                <FaEye /> View
                                             </button>
-                                        )}
-                                        
-                                        <button 
-                                            className="btn-action btn-delete"
-                                            onClick={() => onDelete(emp._id)}
-                                            title="Permanently remove user"
-                                        >
-                                            <FaTrash /> Remove
-                                        </button>
+
+                                            <button 
+                                                className="btn-action btn-edit"
+                                                onClick={() => onEdit && onEdit(emp)}
+                                                title="Edit employee details"
+                                            >
+                                                <FaEdit /> Edit
+                                            </button>
+
+                                            {/* Only show "Promote" if the user is a standard employee */}
+                                            {emp.role === "employee" && (
+                                                <button 
+                                                    className="btn-action btn-promote"
+                                                    onClick={() => onPromote(emp._id)}
+                                                    title="Promote to Manager"
+                                                >
+                                                    <FaUserShield /> Promote
+                                                </button>
+                                            )}
+                                            
+                                            <button 
+                                                className="btn-action btn-remove"
+                                                onClick={() => onDelete(emp._id)}
+                                                title="Permanently remove user"
+                                            >
+                                                <FaTrash /> Remove
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
