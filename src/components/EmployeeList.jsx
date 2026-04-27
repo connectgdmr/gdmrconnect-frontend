@@ -7,7 +7,6 @@ import {
     FaFilter, 
     FaUserTie, 
     FaUser,
-    FaEye,
     FaEdit
 } from "react-icons/fa";
 
@@ -23,14 +22,14 @@ const departments = [
   "Digital Marketing Dept"
 ];
 
-export default function EmployeeList({ employees, onDelete, onSelect, onRefresh, onPromote }) {
+export default function EmployeeList({ employees, onDelete, onRefresh, onPromote }) {
     // ============================================================================
     // STATE MANAGEMENT
     // ============================================================================
     const [searchTerm, setSearchTerm] = useState("");
     const [roleFilter, setRoleFilter] = useState("All");
 
-    // Modal States (Restored from your original code)
+    // Modal States
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [selectedId, setSelectedId] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
@@ -162,7 +161,9 @@ export default function EmployeeList({ employees, onDelete, onSelect, onRefresh,
                     border-bottom: 1px solid #f1f5f9; 
                     vertical-align: middle; 
                 }
-                .styled-table-global tr:hover { background-color: #f8fafc; }
+                .styled-table-global tr:hover {
+                    background-color: #f8fafc;
+                }
 
                 /* Badges & Text */
                 .emp-name { font-weight: 700; color: #0f172a; font-size: 15px; }
@@ -181,7 +182,7 @@ export default function EmployeeList({ employees, onDelete, onSelect, onRefresh,
                 .role-manager { background: #e0e7ff; color: #4f46e5; border: 1px solid #c7d2fe; }
                 .role-employee { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 
-                /* Action Buttons */
+                /* Action Buttons - UPDATED TO SQUARED ICON-ONLY BUTTONS */
                 .action-btn-group {
                     display: flex;
                     gap: 8px;
@@ -191,11 +192,11 @@ export default function EmployeeList({ employees, onDelete, onSelect, onRefresh,
                 .btn-action {
                     display: inline-flex;
                     align-items: center;
-                    gap: 5px;
-                    padding: 6px 12px;
-                    border-radius: 4px;
-                    font-size: 12px;
-                    font-weight: 600;
+                    justify-content: center;
+                    width: 34px;      /* Fixed width for square icon button */
+                    height: 34px;     /* Fixed height for square icon button */
+                    border-radius: 6px;
+                    font-size: 15px;  /* Icon size */
                     border: none;
                     cursor: pointer;
                     transition: opacity 0.2s, transform 0.1s;
@@ -203,7 +204,6 @@ export default function EmployeeList({ employees, onDelete, onSelect, onRefresh,
                 .btn-action:active { transform: scale(0.95); }
                 .btn-action:hover { opacity: 0.8; }
                 
-                .btn-view { background: #3b82f6; color: white; }
                 .btn-edit { background: #f59e0b; color: white; }
                 .btn-promote { background: #10b981; color: white; }
                 .btn-remove { background: #ef4444; color: white; }
@@ -299,44 +299,36 @@ export default function EmployeeList({ employees, onDelete, onSelect, onRefresh,
                                         )}
                                     </td>
 
-                                    {/* Column 4: Actions */}
+                                    {/* Column 4: Administrative Actions (ICON-ONLY) */}
                                     <td>
                                         <div className="action-btn-group">
-                                            {/* Original View Button mapped to onSelect */}
-                                            <button 
-                                                className="btn-action btn-view"
-                                                onClick={() => onSelect && onSelect(emp)}
-                                                title="View employee details"
-                                            >
-                                                <FaEye /> View
-                                            </button>
-
-                                            {/* Restored Edit Button calling local modal state */}
+                                            {/* Edit Button */}
                                             <button 
                                                 className="btn-action btn-edit"
                                                 onClick={() => handleEditClick(emp)}
                                                 title="Edit employee details"
                                             >
-                                                <FaEdit /> Edit
+                                                <FaEdit />
                                             </button>
 
-                                            {/* NEW Promote Button (Only for standard employees) */}
+                                            {/* Promote Button (Only for standard employees) */}
                                             {emp.role === "employee" && (
                                                 <button 
                                                     className="btn-action btn-promote"
                                                     onClick={() => onPromote(emp._id)}
                                                     title="Promote to Manager"
                                                 >
-                                                    <FaUserShield /> Promote
+                                                    <FaUserShield />
                                                 </button>
                                             )}
                                             
+                                            {/* Remove Button */}
                                             <button 
                                                 className="btn-action btn-remove"
                                                 onClick={() => handleDeleteClick(emp._id)}
                                                 title="Permanently remove user"
                                             >
-                                                <FaTrash /> Remove
+                                                <FaTrash />
                                             </button>
                                         </div>
                                     </td>
