@@ -28,10 +28,10 @@ import {
   FaEye,
   FaEyeSlash, 
   FaLock,
-  FaUserShield,    // Icon for the Special Access Portal Button
-  FaClipboardList, // Icon for Delegated Attendance
-  FaShieldAlt,     // Icon for the Security Banner
-  FaLaptop         // NEW: Icon for Asset Requests
+  FaUserShield,    
+  FaClipboardList, 
+  FaShieldAlt,
+  FaLaptop         // NEW: Added the Laptop icon for the Asset module
 } from "react-icons/fa";
 
 export default function EmployeeDashboard({ token, api, passwordChanged = true }) {
@@ -44,11 +44,15 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const [correctionHistory, setCorrectionHistory] = useState([]);
   const [announcements, setAnnouncements] = useState([]); 
   
-  // NEW: Asset Management State
-  const [myAssets, setMyAssets] = useState([]);
-  
   // ============================================================================
-  // 2. PASSWORD MANAGEMENT STATES
+  // 2. ASSET MANAGEMENT STATES (NEW)
+  // ============================================================================
+  const [myAssets, setMyAssets] = useState([]);
+  const [assetName, setAssetName] = useState("");
+  const [assetReason, setAssetReason] = useState("");
+
+  // ============================================================================
+  // 3. PASSWORD MANAGEMENT STATES
   // ============================================================================
   const [showPasswordModal, setShowPasswordModal] = useState(!passwordChanged);
   const [oldPassword, setOldPassword] = useState("");
@@ -56,30 +60,29 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passError, setPassError] = useState("");
   
-  // Visibility toggles for the 3 password fields
   const [showOldPass, setShowOldPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
 
   // ============================================================================
-  // 3. PMS (PERFORMANCE MANAGEMENT) STATES
+  // 4. PMS (PERFORMANCE MANAGEMENT) STATES
   // ============================================================================
   const [pmsTemplate, setPmsTemplate] = useState({ sessions: [] }); 
   const [pmsResponses, setPmsResponses] = useState({});
 
   // ============================================================================
-  // 4. SPECIAL ACCESS (DELEGATED ADMIN) STATE
+  // 5. SPECIAL ACCESS (DELEGATED ADMIN) STATE
   // ============================================================================
   const [delegatedGrants, setDelegatedGrants] = useState([]);
 
   // ============================================================================
-  // 5. NAVIGATION & UI STATES
+  // 6. NAVIGATION & UI STATES
   // ============================================================================
   const [view, setView] = useState("dashboard"); 
   const [loading, setLoading] = useState(false);
   
   // ============================================================================
-  // 6. FORM STATES (LEAVES, CORRECTIONS, ASSETS)
+  // 7. FORM STATES (LEAVES & CORRECTIONS)
   // ============================================================================
   const [leaveDuration, setLeaveDuration] = useState("single"); 
   const [startDate, setStartDate] = useState("");
@@ -88,15 +91,10 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const [type, setType] = useState("full");
   const [period, setPeriod] = useState("First Half"); 
   const [file, setFile] = useState(null);
-  
   const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
 
-  // NEW: Asset Request Form States
-  const [assetName, setAssetName] = useState("");
-  const [assetReason, setAssetReason] = useState("");
-
   // ============================================================================
-  // 7. CAMERA & HARDWARE STATES
+  // 8. CAMERA & HARDWARE STATES
   // ============================================================================
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
@@ -108,7 +106,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const streamRef = useRef(null); 
 
   // ============================================================================
-  // 8. MODAL STATES
+  // 9. MODAL STATES
   // ============================================================================
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
@@ -117,7 +115,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const [selectedPms, setSelectedPms] = useState(null);
   
   // ============================================================================
-  // 9. DERIVED DATA
+  // 10. DERIVED DATA
   // ============================================================================
   const pendingLeaves = leaves.filter(l => l.status === 'Pending');
   const approvedLeaves = leaves.filter(l => l.status === 'Approved');
@@ -129,53 +127,81 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   // ============================================================================
   // DATA FETCHING LOGIC
   // ============================================================================
+  /**
+   * Main data loading function. Fetches all required information for the 
+   * employee dashboard, including the newly added asset requests.
+   */
   const load = useCallback(async () => {
     setLoading(true);
     const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
     const headers = { 'Authorization': `Bearer ${token}` };
 
     try {
-      // Fetch Core Attendance
+      // 1. Fetch Core Attendance
       const attRes = await fetch(`${baseUrl}/api/my/attendance`, { headers });
-      if (attRes.ok) setAttendance(await attRes.json());
+      if (attRes.ok) {
+          const attData = await attRes.json();
+          setAttendance(attData);
+      }
 
-      // Fetch Core Leaves
+      // 2. Fetch Core Leaves
       const leaveRes = await fetch(`${baseUrl}/api/my/leaves`, { headers });
-      if (leaveRes.ok) setLeaves(await leaveRes.json());
+      if (leaveRes.ok) {
+          const leaveData = await leaveRes.json();
+          setLeaves(leaveData);
+      }
 
-      // Fetch PMS History
+      // 3. Fetch PMS History
       const pmsRes = await fetch(`${baseUrl}/api/my/pms`, { headers });
-      if (pmsRes.ok) setPmsHistory(await pmsRes.json());
+      if (pmsRes.ok) {
+          const pmsData = await pmsRes.json();
+          setPmsHistory(pmsData);
+      }
 
-      // Fetch Corrections
+      // 4. Fetch Corrections
       const corrRes = await fetch(`${baseUrl}/api/my/corrections`, { headers });
-      if (corrRes.ok) setCorrectionHistory(await corrRes.json());
+      if (corrRes.ok) {
+          const corrData = await corrRes.json();
+          setCorrectionHistory(corrData);
+      }
       
-      // Fetch Dynamic PMS Template
+      // 5. Fetch Dynamic PMS Template
       const templateRes = await fetch(`${baseUrl}/api/pms-template`, { headers });
-      if (templateRes.ok) setPmsTemplate(await templateRes.json());
+      if (templateRes.ok) {
+          const templateData = await templateRes.json();
+          setPmsTemplate(templateData);
+      }
 
-      // Fetch Announcements
+      // 6. Fetch Announcements
       const annRes = await fetch(`${baseUrl}/api/announcements`, { headers });
       if (annRes.ok) {
           const annData = await annRes.json();
-          setAnnouncements(annData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+          const sorted = annData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          setAnnouncements(sorted);
       }
 
-      // NEW: Fetch Asset Requests History
+      // 7. NEW: Fetch Employee Asset Requests
       const assetsRes = await fetch(`${baseUrl}/api/assets/my-requests`, { headers });
       if (assetsRes.ok) {
-          setMyAssets(await assetsRes.json());
+          const assetsData = await assetsRes.json();
+          setMyAssets(assetsData);
       }
 
-      // Fetch Delegated Admin Grants
+      // 8. Fetch Delegated Admin Grants
       try {
           const grantsRes = await fetch(`${baseUrl}/api/my/delegated-access`, { headers });
           if (grantsRes.ok) {
               const grantsData = await grantsRes.json();
-              setDelegatedGrants(Array.isArray(grantsData) ? grantsData : []);
-          } else setDelegatedGrants([]);
+              if (Array.isArray(grantsData)) {
+                  setDelegatedGrants(grantsData);
+              } else {
+                  setDelegatedGrants([]);
+              }
+          } else {
+              setDelegatedGrants([]);
+          }
       } catch (grantErr) {
+          console.error("Delegated access check failed:", grantErr);
           setDelegatedGrants([]);
       }
 
@@ -191,8 +217,11 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   }, [load]);
 
   // ============================================================================
-  // ASSET REQUEST SUBMISSION LOGIC
+  // ASSET SUBMISSION LOGIC (NEW)
   // ============================================================================
+  /**
+   * Submits a request for new hardware or equipment to the backend.
+   */
   async function submitAssetRequest(e) {
       e.preventDefault();
       setLoading(true);
@@ -212,13 +241,13 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
 
           if (!res.ok) {
               const errorData = await res.json();
-              throw new Error(errorData.message || "Failed to submit asset request");
+              throw new Error(errorData.message || "Failed to submit request");
           }
 
           alert("Asset Request Submitted Successfully! It will now be reviewed by your Manager.");
           setAssetName("");
           setAssetReason("");
-          await load(); // Reload to update the table
+          await load(); 
       } catch (err) {
           alert("Error requesting asset: " + err.message);
       } finally {
@@ -229,6 +258,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   // ============================================================================
   // PASSWORD UPDATE LOGIC
   // ============================================================================
+  /**
+   * Secures the user account by setting a new strong password.
+   */
   async function handleSetPassword(e) {
       e.preventDefault();
       setPassError("");
@@ -239,6 +271,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       }
 
       const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      
       if (!strongRegex.test(newPassword)) {
           setPassError("Password must be at least 8 characters long, and include an uppercase letter, a lowercase letter, a number, and a special character (@, $, !, %, *, ?, &).");
           return;
@@ -267,8 +300,11 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   }
 
   // ============================================================================
-  // CAMERA & ATTENDANCE LOGIC
+  // HARDWARE INTERACTION (CAMERA)
   // ============================================================================
+  /**
+   * Initializes the webcam for attendance tracking.
+   */
   async function openCamera(type) {
     setActionType(type);
     setCameraOpen(true);
@@ -277,29 +313,42 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream; 
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+      }
     } catch (err) {
       alert("Camera access denied or unavailable. Please check your browser permissions.");
       setCameraOpen(false);
     }
   }
 
+  /**
+   * Captures a frame from the video stream to a canvas.
+   */
   function capturePhoto() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
+    
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const context = canvas.getContext("2d"); 
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
     setPreviewImage(canvas.toDataURL("image/jpeg"));
   }
 
+  /**
+   * Transmits the captured base64 string to the backend.
+   */
   async function submitAttendance(imageData) {
     setSubmittingPhoto(true);
     try {
-      if (actionType === "checkin") await api.checkinWithPhoto(token, imageData);
-      else await api.checkoutWithPhoto(token, imageData);
+      if (actionType === "checkin") {
+        await api.checkinWithPhoto(token, imageData);
+      } else {
+        await api.checkoutWithPhoto(token, imageData);
+      }
       
       await new Promise(r => setTimeout(r, 500));
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
@@ -313,6 +362,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     }
   }
 
+  /**
+   * Safely disables the webcam stream.
+   */
   function closeCamera() {
     if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -326,6 +378,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   // ============================================================================
   // DYNAMIC PMS 2.0 SUBMISSION LOGIC
   // ============================================================================
+  
   function handlePmsChange(sessionId, sessionName, questionIdx, questionText, field, value) {
       const key = `${sessionId}_${questionIdx}`;
       setPmsResponses(prev => ({
@@ -341,8 +394,12 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
 
   async function submitPMS(e) {
     e.preventDefault();
+    
     const responsesArray = Object.values(pmsResponses);
-    if (responsesArray.length === 0) return alert("Please provide at least one response before submitting.");
+    if (responsesArray.length === 0) {
+        alert("Please provide at least one response before submitting.");
+        return;
+    }
 
     try {
         setLoading(true);
@@ -372,17 +429,20 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
 
   const getGroupedResponses = () => {
       if (!selectedPms || !selectedPms.responses) return {};
+      
       const groups = {};
       selectedPms.responses.forEach(resp => {
           const sName = resp.session_name || "General Evaluation";
-          if (!groups[sName]) groups[sName] = [];
+          if (!groups[sName]) {
+              groups[sName] = [];
+          }
           groups[sName].push(resp);
       });
       return groups;
   };
 
   // ============================================================================
-  // ATTENDANCE CORRECTION & LEAVE LOGIC
+  // ATTENDANCE CORRECTION LOGIC
   // ============================================================================
   async function submitCorrection(e) {
       e.preventDefault();
@@ -407,6 +467,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       }
   }
 
+  // ============================================================================
+  // LEAVE APPLICATION LOGIC
+  // ============================================================================
   async function applyLeave(e) {
     e.preventDefault();
     try {
@@ -420,7 +483,11 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
 
       await api.applyLeaveWithFile(payload, file, token);
       
-      setStartDate(""); setEndDate(""); setReason(""); setFile(null);
+      setStartDate("");
+      setEndDate("");
+      setReason("");
+      setFile(null);
+      
       await load();
       alert("Leave applied successfully!");
       setView("my-leaves"); 
@@ -432,15 +499,20 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const handleReasonChange = (e) => {
     const val = e.target.value;
     const words = val.trim().split(/\s+/).filter(w => w.length > 0);
-    if (words.length <= MAX_WORDS) setReason(val);
+    if (words.length <= MAX_WORDS) {
+      setReason(val);
+    }
   };
 
-  const getWordCount = () => reason.trim() === "" ? 0 : reason.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const getWordCount = () => {
+      return reason.trim() === "" ? 0 : reason.trim().split(/\s+/).filter(w => w.length > 0).length;
+  }
   
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-        if (selectedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
+        if (selectedFile.size > maxSize) {
             alert(`File is too large. Maximum size allowed is ${MAX_FILE_SIZE_MB}MB.`);
             e.target.value = null; 
             setFile(null);
@@ -456,6 +528,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     setLeaveModalOpen(true);
   }
 
+  /**
+   * Safely navigates backwards depending on current view state.
+   */
   const handleBackNavigation = () => {
       if (view === "delegated-leaves" || view === "delegated-attendance") {
           setView("special-access");
@@ -478,7 +553,11 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   );
 
   const StatItem = ({ icon, label, count, colorClass, onClick }) => (
-    <div className="stat-row clickable-stat" onClick={onClick} title="Click to view details">
+    <div 
+      className="stat-row clickable-stat" 
+      onClick={onClick}
+      title="Click to view details"
+    >
       <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
       <div className="stat-info">
         <span className="stat-count">{count}</span>
@@ -488,40 +567,247 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   );
 
   // ============================================================================
-  // RENDER TEMPLATE
+  // MAIN RENDER METHOD
   // ============================================================================
   return (
     <div>
+      {/* 
+        ========================================================================
+        EXPANDED CSS STYLING
+        Expanded to multi-line format for superior readability and maintenance.
+        ========================================================================
+      */}
       <style>{`
-        /* Form & Base Styles */
-        .modern-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff; color: #333; }
-        .modern-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; display: block; }
-        .file-upload-label { display: flex; align-items: center; justify-content: center; padding: 20px; border: 2px dashed #ddd; border-radius: 8px; background: #fafafa; color: #666; cursor: pointer; gap: 10px; }
-        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; text-transform: capitalize; min-width: 80px; text-align: center; }
-        .status-badge.approved { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0;}
-        .status-badge.rejected { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca;}
-        .status-badge.pending { background: #fef3c7; color: #d97706; border: 1px solid #fde68a;}
-        .status-badge.checkin { color: #16a34a; }
-        .status-badge.checkout { color: #dc2626; }
-        .styled-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        .styled-table thead th { background-color: #f8fafc; color: #334155; text-align: left; padding: 12px 15px; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
-        .styled-table tbody td { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; color: #444; }
-        .clickable-stat { cursor: pointer; transition: transform 0.2s; }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; justify-content: center; align-items: center; }
-        .modal-card { background: white; width: 450px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 80vh; position: relative; }
-        .modal-card.large { width: 750px; max-width: 95%; max-height: 85vh; padding: 25px; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #b91c1c; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .password-input-wrapper { position: relative; display: flex; align-items: center; margin-bottom: 15px; }
-        .password-toggle-icon { position: absolute; right: 12px; cursor: pointer; color: #666; font-size: 16px; top: 38px; }
-        .delegation-alert { background: #e0e7ff; color: #4f46e5; border-left: 4px solid #4f46e5; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
-        .icon-badge { position: absolute; top: -5px; right: -5px; background: #4f46e5; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
-        .qa-box { margin-bottom: 20px; background: #f9f9f9; padding: 20px; border-radius: 8px; border-left: 4px solid var(--red); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .announcement-card { background: #fff; border: 1px solid #e2e8f0; border-left: 4px solid var(--red); border-radius: 8px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .announcement-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-        .announcement-title { margin: 0; color: #1e293b; font-size: 18px; font-weight: 700; }
-        .announcement-date { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; }
-        .announcement-body { color: #475569; font-size: 14px; line-height: 1.6; white-space: pre-wrap; margin-bottom: 5px; }
+        .modern-input { 
+            width: 100%; 
+            padding: 10px 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 6px; 
+            font-size: 14px; 
+            background: #fff; 
+            color: #333; 
+        }
+        
+        .modern-label { 
+            font-size: 13px; 
+            font-weight: 600; 
+            color: #555; 
+            margin-bottom: 6px; 
+            display: block; 
+        }
+        
+        .file-upload-label { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 20px; 
+            border: 2px dashed #ddd; 
+            border-radius: 8px; 
+            background: #fafafa; 
+            color: #666; 
+            cursor: pointer; 
+            gap: 10px; 
+        }
+        
+        .status-badge { 
+            padding: 4px 10px; 
+            border-radius: 20px; 
+            font-size: 11px; 
+            font-weight: 600; 
+            display: inline-block; 
+            text-transform: capitalize; 
+            min-width: 80px; 
+            text-align: center; 
+        }
+        
+        .status-badge.approved { 
+            background: #dcfce7; 
+            color: #16a34a; 
+        }
+        
+        .status-badge.rejected { 
+            background: #fee2e2; 
+            color: #dc2626; 
+        }
+        
+        .status-badge.pending { 
+            background: #fef3c7; 
+            color: #d97706; 
+        }
+        
+        .status-badge.checkin { 
+            color: #16a34a; 
+        }
+        
+        .status-badge.checkout { 
+            color: #dc2626; 
+        }
+        
+        .styled-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 14px; 
+        }
+        
+        .styled-table thead th { 
+            background-color: #fff3f3; 
+            color: #b91c1c; 
+            text-align: left; 
+            padding: 12px 15px; 
+            font-weight: 600; 
+            border-bottom: 2px solid #fee2e2; 
+        }
+        
+        .styled-table tbody td { 
+            padding: 12px 15px; 
+            border-bottom: 1px solid #f2f2f2; 
+            color: #444; 
+        }
+        
+        .clickable-stat { 
+            cursor: pointer; 
+            transition: transform 0.2s; 
+        }
+        
+        .modal-overlay { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.5); 
+            z-index: 3000; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+        }
+        
+        .modal-card { 
+            background: white; 
+            width: 450px; 
+            max-width: 90%; 
+            border-radius: 12px; 
+            padding: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+            display: flex; 
+            flex-direction: column; 
+            max-height: 80vh; 
+            position: relative; 
+        }
+        
+        .modal-card.large { 
+            width: 750px; 
+            max-width: 95%; 
+            max-height: 85vh; 
+            padding: 25px; 
+        }
+        
+        .loader {
+          border: 4px solid #f3f3f3;
+          border-top: 4px solid #3498db;
+          border-radius: 50%;
+          width: 30px;
+          height: 30px;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 10px auto;
+        }
+        
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+        
+        .password-input-wrapper { 
+            position: relative; 
+            display: flex; 
+            align-items: center; 
+            margin-bottom: 15px; 
+        }
+        
+        .password-toggle-icon { 
+            position: absolute; 
+            right: 12px; 
+            cursor: pointer; 
+            color: #666; 
+            font-size: 16px; 
+            top: 38px; 
+        }
+        
+        .delegation-alert { 
+            background: #e0e7ff; 
+            color: #4f46e5; 
+            border-left: 4px solid #4f46e5; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-bottom: 20px; 
+            font-weight: 500; 
+        }
+        
+        .icon-badge { 
+            position: absolute; 
+            top: -5px; 
+            right: -5px; 
+            background: #4f46e5; 
+            color: white; 
+            border-radius: 50%; 
+            padding: 2px 6px; 
+            font-size: 10px; 
+            font-weight: bold; 
+        }
+        
+        .qa-box { 
+            margin-bottom: 20px; 
+            background: #f9f9f9; 
+            padding: 20px; 
+            border-radius: 8px; 
+            border-left: 4px solid var(--red); 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+        }
+        
+        .announcement-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid var(--red);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: box-shadow 0.2s;
+        }
+        
+        .announcement-card:hover {
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        
+        .announcement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        
+        .announcement-title {
+            margin: 0;
+            color: #1e293b;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .announcement-date {
+            font-size: 12px;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .announcement-body {
+            color: #475569;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            margin-bottom: 5px;
+        }
       `}</style>
 
       {/* ============================================================================ */}
@@ -530,6 +816,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       {showPasswordModal && (
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
             <div className="modal-card">
+                {/* Universal Close Button */}
                 <button 
                     className="btn ghost" 
                     style={{ position: 'absolute', top: 15, right: 15, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 
@@ -549,6 +836,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                 {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px'}}>{passError}</div>}
                 
                 <form onSubmit={handleSetPassword}>
+                    {/* CURRENT PASSWORD */}
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
                         <label className="modern-label">Current Password</label>
                         <input 
@@ -565,6 +853,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                         </span>
                     </div>
 
+                    {/* NEW PASSWORD */}
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
                         <label className="modern-label">New Password</label>
                         <input 
@@ -582,6 +871,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                         <small style={{display: 'block', marginTop: 5, color: '#666'}}>Must be at least 8 characters long.</small>
                     </div>
 
+                    {/* CONFIRM PASSWORD */}
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
                         <label className="modern-label">Confirm New Password</label>
                         <input 
@@ -605,13 +895,14 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* 2. DYNAMIC HEADER LOGIC */}
+      {/* 2. DYNAMIC HEADER LOGIC WITH SPECIAL ACCESS ALERT */}
       {/* ============================================================================ */}
       {view === "dashboard" ? (
         <div className="dashboard-header-card card">
           <h2 style={{ color: "var(--red)", margin: 0 }}>My Dashboard</h2>
           <p className="small">Manage your attendance and leaves</p>
           
+          {/* Highlight special permissions prominently on the dashboard header */}
           {Array.isArray(delegatedGrants) && delegatedGrants.length > 0 && (
              <div style={{ marginTop: 10, display: 'inline-block', background: '#e0e7ff', color: '#4f46e5', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold' }}>
                 <FaShieldAlt style={{marginRight: 6, marginBottom: -2}}/> You have Special Admin Privileges active.
@@ -630,9 +921,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* 3. DASHBOARD HOME VIEW (Widgets) */}
+      {/* 3. DASHBOARD WIDGETS */}
       {/* ============================================================================ */}
-      {!loading && view === "dashboard" && (
+      {view === "dashboard" && (
         <div className="dashboard-grid-container">
           <div className="card dashboard-widget">
             <h4 className="widget-title">Quick Actions</h4>
@@ -653,7 +944,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                 onClick={() => setView("assets")} 
                 color="#8b5cf6" 
               />
-              
+
               <QuickLaunchItem 
                 icon={<FaLock />} 
                 label="Change Password" 
@@ -667,7 +958,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                 color="#f59e0b" 
               />
 
-              {/* CONSOLIDATED DELEGATED PORTAL BUTTON */}
+              {/* THE CONSOLIDATED DELEGATED PORTAL BUTTON (SPECIAL ACCESS) */}
               {Array.isArray(delegatedGrants) && delegatedGrants.length > 0 && (
                 <QuickLaunchItem 
                     icon={<FaUserShield />} 
@@ -692,9 +983,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* 4. ASSET REQUESTS VIEW (NEW FEATURE) */}
+      {/* 4. ASSETS REQUEST VIEW (NEW FEATURE) */}
       {/* ============================================================================ */}
-      {!loading && view === "assets" && (
+      {view === "assets" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Hardware & Asset Requests</h3>
               <p className="small" style={{marginBottom: 20}}>Request new hardware or equipment. All requests require approval from both your Manager and the Administration team.</p>
@@ -781,9 +1072,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* 5. DELEGATED ADMIN PORTAL HUB */}
+      {/* 5. DELEGATED ADMIN PORTAL HUB (SPECIAL ACCESS VIEW) */}
       {/* ============================================================================ */}
-      {!loading && view === "special-access" && (
+      {view === "special-access" && (
          <div className="card" style={{ marginTop: "16px" }}>
             <h2 style={{ color: '#4f46e5', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <FaUserShield /> Temporary Admin Portal
@@ -791,15 +1082,26 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
             <p style={{ color: '#666', marginBottom: 30 }}>
                 You have been granted temporary administrative permissions. Select an action below to proceed.
             </p>
+
             <div className="quick-launch-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                <QuickLaunchItem icon={<FaClipboardList />} label="Manage Leave Approvals" onClick={() => setView("delegated-leaves")} color="#4f46e5" />
-                <QuickLaunchItem icon={<FaHistory />} label="Manage Daily Attendance" onClick={() => setView("delegated-attendance")} color="#4f46e5" />
+                <QuickLaunchItem 
+                     icon={<FaClipboardList />} 
+                     label="Manage Leave Approvals" 
+                     onClick={() => setView("delegated-leaves")} 
+                     color="#4f46e5" 
+                />
+                <QuickLaunchItem 
+                     icon={<FaHistory />} 
+                     label="Manage Daily Attendance" 
+                     onClick={() => setView("delegated-attendance")} 
+                     color="#4f46e5" 
+                />
             </div>
          </div>
       )}
 
       {/* --- SUB-VIEWS FOR DELEGATED ADMIN --- */}
-      {!loading && view === "delegated-leaves" && (
+      {view === "delegated-leaves" && (
          <div style={{ marginTop: "16px" }}>
             <div className="delegation-alert">
                🛡️ You are viewing the Leave Approval interface using temporary Delegated Access. 
@@ -808,7 +1110,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
          </div>
       )}
 
-      {!loading && view === "delegated-attendance" && (
+      {view === "delegated-attendance" && (
          <div style={{ marginTop: "16px" }}>
             <div className="delegation-alert">
                🛡️ You are viewing the Daily Attendance Logs using temporary Delegated Access. 
@@ -820,7 +1122,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       {/* ============================================================================ */}
       {/* 6. ANNOUNCEMENTS VIEW */}
       {/* ============================================================================ */}
-      {!loading && view === "announcements" && (
+      {view === "announcements" && (
          <div className="card" style={{ marginTop: "16px", background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
             <h3 style={{color: 'var(--red)'}}>Company Announcements</h3>
             <p style={{color: '#64748b', marginBottom: 20}}>View the latest news and updates from the administration.</p>
@@ -967,24 +1269,29 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
              <div style={{display:'flex', gap:20, marginBottom:15}}>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
                     <input type="radio" name="duration" checked={leaveDuration === 'single'} onChange={() => setLeaveDuration('single')} />
-                    <FaCalendarAlt style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Single Day</span>
+                    <FaCalendarAlt style={{color: "var(--red)"}} />
+                    <span style={{fontWeight:500}}>Single Day</span>
                 </label>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
                     <input type="radio" name="duration" checked={leaveDuration === 'multiple'} onChange={() => setLeaveDuration('multiple')} />
-                    <FaCalendarAlt style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Multiple Days</span>
+                    <FaCalendarAlt style={{color: "var(--red)"}} />
+                    <span style={{fontWeight:500}}>Multiple Days</span>
                 </label>
             </div>
+
             <div className="form-row">
               <div style={{flex:1}}>
                 <label className="modern-label">{leaveDuration === 'single' ? 'Date' : 'Start Date'}</label>
                 <input className="modern-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
               </div>
+              
               {leaveDuration === 'multiple' && (
                   <div style={{flex:1}}>
                     <label className="modern-label">End Date</label>
                     <input className="modern-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
                   </div>
               )}
+
               {leaveDuration === 'single' && (
                   <div style={{flex:1}}>
                     <label className="modern-label">Leave Type</label>
@@ -994,21 +1301,26 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                     </select>
                   </div>
               )}
+
               {type === 'half' && leaveDuration === 'single' && (
                   <div style={{flex:1, marginLeft:10}}>
                     <label className="modern-label">Period</label>
                     <select className="modern-input" value={period} onChange={(e) => setPeriod(e.target.value)}>
-                      <option value="First Half">First Half</option>
-                      <option value="Second Half">Second Half</option>
+                      <option value="First Half">First Half (Morning)</option>
+                      <option value="Second Half">Second Half (Afternoon)</option>
                     </select>
                   </div>
               )}
             </div>
+
             <div style={{marginTop: 15}}>
               <label className="modern-label">Reason for Leave</label>
               <textarea className="modern-input" style={{minHeight: "100px", resize: "vertical"}} value={reason} onChange={handleReasonChange} required placeholder="Reason (Max 30 words)..." />
-              <div className="small" style={{textAlign:'right', marginTop:4, color: getWordCount() === MAX_WORDS ? 'red' : '#777'}}>{getWordCount()}/{MAX_WORDS} words</div>
+              <div className="small" style={{textAlign:'right', marginTop:4, color: getWordCount() === MAX_WORDS ? 'red' : '#777'}}>
+                 {getWordCount()}/{MAX_WORDS} words
+              </div>
             </div>
+
             <div style={{marginTop: 15}}>
               <label className="modern-label">Attachment (Optional)</label>
               <label className="file-upload-label">
@@ -1017,6 +1329,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                 <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} style={{display: "none"}} />
               </label>
             </div>
+
             <div style={{ marginTop: 25, display:'flex', justifyContent:'flex-end' }}>
               <button className="btn" type="submit" style={{padding: "10px 24px"}}>Submit Request</button>
             </div>
@@ -1225,4 +1538,4 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
     </div>
   );
-} 
+}
