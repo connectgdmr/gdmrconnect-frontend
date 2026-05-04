@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import HolidayCalendar from "./HolidayCalendar"; 
 
 // ============================================================================
@@ -30,7 +30,8 @@ import {
   FaLock,
   FaUserShield,    // Icon for the Special Access Portal Button
   FaClipboardList, // Icon for Delegated Attendance
-  FaShieldAlt      // Icon for the Security Banner
+  FaShieldAlt,     // Icon for the Security Banner
+  FaLaptop         // NEW: Icon for Asset Requests
 } from "react-icons/fa";
 
 export default function EmployeeDashboard({ token, api, passwordChanged = true }) {
@@ -42,6 +43,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const [pmsHistory, setPmsHistory] = useState([]);
   const [correctionHistory, setCorrectionHistory] = useState([]);
   const [announcements, setAnnouncements] = useState([]); 
+  
+  // NEW: Asset Management State
+  const [myAssets, setMyAssets] = useState([]);
   
   // ============================================================================
   // 2. PASSWORD MANAGEMENT STATES
@@ -65,7 +69,6 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
 
   // ============================================================================
   // 4. SPECIAL ACCESS (DELEGATED ADMIN) STATE
-  // Stores temporary permissions granted by the master Admin
   // ============================================================================
   const [delegatedGrants, setDelegatedGrants] = useState([]);
 
@@ -76,7 +79,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const [loading, setLoading] = useState(false);
   
   // ============================================================================
-  // 6. FORM STATES (LEAVES & CORRECTIONS)
+  // 6. FORM STATES (LEAVES, CORRECTIONS, ASSETS)
   // ============================================================================
   const [leaveDuration, setLeaveDuration] = useState("single"); 
   const [startDate, setStartDate] = useState("");
@@ -85,7 +88,12 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const [type, setType] = useState("full");
   const [period, setPeriod] = useState("First Half"); 
   const [file, setFile] = useState(null);
+  
   const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
+
+  // NEW: Asset Request Form States
+  const [assetName, setAssetName] = useState("");
+  const [assetReason, setAssetReason] = useState("");
 
   // ============================================================================
   // 7. CAMERA & HARDWARE STATES
@@ -121,74 +129,53 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   // ============================================================================
   // DATA FETCHING LOGIC
   // ============================================================================
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
     const headers = { 'Authorization': `Bearer ${token}` };
 
     try {
-      // 1. Fetch Core Attendance
+      // Fetch Core Attendance
       const attRes = await fetch(`${baseUrl}/api/my/attendance`, { headers });
-      if (attRes.ok) {
-          const attData = await attRes.json();
-          setAttendance(attData);
-      }
+      if (attRes.ok) setAttendance(await attRes.json());
 
-      // 2. Fetch Core Leaves
+      // Fetch Core Leaves
       const leaveRes = await fetch(`${baseUrl}/api/my/leaves`, { headers });
-      if (leaveRes.ok) {
-          const leaveData = await leaveRes.json();
-          setLeaves(leaveData);
-      }
+      if (leaveRes.ok) setLeaves(await leaveRes.json());
 
-      // 3. Fetch PMS History
+      // Fetch PMS History
       const pmsRes = await fetch(`${baseUrl}/api/my/pms`, { headers });
-      if (pmsRes.ok) {
-          const pmsData = await pmsRes.json();
-          setPmsHistory(pmsData);
-      }
+      if (pmsRes.ok) setPmsHistory(await pmsRes.json());
 
-      // 4. Fetch Corrections
+      // Fetch Corrections
       const corrRes = await fetch(`${baseUrl}/api/my/corrections`, { headers });
-      if (corrRes.ok) {
-          const corrData = await corrRes.json();
-          setCorrectionHistory(corrData);
-      }
+      if (corrRes.ok) setCorrectionHistory(await corrRes.json());
       
-      // 5. Fetch Dynamic PMS Template
+      // Fetch Dynamic PMS Template
       const templateRes = await fetch(`${baseUrl}/api/pms-template`, { headers });
-      if (templateRes.ok) {
-          const templateData = await templateRes.json();
-          setPmsTemplate(templateData);
-      }
+      if (templateRes.ok) setPmsTemplate(await templateRes.json());
 
-      // 6. Fetch Announcements
+      // Fetch Announcements
       const annRes = await fetch(`${baseUrl}/api/announcements`, { headers });
       if (annRes.ok) {
           const annData = await annRes.json();
-          // Sort newest first
-          const sorted = annData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-          setAnnouncements(sorted);
+          setAnnouncements(annData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
       }
 
-      // ---------------------------------------------------
-      // 7. FETCH DELEGATED ADMIN GRANTS (SPECIAL ACCESS)
-      // ---------------------------------------------------
+      // NEW: Fetch Asset Requests History
+      const assetsRes = await fetch(`${baseUrl}/api/assets/my-requests`, { headers });
+      if (assetsRes.ok) {
+          setMyAssets(await assetsRes.json());
+      }
+
+      // Fetch Delegated Admin Grants
       try {
           const grantsRes = await fetch(`${baseUrl}/api/my/delegated-access`, { headers });
           if (grantsRes.ok) {
               const grantsData = await grantsRes.json();
-              // Robust check to prevent frontend crashes
-              if (Array.isArray(grantsData)) {
-                  setDelegatedGrants(grantsData);
-              } else {
-                  setDelegatedGrants([]);
-              }
-          } else {
-              setDelegatedGrants([]);
-          }
+              setDelegatedGrants(Array.isArray(grantsData) ? grantsData : []);
+          } else setDelegatedGrants([]);
       } catch (grantErr) {
-          console.error("Delegated access check failed:", grantErr);
           setDelegatedGrants([]);
       }
 
@@ -197,13 +184,47 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     } finally {
       setLoading(false);
     }
-  }
+  }, [token, api]);
 
-  // Load data exactly once on component mount
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
+
+  // ============================================================================
+  // ASSET REQUEST SUBMISSION LOGIC
+  // ============================================================================
+  async function submitAssetRequest(e) {
+      e.preventDefault();
+      setLoading(true);
+      try {
+          const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+          const res = await fetch(`${baseUrl}/api/assets/request`, {
+              method: 'POST',
+              headers: { 
+                  'Content-Type': 'application/json', 
+                  'Authorization': `Bearer ${token}` 
+              },
+              body: JSON.stringify({ 
+                  asset_name: assetName, 
+                  reason: assetReason 
+              })
+          });
+
+          if (!res.ok) {
+              const errorData = await res.json();
+              throw new Error(errorData.message || "Failed to submit asset request");
+          }
+
+          alert("Asset Request Submitted Successfully! It will now be reviewed by your Manager.");
+          setAssetName("");
+          setAssetReason("");
+          await load(); // Reload to update the table
+      } catch (err) {
+          alert("Error requesting asset: " + err.message);
+      } finally {
+          setLoading(false);
+      }
+  }
 
   // ============================================================================
   // PASSWORD UPDATE LOGIC
@@ -218,7 +239,6 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       }
 
       const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-      
       if (!strongRegex.test(newPassword)) {
           setPassError("Password must be at least 8 characters long, and include an uppercase letter, a lowercase letter, a number, and a special character (@, $, !, %, *, ?, &).");
           return;
@@ -235,7 +255,6 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
           
           alert("Password updated successfully!");
           setShowPasswordModal(false);
-          // Clear inputs on success
           setOldPassword("");
           setNewPassword(""); 
           setConfirmPassword("");
@@ -248,7 +267,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   }
 
   // ============================================================================
-  // HARDWARE INTERACTION (CAMERA)
+  // CAMERA & ATTENDANCE LOGIC
   // ============================================================================
   async function openCamera(type) {
     setActionType(type);
@@ -258,9 +277,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream; 
-      if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-      }
+      if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (err) {
       alert("Camera access denied or unavailable. Please check your browser permissions.");
       setCameraOpen(false);
@@ -271,23 +288,18 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
-    
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const context = canvas.getContext("2d"); 
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
     setPreviewImage(canvas.toDataURL("image/jpeg"));
   }
 
   async function submitAttendance(imageData) {
     setSubmittingPhoto(true);
     try {
-      if (actionType === "checkin") {
-        await api.checkinWithPhoto(token, imageData);
-      } else {
-        await api.checkoutWithPhoto(token, imageData);
-      }
+      if (actionType === "checkin") await api.checkinWithPhoto(token, imageData);
+      else await api.checkoutWithPhoto(token, imageData);
       
       await new Promise(r => setTimeout(r, 500));
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
@@ -314,37 +326,23 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   // ============================================================================
   // DYNAMIC PMS 2.0 SUBMISSION LOGIC
   // ============================================================================
-  
-  /**
-   * Captures responses from the employee in real-time.
-   * FIX: The sessionName is now explicitly saved in the local state.
-   */
   function handlePmsChange(sessionId, sessionName, questionIdx, questionText, field, value) {
       const key = `${sessionId}_${questionIdx}`;
       setPmsResponses(prev => ({
           ...prev,
           [key]: { 
               ...prev[key], 
-              session_name: sessionName, // Binding the session name here
+              session_name: sessionName, 
               question: questionText,
               [field]: value 
           }
       }));
   }
 
-  /**
-   * Submits the completely filled PMS form to the backend.
-   * FIX: Clears the form upon successful submission so data doesn't persist.
-   */
   async function submitPMS(e) {
     e.preventDefault();
-    
-    // Safety check - ensure they actually answered something
     const responsesArray = Object.values(pmsResponses);
-    if (responsesArray.length === 0) {
-        alert("Please provide at least one response before submitting.");
-        return;
-    }
+    if (responsesArray.length === 0) return alert("Please provide at least one response before submitting.");
 
     try {
         setLoading(true);
@@ -357,10 +355,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         if(!res.ok) throw new Error(data.message);
         
         alert("Self Assessment Submitted Successfully! It is now locked for Manager Review.");
-        
-        // FIX: Clear the form data from the Employee UI completely after submission
         setPmsResponses({});
-        
         setView("dashboard");
         await load(); 
     } catch(err) { 
@@ -375,24 +370,19 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       setPmsModalOpen(true);
   }
 
-  // Helper function to group the selected PMS responses by session name for viewing
   const getGroupedResponses = () => {
       if (!selectedPms || !selectedPms.responses) return {};
-      
       const groups = {};
       selectedPms.responses.forEach(resp => {
-          // Fallback to "General Evaluation" if session_name is missing from older data
           const sName = resp.session_name || "General Evaluation";
-          if (!groups[sName]) {
-              groups[sName] = [];
-          }
+          if (!groups[sName]) groups[sName] = [];
           groups[sName].push(resp);
       });
       return groups;
   };
 
   // ============================================================================
-  // ATTENDANCE CORRECTION LOGIC
+  // ATTENDANCE CORRECTION & LEAVE LOGIC
   // ============================================================================
   async function submitCorrection(e) {
       e.preventDefault();
@@ -417,9 +407,6 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       }
   }
 
-  // ============================================================================
-  // LEAVE APPLICATION LOGIC
-  // ============================================================================
   async function applyLeave(e) {
     e.preventDefault();
     try {
@@ -433,12 +420,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
 
       await api.applyLeaveWithFile(payload, file, token);
       
-      // Clear form state upon successful submission
-      setStartDate("");
-      setEndDate("");
-      setReason("");
-      setFile(null);
-      
+      setStartDate(""); setEndDate(""); setReason(""); setFile(null);
       await load();
       alert("Leave applied successfully!");
       setView("my-leaves"); 
@@ -450,20 +432,15 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const handleReasonChange = (e) => {
     const val = e.target.value;
     const words = val.trim().split(/\s+/).filter(w => w.length > 0);
-    if (words.length <= MAX_WORDS) {
-      setReason(val);
-    }
+    if (words.length <= MAX_WORDS) setReason(val);
   };
 
-  const getWordCount = () => {
-      return reason.trim() === "" ? 0 : reason.trim().split(/\s+/).filter(w => w.length > 0).length;
-  }
+  const getWordCount = () => reason.trim() === "" ? 0 : reason.trim().split(/\s+/).filter(w => w.length > 0).length;
   
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-        const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
-        if (selectedFile.size > maxSize) {
+        if (selectedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
             alert(`File is too large. Maximum size allowed is ${MAX_FILE_SIZE_MB}MB.`);
             e.target.value = null; 
             setFile(null);
@@ -479,13 +456,10 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     setLeaveModalOpen(true);
   }
 
-  // Determine Back Button Target
   const handleBackNavigation = () => {
-      // If we are currently inside a delegated tool, go back to the Special Access Hub.
       if (view === "delegated-leaves" || view === "delegated-attendance") {
           setView("special-access");
       } else {
-          // Otherwise, go back to the main dashboard
           setView("dashboard");
       }
   };
@@ -504,11 +478,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   );
 
   const StatItem = ({ icon, label, count, colorClass, onClick }) => (
-    <div 
-      className="stat-row clickable-stat" 
-      onClick={onClick}
-      title="Click to view details"
-    >
+    <div className="stat-row clickable-stat" onClick={onClick} title="Click to view details">
       <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
       <div className="stat-info">
         <span className="stat-count">{count}</span>
@@ -518,96 +488,48 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   );
 
   // ============================================================================
-  // MAIN RENDER METHOD
+  // RENDER TEMPLATE
   // ============================================================================
   return (
     <div>
       <style>{`
+        /* Form & Base Styles */
         .modern-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff; color: #333; }
         .modern-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; display: block; }
         .file-upload-label { display: flex; align-items: center; justify-content: center; padding: 20px; border: 2px dashed #ddd; border-radius: 8px; background: #fafafa; color: #666; cursor: pointer; gap: 10px; }
         .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; text-transform: capitalize; min-width: 80px; text-align: center; }
-        .status-badge.approved { background: #dcfce7; color: #16a34a; }
-        .status-badge.rejected { background: #fee2e2; color: #dc2626; }
-        .status-badge.pending { background: #fef3c7; color: #d97706; }
+        .status-badge.approved { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0;}
+        .status-badge.rejected { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca;}
+        .status-badge.pending { background: #fef3c7; color: #d97706; border: 1px solid #fde68a;}
         .status-badge.checkin { color: #16a34a; }
         .status-badge.checkout { color: #dc2626; }
         .styled-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        .styled-table thead th { background-color: #fff3f3; color: #b91c1c; text-align: left; padding: 12px 15px; font-weight: 600; border-bottom: 2px solid #fee2e2; }
+        .styled-table thead th { background-color: #f8fafc; color: #334155; text-align: left; padding: 12px 15px; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
         .styled-table tbody td { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; color: #444; }
         .clickable-stat { cursor: pointer; transition: transform 0.2s; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; justify-content: center; align-items: center; }
-        
         .modal-card { background: white; width: 450px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 80vh; position: relative; }
-        /* Expanded dimensions for unrestricted scrolling */
         .modal-card.large { width: 750px; max-width: 95%; max-height: 85vh; padding: 25px; }
-        
-        .loader {
-          border: 4px solid #f3f3f3;
-          border-top: 4px solid #3498db;
-          border-radius: 50%;
-          width: 30px;
-          height: 30px;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 10px auto;
-        }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #b91c1c; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
         .password-input-wrapper { position: relative; display: flex; align-items: center; margin-bottom: 15px; }
         .password-toggle-icon { position: absolute; right: 12px; cursor: pointer; color: #666; font-size: 16px; top: 38px; }
         .delegation-alert { background: #e0e7ff; color: #4f46e5; border-left: 4px solid #4f46e5; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
         .icon-badge { position: absolute; top: -5px; right: -5px; background: #4f46e5; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
         .qa-box { margin-bottom: 20px; background: #f9f9f9; padding: 20px; border-radius: 8px; border-left: 4px solid var(--red); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        
-        /* New Announcement Styles */
-        .announcement-card {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-left: 4px solid var(--red);
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            transition: box-shadow 0.2s;
-        }
-        .announcement-card:hover {
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-        .announcement-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 10px;
-        }
-        .announcement-title {
-            margin: 0;
-            color: #1e293b;
-            font-size: 18px;
-            font-weight: 700;
-        }
-        .announcement-date {
-            font-size: 12px;
-            color: #64748b;
-            background: #f1f5f9;
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-        .announcement-body {
-            color: #475569;
-            font-size: 14px;
-            line-height: 1.6;
-            white-space: pre-wrap;
-            margin-bottom: 5px;
-        }
+        .announcement-card { background: #fff; border: 1px solid #e2e8f0; border-left: 4px solid var(--red); border-radius: 8px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .announcement-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .announcement-title { margin: 0; color: #1e293b; font-size: 18px; font-weight: 700; }
+        .announcement-date { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; }
+        .announcement-body { color: #475569; font-size: 14px; line-height: 1.6; white-space: pre-wrap; margin-bottom: 5px; }
       `}</style>
 
       {/* ============================================================================ */}
-      {/* PASSWORD RESET MODAL */}
+      {/* 1. PASSWORD RESET MODAL */}
       {/* ============================================================================ */}
       {showPasswordModal && (
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
             <div className="modal-card">
-                {/* Universal Close Button */}
                 <button 
                     className="btn ghost" 
                     style={{ position: 'absolute', top: 15, right: 15, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 
@@ -627,7 +549,6 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                 {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px'}}>{passError}</div>}
                 
                 <form onSubmit={handleSetPassword}>
-                    {/* CURRENT PASSWORD */}
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
                         <label className="modern-label">Current Password</label>
                         <input 
@@ -644,7 +565,6 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                         </span>
                     </div>
 
-                    {/* NEW PASSWORD */}
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
                         <label className="modern-label">New Password</label>
                         <input 
@@ -662,7 +582,6 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                         <small style={{display: 'block', marginTop: 5, color: '#666'}}>Must be at least 8 characters long.</small>
                     </div>
 
-                    {/* CONFIRM PASSWORD */}
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
                         <label className="modern-label">Confirm New Password</label>
                         <input 
@@ -686,14 +605,13 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* HEADER LOGIC WITH SPECIAL ACCESS ALERT */}
+      {/* 2. DYNAMIC HEADER LOGIC */}
       {/* ============================================================================ */}
       {view === "dashboard" ? (
         <div className="dashboard-header-card card">
           <h2 style={{ color: "var(--red)", margin: 0 }}>My Dashboard</h2>
           <p className="small">Manage your attendance and leaves</p>
           
-          {/* Highlight special permissions prominently on the dashboard header */}
           {Array.isArray(delegatedGrants) && delegatedGrants.length > 0 && (
              <div style={{ marginTop: 10, display: 'inline-block', background: '#e0e7ff', color: '#4f46e5', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold' }}>
                 <FaShieldAlt style={{marginRight: 6, marginBottom: -2}}/> You have Special Admin Privileges active.
@@ -712,9 +630,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* DASHBOARD WIDGETS */}
+      {/* 3. DASHBOARD HOME VIEW (Widgets) */}
       {/* ============================================================================ */}
-      {view === "dashboard" && (
+      {!loading && view === "dashboard" && (
         <div className="dashboard-grid-container">
           <div className="card dashboard-widget">
             <h4 className="widget-title">Quick Actions</h4>
@@ -727,6 +645,14 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
+              
+              {/* NEW: Asset Request Button */}
+              <QuickLaunchItem 
+                icon={<FaLaptop />} 
+                label="Request Asset" 
+                onClick={() => setView("assets")} 
+                color="#8b5cf6" 
+              />
               
               <QuickLaunchItem 
                 icon={<FaLock />} 
@@ -741,8 +667,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                 color="#f59e0b" 
               />
 
-              {/* THE CONSOLIDATED DELEGATED PORTAL BUTTON (SPECIAL ACCESS) */}
-              {/* This only appears if the backend returned an array with 1 or more grants */}
+              {/* CONSOLIDATED DELEGATED PORTAL BUTTON */}
               {Array.isArray(delegatedGrants) && delegatedGrants.length > 0 && (
                 <QuickLaunchItem 
                     icon={<FaUserShield />} 
@@ -767,10 +692,98 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* DELEGATED ADMIN PORTAL HUB (SPECIAL ACCESS VIEW) */}
+      {/* 4. ASSET REQUESTS VIEW (NEW FEATURE) */}
       {/* ============================================================================ */}
-      {/* For Employees: Show BOTH Attendance and Leave tools if granted */}
-      {view === "special-access" && (
+      {!loading && view === "assets" && (
+          <div className="card" style={{marginTop: 16}}>
+              <h3>Hardware & Asset Requests</h3>
+              <p className="small" style={{marginBottom: 20}}>Request new hardware or equipment. All requests require approval from both your Manager and the Administration team.</p>
+              
+              {/* Asset Request Form */}
+              <form onSubmit={submitAssetRequest} style={{background: '#f8fafc', padding: 20, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 30}}>
+                  <h4 style={{marginTop: 0, color: 'var(--red)', borderBottom: '1px solid #cbd5e1', paddingBottom: 10}}>Submit New Request</h4>
+                  <div style={{display: 'flex', gap: 15, flexWrap: 'wrap', marginBottom: 15}}>
+                      <div style={{flex: 1, minWidth: '250px'}}>
+                          <label className="modern-label">Asset Required (e.g., MacBook Pro, External Monitor)</label>
+                          <input 
+                              className="modern-input" 
+                              type="text" 
+                              value={assetName} 
+                              onChange={(e) => setAssetName(e.target.value)} 
+                              required 
+                              placeholder="Enter exact asset name..."
+                          />
+                      </div>
+                  </div>
+                  <div style={{marginBottom: 15}}>
+                      <label className="modern-label">Business Justification / Reason</label>
+                      <textarea 
+                          className="modern-input" 
+                          style={{minHeight: "80px", resize: "vertical"}} 
+                          value={assetReason} 
+                          onChange={(e) => setAssetReason(e.target.value)} 
+                          required 
+                          placeholder="Explain why this asset is necessary for your role..." 
+                      />
+                  </div>
+                  <div style={{display:'flex', justifyContent:'flex-end'}}>
+                      <button className="btn" type="submit" style={{background: '#8b5cf6'}}>
+                          {loading ? 'Submitting...' : 'Submit Request to Manager'}
+                      </button>
+                  </div>
+              </form>
+
+              {/* Asset Request History Table */}
+              <h4 style={{marginTop: 30, color: '#334155'}}>My Request History</h4>
+              <div style={{overflowX: 'auto'}}>
+                  <table className="styled-table">
+                      <thead>
+                          <tr>
+                              <th>Date</th>
+                              <th>Asset Requested</th>
+                              <th>Reason</th>
+                              <th>Manager Status</th>
+                              <th>Admin Status</th>
+                              <th>Final Status</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          {myAssets.length === 0 ? (
+                              <tr><td colSpan="6" style={{textAlign:'center', padding:20, color:'#999'}}>No asset requests found.</td></tr>
+                          ) : (
+                              myAssets.map(asset => (
+                                  <tr key={asset._id}>
+                                      <td>{new Date(asset.created_at).toLocaleDateString('en-GB')}</td>
+                                      <td style={{fontWeight: 'bold', color: '#1e293b'}}>{asset.asset_name}</td>
+                                      <td>{asset.reason}</td>
+                                      <td>
+                                          <span className={`status-badge ${getStatusClass(asset.manager_status)}`}>
+                                              {asset.manager_status || 'Pending'}
+                                          </span>
+                                      </td>
+                                      <td>
+                                          <span className={`status-badge ${getStatusClass(asset.admin_status)}`}>
+                                              {asset.admin_status || 'Pending'}
+                                          </span>
+                                      </td>
+                                      <td>
+                                          <span className={`status-badge ${getStatusClass(asset.status)}`} style={{border: '1px solid #ccc'}}>
+                                              {asset.status || 'Pending'}
+                                          </span>
+                                      </td>
+                                  </tr>
+                              ))
+                          )}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      )}
+
+      {/* ============================================================================ */}
+      {/* 5. DELEGATED ADMIN PORTAL HUB */}
+      {/* ============================================================================ */}
+      {!loading && view === "special-access" && (
          <div className="card" style={{ marginTop: "16px" }}>
             <h2 style={{ color: '#4f46e5', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <FaUserShield /> Temporary Admin Portal
@@ -778,57 +791,39 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
             <p style={{ color: '#666', marginBottom: 30 }}>
                 You have been granted temporary administrative permissions. Select an action below to proceed.
             </p>
-
             <div className="quick-launch-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                <QuickLaunchItem 
-                     icon={<FaClipboardList />} 
-                     label="Manage Leave Approvals" 
-                     onClick={() => setView("delegated-leaves")} 
-                     color="#4f46e5" 
-                />
-                <QuickLaunchItem 
-                     icon={<FaHistory />} 
-                     label="Manage Daily Attendance" 
-                     onClick={() => setView("delegated-attendance")} 
-                     color="#4f46e5" 
-                />
+                <QuickLaunchItem icon={<FaClipboardList />} label="Manage Leave Approvals" onClick={() => setView("delegated-leaves")} color="#4f46e5" />
+                <QuickLaunchItem icon={<FaHistory />} label="Manage Daily Attendance" onClick={() => setView("delegated-attendance")} color="#4f46e5" />
             </div>
          </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* SUB-VIEWS FOR DELEGATED ADMIN */}
-      {/* ============================================================================ */}
-      {view === "delegated-leaves" && (
+      {/* --- SUB-VIEWS FOR DELEGATED ADMIN --- */}
+      {!loading && view === "delegated-leaves" && (
          <div style={{ marginTop: "16px" }}>
             <div className="delegation-alert">
                🛡️ You are viewing the Leave Approval interface using temporary Delegated Access. 
-               Please follow all company guidelines when approving or viewing these records.
             </div>
-            {/* Using the standard AdminLeavePage component, passing down tokens and api */}
             <AdminLeavePage token={token} api={api} />
          </div>
       )}
 
-      {view === "delegated-attendance" && (
+      {!loading && view === "delegated-attendance" && (
          <div style={{ marginTop: "16px" }}>
             <div className="delegation-alert">
                🛡️ You are viewing the Daily Attendance Logs using temporary Delegated Access. 
-               Please follow all company guidelines when modifying or viewing these records.
             </div>
-            {/* Using the updated AdminAttendancePage component which supports full logs */}
             <AdminAttendancePage token={token} api={api} />
          </div>
       )}
 
       {/* ============================================================================ */}
-      {/* ANNOUNCEMENTS VIEW (UPGRADED UI - NO EDIT CONTROLS) */}
+      {/* 6. ANNOUNCEMENTS VIEW */}
       {/* ============================================================================ */}
-      {view === "announcements" && (
-        <div className="card" style={{ marginTop: "16px", background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
+      {!loading && view === "announcements" && (
+         <div className="card" style={{ marginTop: "16px", background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
             <h3 style={{color: 'var(--red)'}}>Company Announcements</h3>
             <p style={{color: '#64748b', marginBottom: 20}}>View the latest news and updates from the administration.</p>
-            
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {announcements.length === 0 ? (
                     <div className="card" style={{ textAlign: 'center', color: '#94a3b8', padding: '40px' }}>
@@ -841,30 +836,23 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                             <div className="announcement-header">
                                 <h4 className="announcement-title">{ann.title}</h4>
                                 <span className="announcement-date">
-                                    {new Date(ann.created_at).toLocaleString('en-US', { 
-                                        month: 'short', day: 'numeric', year: 'numeric', 
-                                        hour: '2-digit', minute: '2-digit' 
-                                    })}
+                                    {new Date(ann.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
-                            
-                            <div className="announcement-body">
-                                {ann.message}
-                            </div>
+                            <div className="announcement-body">{ann.message}</div>
                         </div>
                     ))
                 )}
             </div>
-        </div>
+         </div>
       )}
 
       {/* ============================================================================ */}
-      {/* DYNAMIC PMS VIEW (SELF-EVALUATION) */}
+      {/* 7. DYNAMIC PMS VIEW (SELF-EVALUATION) */}
       {/* ============================================================================ */}
       {view === "pms" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Monthly Performance Self-Evaluation</h3>
-              
               {!pmsTemplate || !pmsTemplate.sessions || pmsTemplate.sessions.length === 0 ? (
                   <p style={{color:'#777', padding: 20, textAlign: 'center', border: '1px dashed #ccc', borderRadius: 8}}>
                       No active evaluation sessions available for this month.
@@ -876,52 +864,23 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                               <h4 style={{color: 'var(--red)', marginTop: 0, borderBottom: '2px solid #fecaca', paddingBottom: 10, fontSize: 18}}>
                                   Session {sIdx + 1}: {session.name}
                               </h4>
-                              
                               {session.questions.map((q, qIdx) => {
                                   const responseKey = `${sIdx}_${qIdx}`;
                                   const currentScore = pmsResponses[responseKey]?.self_score || 5;
-
                                   return (
                                   <div key={qIdx} style={{marginTop: 25, padding: '15px', background: '#fff', borderRadius: '8px', border: '1px solid #f1f5f9'}}>
                                       <label className="modern-label" style={{fontSize: 15, color: '#1e293b', marginBottom: 12}}>{q.text}</label>
-                                      
-                                      {/* RESPONSE TYPE 1: SCORE TYPE (1-10) */}
                                       {q.type === 'scale' ? (
                                           <div style={{display:'flex', alignItems:'center', gap: 20, marginTop: 10, marginBottom: 15}}>
-                                              <input 
-                                                  type="range" min="1" max="10" 
-                                                  value={currentScore}
-                                                  /* FIX: Added session.name dynamically here so it is saved */
-                                                  onChange={(e) => handlePmsChange(sIdx, session.name, qIdx, q.text, 'self_score', e.target.value)}
-                                                  required
-                                                  style={{flex: 1, accentColor: 'var(--red)', cursor: 'pointer'}}
-                                              />
+                                              <input type="range" min="1" max="10" value={currentScore} onChange={(e) => handlePmsChange(sIdx, session.name, qIdx, q.text, 'self_score', e.target.value)} required style={{flex: 1, accentColor: 'var(--red)', cursor: 'pointer'}} />
                                               <div style={{background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', minWidth: '80px', textAlign: 'center'}}>
-                                                  <strong style={{fontSize: 20, color: 'var(--red)'}}>{currentScore}</strong>
-                                                  <span style={{color: '#64748b'}}>/10</span>
+                                                  <strong style={{fontSize: 20, color: 'var(--red)'}}>{currentScore}</strong><span style={{color: '#64748b'}}>/10</span>
                                               </div>
                                           </div>
                                       ) : (
-                                      /* RESPONSE TYPE 2: DESCRIPTIVE TYPE */
-                                          <textarea 
-                                              className="modern-input" 
-                                              style={{minHeight: 100, marginTop: 10, marginBottom: 15, resize: 'vertical'}} 
-                                              placeholder="Enter your descriptive answer here..."
-                                              /* FIX: Added session.name dynamically */
-                                              onChange={(e) => handlePmsChange(sIdx, session.name, qIdx, q.text, 'descriptive_answer', e.target.value)}
-                                              required 
-                                          />
+                                          <textarea className="modern-input" style={{minHeight: 100, marginTop: 10, marginBottom: 15, resize: 'vertical'}} placeholder="Enter your descriptive answer here..." onChange={(e) => handlePmsChange(sIdx, session.name, qIdx, q.text, 'descriptive_answer', e.target.value)} required />
                                       )}
-                                      
-                                      {/* RESPONSE TYPE 3: REMARKS SECTION */}
-                                      <input 
-                                          type="text" 
-                                          className="modern-input" 
-                                          style={{background: '#f8fafc', borderStyle: 'dashed'}}
-                                          placeholder="Remarks / Context explaining your response (Optional)" 
-                                          /* FIX: Added session.name dynamically */
-                                          onChange={(e) => handlePmsChange(sIdx, session.name, qIdx, q.text, 'remarks', e.target.value)}
-                                      />
+                                      <input type="text" className="modern-input" style={{background: '#f8fafc', borderStyle: 'dashed'}} placeholder="Remarks / Context explaining your response (Optional)" onChange={(e) => handlePmsChange(sIdx, session.name, qIdx, q.text, 'remarks', e.target.value)} />
                                   </div>
                               )})}
                           </div>
@@ -944,11 +903,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                         {pmsHistory.map(p => (
                             <tr key={p._id}>
                                 <td style={{fontWeight: 'bold'}}>{p.month}</td>
-                                <td>
-                                    <span className={`status-badge ${p.status === 'Manager Review Completed' ? 'approved' : 'pending'}`}>
-                                        {p.status}
-                                    </span>
-                                </td>
+                                <td><span className={`status-badge ${p.status === 'Manager Review Completed' ? 'approved' : 'pending'}`}>{p.status}</span></td>
                                 <td>
                                     <button className="btn ghost" style={{padding: "6px 12px", fontSize: "13px", border: '1px solid #ccc'}} onClick={() => viewPMS(p)}>
                                         <FaEye style={{marginRight: 4}}/> View
@@ -963,7 +918,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* CORRECTION VIEW */}
+      {/* 8. CORRECTION VIEW */}
       {/* ============================================================================ */}
       {view === "correction" && (
           <div className="card" style={{marginTop: 16}}>
@@ -972,20 +927,17 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
               <form onSubmit={submitCorrection}>
                   <div style={{marginBottom:15}}>
                       <label className="modern-label">Correct Date & Time</label>
-                      <input className="modern-input" type="datetime-local" required 
-                          onChange={e => setCorrectionData({...correctionData, newTime: e.target.value})} />
+                      <input className="modern-input" type="datetime-local" required onChange={e => setCorrectionData({...correctionData, newTime: e.target.value})} />
                   </div>
                   <div style={{marginBottom:15}}>
                       <label className="modern-label">Reason</label>
-                      <input className="modern-input" type="text" required placeholder="e.g. Forgot to punch out due to meeting..." 
-                          onChange={e => setCorrectionData({...correctionData, reason: e.target.value})} />
+                      <input className="modern-input" type="text" required placeholder="e.g. Forgot to punch out due to meeting..." onChange={e => setCorrectionData({...correctionData, reason: e.target.value})} />
                   </div>
                   <div style={{display:'flex', justifyContent:'flex-end'}}>
                       <button type="submit" className="btn" style={{marginTop:15}}>Send Request</button>
                   </div>
               </form>
 
-              {/* CORRECTION HISTORY */}
               <h4 style={{marginTop:30, color:'var(--red)'}}>My Correction Requests</h4>
               <div style={{overflowX: 'auto'}}>
                 <table className="styled-table">
@@ -1006,38 +958,33 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* APPLY LEAVE */}
+      {/* 9. APPLY LEAVE */}
       {/* ============================================================================ */}
       {view === "apply-leave" && (
         <div className="card" style={{ marginTop: 16 }}>
           <form onSubmit={applyLeave}>
-            
-            <div style={{display:'flex', gap:20, marginBottom:15}}>
+             <h3 style={{marginTop:0}}>Apply for Leave</h3>
+             <div style={{display:'flex', gap:20, marginBottom:15}}>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
                     <input type="radio" name="duration" checked={leaveDuration === 'single'} onChange={() => setLeaveDuration('single')} />
-                    <FaCalendarAlt style={{color: "var(--red)"}} />
-                    <span style={{fontWeight:500}}>Single Day</span>
+                    <FaCalendarAlt style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Single Day</span>
                 </label>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
                     <input type="radio" name="duration" checked={leaveDuration === 'multiple'} onChange={() => setLeaveDuration('multiple')} />
-                    <FaCalendarAlt style={{color: "var(--red)"}} />
-                    <span style={{fontWeight:500}}>Multiple Days</span>
+                    <FaCalendarAlt style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Multiple Days</span>
                 </label>
             </div>
-
             <div className="form-row">
               <div style={{flex:1}}>
                 <label className="modern-label">{leaveDuration === 'single' ? 'Date' : 'Start Date'}</label>
                 <input className="modern-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
               </div>
-              
               {leaveDuration === 'multiple' && (
                   <div style={{flex:1}}>
                     <label className="modern-label">End Date</label>
                     <input className="modern-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
                   </div>
               )}
-
               {leaveDuration === 'single' && (
                   <div style={{flex:1}}>
                     <label className="modern-label">Leave Type</label>
@@ -1047,26 +994,21 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                     </select>
                   </div>
               )}
-
               {type === 'half' && leaveDuration === 'single' && (
                   <div style={{flex:1, marginLeft:10}}>
                     <label className="modern-label">Period</label>
                     <select className="modern-input" value={period} onChange={(e) => setPeriod(e.target.value)}>
-                      <option value="First Half">First Half (Morning)</option>
-                      <option value="Second Half">Second Half (Afternoon)</option>
+                      <option value="First Half">First Half</option>
+                      <option value="Second Half">Second Half</option>
                     </select>
                   </div>
               )}
             </div>
-
             <div style={{marginTop: 15}}>
               <label className="modern-label">Reason for Leave</label>
               <textarea className="modern-input" style={{minHeight: "100px", resize: "vertical"}} value={reason} onChange={handleReasonChange} required placeholder="Reason (Max 30 words)..." />
-              <div className="small" style={{textAlign:'right', marginTop:4, color: getWordCount() === MAX_WORDS ? 'red' : '#777'}}>
-                 {getWordCount()}/{MAX_WORDS} words
-              </div>
+              <div className="small" style={{textAlign:'right', marginTop:4, color: getWordCount() === MAX_WORDS ? 'red' : '#777'}}>{getWordCount()}/{MAX_WORDS} words</div>
             </div>
-
             <div style={{marginTop: 15}}>
               <label className="modern-label">Attachment (Optional)</label>
               <label className="file-upload-label">
@@ -1075,7 +1017,6 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                 <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} style={{display: "none"}} />
               </label>
             </div>
-
             <div style={{ marginTop: 25, display:'flex', justifyContent:'flex-end' }}>
               <button className="btn" type="submit" style={{padding: "10px 24px"}}>Submit Request</button>
             </div>
@@ -1084,7 +1025,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* MY LEAVES */}
+      {/* 10. MY LEAVES HISTORY */}
       {/* ============================================================================ */}
       {view === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
@@ -1117,7 +1058,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* MY ATTENDANCE LOG */}
+      {/* 11. MY ATTENDANCE LOG */}
       {/* ============================================================================ */}
       {view === "attendance-log" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
@@ -1143,7 +1084,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
 
       {/* ============================================================================ */}
-      {/* UTILITY MODALS (Holidays, Details, PMS, Camera) */}
+      {/* 12. HOLIDAYS & UTILITY MODALS */}
       {/* ============================================================================ */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
 
@@ -1166,13 +1107,11 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
           </div>
         </div>
       )}
-      
-      {/* FIX: Displays the History of PMS Submissions WITH GROUPED SESSION NAMES */}
+
+      {/* --- PMS DETAILS MODAL --- */}
       {pmsModalOpen && selectedPms && (
         <div className="modal-overlay" onClick={() => setPmsModalOpen(false)}>
           <div className="modal-card large" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
-            
-            {/* Sticky Header */}
             <div style={{display:'flex', justifyContent:'space-between', marginBottom:15, borderBottom:'2px solid #fee2e2', paddingBottom:15}}>
               <div>
                   <h3 style={{ margin: 0, color: 'var(--red)' }}>PMS Evaluation Details</h3>
@@ -1183,14 +1122,8 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
               </button>
             </div>
 
-            {/* Scrollable Content Area */}
             <div style={{overflowY:'auto', flex:1, paddingRight: 10}}>
-               <p>
-                   <strong>Status:</strong> 
-                   <span className={`status-badge ${selectedPms.status === 'Manager Review Completed' ? 'approved' : 'pending'}`} style={{marginLeft: 10}}>
-                       {selectedPms.status}
-                   </span>
-               </p>
+               <p><strong>Status:</strong> <span className={`status-badge ${selectedPms.status === 'Manager Review Completed' ? 'approved' : 'pending'}`} style={{marginLeft: 10}}>{selectedPms.status}</span></p>
                
                {selectedPms.manager_feedback && (
                    <div style={{background: '#fef2f2', padding: 15, borderRadius: 8, marginTop: 15, border: '1px solid #fee2e2'}}>
@@ -1204,7 +1137,6 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                {(!selectedPms.responses || selectedPms.responses.length === 0) ? (
                    <p style={{color: '#999', fontStyle: 'italic', textAlign: 'center', padding: 20}}>No details available.</p>
                ) : (
-                   /* FIX: Mapping the grouped responses dynamically */
                    Object.entries(getGroupedResponses()).map(([sessionName, responsesInSession], sessionIndex) => (
                        <div key={sessionIndex} style={{marginBottom: '30px'}}>
                            <h5 style={{ color: 'var(--red)', borderBottom: '2px solid #fecaca', paddingBottom: '8px', marginBottom: '15px', fontSize: '15px', textTransform: 'uppercase' }}>
@@ -1213,11 +1145,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                            
                            {responsesInSession.map((resp, idx) => {
                                const mgrScoreObj = selectedPms.manager_scores?.find(m => m.question === resp.question);
-
                                return (
                                <div key={idx} className="qa-box">
                                    <div style={{fontWeight: 600, marginBottom: 8, color: '#222'}}>{resp.question}</div>
-                                   
                                    {resp.self_score && (
                                        <div style={{display: 'flex', gap: 20, marginBottom: 10}}>
                                            <div style={{background: '#fff', padding: '6px 12px', borderRadius: '4px', border: '1px solid #e2e8f0'}}>
@@ -1232,7 +1162,6 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                                            )}
                                        </div>
                                    )}
-
                                    {resp.descriptive_answer && (
                                        <div style={{marginBottom: 10}}>
                                            <div style={{fontSize: 12, color: '#666', fontWeight: 'bold', marginBottom: 4}}>Answer:</div>
@@ -1241,7 +1170,6 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
                                            </div>
                                        </div>
                                    )}
-
                                    {resp.remarks && (
                                        <div style={{fontSize: 13, fontStyle: 'italic', color: '#475569', marginTop: 10, background: '#f1f5f9', padding: '8px 10px', borderRadius: '4px'}}>
                                            <strong>Remarks:</strong> {resp.remarks}
@@ -1258,35 +1186,25 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         </div>
       )}
 
+      {/* --- CAMERA MODAL --- */}
       {cameraOpen && (
         <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
           <div className="camera-box" style={{position: 'relative', background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
-            
-            <button 
-                className="btn ghost" 
-                style={{ position: 'absolute', top: 10, right: 10, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 
-                onClick={closeCamera}
-            >
+            <button className="btn ghost" style={{ position: 'absolute', top: 10, right: 10, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} onClick={closeCamera}>
                 <FaTimes />
             </button>
-
             {submittingPhoto ? (
                 <div style={{ padding: "40px 20px" }}>
                     <div className="loader"></div>
-                    <p style={{ marginTop: 15, fontWeight: 500, color: "#555" }}>
-                        Submitting attendance...
-                    </p>
+                    <p style={{ marginTop: 15, fontWeight: 500, color: "#555" }}>Submitting attendance...</p>
                     <p style={{ fontSize: "12px", color: "#888" }}>Please wait</p>
                 </div>
             ) : (
                 <>
                     <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
-                    
                     <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
                     {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
-                    
                     <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
-                    
                     <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
                         {!previewImage ? (
                             <>
@@ -1307,4 +1225,4 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
       )}
     </div>
   );
-}
+} 

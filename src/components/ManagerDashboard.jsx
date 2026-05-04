@@ -42,7 +42,8 @@ import {
   FaCheckSquare,
   FaRegSquare,
   FaClock,           // Used for Applied On Date/Time
-  FaFileDownload     // Used for File Attachment UI
+  FaFileDownload,    // Used for File Attachment UI
+  FaLaptop           // NEW: Icon for Team Asset Requests
 } from "react-icons/fa";
 
 // ============================================================================
@@ -58,12 +59,16 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   const [teamMembers, setTeamMembers] = useState([]);
   const [teamLeaves, setTeamLeaves] = useState([]); 
   
+  // NEW: Team Asset Requests State
+  const [teamAssets, setTeamAssets] = useState([]);
+
   // Notifications & Announcements
   const [notificationCounts, setNotificationCounts] = useState({ 
       leaves: 0, 
       pms: 0, 
       corrections: 0, 
-      announcements: 0 
+      announcements: 0,
+      assets: 0 // NEW: Added badge count tracking for assets
   });
   const [announcements, setAnnouncements] = useState([]);
 
@@ -157,6 +162,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
     const headers = { 'Authorization': `Bearer ${token}` };
 
     try {
+      // Parallelize all fetch requests to significantly speed up dashboard load times
       const results = await Promise.allSettled([
         api?.myAttendance ? api.myAttendance(token) : Promise.resolve([]),
         api?.myLeaves ? api.myLeaves(token) : Promise.resolve([]),
@@ -168,10 +174,11 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         fetch(`${baseUrl}/api/announcements`, { headers }).then(r => r.json()),
         fetch(`${baseUrl}/api/pms-template`, { headers }).then(r => r.json()),
         fetch(`${baseUrl}/api/admin/pms-dashboard?month=${dashboardMonth}`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/my/delegated-access`, { headers }).then(r => r.json())
+        fetch(`${baseUrl}/api/my/delegated-access`, { headers }).then(r => r.json()),
+        fetch(`${baseUrl}/api/manager/assets`, { headers }).then(r => r.json()) // NEW: Fetching team asset requests
       ]);
 
-      // Map results to state safely
+      // Map results to state safely avoiding any undefined crashes
       if (results[0].status === 'fulfilled' && Array.isArray(results[0].value)) {
           setAttendance(results[0].value);
       }
@@ -194,9 +201,8 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           setNotificationCounts(results[6].value);
       }
       
-      // Map Announcements
+      // Map Announcements & Sort Newest First
       if (results[7].status === 'fulfilled' && Array.isArray(results[7].value)) {
-          // Sort announcements natively so newest are on top
           const sortedAnns = results[7].value.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
           setAnnouncements(sortedAnns);
       }
@@ -216,6 +222,11 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       // Map Delegated Admin Grants
       if (results[10].status === 'fulfilled' && Array.isArray(results[10].value)) {
           setDelegatedGrants(results[10].value);
+      }
+
+      // NEW: Map Team Asset Requests
+      if (results[11].status === 'fulfilled' && Array.isArray(results[11].value)) {
+          setTeamAssets(results[11].value);
       }
 
     } catch (err) { 
@@ -299,7 +310,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           videoRef.current.srcObject = stream;
       }
     } catch (err) {
-      alert("Camera access denied or unavailable.");
+      alert("Camera access denied or unavailable. Please check your browser permissions.");
       setCameraOpen(false);
     }
   }
@@ -539,7 +550,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   };
 
   // ============================================================================
-  // EXPORT CSV & CORRECTIONS & LEAVES
+  // EXPORT CSV & CORRECTIONS & LEAVES & ASSETS
   // ============================================================================
   
   /**
@@ -639,6 +650,37 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         alert(err.message); 
         setLoading(false);
     }
+  }
+
+  /**
+   * NEW: Updates the status of an Employee's Asset Request
+   * This is the Manager's tier of the Dual-Approval system.
+   */
+  async function updateAssetStatus(id, status) {
+      setLoading(true);
+      const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      try {
+          const res = await fetch(`${baseUrl}/api/manager/assets/${id}`, {
+              method: 'PUT',
+              headers: { 
+                  'Content-Type': 'application/json', 
+                  'Authorization': `Bearer ${token}` 
+              },
+              body: JSON.stringify({ manager_status: status })
+          });
+          
+          if(!res.ok) {
+              const errData = await res.json();
+              throw new Error(errData.message || "Failed to update asset status");
+          }
+          
+          await load(true);
+          alert(`Asset Request ${status} successfully. It will now pend Admin approval.`);
+      } catch (err) {
+          alert("Error updating asset: " + err.message);
+      } finally {
+          setLoading(false);
+      }
   }
   
   // ============================================================================
@@ -891,7 +933,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                 >
                     <FaTimes />
                 </button>
-
+                
                 <h3 style={{color: "var(--red)", marginTop: 0}}>Set Secure Password</h3>
                 <p className="small">Please set a strong password to secure your account.</p>
                 {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px'}}>{passError}</div>}
@@ -1019,10 +1061,17 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
               
-              {/* FIXED: The missing Attendance Log icon was restored right here! */}
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
-              
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} color="var(--red)" badgeCount={notificationCounts?.announcements || 0} />
+              
+              {/* NEW: Team Assets Button for Managers */}
+              <QuickLaunchItem 
+                icon={<FaLaptop />} 
+                label="Team Assets" 
+                onClick={() => setView("team-assets")} 
+                color="#0284c7" 
+                badgeCount={notificationCounts?.assets || 0} 
+              />
               
               {/* CONSOLIDATED DELEGATED PORTAL BUTTON */}
               {delegatedGrants.length > 0 && (
@@ -1498,12 +1547,110 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       )}
 
       {/* ============================================================================ */}
-      {/* 11. TEAM DIRECTORY */}
+      {/* 11. TEAM ASSETS VIEW (NEW FEATURE) */}
+      {/* ============================================================================ */}
+      {!loading && view === "team-assets" && (
+          <div className="card" style={{marginTop: 16}}>
+              <h3>Team Hardware & Asset Requests</h3>
+              <p className="small" style={{marginBottom: 20}}>Review and approve equipment requests from your department employees. Approved requests will be forwarded to Administration for final provisioning.</p>
+              
+              <div style={{overflowX: 'auto'}}>
+                <table className="styled-table-global">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Requested Asset</th>
+                            <th>Justification / Reason</th>
+                            <th style={{textAlign:'center'}}>Manager Status</th>
+                            <th style={{textAlign:'center'}}>Admin Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {teamAssets.length === 0 ? (
+                            <tr><td colSpan="6" style={{textAlign:'center', padding:40, color:'#999'}}>No pending asset requests from your team.</td></tr>
+                        ) : (
+                            teamAssets.map(asset => (
+                            <tr key={asset._id}>
+                                <td>
+                                    <div style={{fontWeight:700, color: "#0f172a", fontSize: 13}}>{asset.employee_name}</div>
+                                    <div style={{fontSize:10, color:'#64748b', marginTop: 4}}>{new Date(asset.created_at).toLocaleDateString('en-GB')}</div>
+                                </td>
+                                <td style={{ fontWeight: 600, color: '#334155' }}>
+                                    {asset.asset_name}
+                                </td>
+                                <td style={{maxWidth:'250px'}}>
+                                    <div style={{fontSize:12, color:'#475569', lineHeight:'1.4'}}>
+                                      {asset.reason}
+                                    </div>
+                                </td>
+                                <td style={{textAlign:'center'}}>
+                                    <span className={`status-badge ${getStatusClass(asset.manager_status || 'Pending')}`}>
+                                      {asset.manager_status || 'Pending'}
+                                    </span>
+                                </td>
+                                <td style={{textAlign:'center'}}>
+                                    <span className={`status-badge ${getStatusClass(asset.admin_status || 'Pending')}`}>
+                                      {asset.admin_status || 'Pending'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div className="action-btn-group">
+                                        <button 
+                                            className="action-btn btn-approve" 
+                                            onClick={async () => {
+                                                setLoading(true);
+                                                try {
+                                                    const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+                                                    await fetch(`${baseUrl}/api/manager/assets/${asset._id}`, {
+                                                        method: 'PUT',
+                                                        headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                                                        body: JSON.stringify({ manager_status: 'Approved' })
+                                                    });
+                                                    await load(true);
+                                                    alert('Asset Request Approved');
+                                                } catch(e) { alert(e.message); }
+                                                setLoading(false);
+                                            }}
+                                        >
+                                            <FaCheckCircle /> Approve
+                                        </button>
+                                        <button 
+                                            className="action-btn btn-reject" 
+                                            onClick={async () => {
+                                                setLoading(true);
+                                                try {
+                                                    const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+                                                    await fetch(`${baseUrl}/api/manager/assets/${asset._id}`, {
+                                                        method: 'PUT',
+                                                        headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                                                        body: JSON.stringify({ manager_status: 'Rejected' })
+                                                    });
+                                                    await load(true);
+                                                    alert('Asset Request Rejected');
+                                                } catch(e) { alert(e.message); }
+                                                setLoading(false);
+                                            }}
+                                        >
+                                            <FaTimesCircle /> Reject
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        )))}
+                    </tbody>
+                </table>
+              </div>
+          </div>
+      )}
+
+      {/* ============================================================================ */}
+      {/* 12. TEAM DIRECTORY */}
       {/* ============================================================================ */}
       {!loading && view === "team-members" && <TeamMembersList />}
       
       {/* ============================================================================ */}
-      {/* 12. APPLY LEAVE MODULE */}
+      {/* 13. APPLY LEAVE MODULE */}
       {/* ============================================================================ */}
       {!loading && view === "apply-leave" && (
         <div className="card">
@@ -1570,23 +1717,32 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       )}
 
       {/* ============================================================================ */}
-      {/* 13. MY LEAVES HISTORY */}
+      {/* 14. MY LEAVES HISTORY */}
       {/* ============================================================================ */}
       {!loading && view === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
+              <h3 style={{margin:0, color:'var(--red)'}}>My Leaves</h3>
+              <button className="btn" style={{background:'#f59e0b', fontSize:'13px'}} onClick={() => setView("correction")}>
+                  <FaEdit style={{marginRight:5}}/> Request Correction
+              </button>
+          </div>
           <div style={{overflowX: 'auto'}}>
-            <table className="styled-table-global">
+            <table className="styled-table">
               <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Attachment</th></tr></thead>
               <tbody>
-                {myLeaves.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:20}}>No leaves found.</td></tr>}
-                {myLeaves.map((l) => (
+                {myLeaves.length === 0 ? (
+                  <tr><td colSpan="4" style={{textAlign:"center", padding:20, color:"#999"}}>No leaves found.</td></tr>
+                ) : (
+                  myLeaves.map((l) => (
                     <tr key={l._id}>
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
                       <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
                       <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
                       <td>{l.attachment_url ? <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://gdmrconnect-backend-production.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -1594,7 +1750,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       )}
 
       {/* ============================================================================ */}
-      {/* 14. MY ATTENDANCE LOG */}
+      {/* 15. MY ATTENDANCE LOG */}
       {/* ============================================================================ */}
       {!loading && view === "attendance-log" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
@@ -1605,14 +1761,17 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                 <table className="styled-table-global">
                   <thead><tr><th>Type</th><th>Date / Time</th><th>Photo</th></tr></thead>
                   <tbody>
-                    {attendance.length === 0 && <tr><td colSpan="3" style={{textAlign:'center', padding:20}}>No attendance records.</td></tr>}
-                    {attendance.map((a) => (
+                    {attendance.length === 0 ? (
+                      <tr><td colSpan="3" style={{textAlign:'center', padding:20}}>No attendance records.</td></tr>
+                    ) : (
+                      attendance.map((a) => (
                         <tr key={a._id}>
                           <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
                           <td>{new Date(a.time).toLocaleString()}</td>
                           <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://gdmrconnect-backend-production.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                         </tr>
-                    ))}
+                      ))
+                    )}
                   </tbody>
                 </table>
             </div>
@@ -1620,7 +1779,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       )}
 
       {/* ============================================================================ */}
-      {/* 15. HOLIDAYS & UTILITY MODALS */}
+      {/* 16. HOLIDAYS & UTILITY MODALS */}
       {/* ============================================================================ */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
 
@@ -1784,7 +1943,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       )}
 
       {/* ============================================================================ */}
-      {/* 16. CAMERA MODAL FOR CHECK-IN / CHECK-OUT */}
+      {/* 17. CAMERA MODAL FOR CHECK-IN / CHECK-OUT */}
       {/* ============================================================================ */}
       {cameraOpen && (
         <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
