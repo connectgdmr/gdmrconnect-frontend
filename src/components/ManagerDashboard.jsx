@@ -1,2230 +1,2088 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+"""
+===============================================================================
+GDMR CONNECT - CORE BACKEND APPLICATION API (ENTERPRISE HIGH-PERFORMANCE EDITION)
+===============================================================================
+This file contains all the core backend routes, database connections, and 
+business logic for the GDMR Connect HRMS and Enterprise Management system.
 
-// ============================================================================
-// IMPORTING ADMIN COMPONENTS FOR DELEGATED ACCESS
-// ============================================================================
-// These components are utilized when a Manager is granted special
-// permissions by the Master Admin to view organization-wide data.
-import AdminLeavePage from "./AdminLeavePage"; 
-import AdminAttendancePage from "./AdminAttendancePage";
-import HolidayCalendar from "./HolidayCalendar"; 
+PERFORMANCE OPTIMIZATIONS IN THIS VERSION:
+- MongoDB Indexing: Auto-generates indexes on startup for lightning-fast queries.
+- Query Projections: Strips heavy, unnecessary fields (like passwords) at the DB layer.
+- Optimized Sorting: Reduces memory footprint during data serialization.
 
-// ============================================================================
-// ICON IMPORTS FROM REACT-ICONS
-// ============================================================================
-import {
-  FaCamera, 
-  FaSignOutAlt, 
-  FaCalendarPlus, 
-  FaCalendarCheck, 
-  FaHistory, 
-  FaArrowLeft, 
-  FaCheckCircle, 
-  FaHourglassHalf, 
-  FaTimesCircle, 
-  FaUserCheck, 
-  FaTimes, 
-  FaCloudUploadAlt, 
-  FaCalendarAlt, 
-  FaUsers,
-  FaChartLine, 
-  FaClipboardCheck, 
-  FaBullhorn, 
-  FaEye,
-  FaEyeSlash, 
-  FaLock,
-  FaDownload,
-  FaPlus,
-  FaTrash,
-  FaEdit,
-  FaUserShield, 
-  FaClipboardList,
-  FaCheckSquare,
-  FaRegSquare,
-  FaClock,           // Used for Applied On Date/Time
-  FaFileDownload,    // Used for File Attachment UI
-  FaLaptop           // Icon for Team Asset Requests
-} from "react-icons/fa";
+Key Modules Included:
+- JWT Authentication & Strict Role-based Access Control (RBAC)
+- Employee & Manager Directory Management
+- Daily Attendance & Camera/Photo Logging (with Cloudinary)
+- Leave Management & Dual-Tier Approvals
+- Temporary Delegated Admin Access (Auto-Expiring Grants)
+- Performance Management System (PMS 2.0) Form Builder & Grading
+- Asset & Hardware Management (Dual-Approval Workflow)
+- Automated Background Tasks (APScheduler)
+- Announcements & System Broadcasts (Create, Read, Update, Delete)
+===============================================================================
+"""
 
-// ============================================================================
-// MAIN EXPORT: MANAGER DASHBOARD
-// ============================================================================
-export default function ManagerDashboard({ token, api, passwordChanged = true }) {
-  
-  // ============================================================================
-  // 1. CORE DATA STATES
-  // ============================================================================
-  
-  /** 
-   * Stores the attendance records for the current user 
-   */
-  const [attendance, setAttendance] = useState([]);
-  
-  /** 
-   * Stores the leave requests submitted by the current user 
-   */
-  const [myLeaves, setMyLeaves] = useState([]);
-  
-  /** 
-   * Stores the profile details of employees assigned to this manager 
-   */
-  const [teamMembers, setTeamMembers] = useState([]);
-  
-  /** 
-   * Stores the leave requests submitted by the team members 
-   */
-  const [teamLeaves, setTeamLeaves] = useState([]); 
-  
-  /** 
-   * NEW: Stores hardware/equipment requests submitted by the team 
-   */
-  const [teamAssets, setTeamAssets] = useState([]);
+from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask_cors import CORS
+import base64, os, re, csv, io
+from dotenv import load_dotenv
+from pymongo import MongoClient, ASCENDING, DESCENDING
+from werkzeug.security import generate_password_hash, check_password_hash
+import jwt
+from functools import wraps
+from utils import send_email, generate_random_password
+from bson import ObjectId
+from datetime import datetime, timedelta, timezone, time
+import pytz
+from flask_bcrypt import Bcrypt
+import threading
+import cloudinary
+import cloudinary.uploader
+from apscheduler.schedulers.background import BackgroundScheduler
 
-  /** 
-   * Stores dynamic badge counts for dashboard quick launch icons 
-   */
-  const [notificationCounts, setNotificationCounts] = useState({ 
-      leaves: 0, 
-      pms: 0, 
-      corrections: 0, 
-      announcements: 0,
-      assets: 0 
-  });
-  
-  /** 
-   * Stores active system-wide announcements 
-   */
-  const [announcements, setAnnouncements] = useState([]);
+# =============================================================================
+# 1. ENVIRONMENT & APP INITIALIZATION
+# =============================================================================
+load_dotenv()
 
-  /** 
-   * Stores pending Performance Management System evaluations 
-   */
-  const [pendingPMS, setPendingPMS] = useState([]);
-  
-  /** 
-   * Stores pending attendance time-correction requests 
-   */
-  const [pendingCorrections, setPendingCorrections] = useState([]);
+app = Flask(__name__)
+bcrypt = Bcrypt(app)
 
-  // ============================================================================
-  // 2. PASSWORD MANAGEMENT STATES
-  // ============================================================================
-  
-  /** 
-   * Manages the visibility of the mandatory password change modal 
-   */
-  const [showPasswordModal, setShowPasswordModal] = useState(!passwordChanged);
-  const [oldPassword, setOldPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passError, setPassError] = useState("");
+# =============================================================================
+# 2. CLOUDINARY CONFIGURATION (For Image Uploads & Assets)
+# =============================================================================
+try:
+    cloudinary.config(
+        cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'),
+        api_key = os.getenv('CLOUDINARY_API_KEY'),
+        api_secret = os.getenv('CLOUDINARY_API_SECRET')
+    )
+    print("[INIT] Cloudinary configured successfully for Asset Management.")
+except Exception as e:
+    print(f"[WARNING] Cloudinary configuration failed. Images may not upload. Error: {e}")
 
-  // Visibility toggles for the 3 password fields to show/hide plaintext
-  const [showOldPass, setShowOldPass] = useState(false);
-  const [showNewPass, setShowNewPass] = useState(false);
-  const [showConfirmPass, setShowConfirmPass] = useState(false);
-  
-  // ============================================================================
-  // 3. DYNAMIC PMS TEMPLATE BUILDER & REVIEW STATES
-  // ============================================================================
-  
-  /** 
-   * Holds the structure of the dynamic evaluation form being built 
-   */
-  const [templateSessions, setTemplateSessions] = useState([]);
-  
-  /** 
-   * Explicit state to track assigned employees to prevent blanketing the whole org 
-   */
-  const [assignedEmployees, setAssignedEmployees] = useState([]); 
-  
-  /** 
-   * Holds the manager's assigned scores during an evaluation review 
-   */
-  const [managerScores, setManagerScores] = useState({}); 
-  const [managerFeedback, setManagerFeedback] = useState("");
-  const [viewPMSModalOpen, setViewPMSModalOpen] = useState(false);
-  const [selectedPMS, setSelectedPMS] = useState(null);
-
-  // ============================================================================
-  // 4. DELEGATED ADMIN & DASHBOARD STATES
-  // ============================================================================
-  
-  /** 
-   * Stores temporary access permissions granted by the master admin 
-   */
-  const [delegatedGrants, setDelegatedGrants] = useState([]);
-  
-  /** 
-   * Stores aggregated performance metrics for the department 
-   */
-  const [deptDashboard, setDeptDashboard] = useState([]);
-  const [dashboardMonth, setDashboardMonth] = useState(new Date().toISOString().slice(0, 7));
-
-  /** 
-   * Primary routing state for conditional rendering of sub-views 
-   */
-  const [view, setView] = useState("dashboard"); 
-  
-  // Leave Form State Variables
-  const [leaveDuration, setLeaveDuration] = useState("single");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [reason, setReason] = useState("");
-  const [type, setType] = useState("full");
-  const [period, setPeriod] = useState("First Half"); 
-  const [file, setFile] = useState(null);
-  
-  // Modal display states
-  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
-  const [modalTitle, setModalTitle] = useState("");
-  const [modalList, setModalList] = useState([]);
-  
-  // ============================================================================
-  // 5. CAMERA & HARDWARE STATES
-  // ============================================================================
-  
-  /** 
-   * Hardware interaction states for photo-verified check-ins 
-   */
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [actionType, setActionType] = useState(null); 
-  const [previewImage, setPreviewImage] = useState(null);
-  const [submittingPhoto, setSubmittingPhoto] = useState(false); 
-  
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const streamRef = useRef(null); 
-
-  // ============================================================================
-  // 6. DERIVED STATES & CONSTANTS
-  // ============================================================================
-  const pendingLeaves = myLeaves.filter(l => l.status === 'Pending');
-  const approvedLeaves = myLeaves.filter(l => l.status === 'Approved');
-  const rejectedLeaves = myLeaves.filter(l => l.status === 'Rejected');
-  
-  const MAX_WORDS = 30; 
-  const MAX_FILE_SIZE_MB = 5;
-
-  // ============================================================================
-  // INITIAL DATA LOADING FUNCTION
-  // ============================================================================
-  
-  /**
-   * Main data loading function. Fetches all required information for the 
-   * manager dashboard in parallel to optimize rendering times.
-   */
-  const load = useCallback(async (isAction = false) => {
-    
-    // Safely check for api to prevent crashes during initialization
-    const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-    const headers = { 'Authorization': `Bearer ${token}` };
-
-    try {
-      // Parallelize all fetch requests to significantly speed up dashboard load times
-      const results = await Promise.allSettled([
-        api?.myAttendance ? api.myAttendance(token) : Promise.resolve([]),
-        api?.myLeaves ? api.myLeaves(token) : Promise.resolve([]),
-        api?.getManagerEmployees ? api.getManagerEmployees(token) : Promise.resolve([]),
-        fetch(`${baseUrl}/api/manager/pms`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/manager/corrections`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/admin/leaves`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/notifications/counts`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/announcements`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/pms-template`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/admin/pms-dashboard?month=${dashboardMonth}`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/my/delegated-access`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/manager/assets`, { headers }).then(r => r.json()) 
-      ]);
-
-      // Map results to state safely avoiding any undefined crashes
-      if (results[0].status === 'fulfilled' && Array.isArray(results[0].value)) {
-          setAttendance(results[0].value);
-      }
-      if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
-          setMyLeaves(results[1].value);
-      }
-      if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) {
-          setTeamMembers(results[2].value);
-      }
-      if (results[3].status === 'fulfilled' && Array.isArray(results[3].value)) {
-          setPendingPMS(results[3].value);
-      }
-      if (results[4].status === 'fulfilled' && Array.isArray(results[4].value)) {
-          setPendingCorrections(results[4].value);
-      }
-      if (results[5].status === 'fulfilled' && Array.isArray(results[5].value)) {
-          setTeamLeaves(results[5].value);
-      }
-      if (results[6].status === 'fulfilled' && results[6].value) {
-          setNotificationCounts(results[6].value);
-      }
-      
-      // Map Announcements & Sort Newest First
-      if (results[7].status === 'fulfilled' && Array.isArray(results[7].value)) {
-          const sortedAnns = results[7].value.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-          setAnnouncements(sortedAnns);
-      }
-      
-      // Map PMS Template builder
-      if (results[8].status === 'fulfilled' && results[8].value) {
-          if (templateSessions.length === 0 && results[8].value.sessions) {
-              // Intentionally blank to allow fresh builds, but data is ready
-          }
-      }
-      
-      // Map Dept Dashboard
-      if (results[9].status === 'fulfilled' && Array.isArray(results[9].value)) {
-          setDeptDashboard(results[9].value);
-      }
-      
-      // Map Delegated Admin Grants
-      if (results[10].status === 'fulfilled' && Array.isArray(results[10].value)) {
-          setDelegatedGrants(results[10].value);
-      }
-
-      // Map Team Asset Requests
-      if (results[11].status === 'fulfilled' && Array.isArray(results[11].value)) {
-          setTeamAssets(results[11].value);
-      }
-
-    } catch (err) { 
-      console.error("Error loading data", err); 
-    } 
-  }, [token, dashboardMonth, api, templateSessions.length]); 
-
-  // Trigger load on component mount
-  useEffect(() => {
-      load(); 
-  }, [load]);
-
-  // ============================================================================
-  // PASSWORD MANAGEMENT
-  // ============================================================================
-  
-  /**
-   * Handles the submission of the password change form.
-   * Validates matching inputs and enforces strong password regex requirements.
-   */
-  async function handleSetPassword(e) {
-      e.preventDefault();
-      setPassError("");
-
-      if (newPassword !== confirmPassword) {
-          setPassError("New Password and Confirm Password do not match.");
-          return;
-      }
-
-      // Requirement: 8+ chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
-      const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-      
-      if (!strongRegex.test(newPassword)) {
-          setPassError("Password must be at least 8 characters long, and include an uppercase letter, a lowercase letter, a number, and a special character (@, $, !, %, *, ?, &).");
-          return;
-      }
-
-      try {
-          const res = await fetch(`${api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/my/set-password`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              body: JSON.stringify({ oldPassword: oldPassword, password: newPassword })
-          });
-          
-          const data = await res.json();
-          if(!res.ok) {
-              throw new Error(data.message);
-          }
-          
-          alert("Password updated successfully!");
-          setShowPasswordModal(false);
-          setOldPassword("");
-          setNewPassword("");
-          setConfirmPassword("");
-          setShowOldPass(false);
-          setShowNewPass(false);
-          setShowConfirmPass(false);
-      } catch (err) {
-          setPassError(err.message);
-      }
-  }
-
-  // ============================================================================
-  // CAMERA & ATTENDANCE LOGIC
-  // ============================================================================
-  
-  /**
-   * Requests permission to open the user's webcam device.
-   * Renders the video feed inline inside the application modal.
-   */
-  async function openCamera(type) {
-    setActionType(type);
-    setCameraOpen(true);
-    setPreviewImage(null);
-    setSubmittingPhoto(false);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      streamRef.current = stream; 
-      if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      alert("Camera access denied or unavailable. Please check your browser permissions.");
-      setCameraOpen(false);
+# =============================================================================
+# 3. CORS CONFIGURATION (Cross-Origin Resource Sharing)
+# =============================================================================
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://gdmrconnect.com",
+            "https://www.gdmrconnect.com",
+            "https://*.netlify.app",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173"
+        ],
+        "supports_credentials": True,
+        "allow_headers": ["Content-Type", "Authorization"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     }
-  }
+})
 
-  /**
-   * Captures the current frame from the webcam feed and 
-   * converts it to a Base64 string for preview/upload.
-   */
-  function capturePhoto() {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    if (!video || !canvas) return;
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const context = canvas.getContext("2d");
-    
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    setPreviewImage(canvas.toDataURL("image/jpeg"));
-  }
+# =============================================================================
+# 4. DATABASE CONNECTION & HIGH-PERFORMANCE INDEXING
+# =============================================================================
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "replace-this-secret-with-a-secure-key-in-production")
+MONGO_URI = os.getenv("MONGO_URI")
 
-  /**
-   * Submits the Base64 image payload to the backend API for
-   * Cloudinary storage and database logging.
-   */
-  async function submitAttendance(imageData) {
-    setSubmittingPhoto(true); 
-    try {
-      if (actionType === "checkin") {
-          await api.checkinWithPhoto(token, imageData);
-      } else {
-          await api.checkoutWithPhoto(token, imageData);
-      }
-      
-      setSubmittingPhoto(false); 
-      closeCamera(); 
-      alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
-      
-      await load(true);
-    } catch (err) {
-      alert("Error submitting attendance: " + (err.message || ""));
-      setSubmittingPhoto(false); 
-    }
-  }
+try:
+    client = MongoClient(MONGO_URI, maxPoolSize=50, waitQueueTimeoutMS=2500)
+    db = client["attendance_db"]
+    print("[INIT] MongoDB Connected Successfully to Database: attendance_db.")
+except Exception as e:
+    print(f"[CRITICAL ERROR] Failed to connect to MongoDB. Error: {e}")
+    exit(1)
 
-  /**
-   * Terminates the webcam media tracks and destroys the stream context
-   * to ensure the camera light turns off.
-   */
-  function closeCamera() {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    setCameraOpen(false);
-    setPreviewImage(null);
-    setSubmittingPhoto(false);
-  }
+# --- Core Collections ---
+users_col = db["users"]
+attendance_col = db["attendance"]
+leaves_col = db["leaves"]
 
-  // ============================================================================
-  // PMS TEMPLATE BUILDER LOGIC
-  // ============================================================================
-  
-  /** Adds a new blank session block to the PMS evaluation template */
-  const handleAddSession = () => {
-      setTemplateSessions([...templateSessions, { name: "", questions: [{ text: "", type: "scale" }] }]);
-  };
-  
-  /** Removes an entire session block from the PMS template */
-  const handleRemoveSession = (sIdx) => {
-      setTemplateSessions(templateSessions.filter((_, i) => i !== sIdx));
-  };
-  
-  /** Updates the name of a specific session in the template */
-  const handleSessionNameChange = (sIdx, name) => {
-      const newS = [...templateSessions];
-      newS[sIdx].name = name;
-      setTemplateSessions(newS);
-  };
-  
-  /** Adds a new question field inside a specific session block */
-  const handleAddQuestion = (sIdx) => {
-      const newS = [...templateSessions];
-      newS[sIdx].questions.push({ text: "", type: "scale" });
-      setTemplateSessions(newS);
-  };
-  
-  /** Removes a specific question from a session block */
-  const handleRemoveQuestion = (sIdx, qIdx) => {
-      const newS = [...templateSessions];
-      newS[sIdx].questions = newS[sIdx].questions.filter((_, i) => i !== qIdx);
-      setTemplateSessions(newS);
-  };
-  
-  /** Updates the text or response type of a specific question */
-  const handleQuestionChange = (sIdx, qIdx, field, val) => {
-      const newS = [...templateSessions];
-      newS[sIdx].questions[qIdx][field] = val;
-      setTemplateSessions(newS);
-  };
+# --- Extended Modules Collections ---
+corrections_col = db["attendance_corrections"]
+pip_records_col = db["pip_records"]
+announcements_col = db["announcements"]
+access_grants_col = db["access_grants"] 
+assets_col = db["assets"] 
 
-  /**
-   * Handles toggling specific employees when assigning a PMS evaluation.
-   */
-  const toggleEmployeeAssignment = (empId) => {
-      if (assignedEmployees.includes(empId)) {
-          setAssignedEmployees(assignedEmployees.filter(id => id !== empId));
-      } else {
-          setAssignedEmployees([...assignedEmployees, empId]);
-      }
-  };
+# --- Performance Management System (PMS) Collections ---
+pms_templates_col = db["pms_templates"] 
+pms_reviews_col = db["pms_reviews"] 
 
-  /** Selects all available team members for PMS assignment */
-  const selectAllEmployees = () => {
-      setAssignedEmployees(teamMembers.map(emp => emp._id));
-  };
-
-  /** Deselects all team members from the current PMS assignment list */
-  const clearAllEmployees = () => {
-      setAssignedEmployees([]);
-  };
-
-  /**
-   * Compiles the nested arrays of the PMS builder and pushes it 
-   * to the backend targeting the explicit array of assigned employees.
-   */
-  async function savePmsTemplate(e) {
-      e.preventDefault();
-      
-      if (assignedEmployees.length === 0) {
-          alert("Action Required: Please select at least one employee to assign this evaluation form to.");
-          return;
-      }
-      
-      if (templateSessions.length === 0) {
-          alert("Action Required: Please create at least one session with questions.");
-          return;
-      }
-
-      const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-      
-      try {
-          const res = await fetch(`${baseUrl}/api/admin/pms-template`, {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-              body: JSON.stringify({ 
-                  sessions: templateSessions,
-                  assigned_to: assignedEmployees 
-              })
-          });
-          
-          if(res.ok) {
-              alert("Success! PMS Evaluation Form has been assigned and saved.");
-              setTemplateSessions([]);
-              setAssignedEmployees([]);
-              setView("dashboard");
-          } else {
-              const errData = await res.json();
-              alert(`Failed to save template: ${errData.message || 'Unknown error'}`);
-          }
-          await load(true);
-      } catch(err) { 
-          alert("Network Error saving PMS Template"); 
-      }
-  }
-
-  // ============================================================================
-  // PMS REVIEW & GRADING LOGIC
-  // ============================================================================
-  
-  /**
-   * Opens the PMS Evaluation modal and loads the selected employee's data.
-   */
-  function handleViewPMS(pms) {
-      setSelectedPMS(pms);
-      setManagerFeedback(pms.manager_feedback || "");
-      const scores = {};
-      if(pms.manager_scores) {
-          pms.manager_scores.forEach(m => scores[m.question] = m.score);
-      }
-      setManagerScores(scores);
-      setViewPMSModalOpen(true);
-  }
-
-  /**
-   * Finalizes the PMS review by permanently locking the document
-   * and appending the manager's scores and summary text.
-   */
-  async function finalizePMS(id) {
-      const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-      const scoresArr = Object.keys(managerScores).map(q => ({
-          question: q,
-          score: managerScores[q]
-      }));
-
-      if (!managerFeedback.trim()) {
-          alert("Please provide overall remarks and feedback before finalizing.");
-          return;
-      }
-
-      try {
-          const res = await fetch(`${baseUrl}/api/manager/finalize-pms`, {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-              body: JSON.stringify({ 
-                  review_id: id, 
-                  manager_scores: scoresArr,
-                  manager_feedback: managerFeedback
-              })
-          });
-          
-          if (res.ok) {
-              alert("PMS Review Finalized Successfully!"); 
-              setManagerScores({});
-              setManagerFeedback("");
-              setViewPMSModalOpen(false); 
-              setSelectedPMS(null);
-              await load(true);
-          } else {
-              alert("Failed to finalize review.");
-          }
-      } catch(err) { 
-          alert(err.message); 
-      }
-  }
-
-  /**
-   * Processes raw responses array and converts it into an object 
-   * grouped by the dynamic Session Names created by the manager.
-   */
-  const getGroupedResponses = () => {
-      if (!selectedPMS || !selectedPMS.responses) return {};
-      const groups = {};
-      selectedPMS.responses.forEach(resp => {
-          const sName = resp.session_name || "General Evaluation";
-          if (!groups[sName]) {
-              groups[sName] = [];
-          }
-          groups[sName].push(resp);
-      });
-      return groups;
-  };
-
-  // ============================================================================
-  // EXPORT CSV & CORRECTIONS & LEAVES & ASSETS
-  // ============================================================================
-  
-  /**
-   * Communicates with the backend aggregation pipeline to fetch
-   * a dynamically generated CSV file containing the department's scores.
-   */
-  async function downloadReport() {
-      try {
-          const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-          const res = await fetch(`${baseUrl}/api/admin/export-pms?month=${dashboardMonth}`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if(!res.ok) {
-              throw new Error("Failed to download report data from server.");
-          }
-          
-          const blob = await res.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `Dept_PMS_Report_${dashboardMonth}.csv`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-      } catch(err) {
-          alert("Export failed: " + err.message);
-      }
-  }
-
-  /**
-   * Approves or Rejects a manual attendance correction request.
-   */
-  async function approveCorrection(id, action) {
-      const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-      try {
-          await fetch(`${baseUrl}/api/manager/approve-correction`, {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-              body: JSON.stringify({ id, action })
-          });
-          await load(true);
-          alert(`Correction Request ${action} successfully.`); 
-      } catch(err) { 
-          alert(err.message); 
-      }
-  }
-  
-  /**
-   * Pushes leave status updates to the dual-tier approval system.
-   */
-  async function updateLeaveStatus(id, status) {
-       const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-       try {
-          await fetch(`${baseUrl}/api/admin/leaves/${id}`, {
-              method: 'PUT',
-              headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-              body: JSON.stringify({ status })
-          });
-          await load(true); 
-          alert(`Leave ${status} Successfully`); 
-       } catch(err) { 
-          alert(err.message); 
-       }
-  }
-
-  /**
-   * Submits a new leave request. If an attachment is present, 
-   * the underlying api object will use FormData instead of standard JSON.
-   */
-  async function applyLeave(e) {
-    e.preventDefault();
-    try {
-      let payload = { 
-          type, 
-          reason, 
-          period: type === 'half' ? period : null, 
-          from_date: startDate, 
-          to_date: leaveDuration === 'single' ? startDate : endDate 
-      };
-      
-      await api.applyLeaveWithFile(payload, file, token);
-      
-      setStartDate(""); 
-      setEndDate(""); 
-      setReason(""); 
-      setFile(null);
-      
-      await load(true); 
-      alert("Leave Applied Successfully!"); 
-      setView("my-leaves"); 
-    } catch (err) { 
-        alert(err.message); 
-    }
-  }
-
-  /**
-   * NEW: Updates the status of an Employee's Asset Request
-   * This is the Manager's tier of the Dual-Approval system.
-   */
-  async function updateAssetStatus(id, status) {
-      const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-      try {
-          const res = await fetch(`${baseUrl}/api/manager/assets/${id}`, {
-              method: 'PUT',
-              headers: { 
-                  'Content-Type': 'application/json', 
-                  'Authorization': `Bearer ${token}` 
-              },
-              body: JSON.stringify({ manager_status: status })
-          });
-          
-          if(!res.ok) {
-              const errData = await res.json();
-              throw new Error(errData.message || "Failed to update asset status");
-          }
-          
-          await load(true);
-          alert(`Asset Request ${status} successfully. It will now pend Admin approval.`);
-      } catch (err) {
-          alert("Error updating asset: " + err.message);
-      }
-  }
-  
-  // ============================================================================
-  // UTILITY HELPERS (SAFELY UPDATED FOR DATE PARSING)
-  // ============================================================================
-  
-  /**
-   * Forcefully safe Date Formatter that handles null, undefined, or invalid dates
-   * to prevent catastrophic React runtime errors in tables.
-   */
-  const formatDateTime = (dateString) => {
-      if (!dateString) return { date: "N/A", time: "" };
-      
-      const d = new Date(dateString);
-      if (isNaN(d.getTime())) return { date: "N/A", time: "" }; 
-      
-      return {
-          date: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-      };
-  };
-
-  /**
-   * Validates file uploads to enforce maximum size limits before submission.
-   */
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile && selectedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        alert("File too large. Max 5MB allowed."); 
-        e.target.value = null; 
-        setFile(null);
-    } else { 
-        setFile(selectedFile); 
-    }
-  };
-
-  /**
-   * Enforces a strict word count limit on text areas to maintain clean database records.
-   */
-  const handleReasonChange = (e) => {
-    const val = e.target.value;
-    const words = val.trim().split(/\s+/).filter(w => w.length > 0);
-    if (words.length <= MAX_WORDS) {
-        setReason(val);
-    }
-  };
-  
-  const getWordCount = () => {
-      return reason.trim() === "" ? 0 : reason.trim().split(/\s+/).filter(w => w.length > 0).length;
-  };
-  
-  /**
-   * Handles opening detailed statistical views in modal overlays.
-   */
-  const handleStatClick = (title, list) => { 
-      setModalTitle(title); 
-      setModalList(list); 
-      setLeaveModalOpen(true); 
-  };
-  
-  const getStatusClass = (status) => {
-      return status ? status.toLowerCase() : "pending";
-  };
-
-  // ============================================================================
-  // REUSABLE UI COMPONENTS
-  // ============================================================================
-  
-  /**
-   * UI Component for rendering the square buttons in the quick action grid.
-   */
-  const QuickLaunchItem = ({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) => (
-    <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
-      <div className="quick-launch-icon" style={{ color: color }}>{icon}</div>
-      <div className="quick-launch-label">{label}</div>
-      {badgeCount > 0 && <span className="icon-badge">{badgeCount}</span>}
-    </div>
-  );
-
-  /**
-   * UI Component for rendering statistical rows in the summary widgets.
-   */
-  const StatItem = ({ icon, label, count, colorClass, onClick }) => (
-    <div className="stat-row clickable-stat" onClick={onClick}>
-      <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
-      <div className="stat-info">
-          <span className="stat-count">{count}</span>
-          <span className="stat-label">{label}</span>
-      </div>
-    </div>
-  );
-
-  /**
-   * UI Component to render a quick directory of the manager's assigned team.
-   */
-  const TeamMembersList = () => (
-    <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
-        <div style={{overflowX: 'auto'}}>
-            <table className="styled-table-global">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Dept</th>
-                        <th>Position</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {teamMembers.length === 0 && (
-                        <tr>
-                            <td colSpan="4" style={{textAlign:'center', padding:20}}>
-                                No team members found in your department.
-                            </td>
-                        </tr>
-                    )}
-                    {teamMembers.map(m => (
-                        <tr key={m._id}>
-                            <td>{m.name}</td>
-                            <td>{m.email}</td>
-                            <td>{m.department}</td>
-                            <td>{m.position}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    </div>
-  );
-
-  // ============================================================================
-  // RENDER TEMPLATE
-  // ============================================================================
-  return (
-    <div>
-      {/* 
-        -----------------------------------------------------------------------
-        COMPONENT SCOPED CSS STYLING
-        Expanded to multi-line format for superior readability and maintenance.
-        The visual loader class has been entirely removed from this stylesheet.
-        -----------------------------------------------------------------------
-      */}
-      <style>{`
-        /* Form & Base Styles */
-        .modern-input { 
-            width: 100%; 
-            padding: 10px 12px; 
-            border: 1px solid #ddd; 
-            border-radius: 6px; 
-            font-size: 14px; 
-            background: #fff; 
-            color: #333; 
-        }
+# -----------------------------------------------------------------------------
+# DATABASE SPEED OPTIMIZATION: INDEX CREATION
+# These indexes prevent "Full Collection Scans" ensuring that even if there
+# are 1,000,000 attendance records, fetching a single user's data takes milliseconds.
+# -----------------------------------------------------------------------------
+def setup_database_indexes():
+    """ Builds required B-Tree indexes for lightning-fast queries. """
+    try:
+        print("[OPTIMIZATION] Building database indexes for maximum speed...")
         
-        .modern-label { 
-            font-size: 13px; 
-            font-weight: 600; 
-            color: #555; 
-            margin-bottom: 6px; 
-            display: block; 
-        }
+        # User lookups are common for Auth
+        users_col.create_index([("email", ASCENDING)], unique=True)
+        users_col.create_index([("role", ASCENDING), ("department", ASCENDING)])
         
-        .file-upload-label { 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            padding: 20px; 
-            border: 2px dashed #ddd; 
-            border-radius: 8px; 
-            background: #fafafa; 
-            color: #666; 
-            cursor: pointer; 
-            gap: 10px; 
-        }
+        # Attendance lookups by user and date are the most common queries
+        attendance_col.create_index([("user_id", ASCENDING), ("date", DESCENDING)])
         
-        .clickable-stat { 
-            cursor: pointer; 
-            transition: transform 0.2s; 
-        }
+        # Leave lookups by user, status, and department
+        leaves_col.create_index([("user_id", ASCENDING), ("applied_at", DESCENDING)])
+        leaves_col.create_index([("status", ASCENDING), ("manager_status", ASCENDING)])
         
-        .modal-overlay { 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            background: rgba(0,0,0,0.5); 
-            z-index: 3000; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-        }
+        # Asset, Correction, and PMS queries usually filter by User or Department
+        assets_col.create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        corrections_col.create_index([("user_id", ASCENDING), ("status", ASCENDING)])
+        pms_reviews_col.create_index([("user_id", ASCENDING), ("month", DESCENDING)])
+        pms_reviews_col.create_index([("department", ASCENDING), ("status", ASCENDING)])
         
-        /* Modals */
-        .modal-card { 
-            background: white; 
-            width: 500px; 
-            max-width: 90%; 
-            border-radius: 12px; 
-            padding: 20px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
-            display: flex; 
-            flex-direction: column; 
-            max-height: 85vh; 
-            position: relative; 
-        }
-        
-        .modal-card.large { 
-            width: 800px; 
-            max-width: 95%; 
-            max-height: 90vh; 
-        } 
-        
-        /* Badges */
-        .status-badge { 
-            padding: 4px 6px; 
-            border-radius: 20px; 
-            font-size: 10px; 
-            font-weight: 600; 
-            display: inline-block; 
-            text-transform: capitalize; 
-            min-width: 65px; 
-            text-align: center; 
-        }
-        
-        .status-badge.approved { 
-            background: #dcfce7; 
-            color: #16a34a; 
-            border: 1px solid #bbf7d0;
-        }
-        
-        .status-badge.rejected { 
-            background: #fee2e2; 
-            color: #dc2626; 
-            border: 1px solid #fecaca;
-        }
-        
-        .status-badge.pending { 
-            background: #fef3c7; 
-            color: #d97706; 
-            border: 1px solid #fde68a;
-        }
-        
-        /* Universal Table Layout - STRICT OVERRIDES TO PREVENT SCROLL */
-        .styled-table-global { 
-            width: 100%; 
-            border-collapse: collapse; 
-            font-size: 13px; 
-            table-layout: auto !important; 
-        }
-        
-        .styled-table-global th, .styled-table-global td { 
-            padding: 10px 8px !important; 
-            border-bottom: 1px solid #f2f2f2; 
-            vertical-align: top !important; 
-            white-space: normal !important; /* CRITICAL: Allows text to wrap */
-            word-wrap: break-word !important; 
-        }
-        
-        .styled-table-global th { 
-            background-color: #f8f9fa; 
-            color: #334155; 
-            font-weight:600; 
-            text-align:left; 
-            border-bottom: 2px solid #e2e8f0; 
-        }
-        
-        /* Action Buttons - Strictly Stacked Vertically */
-        .action-btn-group {
-          display: flex !important;
-          flex-direction: column !important; /* Forces top-to-bottom stack */
-          gap: 6px !important;
-          min-width: 85px !important;
-        }
-        
-        .action-btn {
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: flex-start !important;
-          gap: 5px !important;
-          padding: 6px 10px !important;
-          border: none !important;
-          border-radius: 6px !important;
-          font-size: 12px !important;
-          font-weight: 600 !important;
-          cursor: pointer !important;
-          color: white !important;
-          width: 100% !important; /* Ensures identical width */
-        }
-        
-        .action-btn:active { transform: scale(0.95); }
-        .action-btn:hover { opacity: 0.9; }
-        .btn-approve { background: #10b981 !important; }
-        .btn-reject { background: #ef4444 !important; }
+        print("[OPTIMIZATION] Database indexes are active. Queries optimized.")
+    except Exception as e:
+        print(f"[WARNING] Could not create database indexes: {e}")
 
-        /* Utilities */
-        .btn-small { 
-            padding: 5px 10px; 
-            font-size: 12px; 
-            border-radius: 4px; 
-            border: none; 
-            cursor: pointer; 
-            color: white; 
-            margin-right: 5px; 
-            display:inline-flex; 
-            align-items:center; 
-            gap:5px; 
-        }
-        
-        .icon-badge { 
-            position: absolute; 
-            top: -5px; 
-            right: -5px; 
-            background: red; 
-            color: white; 
-            border-radius: 50%; 
-            padding: 2px 6px; 
-            font-size: 10px; 
-            font-weight: bold; 
-        }
-        
-        .qa-box { 
-            margin-bottom: 15px; 
-            background: #f9f9f9; 
-            padding: 12px; 
-            border-radius: 8px; 
-            border-left: 4px solid var(--red); 
-            transition: background 0.2s; 
-        }
-        
-        .qa-box:hover { background: #f1f5f9; }
-        
-        .inline-loader { 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            padding: 40px; 
-            color: #666; 
-            font-weight: 500; 
-            gap: 10px; 
-            flex-direction: column; 
-        }
-        
-        .password-input-wrapper { 
-            position: relative; 
-            display: flex; 
-            align-items: center; 
-            margin-bottom: 15px; 
-        }
-        
-        .password-toggle-icon { 
-            position: absolute; 
-            right: 12px; 
-            cursor: pointer; 
-            color: #666; 
-            font-size: 16px; 
-            top: 38px; 
-        }
-        
-        .delegation-alert { 
-            background: #e0e7ff; 
-            color: #4f46e5; 
-            border-left: 4px solid #4f46e5; 
-            padding: 15px; 
-            border-radius: 6px; 
-            margin-bottom: 20px; 
-            font-weight: 500; 
-        }
-        
-        .employee-chip { 
-            display: flex; 
-            align-items: center; 
-            gap: 8px; 
-            background: #fff; 
-            padding: 10px 14px; 
-            border: 1px solid #ddd; 
-            border-radius: 20px; 
-            cursor: pointer; 
-            font-size: 13px; 
-            font-weight: 600; 
-            transition: all 0.2s; 
-            color: #555; 
-        }
-        
-        .employee-chip:hover { border-color: var(--red); background: #fff5f5; }
-        .employee-chip.selected { background: var(--red); color: white; border-color: var(--red); box-shadow: 0 4px 6px rgba(220, 38, 38, 0.2); }
+# Run index setup on startup
+setup_database_indexes()
 
-        /* Unified Announcement Styles for Consistency */
-        .announcement-card {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-left: 4px solid var(--red);
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            transition: box-shadow 0.2s;
-        }
-        
-        .announcement-card:hover {
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-        
-        .announcement-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 10px;
-        }
-        
-        .announcement-title {
-            margin: 0;
-            color: #1e293b;
-            font-size: 18px;
-            font-weight: 700;
-        }
-        
-        .announcement-date {
-            font-size: 12px;
-            color: #64748b;
-            background: #f1f5f9;
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-        
-        .announcement-body {
-            color: #475569;
-            font-size: 14px;
-            line-height: 1.6;
-            white-space: pre-wrap;
-            margin-bottom: 5px;
-        }
-      `}</style>
+# Local Upload Fallback Directory
+UPLOAD_FOLDER = "uploads/attendance_photos"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-      {/* ============================================================================ */}
-      {/* 1. PASSWORD RESET MODAL */}
-      {/* ============================================================================ */}
-      {showPasswordModal && (
-        <div className="modal-overlay" style={{ zIndex: 9999 }}>
-            <div className="modal-card">
-                <button 
-                    className="btn ghost" 
-                    style={{ position: 'absolute', top: 15, right: 15, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 
-                    onClick={() => {
-                        setShowPasswordModal(false);
-                        setPassError("");
-                        setOldPassword("");
-                        setNewPassword("");
-                        setConfirmPassword("");
-                    }}
-                >
-                    <FaTimes />
-                </button>
+# Application Timezone Context (Strict enforcement to avoid UTC drift)
+IST = pytz.timezone('Asia/Kolkata')
 
-                <h3 style={{color: "var(--red)", marginTop: 0}}>Set Secure Password</h3>
-                <p className="small">Please set a strong password to secure your account.</p>
-                {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px'}}>{passError}</div>}
-                
-                <form onSubmit={handleSetPassword}>
-                    <div style={{ position: 'relative', marginBottom: '15px' }}>
-                        <label className="modern-label">Current Password</label>
-                        <input 
-                            type={showOldPass ? "text" : "password"} 
-                            className="modern-input" 
-                            style={{ paddingRight: '40px' }}
-                            placeholder="Enter current password"
-                            value={oldPassword}
-                            onChange={(e) => setOldPassword(e.target.value)}
-                            required
-                        />
-                        <span className="password-toggle-icon" onClick={() => setShowOldPass(!showOldPass)}>
-                            {showOldPass ? <FaEyeSlash /> : <FaEye />}
-                        </span>
-                    </div>
 
-                    <div style={{ position: 'relative', marginBottom: '15px' }}>
-                        <label className="modern-label">New Password</label>
-                        <input 
-                            type={showNewPass ? "text" : "password"} 
-                            className="modern-input" 
-                            style={{ paddingRight: '40px' }}
-                            placeholder="1 Uppercase, 1 Lowercase, 1 Number, 1 Special Char"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            required
-                        />
-                        <span className="password-toggle-icon" onClick={() => setShowNewPass(!showNewPass)}>
-                            {showNewPass ? <FaEyeSlash /> : <FaEye />}
-                        </span>
-                        <small style={{display: 'block', marginTop: 5, color: '#666'}}>Must be at least 8 characters long.</small>
-                    </div>
+# =============================================================================
+# 5. UTILITY & HELPER FUNCTIONS
+# =============================================================================
 
-                    <div style={{ position: 'relative', marginBottom: '15px' }}>
-                        <label className="modern-label">Confirm New Password</label>
-                        <input 
-                            type={showConfirmPass ? "text" : "password"} 
-                            className="modern-input" 
-                            style={{ paddingRight: '40px' }}
-                            placeholder="Re-enter new password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                        />
-                        <span className="password-toggle-icon" onClick={() => setShowConfirmPass(!showConfirmPass)}>
-                            {showConfirmPass ? <FaEyeSlash /> : <FaEye />}
-                        </span>
-                    </div>
+def utc_to_ist(utc_datetime):
+    """
+    Converts a standard UTC datetime object to Indian Standard Time (IST).
+    """
+    if utc_datetime.tzinfo is None:
+        utc_datetime = pytz.utc.localize(utc_datetime)
+    return utc_datetime.astimezone(IST)
 
-                    <button className="btn" style={{width: '100%', marginTop: 20, padding: 12}}>Save Password</button>
-                </form>
-            </div>
-        </div>
-      )}
+def format_datetime_ist(dt):
+    """
+    Formats a datetime object or ISO string into a standardized IST ISO string.
+    Useful for JSON serialization to the frontend to ensure correct display times.
+    """
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+        except Exception:
+            dt = datetime.fromisoformat(dt)
+    if dt.tzinfo is None:
+        dt = pytz.utc.localize(dt)
+    return dt.astimezone(IST).isoformat()
 
-      {/* ============================================================================ */}
-      {/* 2. DYNAMIC HEADER LOGIC */}
-      {/* ============================================================================ */}
-      {view === "dashboard" ? (
-        <div className="dashboard-header-card card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h2 style={{ color: "var(--red)", margin: 0 }}>Manager Dashboard</h2>
-            <p className="small">Manage your team and your own attendance</p>
-            {delegatedGrants.length > 0 && (
-               <div style={{ marginTop: 10, display: 'inline-block', background: '#e0e7ff', color: '#4f46e5', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
-                You have special Admin privileges active.
-               </div>
-            )}
-          </div>
-          <button 
-            onClick={() => {
-              setPassError(""); 
-              setOldPassword("");
-              setNewPassword("");
-              setConfirmPassword("");
-              setShowPasswordModal(true);
-            }}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            <FaLock /> Change Password
-          </button>
-        </div>
-      ) : (
-        <div className="dashboard-header-card card" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <button className="btn ghost" onClick={() => setView("dashboard")} style={{padding: '8px 12px', display:'flex', alignItems:'center', gap:6}}>
-            <FaArrowLeft /> Back
-          </button>
-          <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>{view.replace("-", " ")}</h3>
-        </div>
-      )}
-      
-      {/* ============================================================================ */}
-      {/* 3. DASHBOARD HOME VIEW (Widgets) */}
-      {/* ============================================================================ */}
-      {view === "dashboard" && (
-        <div className="dashboard-grid-container">
-          
-          <div className="card dashboard-widget">
-            <h4 className="widget-title">Quick Actions</h4>
-            <div className="quick-launch-grid">
-              <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} color="green" />
-              <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} color="#b91c1c" />
-              <QuickLaunchItem icon={<FaUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} color="var(--red)" badgeCount={notificationCounts?.leaves || 0} />
-              
-              <QuickLaunchItem icon={<FaEdit />} label="PMS Form Builder" onClick={() => setView("pms-builder")} color="#10b981" />
-              <QuickLaunchItem icon={<FaChartLine />} label="PMS Reviews" onClick={() => setView("pms-manager")} color="#6366f1" badgeCount={notificationCounts?.pms || 0} />
-              <QuickLaunchItem icon={<FaUsers />} label="Dept Dashboard" onClick={() => setView("dept-dashboard")} color="#8b5cf6" />
-              
-              <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} color="#f59e0b" badgeCount={notificationCounts?.corrections || 0} />
-              <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
-              <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
-              
-              <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
-              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} color="var(--red)" badgeCount={notificationCounts?.announcements || 0} />
-              
-              {/* NEW: Team Assets Button for Managers */}
-              <QuickLaunchItem 
-                icon={<FaLaptop />} 
-                label="Team Assets" 
-                onClick={() => setView("team-assets")} 
-                color="#0284c7" 
-                badgeCount={notificationCounts?.assets || 0} 
-              />
-              
-              {/* CONSOLIDATED DELEGATED PORTAL BUTTON */}
-              {delegatedGrants.length > 0 && (
-                <QuickLaunchItem 
-                    icon={<FaUserShield />} 
-                    label="Admin Portal (Special Access)" 
-                    onClick={() => setView("delegated-admin-portal")} 
-                    color="#4f46e5" 
-                    badgeCount={delegatedGrants.length}
-                />
-              )}
-            </div>
-          </div>
+def is_strong_password(password):
+    """
+    Validates password strength to enforce enterprise security standards.
+    Requires: Minimum 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special char.
+    """
+    if len(password) < 8: return False
+    if not re.search(r"[a-z]", password): return False
+    if not re.search(r"[A-Z]", password): return False
+    if not re.search(r"\d", password): return False
+    if not re.search(r"[@$!%*?&#^_\-]", password): return False
+    return True
 
-          <div className="card dashboard-widget">
-            <h4 className="widget-title">My Leave Status</h4>
-            <div className="stats-list">
-              <StatItem icon={<FaHourglassHalf />} label="Pending" count={pendingLeaves.length} colorClass="text-orange" onClick={() => handleStatClick("My Pending", pendingLeaves)} />
-              <StatItem icon={<FaCheckCircle />} label="Approved" count={approvedLeaves.length} colorClass="text-green" onClick={() => handleStatClick("My Approved", approvedLeaves)} />
-              <StatItem icon={<FaTimesCircle />} label="Rejected" count={rejectedLeaves.length} colorClass="text-red" onClick={() => handleStatClick("My Rejected", rejectedLeaves)} />
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* ============================================================================ */}
-      {/* 4. DELEGATED ADMIN PORTAL HUB */}
-      {/* ============================================================================ */}
-      {view === "delegated-admin-portal" && (
-         <div className="card" style={{ marginTop: "16px" }}>
-            <h2 style={{ color: '#4f46e5', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <FaUserShield /> Temporary Admin Portal
-            </h2>
-            <p style={{ color: '#666', marginBottom: 30 }}>
-                You have been granted temporary administrative permissions. Select an action below to proceed.
-            </p>
+# =============================================================================
+# 6. ROUTE: HEALTH CHECKS & STATIC FILES
+# =============================================================================
 
-            <div className="quick-launch-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                <QuickLaunchItem 
-                     icon={<FaClipboardList />} 
-                     label="Manage Leave Approvals" 
-                     onClick={() => setView("delegated-leaves")} 
-                     color="#4f46e5" 
-                />
-                <QuickLaunchItem 
-                     icon={<FaHistory />} 
-                     label="Manage Daily Attendance" 
-                     onClick={() => setView("delegated-attendance")} 
-                     color="#4f46e5" 
-                />
-            </div>
-         </div>
-      )}
+@app.route("/")
+def home():
+    """ Health check route to ensure the backend container is active and responding. """
+    return jsonify({
+        "status": "online",
+        "message": "GDMR Connect Backend is running normally ✅",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }), 200
 
-      {/* --- SUB-VIEWS FOR DELEGATED ADMIN --- */}
-      {view === "delegated-leaves" && (
-         <div style={{ marginTop: "16px" }}>
-            <div className="delegation-alert">
-               🛡️ You are currently viewing the Leave Approval interface using temporary Delegated Access. 
-               Please follow all company guidelines when approving or viewing these records.
-            </div>
-            <AdminLeavePage token={token} api={api} />
-         </div>
-      )}
+@app.route("/uploads/<path:filename>")
+def serve_upload(filename):
+    """ Serves files from the local uploads directory if Cloudinary isn't used for storage. """
+    uploads_dir = os.path.join(os.getcwd(), "uploads")
+    return send_from_directory(uploads_dir, filename)
 
-      {view === "delegated-attendance" && (
-         <div style={{ marginTop: "16px" }}>
-            <div className="delegation-alert">
-               🛡️ You are currently viewing the Daily Attendance Logs using temporary Delegated Access. 
-               Please follow all company guidelines when modifying or viewing these records.
-            </div>
-            <AdminAttendancePage token={token} api={api} />
-         </div>
-      )}
 
-      {/* ============================================================================ */}
-      {/* 5. ANNOUNCEMENTS (UPGRADED UI - NO EDIT CONTROLS) */}
-      {/* ============================================================================ */}
-      {view === "announcements" && (
-         <div className="card" style={{ marginTop: "16px", background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
-            <h3 style={{color: 'var(--red)'}}>Company Announcements</h3>
-            <p style={{color: '#64748b', marginBottom: 20}}>View the latest news and updates from the administration.</p>
+# =============================================================================
+# 7. AUTHENTICATION MIDDLEWARE
+# =============================================================================
+
+def token_required(f):
+    """
+    Decorator to protect routes using JWT authentication.
+    Extracts the Bearer token from the Authorization header, decodes it, 
+    and sets request.user with the full user document from the database.
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if 'Authorization' in request.headers:
+            token = request.headers['Authorization'].split(" ")[1]
+
+        if not token:
+            return jsonify({"message": "Authentication Token is missing! Please log in."}), 401
+
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            user_id = data.get("user_id")
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {announcements.length === 0 ? (
-                    <div className="card" style={{ textAlign: 'center', color: '#94a3b8', padding: '40px' }}>
-                        <FaBullhorn size={40} style={{opacity: 0.2, marginBottom: 15}}/>
-                        <p style={{margin: 0}}>No announcements currently active.</p>
-                    </div>
-                ) : (
-                    announcements.map((ann) => (
-                        <div key={ann._id} className="announcement-card">
-                            <div className="announcement-header">
-                                <h4 className="announcement-title">{ann.title}</h4>
-                                <span className="announcement-date">
-                                    {new Date(ann.created_at).toLocaleString('en-US', { 
-                                        month: 'short', day: 'numeric', year: 'numeric', 
-                                        hour: '2-digit', minute: '2-digit' 
-                                    })}
-                                </span>
-                            </div>
-                            
-                            <div className="announcement-body">
-                                {ann.message}
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-         </div>
-      )}
-
-      {/* ============================================================================ */}
-      {/* 6. PMS TEMPLATE BUILDER (WITH STRICT EMPLOYEE ASSIGNMENT) */}
-      {/* ============================================================================ */}
-      {view === "pms-builder" && (
-          <div className="card">
-              <h3>Create Department PMS Evaluation Form</h3>
-              <p className="small" style={{marginBottom: 20}}>Structure performance reviews and explicitly assign them to specific employees in your department.</p>
-              
-              <form onSubmit={savePmsTemplate}>
-                  
-                  <div style={{marginBottom: 30, background: '#fef2f2', padding: 20, borderRadius: 8, border: '1px solid #fee2e2'}}>
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15}}>
-                          <h4 style={{margin: 0, color: 'var(--red)'}}>1. Assign To Employees (Required)</h4>
-                          <div>
-                              <button type="button" className="btn-small ghost" onClick={selectAllEmployees} style={{color: '#16a34a', fontWeight: 'bold'}}>
-                                  <FaCheckSquare style={{marginRight: 4}}/> Select All
-                              </button>
-                              <button type="button" className="btn-small ghost" onClick={clearAllEmployees} style={{color: '#dc2626', fontWeight: 'bold'}}>
-                                  <FaRegSquare style={{marginRight: 4}}/> Clear All
-                              </button>
-                          </div>
-                      </div>
-                      
-                      {teamMembers.length === 0 ? (
-                          <p style={{color: '#777', fontStyle: 'italic', fontSize: 13}}>No team members available for assignment.</p>
-                      ) : (
-                          <div style={{display: 'flex', flexWrap: 'wrap', gap: 12}}>
-                              {teamMembers.map(emp => (
-                                  <label 
-                                      key={emp._id} 
-                                      className={`employee-chip ${assignedEmployees.includes(emp._id) ? 'selected' : ''}`}
-                                  >
-                                      <input
-                                          type="checkbox"
-                                          style={{display: 'none'}}
-                                          checked={assignedEmployees.includes(emp._id)}
-                                          onChange={() => toggleEmployeeAssignment(emp._id)}
-                                      />
-                                      <FaUserCheck style={{opacity: assignedEmployees.includes(emp._id) ? 1 : 0.4}} />
-                                      {emp.name} 
-                                  </label>
-                              ))}
-                          </div>
-                      )}
-                  </div>
-
-                  <h4 style={{marginBottom: 15, borderBottom: '2px solid #eee', paddingBottom: 10}}>2. Build Evaluation Sessions</h4>
-                  
-                  {templateSessions.map((session, sIdx) => (
-                      <div key={sIdx} style={{marginBottom: 25, padding: 15, background: '#f8f9fa', border: '1px solid #ddd', borderRadius: 8}}>
-                          <div style={{display:'flex', gap: 10, alignItems: 'center', marginBottom: 15}}>
-                              <h4 style={{margin:0}}>Session {sIdx + 1}</h4>
-                              <input 
-                                  className="modern-input" style={{flex: 1}} 
-                                  placeholder="Session Title (e.g., Work Productivity)" 
-                                  value={session.name} 
-                                  onChange={e => handleSessionNameChange(sIdx, e.target.value)} 
-                                  required 
-                              />
-                              <button type="button" className="btn-small ghost" style={{color: 'red'}} onClick={() => handleRemoveSession(sIdx)}>
-                                  <FaTrash /> Remove Session
-                              </button>
-                          </div>
-
-                          <div style={{paddingLeft: 20, borderLeft: '2px solid var(--red)'}}>
-                              {session.questions.map((q, qIdx) => (
-                                  <div key={qIdx} style={{display:'flex', gap: 10, marginBottom: 10, alignItems: 'center'}}>
-                                      <input 
-                                          className="modern-input" style={{flex: 2}} 
-                                          placeholder="Question text..." 
-                                          value={q.text} 
-                                          onChange={e => handleQuestionChange(sIdx, qIdx, 'text', e.target.value)} 
-                                          required 
-                                      />
-                                      <select 
-                                          className="modern-input" style={{flex: 1}} 
-                                          value={q.type} 
-                                          onChange={e => handleQuestionChange(sIdx, qIdx, 'type', e.target.value)}
-                                      >
-                                          <option value="scale">Linear Scale (1-10)</option>
-                                          <option value="descriptive">Descriptive Answer</option>
-                                      </select>
-                                      <button type="button" className="btn-small ghost" style={{color: '#888'}} onClick={() => handleRemoveQuestion(sIdx, qIdx)}>
-                                          <FaTimes />
-                                      </button>
-                                  </div>
-                              ))}
-                              <button type="button" className="btn-small ghost" style={{marginTop: 5, color: '#10b981', fontWeight: 'bold'}} onClick={() => handleAddQuestion(sIdx)}>
-                                  <FaPlus style={{marginRight: 4}}/> Add Question
-                              </button>
-                          </div>
-                      </div>
-                  ))}
-
-                  {templateSessions.length === 0 && (
-                      <div style={{textAlign: 'center', padding: '30px', background: '#f8f9fa', border: '1px dashed #ccc', borderRadius: 8, color: '#888', marginBottom: 20}}>
-                          Click "Add New Session" below to start building the form.
-                      </div>
-                  )}
-
-                  <div style={{display:'flex', justifyContent: 'space-between', marginTop: 20}}>
-                      <button type="button" className="btn ghost" onClick={handleAddSession}><FaPlus style={{marginRight: 6}}/> Add New Session</button>
-                      <button type="submit" className="btn" style={{padding: '10px 20px', fontSize: '15px'}}>Assign & Save PMS Form</button>
-                  </div>
-              </form>
-          </div>
-      )}
-
-      {/* ============================================================================ */}
-      {/* 7. DEPARTMENT PERFORMANCE DASHBOARD */}
-      {/* ============================================================================ */}
-      {view === "dept-dashboard" && (
-          <div className="card">
-              <div style={{display:'flex', justifyContent: 'space-between', alignItems:'center', marginBottom: 20}}>
-                  <h3 style={{margin:0}}>Department Performance Dashboard</h3>
-                  <div style={{display:'flex', gap: 10}}>
-                      <input 
-                          type="month" 
-                          className="modern-input" 
-                          value={dashboardMonth} 
-                          onChange={(e) => setDashboardMonth(e.target.value)} 
-                      />
-                      <button className="btn" style={{background: '#10b981', display:'flex', alignItems:'center', gap:5}} onClick={downloadReport}>
-                          <FaDownload /> Export CSV
-                      </button>
-                  </div>
-              </div>
-
-              <div style={{overflowX:'auto'}}>
-                <table className="styled-table-global">
-                    <thead>
-                        <tr>
-                            <th>Department</th>
-                            <th style={{textAlign:'center'}}>Total Employees</th>
-                            <th style={{textAlign:'center'}}>Completed Reviews</th>
-                            <th style={{textAlign:'center'}}>Avg Department Score</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {deptDashboard.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:20}}>No data available for this month.</td></tr>}
-                        {deptDashboard.map((row, idx) => (
-                            <tr key={idx}>
-                                <td style={{fontWeight: 'bold'}}>{row.department}</td>
-                                <td style={{textAlign:'center'}}>{row.total_employees}</td>
-                                <td style={{textAlign:'center'}}>{row.completed_pms}</td>
-                                <td style={{textAlign:'center'}}>
-                                    <span style={{fontSize: 16, fontWeight: 'bold', color: row.average_score >= 7 ? 'green' : row.average_score >= 5 ? 'orange' : 'red'}}>
-                                        {row.average_score} / 10
-                                    </span>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-              </div>
-          </div>
-      )}
-
-      {/* ============================================================================ */}
-      {/* 8. PMS REVIEWS LIST */}
-      {/* ============================================================================ */}
-      {view === "pms-manager" && (
-          <div className="card">
-              <h3>Pending PMS Reviews</h3>
-              <div style={{overflowX:'auto', marginBottom:30}}>
-                <table className="styled-table-global">
-                    <thead><tr><th>Employee</th><th>Month</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody>
-                        {pendingPMS.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:20, color:'#999'}}>No pending reviews found.</td></tr>}
-                        {pendingPMS.filter(p => p.status === 'Pending Review').map(p => (
-                            <tr key={p._id}>
-                                <td>{p.employee_name}</td>
-                                <td>{p.month}</td>
-                                <td><span className="status-badge pending">{p.status}</span></td>
-                                <td>
-                                    <button className="btn-small" style={{background:'#6366f1', padding: '6px 12px'}} onClick={() => handleViewPMS(p)}>
-                                        <FaEye style={{marginRight: 4}}/> View & Grade
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-              </div>
-
-              <h4 style={{color:'#555', borderTop: '2px solid #eee', paddingTop: 20}}>Completed PMS History</h4>
-              <div style={{overflowX:'auto'}}>
-                <table className="styled-table-global">
-                    <thead><tr><th>Employee</th><th>Month</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody>
-                        {pendingPMS.filter(p => p.status === 'Manager Review Completed').map(p => (
-                            <tr key={p._id}>
-                                <td>{p.employee_name}</td>
-                                <td>{p.month}</td>
-                                <td><span className="status-badge approved">Completed</span></td>
-                                <td>
-                                    <button className="btn-small ghost" style={{border: '1px solid #888', color: '#555', padding: '6px 12px'}} onClick={() => handleViewPMS(p)}>
-                                        <FaEye style={{marginRight: 4}}/> View Details
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-              </div>
-          </div>
-      )}
-
-      {/* ============================================================================ */}
-      {/* 9. CORRECTIONS VIEW */}
-      {/* ============================================================================ */}
-      {view === "corrections" && (
-          <div className="card">
-              <h3>Pending Attendance Corrections</h3>
-              <div style={{overflowX:'auto'}}>
-                <table className="styled-table-global">
-                    <thead><tr><th>Employee</th><th>New Time</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody>
-                        {pendingCorrections.length === 0 && <tr><td colSpan="5" style={{textAlign:'center', padding:20, color:'#999'}}>No pending corrections found.</td></tr>}
-                        {pendingCorrections.map(c => (
-                            <tr key={c._id}>
-                                <td style={{fontWeight: 'bold'}}>{c.employee_name}</td>
-                                <td>{new Date(c.new_time).toLocaleString()}</td>
-                                <td>{c.reason}</td>
-                                <td><span className={`status-badge ${getStatusClass(c.status)}`}>{c.status}</span></td>
-                                <td>
-                                    {c.status === 'Pending' ? (
-                                      <div style={{display:'flex', gap:5}}>
-                                        <button className="btn-small" style={{background:'green'}} onClick={() => approveCorrection(c._id, 'Approved')}>
-                                          <FaCheckCircle /> Approve
-                                        </button>
-                                        <button className="btn-small" style={{background:'#b91c1c'}} onClick={() => approveCorrection(c._id, 'Rejected')}>
-                                          <FaTimesCircle /> Reject
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <span style={{color:'#888', fontStyle:'italic', fontSize:12}}>Processed</span>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-              </div>
-          </div>
-      )}
-
-      {/* ============================================================================ */}
-      {/* 10. TEAM LEAVES VIEW (GUARANTEED NO-SCROLL LAYOUT)                             */}
-      {/* ============================================================================ */}
-      {view === "team-leaves" && (
-          <div className="card" style={{marginTop: 16}}>
-              <h3>Team Leave Requests</h3>
-              <div style={{overflowX: 'auto'}}>
-                <table className="styled-table-global">
-                    <thead>
-                        <tr>
-                            <th>Employee</th>
-                            <th style={{minWidth: '95px'}}><FaClock style={{marginRight: 4, opacity: 0.7, marginBottom: -2}}/> Applied On</th>
-                            <th>Period</th>
-                            <th>Reason</th>
-                            <th style={{textAlign:'center'}}>Manager</th>
-                            <th style={{textAlign:'center'}}>HR</th>
-                            <th style={{textAlign:'center'}}>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {teamLeaves.length === 0 && <tr><td colSpan="8" style={{textAlign:'center', padding:20, color:'#999'}}>No leave requests found.</td></tr>}
-                        {teamLeaves.map(l => {
-                            const { date, time } = formatDateTime(l.applied_at || l.created_at);
-                            return (
-                            <tr key={l._id}>
-                                {/* Employee Name & Type */}
-                                <td>
-                                    <div style={{fontWeight:700, color: "#0f172a", fontSize: 13}}>{l.employee_name}</div>
-                                    <div style={{fontSize:10, color:'#64748b', marginTop: 4, textTransform: "uppercase", fontWeight: 600}}>
-                                      {l.type === 'half' ? `Half Day` : 'Full Day'}
-                                    </div>
-                                </td>
-
-                                {/* Applied Date & Time (Stacked safely) */}
-                                <td style={{ fontWeight: 500, color: '#334155' }}>
-                                    <div>{date}</div>
-                                    <div style={{ color: '#94a3b8', fontSize: 11, marginTop: 2 }}>{time}</div>
-                                </td>
-
-                                {/* Leave Target Date(s) */}
-                                <td style={{ fontWeight: 500, fontSize: 12 }}>
-                                    {l.from_date && l.to_date && l.from_date !== l.to_date 
-                                       ? (<>
-                                             <div>{new Date(l.from_date).toLocaleDateString('en-GB')}</div>
-                                             <div style={{color: '#94a3b8', fontSize: 10}}>to</div>
-                                             <div>{new Date(l.to_date).toLocaleDateString('en-GB')}</div>
-                                          </>)
-                                       : <div>{l.date ? new Date(l.date).toLocaleDateString('en-GB') : '-'}</div>
-                                    }
-                                </td>
-
-                                {/* Context (Reason and File) */}
-                                <td style={{maxWidth:'180px'}}>
-                                    <div style={{fontSize:11, color:'#475569', lineHeight:'1.4', marginBottom: l.attachment_url ? 6 : 0}}>
-                                      {l.reason || <span style={{fontStyle:'italic', color:'#cbd5e1'}}>No reason</span>}
-                                    </div>
-                                    {l.attachment_url && (
-                                      <div>
-                                        <a 
-                                          href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://gdmrconnect-backend-production.up.railway.app${l.attachment_url}`}
-                                          target="_blank" 
-                                          rel="noreferrer"
-                                          style={{ 
-                                              display: 'inline-flex', alignItems: 'center', gap: 4, color: "var(--red)", 
-                                              fontSize: "10px", textDecoration: "none", fontWeight: 600,
-                                              background: '#fef2f2', padding: '4px 6px', borderRadius: 4
-                                          }}
-                                        >
-                                          <FaFileDownload /> View
-                                        </a>
-                                      </div>
-                                    )}
-                                </td>
-
-                                {/* Statuses */}
-                                <td style={{textAlign:'center'}}>
-                                    <span className={`status-badge ${getStatusClass(l.manager_status || 'Pending')}`}>
-                                      {l.manager_status || 'Pending'}
-                                    </span>
-                                </td>
-                                <td style={{textAlign:'center'}}>
-                                    <span className={`status-badge ${getStatusClass(l.admin_status || 'Pending')}`}>
-                                      {l.admin_status || 'Pending'}
-                                    </span>
-                                </td>
-                                <td style={{textAlign:'center'}}>
-                                    <span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span>
-                                </td>
-
-                                {/* Action Buttons - Always Visible & Forced Stacked */}
-                                <td>
-                                    <div className="action-btn-group">
-                                        <button 
-                                            className="action-btn btn-approve" 
-                                            onClick={() => updateLeaveStatus(l._id, "Approved")}
-                                        >
-                                            <FaCheckCircle /> Approve
-                                        </button>
-                                        <button 
-                                            className="action-btn btn-reject" 
-                                            onClick={() => updateLeaveStatus(l._id, "Rejected")}
-                                        >
-                                            <FaTimesCircle /> Reject
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        )})}
-                    </tbody>
-                </table>
-              </div>
-          </div>
-      )}
-
-      {/* ============================================================================ */}
-      {/* 11. TEAM ASSETS VIEW (NEW FEATURE) */}
-      {/* ============================================================================ */}
-      {view === "team-assets" && (
-          <div className="card" style={{marginTop: 16}}>
-              <h3>Team Hardware & Asset Requests</h3>
-              <p className="small" style={{marginBottom: 20}}>Review and approve equipment requests from your department employees. Approved requests will be forwarded to Administration for final provisioning.</p>
-              
-              <div style={{overflowX: 'auto'}}>
-                <table className="styled-table-global">
-                    <thead>
-                        <tr>
-                            <th>Employee</th>
-                            <th>Requested Asset</th>
-                            <th>Justification / Reason</th>
-                            <th style={{textAlign:'center'}}>Manager Status</th>
-                            <th style={{textAlign:'center'}}>Admin Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {teamAssets.length === 0 ? (
-                            <tr><td colSpan="6" style={{textAlign:'center', padding:40, color:'#999'}}>No pending asset requests from your team.</td></tr>
-                        ) : (
-                            teamAssets.map(asset => (
-                            <tr key={asset._id}>
-                                <td>
-                                    <div style={{fontWeight:700, color: "#0f172a", fontSize: 13}}>{asset.employee_name}</div>
-                                    <div style={{fontSize:10, color:'#64748b', marginTop: 4}}>{new Date(asset.created_at).toLocaleDateString('en-GB')}</div>
-                                </td>
-                                <td style={{ fontWeight: 600, color: '#334155' }}>
-                                    {asset.asset_name}
-                                </td>
-                                <td style={{maxWidth:'250px'}}>
-                                    <div style={{fontSize:12, color:'#475569', lineHeight:'1.4'}}>
-                                      {asset.reason}
-                                    </div>
-                                </td>
-                                <td style={{textAlign:'center'}}>
-                                    <span className={`status-badge ${getStatusClass(asset.manager_status || 'Pending')}`}>
-                                      {asset.manager_status || 'Pending'}
-                                    </span>
-                                </td>
-                                <td style={{textAlign:'center'}}>
-                                    <span className={`status-badge ${getStatusClass(asset.admin_status || 'Pending')}`}>
-                                      {asset.admin_status || 'Pending'}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div className="action-btn-group">
-                                        <button 
-                                            className="action-btn btn-approve" 
-                                            onClick={async () => {
-                                                try {
-                                                    const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-                                                    await fetch(`${baseUrl}/api/manager/assets/${asset._id}`, {
-                                                        method: 'PUT',
-                                                        headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-                                                        body: JSON.stringify({ manager_status: 'Approved' })
-                                                    });
-                                                    await load(true);
-                                                    alert('Asset Request Approved');
-                                                } catch(e) { alert(e.message); }
-                                            }}
-                                        >
-                                            <FaCheckCircle /> Approve
-                                        </button>
-                                        <button 
-                                            className="action-btn btn-reject" 
-                                            onClick={async () => {
-                                                try {
-                                                    const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-                                                    await fetch(`${baseUrl}/api/manager/assets/${asset._id}`, {
-                                                        method: 'PUT',
-                                                        headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-                                                        body: JSON.stringify({ manager_status: 'Rejected' })
-                                                    });
-                                                    await load(true);
-                                                    alert('Asset Request Rejected');
-                                                } catch(e) { alert(e.message); }
-                                            }}
-                                        >
-                                            <FaTimesCircle /> Reject
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        )))}
-                    </tbody>
-                </table>
-              </div>
-          </div>
-      )}
-
-      {/* ============================================================================ */}
-      {/* 12. TEAM DIRECTORY */}
-      {/* ============================================================================ */}
-      {view === "team-members" && <TeamMembersList />}
-      
-      {/* ============================================================================ */}
-      {/* 13. APPLY LEAVE MODULE */}
-      {/* ============================================================================ */}
-      {view === "apply-leave" && (
-        <div className="card">
-          <form onSubmit={applyLeave}>
-             <h3 style={{marginTop:0}}>Apply for Leave</h3>
-             <div style={{display:'flex', gap:20, marginBottom:15}}>
-                <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
-                    <input type="radio" name="duration" checked={leaveDuration === 'single'} onChange={() => setLeaveDuration('single')} />
-                    <FaCalendarAlt style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Single Day</span>
-                </label>
-                <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
-                    <input type="radio" name="duration" checked={leaveDuration === 'multiple'} onChange={() => setLeaveDuration('multiple')} />
-                    <FaCalendarAlt style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Multiple Days</span>
-                </label>
-            </div>
-            <div className="form-row">
-              <div style={{flex:1}}>
-                <label className="modern-label">{leaveDuration === 'single' ? 'Date' : 'Start Date'}</label>
-                <input className="modern-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
-              </div>
-              {leaveDuration === 'multiple' && (
-                  <div style={{flex:1}}>
-                    <label className="modern-label">End Date</label>
-                    <input className="modern-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
-                  </div>
-              )}
-              {leaveDuration === 'single' && (
-                  <div style={{flex:1}}>
-                    <label className="modern-label">Leave Type</label>
-                    <select className="modern-input" value={type} onChange={(e) => setType(e.target.value)}>
-                      <option value="full">Full Day</option>
-                      <option value="half">Half Day</option>
-                    </select>
-                  </div>
-              )}
-              {type === 'half' && leaveDuration === 'single' && (
-                  <div style={{flex:1, marginLeft:10}}>
-                    <label className="modern-label">Period</label>
-                    <select className="modern-input" value={period} onChange={(e) => setPeriod(e.target.value)}>
-                      <option value="First Half">First Half</option>
-                      <option value="Second Half">Second Half</option>
-                    </select>
-                  </div>
-              )}
-            </div>
-            <div style={{marginTop: 15}}>
-              <label className="modern-label">Reason for Leave</label>
-              <textarea className="modern-input" style={{minHeight: "100px", resize: "vertical"}} value={reason} onChange={handleReasonChange} required placeholder="Reason (Max 30 words)..." />
-              <div className="small" style={{textAlign:'right', marginTop:4, color: getWordCount() === MAX_WORDS ? 'red' : '#777'}}>{getWordCount()}/{MAX_WORDS} words</div>
-            </div>
-            <div style={{marginTop: 15}}>
-              <label className="modern-label">Attachment (Optional)</label>
-              <label className="file-upload-label">
-                <FaCloudUploadAlt size={24} />
-                <span>{file ? file.name : "Click to upload a document (Max 5MB)"}</span>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} style={{display: "none"}} />
-              </label>
-            </div>
-            <div style={{ marginTop: 25, display:'flex', justifyContent:'flex-end' }}>
-              <button className="btn" type="submit" style={{padding: "10px 24px"}}>Submit Request</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* ============================================================================ */}
-      {/* 14. MY LEAVES HISTORY */}
-      {/* ============================================================================ */}
-      {view === "my-leaves" && (
-        <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
-              <h3 style={{margin:0, color:'var(--red)'}}>My Leaves</h3>
-              <button className="btn" style={{background:'#f59e0b', fontSize:'13px'}} onClick={() => setView("correction")}>
-                  <FaEdit style={{marginRight:5}}/> Request Correction
-              </button>
-          </div>
-          <div style={{overflowX: 'auto'}}>
-            <table className="styled-table">
-              <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Attachment</th></tr></thead>
-              <tbody>
-                {myLeaves.length === 0 ? (
-                  <tr><td colSpan="4" style={{textAlign:"center", padding:20, color:"#999"}}>No leaves found.</td></tr>
-                ) : (
-                  myLeaves.map((l) => (
-                    <tr key={l._id}>
-                      <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
-                      <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
-                      <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
-                      <td>{l.attachment_url ? <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://gdmrconnect-backend-production.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================================ */}
-      {/* 15. MY ATTENDANCE LOG */}
-      {/* ============================================================================ */}
-      {view === "attendance-log" && (
-        <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
-                <h3 style={{margin:0, color:'var(--red)'}}>My Attendance Log</h3>
-            </div>
-            <div style={{overflowX: 'auto'}}>
-                <table className="styled-table-global">
-                  <thead><tr><th>Type</th><th>Date / Time</th><th>Photo</th></tr></thead>
-                  <tbody>
-                    {attendance.length === 0 ? (
-                      <tr><td colSpan="3" style={{textAlign:'center', padding:20}}>No attendance records.</td></tr>
-                    ) : (
-                      attendance.map((a) => (
-                        <tr key={a._id}>
-                          <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
-                          <td>{new Date(a.time).toLocaleString()}</td>
-                          <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://gdmrconnect-backend-production.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-            </div>
-        </div>
-      )}
-
-      {/* ============================================================================ */}
-      {/* 16. HOLIDAYS & UTILITY MODALS */}
-      {/* ============================================================================ */}
-      {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
-
-      {leaveModalOpen && (
-        <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()}>
-            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15}}>
-              <h3 style={{ margin: 0, color: 'var(--red)' }}>{modalTitle}</h3>
-              <button className="btn ghost" onClick={() => setLeaveModalOpen(false)}><FaTimes /></button>
-            </div>
-            <div style={{overflowY:'auto', flex:1}}>
-               {modalList.map((l) => (
-                  <div key={l._id} style={{padding:12, borderBottom:'1px solid #f9f9f9'}}>
-                    <div style={{fontWeight:600}}>{l.date || l.from_date}</div>
-                    <div style={{fontSize:13, color:'#666'}}>"{l.reason || "No reason"}"</div>
-                    <span className={`status-badge ${getStatusClass(l.status)}`} style={{marginTop:5}}>{l.status || 'Pending'}</span>
-                  </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- PMS DETAILS MODAL --- */}
-      {viewPMSModalOpen && selectedPMS && (
-        <div className="modal-overlay" style={{zIndex: 4000}} onClick={() => setViewPMSModalOpen(false)}>
-          <div className="modal-card large" onClick={e => e.stopPropagation()} style={{ padding: '25px' }}>
+            # Using projection to avoid pulling the heavy password hash into memory unnecessarily 
+            # for every single authenticated request across the app.
+            current_user = users_col.find_one(
+                {"_id": ObjectId(user_id)},
+                {"password": 0} 
+            )
             
-            {/* Sticky Header */}
-            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15, borderBottom:'2px solid #fee2e2', paddingBottom:15}}>
-              <div>
-                  <h3 style={{ margin: 0, color: 'var(--red)', fontSize: '22px' }}>PMS Review Submissions</h3>
-                  <span className="small" style={{color: '#666'}}>Reviewing responses for <strong>{selectedPMS.employee_name}</strong> ({selectedPMS.month})</span>
-              </div>
-              <button className="btn ghost" style={{background: '#f1f5f9', borderRadius: '50%', padding: '10px'}} onClick={() => setViewPMSModalOpen(false)}>
-                  <FaTimes size={16} color="#333" />
-              </button>
-            </div>
-
-            {/* Scrollable Content Area */}
-            <div style={{ overflowY: 'auto', paddingRight: '15px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+            if not current_user:
+                return jsonify({"message": "Invalid token. User not found in database."}), 401
                 
-                <div style={{background:'#f8f9fa', padding:15, borderRadius:8, marginBottom:25, display:'flex', gap: 20, border: '1px solid #e2e8f0'}}>
-                    <div style={{flex: 1}}><span style={{color: '#64748b', fontSize: 12, display: 'block'}}>Employee Name</span> <strong style={{fontSize: 15}}>{selectedPMS.employee_name}</strong></div>
-                    <div style={{flex: 1}}><span style={{color: '#64748b', fontSize: 12, display: 'block'}}>Evaluation Month</span> <strong style={{fontSize: 15}}>{selectedPMS.month}</strong></div>
-                    <div style={{flex: 1}}>
-                        <span style={{color: '#64748b', fontSize: 12, display: 'block', marginBottom: 4}}>Current Status</span> 
-                        <span className={`status-badge ${selectedPMS.status === 'Manager Review Completed' ? 'approved' : 'pending'}`}>{selectedPMS.status}</span>
-                    </div>
-                </div>
-                
-                <h4 style={{marginBottom:15, color:'#333', background: '#fff', position: 'sticky', top: 0, zIndex: 10, paddingBottom: 10, borderBottom: '1px solid #eee'}}>
-                    Submitted Responses ({selectedPMS.responses?.length || 0} Total)
-                </h4>
-                
-                {(!selectedPMS.responses || selectedPMS.responses.length === 0) ? (
-                    <p style={{fontStyle:'italic', color:'#999', textAlign: 'center', padding: 40}}>No responses found in this submission.</p>
-                ) : (
-                    // Dynamically mapping the responses Grouped by Session Name
-                    Object.entries(getGroupedResponses()).map(([sessionName, responsesInSession], sessionIndex) => (
-                        <div key={sessionIndex} style={{marginBottom: '30px'}}>
-                            
-                            {/* SESSION HEADER */}
-                            <h5 style={{ color: 'var(--red)', borderBottom: '2px solid #fecaca', paddingBottom: '8px', marginBottom: '15px', fontSize: '16px', textTransform: 'uppercase' }}>
-                                Session: {sessionName}
-                            </h5>
-
-                            {responsesInSession.map((resp, idx) => {
-                                const existingMgrScore = selectedPMS.manager_scores?.find(m => m.question === resp.question);
-                                const isPending = selectedPMS.status === 'Pending Review';
-
-                                return (
-                                <div key={idx} className="qa-box" style={{marginBottom: 20, background: '#fff', padding: '20px', borderRadius: 8, borderLeft: '4px solid var(--red)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'}}>
-                                    <div style={{fontWeight:600, marginBottom:12, color:'#1e293b', fontSize: '15px'}}>
-                                        Q: {resp.question}
-                                    </div>
-                                    
-                                    {resp.self_score && (
-                                        <div style={{marginBottom: 15}}>
-                                            <div style={{display: 'flex', gap: 30, marginBottom: 10, alignItems: 'center'}}>
-                                                <div style={{background: '#f1f5f9', padding: '8px 16px', borderRadius: '6px'}}>
-                                                    <span style={{fontSize: 12, color: '#64748b', display: 'block'}}>Self Score</span> 
-                                                    <strong style={{fontSize: 18, color: '#0f172a'}}>{resp.self_score}</strong><span style={{fontSize: 14, color: '#94a3b8'}}>/10</span>
-                                                </div>
-                                                
-                                                {!isPending && existingMgrScore && (
-                                                    <div style={{background: '#fef2f2', padding: '8px 16px', borderRadius: '6px'}}>
-                                                        <span style={{fontSize: 12, color: '#dc2626', display: 'block'}}>Manager Score</span> 
-                                                        <strong style={{fontSize: 18, color: '#b91c1c'}}>{existingMgrScore.score}</strong><span style={{fontSize: 14, color: '#f87171'}}>/10</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            
-                                            {isPending && (
-                                                <div style={{marginTop: 15, background: '#f8fafc', padding: 15, border: '1px solid #cbd5e1', borderRadius: 6}}>
-                                                    <label className="modern-label" style={{fontSize: 13, color: '#0f172a'}}>Assign Manager Score (1-10)</label>
-                                                    <input 
-                                                        type="number" min="1" max="10" className="modern-input" required
-                                                        style={{ maxWidth: '150px' }}
-                                                        value={managerScores[resp.question] || ""}
-                                                        onChange={(e) => setManagerScores({...managerScores, [resp.question]: e.target.value})}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {resp.descriptive_answer && (
-                                        <div style={{marginBottom: 15}}>
-                                            <div style={{fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 'bold'}}>Employee Answer:</div>
-                                            <div style={{background: '#f8fafc', padding: 15, borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 14, color: '#334155', whiteSpace: 'pre-wrap'}}>
-                                                {resp.descriptive_answer}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {resp.remarks && (
-                                        <div style={{fontSize: 13, color: '#475569', marginTop: 10, background: '#f1f5f9', padding: '8px 12px', borderRadius: '4px', borderLeft: '3px solid #94a3b8'}}>
-                                            <strong>Employee Remarks:</strong> {resp.remarks}
-                                        </div>
-                                    )}
-                                </div>
-                            )})}
-                        </div>
-                    ))
-                )}
-                
-                {/* MANAGER FINAL FEEDBACK & SUBMIT */}
-                {selectedPMS.status === 'Pending Review' && (
-                    <div style={{marginTop:30, borderTop:'2px solid #eee', paddingTop:25, paddingBottom: 20}}>
-                        <h4 style={{marginBottom:15, color: '#0f172a'}}>Manager Final Evaluation & Summary</h4>
-                        <label className="modern-label">Overall Remarks & Feedback</label>
-                        <textarea 
-                            className="modern-input" 
-                            style={{minHeight: 120, resize: 'vertical'}}
-                            placeholder="Provide constructive feedback and summarize the evaluation..."
-                            value={managerFeedback}
-                            onChange={e => setManagerFeedback(e.target.value)}
-                        />
-                        <button 
-                            className="btn" 
-                            style={{marginTop:20, width:'100%', fontSize:'16px', padding: '15px'}} 
-                            onClick={() => finalizePMS(selectedPMS._id)}
-                        >
-                            Submit Scores & Finalize Review
-                        </button>
-                    </div>
-                )}
-                
-                {selectedPMS.status === 'Manager Review Completed' && selectedPMS.manager_feedback && (
-                    <div style={{marginTop:20, padding:20, background:'#fef2f2', borderRadius:8, border: '1px solid #fecaca'}}>
-                        <h4 style={{margin: '0 0 10px 0', color:'var(--red)'}}>Your Final Official Remarks:</h4>
-                        <p style={{margin: 0, fontSize: 14, color: '#450a0a', whiteSpace: 'pre-wrap'}}>{selectedPMS.manager_feedback}</p>
-                    </div>
-                )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================================ */}
-      {/* 17. CAMERA MODAL FOR CHECK-IN / CHECK-OUT */}
-      {/* ============================================================================ */}
-      {cameraOpen && (
-        <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
-          <div className="camera-box" style={{position: 'relative', background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>
+            request.user = current_user
+        except jwt.ExpiredSignatureError:
+            return jsonify({"message": "Session expired. Please log in again."}), 401
+        except Exception as e:
+            return jsonify({"message": "Token is invalid!", "error": str(e)}), 401
             
-            <button 
-                className="btn ghost" 
-                style={{ position: 'absolute', top: 10, right: 10, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 
-                onClick={closeCamera}
-            >
-                <FaTimes />
-            </button>
+        return f(*args, **kwargs)
+    return decorated
 
-            {submittingPhoto ? (
-                <div style={{ padding: "40px 20px" }}>
-                    <p style={{ marginTop: 15, fontWeight:500, color:'#555', fontSize: '18px' }}>Submitting attendance...</p>
-                    <p style={{ fontSize:14, color:'#888' }}>Please wait...</p>
-                </div>
-            ) : (
-                <>
-                    <h4 style={{marginBottom: 10, color: '#333'}}>{actionType === 'checkin' ? 'Check In' : 'Check Out'}</h4>
-                    <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: "8px", background:'#000', display: previewImage ? 'none' : 'block' }}></video>
-                    {previewImage && <img src={previewImage} style={{ width: "100%", borderRadius: "8px", display: 'block' }} alt="Preview" />}
-                    <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
-                    <div style={{ marginTop: 15, display:'flex', justifyContent:'center', gap: 10 }}>
-                        {!previewImage ? (
-                            <>
-                                <button className="btn" onClick={capturePhoto}>Capture</button>
-                                <button className="btn ghost" onClick={closeCamera}>Cancel</button>
-                            </>
-                        ) : (
-                            <>
-                                <button className="btn" onClick={() => submitAttendance(previewImage)}>Submit</button>
-                                <button className="btn ghost" onClick={() => setPreviewImage(null)}>Retake</button>
-                            </>
-                        )}
-                    </div>
-                </>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+
+# =============================================================================
+# 8. ACCOUNT MANAGEMENT & LOGIN ROUTES
+# =============================================================================
+
+@app.route("/api/login", methods=["POST"])
+def login():
+    """
+    Authenticates a user against the database and returns a short-lived JWT token.
+    Provides basic user payload so the frontend knows how to route the dashboard.
+    """
+    data = request.json
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not password:
+        return jsonify({"message": "Email and password are required."}), 400
+
+    user = users_col.find_one({"email": email})
+    
+    if not user or not bcrypt.check_password_hash(user["password"], password):
+        return jsonify({"message": "Invalid credentials. Please check your email and password."}), 401
+
+    # Generate Token valid for 4 hours
+    token = jwt.encode({
+        "user_id": str(user["_id"]),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=4)
+    }, app.config['SECRET_KEY'], algorithm="HS256")
+
+    return jsonify({
+        "token": token,
+        "role": user.get("role", "employee"),
+        "password_changed": user.get("password_changed", False), 
+        "user": {
+            "name": user.get("name"),
+            "email": user.get("email"),
+            "department": user.get("department", "")
+        }
+    }), 200
+
+
+@app.route("/api/my/set-password", methods=["POST"])
+@token_required
+def set_own_password():
+    """
+    Allows an authenticated user to update their password. 
+    Enforces strong password rules and validates current password.
+    """
+    data = request.json
+    old_password = data.get("oldPassword")
+    new_password = data.get("password")
+    
+    if not old_password:
+        return jsonify({"message": "Current password is required."}), 400
+        
+    # We must explicitly fetch the password hash here since the token_required 
+    # middleware strips it out for performance reasons.
+    full_user = users_col.find_one({"_id": request.user["_id"]})
+    
+    if not bcrypt.check_password_hash(full_user["password"], old_password):
+        return jsonify({"message": "Incorrect current password. Please try again."}), 400
+    
+    if not new_password or not is_strong_password(new_password):
+        return jsonify({"message": "Password must be at least 8 characters and contain 1 uppercase, 1 lowercase, 1 number, and 1 special character."}), 400
+        
+    hashed = bcrypt.generate_password_hash(new_password).decode("utf-8")
+    
+    users_col.update_one(
+        {"_id": request.user["_id"]}, 
+        {"$set": {
+            "password": hashed, 
+            "password_changed": True
+        }}
+    )
+    
+    return jsonify({"message": "Password updated successfully!"}), 200
+
+
+@app.route("/api/forgot-password", methods=["POST"])
+def forgot_password():
+    """
+    Generates a temporary secure password and emails it to the user.
+    Flags the user account to require a password change on next login.
+    """
+    data = request.json
+    email = data.get("email")
+
+    user = users_col.find_one({"email": email})
+    if not user:
+        # Standard security practice: Don't reveal if email exists or not to prevent user enumeration
+        return jsonify({"message": "If this email exists, a password reset has been sent."}), 200
+
+    temp_password = generate_random_password()
+    hashed = bcrypt.generate_password_hash(temp_password).decode("utf-8")
+    
+    # Flag the user to force them to change it on next login
+    users_col.update_one(
+        {"_id": user["_id"]}, 
+        {"$set": {
+            "password": hashed, 
+            "password_changed": False
+        }}
+    )
+
+    subject = "GDMR Connect - Password Reset Request"
+    body = (
+        f"Hello {user['name']},\n\n"
+        "We received a request to reset your password.\n"
+        f"Your new temporary password is: {temp_password}\n\n"
+        "Please login and change your password immediately to secure your account."
+    )
+
+    try:
+        threading.Thread(target=send_email, args=(email, subject, body), daemon=True).start()
+    except Exception as e:
+        print(f"Failed to start email thread: {e}")
+
+    return jsonify({"message": "Password reset email processed."}), 200
+
+
+# =============================================================================
+# 9. USER REGISTRATION ROUTES (ADMIN ONLY)
+# =============================================================================
+
+@app.route("/api/register-admin", methods=["POST"])
+def register_admin():
+    """ Initial system setup route to create the master administrator. """
+    data = request.json
+    email = data.get("email")
+    name = data.get("name", "Admin")
+    password = data.get("password", "admin123")
+
+    if users_col.find_one({"email": email}):
+        return jsonify({"message": "Admin with this email already exists"}), 400
+
+    hashed = bcrypt.generate_password_hash(password).decode("utf-8")
+    user_doc = {
+        "name": name,
+        "email": email,
+        "password": hashed,
+        "password_changed": True, 
+        "role": "admin",
+        "department": "Administration",
+        "position": "System Admin",
+        "late_checkin_count_monthly": 0,
+        "last_late_checkin_month": None,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    res = users_col.insert_one(user_doc)
+    return jsonify({
+        "message": "Master Admin created successfully", 
+        "id": str(res.inserted_id)
+    }), 201
+
+
+@app.route("/api/register-manager", methods=["POST"])
+@token_required
+def register_manager():
+    """ Registers a new manager profile. Requires Admin privileges. """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized access. Admins only."}), 403
+
+    data = request.get_json()
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+    department = data.get("department", "Management") 
+
+    if not name or not email or not password or not department:
+        return jsonify({"message": "Name, Email, Password, and Department are required"}), 400
+
+    if users_col.find_one({"email": email}):
+        return jsonify({"message": "Email already registered in the system."}), 400
+
+    hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
+
+    new_user = {
+        "name": name,
+        "email": email,
+        "password": hashed_pw,
+        "password_changed": False, 
+        "role": "manager",
+        "department": department,
+        "position": "Manager",
+        "created_at": datetime.now(timezone.utc),
+        "late_checkin_count_monthly": 0, 
+        "last_late_checkin_month": None,
+    }
+
+    users_col.insert_one(new_user)
+    return jsonify({"message": "Manager created successfully!"}), 201
+
+
+@app.route("/api/admin/employees", methods=["POST"])
+@token_required
+def add_employee():
+    """ Registers a new employee profile. Requires Admin privileges. """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized access. Admins only."}), 403
+
+    data = request.json
+    name = data.get("name")
+    email = data.get("email")
+    department = data.get("department", "")
+    position = data.get("position", "")
+    manager_id = data.get("manager_id") 
+
+    if users_col.find_one({"email": email}):
+        return jsonify({"message": "User with this email already exists"}), 400
+
+    # Auto-generate a secure temporary password
+    password = generate_random_password()
+    hashed = bcrypt.generate_password_hash(password).decode("utf-8")
+
+    user_doc = {
+        "name": name,
+        "email": email,
+        "password": hashed,
+        "password_changed": False, 
+        "role": "employee",
+        "department": department,
+        "position": position,
+        "created_at": datetime.now(timezone.utc),
+        "manager_id": manager_id,
+        "late_checkin_count_monthly": 0, 
+        "last_late_checkin_month": None,
+    }
+
+    res = users_col.insert_one(user_doc)
+
+    # Email the credentials to the new employee automatically
+    subject = "Welcome to GDMR Connect: Your New Account Credentials"
+    body = (
+        f"Dear {name},\n\n"
+        "Your new employee account for the GDMR Connect Attendance App has been successfully created.\n\n"
+        "Please use the following credentials to log in:\n"
+        f"Username (Email): {email}\n"
+        f"Temporary Password: {password}\n\n"
+        "We recommend logging in as soon as possible and updating your password to a strong format.\n\n"
+        "Thank you,\n"
+        "The GDMR Connect Team"
+    )
+
+    try:
+        threading.Thread(target=send_email, args=(email, subject, body), daemon=True).start()
+    except Exception as e:
+        print("Failed to dispatch welcome email:", e)
+
+    return jsonify({"message": "Employee created successfully", "id": str(res.inserted_id)}), 201
+
+
+# =============================================================================
+# 10. EMPLOYEE & MANAGER DIRECTORIES (OPTIMIZED LIST QUERIES)
+# =============================================================================
+
+@app.route("/api/admin/employees", methods=["GET"])
+@token_required
+def list_employees():
+    """
+    Returns a list of all employees and managers.
+    Accessible by Admins or users with active delegated admin access.
+    OPTIMIZATION: Uses projection {"password": 0} to heavily reduce data payload size.
+    """
+    role = request.user.get("role")
+    has_delegated = access_grants_col.find_one({"employee_id": str(request.user["_id"]), "is_active": True})
+    
+    if role != "admin" and not has_delegated:
+        return jsonify({"message": "Unauthorized access."}), 403
+
+    # Map manager IDs to their names for easy reference on the frontend list
+    # Use projection to keep memory usage low
+    managers = {}
+    manager_cursor = users_col.find({"role": "manager"}, {"name": 1})
+    for m in manager_cursor:
+        managers[str(m["_id"])] = m["name"]
+
+    rows = []
+    
+    # Query Projection: Only ask the database for what we actually need
+    # This prevents the DB from serializing massive password strings over the wire.
+    employee_cursor = users_col.find(
+        {"role": {"$in": ["employee", "manager"]}},
+        {"password": 0} 
+    ).sort("name", ASCENDING)
+    
+    for u in employee_cursor:
+        u["_id"] = str(u["_id"])
+        
+        # Attach the manager name if one exists
+        manager_id = u.get("manager_id")
+        u["manager_name"] = managers.get(manager_id) if manager_id else None
+
+        rows.append(u)
+
+    return jsonify(rows), 200
+
+
+@app.route("/api/admin/managers", methods=["GET"])
+@token_required
+def list_managers():
+    """ 
+    Fetches a list of all registered managers in the system.
+    OPTIMIZATION: DB Projection strips out password data immediately.
+    """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized"}), 403
+
+    managers = []
+    manager_cursor = users_col.find(
+        {"role": "manager"}, 
+        {"password": 0}
+    ).sort("name", ASCENDING)
+    
+    for m in manager_cursor:
+        m["_id"] = str(m["_id"])
+        managers.append(m)
+
+    return jsonify(managers), 200
+
+
+@app.route("/api/manager/my-employees", methods=["GET"])
+@token_required
+def manager_my_employees():
+    """ 
+    Returns a list of employees specific to a Manager's assigned department. 
+    OPTIMIZATION: DB Projection strips out password data immediately.
+    """
+    if request.user.get("role") != "manager":
+        return jsonify({"message": "Unauthorized"}), 403
+
+    rows = []
+    
+    # Securely bound the query to the manager's department
+    dept_query = {
+        "department": request.user.get("department"), 
+        "role": "employee"
+    }
+    
+    employee_cursor = users_col.find(
+        dept_query, 
+        {"password": 0}
+    ).sort("name", ASCENDING)
+    
+    for u in employee_cursor:
+        u["_id"] = str(u["_id"])
+        rows.append(u)
+
+    return jsonify(rows), 200
+
+
+# =============================================================================
+# 11. USER UPDATES, PROMOTIONS & DELETIONS
+# =============================================================================
+
+@app.route("/api/admin/employees/<emp_id>", methods=["PUT"])
+@token_required
+def edit_employee(emp_id):
+    """ Modifies an existing employee record. """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized"}), 403
+
+    data = request.json
+    update = {}
+
+    for k in ["name", "department", "position", "email", "manager_id"]:
+        if k in data:
+            update[k] = data[k]
+    
+    if "manager_id" in data and not data["manager_id"]:
+         update["manager_id"] = None
+         
+    if update:
+        users_col.update_one({"_id": ObjectId(emp_id)}, {"$set": update})
+    
+    return jsonify({"message": "Employee profile updated successfully."}), 200
+
+
+@app.route("/api/admin/employees/<emp_id>/promote", methods=["PUT"])
+@token_required
+def promote_to_manager(emp_id):
+    """ 
+    Promotes an employee to a manager role and automatically assigns them 
+    as the manager for all other employees in their respective department.
+    """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized. Only admins can promote employees."}), 403
+
+    emp = users_col.find_one({"_id": ObjectId(emp_id)})
+    if not emp:
+        return jsonify({"message": "Employee not found."}), 404
+        
+    if emp.get("role") == "manager":
+        return jsonify({"message": "User is already a manager."}), 400
+
+    dept = emp.get("department")
+    
+    # 1. Upgrade the user's role to 'manager'
+    users_col.update_one(
+        {"_id": ObjectId(emp_id)},
+        {"$set": {"role": "manager", "position": "Manager", "manager_id": None}}
+    )
+    
+    # 2. Re-assign all employees in the same department to this new manager
+    if dept:
+        users_col.update_many(
+            {"department": dept, "role": "employee"},
+            {"$set": {"manager_id": str(emp_id)}}
+        )
+
+    return jsonify({"message": f"Successfully promoted {emp.get('name')} to Manager of the {dept} department."}), 200
+
+
+@app.route("/api/admin/managers/<man_id>", methods=["PUT"])
+@token_required
+def edit_manager(man_id):
+    """ Modifies an existing manager record. """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized"}), 403
+
+    data = request.json
+    update = {}
+    for k in ["name", "department", "email"]:
+        if k in data:
+            update[k] = data[k]
+
+    if update:
+        users_col.update_one({"_id": ObjectId(man_id)}, {"$set": update})
+
+    return jsonify({"message": "Manager profile updated successfully."}), 200
+
+
+@app.route("/api/admin/employees/<emp_id>", methods=["DELETE"])
+@token_required
+def delete_employee(emp_id):
+    """ Hard deletes an employee and wipes all associated tracking data. """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized"}), 403
+
+    # Clean up user and all associated records to prevent orphaned documents
+    users_col.delete_one({"_id": ObjectId(emp_id)})
+    attendance_col.delete_many({"user_id": emp_id})
+    leaves_col.delete_many({"user_id": emp_id})
+    pms_reviews_col.delete_many({"user_id": emp_id})
+
+    return jsonify({"message": "Employee completely removed from system."}), 200
+
+
+@app.route("/api/admin/managers/<man_id>", methods=["DELETE"])
+@token_required
+def delete_manager(man_id):
+    """ Deletes a manager and unassigns them from their subordinates. """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized"}), 403
+
+    users_col.delete_one({"_id": ObjectId(man_id)})
+    
+    # Unassign this manager from their subordinates to prevent database referential integrity errors
+    users_col.update_many(
+        {"manager_id": man_id}, 
+        {"$set": {"manager_id": None}}
+    )
+    
+    return jsonify({"message": "Manager removed. Subordinates must be reassigned."}), 200
+
+
+# =============================================================================
+# 12. DELEGATED ADMIN ACCESS (GRANT SYSTEM)
+# =============================================================================
+
+@app.route("/api/admin/grant-access", methods=["POST"])
+@token_required
+def grant_access():
+    """ 
+    Allows an Admin to grant temporary admin capabilities to a standard employee.
+    Used for vacation coverages or temporary assignments.
+    """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized"}), 403
+    
+    data = request.json
+    emp_id = data.get("employeeId")
+    access_level = data.get("accessLevel", "view_only")
+    scope = data.get("scope", "today")
+    custom_date = data.get("customDate", "")
+    expiry = data.get("expiry", "end_of_day")
+    custom_expiry_time = data.get("customExpiryTime", "")
+
+    if not emp_id:
+        return jsonify({"message": "Employee ID is required"}), 400
+
+    emp = users_col.find_one({"_id": ObjectId(emp_id)})
+    if not emp or emp.get("role") == "admin":
+        return jsonify({"message": "Invalid employee or employee is already an admin."}), 400
+
+    grant_record = {
+        "employee_id": emp_id,
+        "access_level": access_level,
+        "scope": scope,
+        "custom_date": custom_date,
+        "expiry": expiry,
+        "custom_expiry_time": custom_expiry_time,
+        "granted_by": str(request.user["_id"]),
+        "granted_at": datetime.now(timezone.utc),
+        "is_active": True
+    }
+
+    res = access_grants_col.insert_one(grant_record)
+    return jsonify({
+        "message": "Temporary access granted successfully", 
+        "id": str(res.inserted_id)
+    }), 201
+
+
+@app.route("/api/admin/active-grants", methods=["GET"])
+@token_required
+def get_active_grants():
+    """ Returns a list of all currently active delegated access grants. """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized"}), 403
+    
+    grants = []
+    
+    cursor = access_grants_col.find({"is_active": True}).sort("granted_at", DESCENDING)
+    for g in cursor:
+        g["_id"] = str(g["_id"])
+        emp = users_col.find_one({"_id": ObjectId(g["employee_id"])}, {"name": 1})
+        g["employee_name"] = emp["name"] if emp else "Unknown Employee"
+        grants.append(g)
+        
+    return jsonify(grants), 200
+
+
+@app.route("/api/admin/revoke-access/<grant_id>", methods=["DELETE"])
+@token_required
+def revoke_access(grant_id):
+    """ Manually revokes an active delegated access grant immediately. """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized"}), 403
+    
+    result = access_grants_col.update_one(
+        {"_id": ObjectId(grant_id)}, 
+        {"$set": {"is_active": False}}
+    )
+    
+    if result.modified_count > 0:
+        return jsonify({"message": "Access revoked successfully"}), 200
+    else:
+        return jsonify({"message": "Access grant not found or already inactive."}), 404
+
+
+@app.route("/api/my/delegated-access", methods=["GET"])
+@token_required
+def my_delegated_access():
+    """ 
+    Frontend utility to check if the currently logged-in user has active special permissions. 
+    It evaluates the time restrictions live and deactivates them if expired.
+    """
+    uid = str(request.user["_id"])
+    now = datetime.now(IST)
+    active_grants = []
+    
+    grants = access_grants_col.find({"employee_id": uid, "is_active": True})
+
+    for g in grants:
+        expired = False
+        
+        # Check standard End of Day expiration
+        if g.get("expiry") == "end_of_day":
+            granted_at_ist = utc_to_ist(g["granted_at"])
+            if now.date() > granted_at_ist.date():
+                expired = True
+                
+        # Check custom time specific expiration limits
+        elif g.get("expiry") == "custom_time":
+            custom_time_str = g.get("custom_expiry_time")
+            if custom_time_str:
+                try:
+                    expiry_dt = datetime.strptime(custom_time_str, "%Y-%m-%dT%H:%M")
+                    expiry_dt = IST.localize(expiry_dt)
+                    if now >= expiry_dt:
+                        expired = True
+                except Exception as e:
+                    print(f"Error parsing custom time: {e}")
+        
+        # Action logic
+        if expired:
+            access_grants_col.update_one({"_id": g["_id"]}, {"$set": {"is_active": False}})
+        else:
+            g["_id"] = str(g["_id"])
+            active_grants.append(g)
+
+    return jsonify(active_grants), 200
+
+
+# =============================================================================
+# 13. PERFORMANCE MANAGEMENT SYSTEM (PMS 2.0)
+# =============================================================================
+
+@app.route("/api/admin/pms-template", methods=["POST"])
+@token_required
+def save_pms_template():
+    """
+    SAVES OR UPDATES A PMS TEMPLATE.
+    Managers assign a template of questions to SPECIFIC EMPLOYEES using the 'assigned_to' array.
+    """
+    if request.user.get("role") not in ["admin", "manager"]: 
+        return jsonify({"message": "Unauthorized"}), 403
+    
+    data = request.json 
+    dept_to_update = data.get("department", "All")
+    
+    if request.user.get("role") == "manager":
+        dept_to_update = request.user.get("department")
+
+    assigned_to_list = data.get("assigned_to", [])
+    if not assigned_to_list:
+        return jsonify({"message": "You must assign the template to at least one employee."}), 400
+
+    # Save the template strictly containing the specific assigned employee IDs
+    template_record = {
+        "department": dept_to_update,
+        "sessions": data.get("sessions", []),
+        "assigned_to": assigned_to_list,
+        "created_by": str(request.user["_id"]),
+        "updated_at": datetime.now(timezone.utc)
+    }
+
+    # We update based on the department to maintain departmental templates, 
+    # but the assigned_to list dictates who actually SEES it.
+    pms_templates_col.update_one(
+        {"department": dept_to_update},
+        {"$set": template_record},
+        upsert=True
+    )
+    
+    return jsonify({"message": f"PMS Form Assigned to {len(assigned_to_list)} employees successfully!"}), 200
+
+
+@app.route("/api/pms-template", methods=["GET"])
+@token_required
+def get_pms_template():
+    """
+    FETCHES THE PMS TEMPLATE FOR THE EMPLOYEE.
+    Ensures the form is only sent to the user if their ID is in the 'assigned_to' array.
+    """
+    uid = str(request.user["_id"])
+    
+    # Strictly query the templates collection to find ANY template where this user's ID is assigned
+    template = pms_templates_col.find_one({"assigned_to": uid}, {"_id": 0})
+    
+    if not template:
+        # User is not targeted for any evaluations this cycle
+        return jsonify({"sessions": [], "message": "No active evaluations assigned to you."}), 200
+        
+    return jsonify(template), 200
+
+
+@app.route("/api/pms/submit", methods=["POST"])
+@token_required
+def submit_pms_review():
+    """
+    EMPLOYEE SUBMITS THEIR COMPLETED PMS FORM.
+    Saves all details (session name, question, descriptive, scales, remarks).
+    """
+    uid = str(request.user["_id"])
+    data = request.json
+    month = datetime.now(IST).strftime("%Y-%m")
+
+    # Prevent double submissions for the same month
+    if pms_reviews_col.find_one({"user_id": uid, "month": month}):
+        return jsonify({"message": "You have already submitted your Self Assessment for this month."}), 400
+
+    submission = {
+        "user_id": uid,
+        "department": request.user.get("department"),
+        "manager_id": request.user.get("manager_id"),
+        "month": month,
+        "responses": data.get("responses", []), 
+        "status": "Pending Review", 
+        "self_assessment_date": datetime.now(timezone.utc),
+        "manager_review_date": None,
+        "manager_scores": [],
+        "manager_feedback": ""
+    }
+    
+    pms_reviews_col.insert_one(submission)
+    return jsonify({"message": "Self Assessment Submitted for Manager Review."}), 201
+
+
+@app.route("/api/manager/pms", methods=["GET"])
+@token_required
+def get_manager_pms():
+    """ Fetches all pending and completed PMS reviews for a manager's department. """
+    if request.user.get("role") not in ["manager", "admin"]: 
+        return jsonify({"message": "Unauthorized"}), 403
+    
+    my_dept = request.user.get("department")
+    query = {"department": my_dept} if request.user.get("role") == "manager" else {}
+    
+    rows = []
+    cursor = pms_reviews_col.find(query).sort("self_assessment_date", DESCENDING)
+    
+    for r in cursor:
+        r["_id"] = str(r["_id"])
+        
+        # Optimize employee name lookup
+        emp = users_col.find_one({"_id": ObjectId(r["user_id"])}, {"name": 1})
+        r["employee_name"] = emp["name"] if emp else "Unknown"
+        
+        rows.append(r)
+        
+    return jsonify(rows), 200
+
+
+@app.route("/api/manager/finalize-pms", methods=["POST"])
+@token_required
+def finalize_pms_review():
+    """ 
+    MANAGER SUBMITS THEIR GRADING.
+    Locks the review and adds manager scores and summary feedback.
+    """
+    if request.user.get("role") not in ["manager", "admin"]: 
+        return jsonify({"message": "Unauthorized"}), 403
+        
+    data = request.json
+    review_id = data.get("review_id")
+    
+    if not review_id:
+        return jsonify({"message": "Review ID missing"}), 400
+        
+    pms_reviews_col.update_one(
+        {"_id": ObjectId(review_id)},
+        {"$set": {
+            "manager_scores": data.get("manager_scores", []), 
+            "manager_feedback": data.get("manager_feedback", ""),
+            "status": "Manager Review Completed",
+            "manager_review_date": datetime.now(timezone.utc)
+        }}
+    )
+    return jsonify({"message": "PMS Evaluation Review Completed successfully!"}), 200
+
+
+@app.route("/api/my/pms", methods=["GET"])
+@token_required
+def my_pms():
+    """
+    EMPLOYEE FETCHES THEIR PMS HISTORY.
+    Returns the complete document, including all responses, manager scores, and manager feedback.
+    """
+    uid = str(request.user["_id"])
+    rows = []
+    
+    cursor = pms_reviews_col.find({"user_id": uid}).sort("month", DESCENDING)
+    for p in cursor:
+        p["_id"] = str(p["_id"])
+        rows.append(p)
+        
+    return jsonify(rows), 200
+
+
+@app.route("/api/admin/pms-dashboard", methods=["GET"])
+@token_required
+def pms_dashboard():
+    """ Dashboard analytics for PMS completion and scoring. """
+    if request.user.get("role") not in ["admin", "manager"]: 
+        return jsonify({"message": "Unauthorized"}), 403
+    
+    month = request.args.get("month", datetime.now(IST).strftime("%Y-%m"))
+    dashboard_data = {}
+    
+    if request.user.get("role") == "manager":
+        departments = [request.user.get("department")]
+    else:
+        departments = users_col.distinct("department")
+        
+    for d in departments:
+        if d:
+            total_emps = users_col.count_documents({"department": d, "role": "employee"})
+            dashboard_data[d] = {
+                "total_employees": total_emps, 
+                "completed_pms": 0, 
+                "total_score": 0, 
+                "avg_score": 0
+            }
+            
+    reviews = pms_reviews_col.find({
+        "month": month, 
+        "status": "Manager Review Completed", 
+        "department": {"$in": departments}
+    })
+    
+    for r in reviews:
+        dept = r.get("department")
+        if dept and dept in dashboard_data:
+            dashboard_data[dept]["completed_pms"] += 1
+            mgr_total = sum([int(ms.get('score', 0)) for ms in r.get('manager_scores', []) if str(ms.get('score')).isdigit()])
+            dashboard_data[dept]["total_score"] += mgr_total
+
+    final_output = []
+    for dept, data in dashboard_data.items():
+        if data["completed_pms"] > 0:
+            data["avg_score"] = round(data["total_score"] / data["completed_pms"], 2)
+        else:
+            data["avg_score"] = 0
+            
+        final_output.append({
+            "department": dept,
+            "average_score": data["avg_score"],
+            "total_employees": data["total_employees"],
+            "completed_pms": data["completed_pms"]
+        })
+        
+    return jsonify(final_output), 200
+
+
+@app.route("/api/admin/export-pms", methods=["GET"])
+@token_required
+def export_pms():
+    """ Generates a downloadable CSV report of the PMS data. """
+    if request.user.get("role") not in ["admin", "manager"]: 
+        return jsonify({"message": "Unauthorized"}), 403
+    
+    month = request.args.get("month", datetime.now(IST).strftime("%Y-%m"))
+    
+    query = {"month": month}
+    if request.user.get("role") == "manager":
+        query["department"] = request.user.get("department")
+    
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerow(["Employee Name", "Department", "Month", "Status", "Self Score Total", "Manager Score Total", "Manager Feedback"])
+    
+    cursor = pms_reviews_col.find(query).sort("department", ASCENDING)
+    
+    for r in cursor:
+        emp = users_col.find_one({"_id": ObjectId(r["user_id"])}, {"name": 1})
+        emp_name = emp["name"] if emp else "Unknown"
+        
+        self_total = sum([int(res.get('self_score', 0)) for res in r.get('responses', []) if str(res.get('self_score')).isdigit()])
+        mgr_total = sum([int(ms.get('score', 0)) for ms in r.get('manager_scores', []) if str(ms.get('score')).isdigit()])
+        
+        cw.writerow([
+            emp_name, 
+            r.get("department"), 
+            r.get("month"), 
+            r.get("status"), 
+            self_total, 
+            mgr_total, 
+            r.get("manager_feedback", "")
+        ])
+    
+    output = io.BytesIO(si.getvalue().encode('utf-8'))
+    return send_file(output, mimetype='text/csv', as_attachment=True, download_name=f'PMS_Report_{month}.csv')
+
+
+# =============================================================================
+# 14. ATTENDANCE & CAMERA LOGGING
+# =============================================================================
+
+@app.route("/api/attendance/checkin-photo", methods=["POST"])
+@token_required
+def checkin_photo():
+    """ 
+    Handles morning check-ins using a photo capture.
+    Uploads photo to Cloudinary and logs time accurately based on cutoff windows.
+    """
+    if request.user.get("role") not in ["employee", "manager"]:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    uid = str(request.user["_id"])
+    now_ist = datetime.now(IST)
+    current_time = now_ist.time()
+    today = now_ist.date()
+    today_str = str(today)
+
+    # Do not force check-in if they are on an approved leave
+    if leaves_col.find_one({"user_id": uid, "status": "Approved", "date": today_str}):
+        return jsonify({"message": "You have an approved leave for today. Attendance not required."}), 200
+
+    if attendance_col.find_one({"user_id": uid, "type": "checkin", "date": today_str}):
+        return jsonify({"message": "Already checked in!"}), 400
+
+    # Strict cutoff times for the organization
+    TIME_0900 = time(9, 0)
+    TIME_1000 = time(10, 0)
+    TIME_1015 = time(10, 15)
+    TIME_1300 = time(13, 0)
+    TIME_1400 = time(14, 0)
+
+    status_indicator = "Unknown"
+    day_type = "full"
+    
+    if current_time < TIME_1000:
+        status_indicator = "Present (On-Time)"
+        day_type = "full"
+    elif TIME_1000 <= current_time < TIME_1015:
+        status_indicator = "Present (Late)"
+        day_type = "full"
+    elif TIME_1015 <= current_time < TIME_1300:
+        return jsonify({
+            "message": "Check-in blocked. You missed the morning window (ended 10:15 AM). Please wait until 1:00 PM for Half Day check-in."
+        }), 400
+    elif TIME_1300 <= current_time < TIME_1400:
+        status_indicator = "Half Day"
+        day_type = "half-day"
+    else: 
+        return jsonify({
+            "message": "Check-in closed for the day. Marked as Absent (Full Day)."
+        }), 400
+
+    data = request.get_json()
+    img_data = data.get("image")
+    
+    if not img_data:
+        return jsonify({"message": "No image data received from frontend."}), 400
+
+    try:
+        upload_result = cloudinary.uploader.upload(img_data, folder="attendance_photos")
+        photo_url = upload_result.get("secure_url")
+    except Exception as e:
+        print("Cloudinary Upload Error:", e)
+        return jsonify({"message": "Image upload failed. Check connection."}), 500
+
+    attendance_col.insert_one({
+        "user_id": uid,
+        "type": "checkin",
+        "date": today_str,
+        "day_type": day_type,
+        "time": datetime.now(timezone.utc),
+        "photo_url": photo_url, 
+        "status_indicator": status_indicator 
+    })
+
+    return jsonify({"message": f"Checked in successfully ({status_indicator})"}), 200
+
+
+@app.route("/api/attendance/checkout-photo", methods=["POST"])
+@token_required
+def checkout_photo():
+    """ 
+    Handles evening check-outs. Calculates final day type and flags early departures.
+    """
+    if request.user.get("role") not in ["employee", "manager"]:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    uid = str(request.user["_id"])
+    now_ist = datetime.now(IST)
+    current_time = now_ist.time()
+    today = now_ist.date()
+
+    checkin = attendance_col.find_one({"user_id": uid, "type": "checkin", "date": str(today)})
+    if not checkin:
+        return jsonify({"message": "You must Check-In first before Checking Out."}), 400
+
+    if attendance_col.find_one({"user_id": uid, "type": "checkout", "date": str(today)}):
+        return jsonify({"message": "Already checked out for today!"}), 400
+
+    HALF_DAY_OUT_START = time(13, 0)
+    HALF_DAY_OUT_END = time(14, 0)
+    FULL_DAY_OUT_START = time(18, 0)
+    LATE_CHECKOUT_START = time(19, 30)
+
+    checkin_dt = utc_to_ist(checkin["time"])
+    checkin_time = checkin_dt.time()
+
+    final_day_type = checkin.get("day_type", "full")
+    status_indicator = "On Time"
+
+    if checkin_time < time(13, 0) and (HALF_DAY_OUT_START <= current_time <= HALF_DAY_OUT_END):
+        final_day_type = "half-day"
+        attendance_col.update_one({"_id": checkin["_id"]}, {"$set": {"day_type": "half-day"}})
+    
+    if current_time > LATE_CHECKOUT_START:
+        status_indicator = "Late Checkout"
+    elif current_time < FULL_DAY_OUT_START:
+        if final_day_type == "half-day" and (HALF_DAY_OUT_START <= current_time <= HALF_DAY_OUT_END):
+             status_indicator = "On Time"
+        else:
+             status_indicator = "Early"
+    else:
+        status_indicator = "On Time"
+
+    data = request.get_json()
+    img_data = data.get("image")
+    if not img_data:
+        return jsonify({"message": "No image data provided"}), 400
+
+    try:
+        upload_result = cloudinary.uploader.upload(img_data, folder="attendance_photos")
+        photo_url = upload_result.get("secure_url")
+    except Exception as e:
+        print("Cloudinary Upload Error:", e)
+        return jsonify({"message": "Image upload failed"}), 500
+
+    attendance_col.insert_one({
+        "user_id": uid,
+        "type": "checkout",
+        "date": str(today),
+        "time": datetime.now(timezone.utc),
+        "photo_url": photo_url,
+        "day_type": final_day_type,
+        "status_indicator": status_indicator
+    })
+
+    return jsonify({"message": f"Checked out successfully ({final_day_type}, {status_indicator})"}), 200
+
+
+@app.route("/api/my/attendance", methods=["GET"])
+@token_required
+def my_attendance():
+    """ Fetches attendance log for the logged-in user. """
+    uid = str(request.user["_id"])
+    rows = []
+
+    cursor = attendance_col.find({"user_id": uid}).sort("time", DESCENDING)
+    for a in cursor:
+        a["_id"] = str(a["_id"])
+        a["time"] = format_datetime_ist(a["time"])
+        rows.append(a)
+
+    return jsonify(rows), 200
+
+
+@app.route("/api/admin/attendance/<emp_id>", methods=["GET"])
+@token_required
+def admin_employee_attendance(emp_id):
+    """
+    Fetches attendance for a specific employee. 
+    Accessible by Admin, or users with delegated access.
+    """
+    role = request.user.get("role")
+    has_delegated = access_grants_col.find_one({"employee_id": str(request.user["_id"]), "is_active": True})
+    
+    if role != "admin" and not has_delegated:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    emp = users_col.find_one({"_id": ObjectId(emp_id)}, {"name": 1, "email": 1})
+    if not emp:
+        return jsonify({"message": "Employee not found"}), 404
+
+    records = []
+    cursor = attendance_col.find({"user_id": emp_id}).sort("time", DESCENDING)
+    for a in cursor:
+        a["_id"] = str(a["_id"])
+        a["time"] = format_datetime_ist(a["time"])
+        a["employee_name"] = emp.get("name")
+        a["employee_email"] = emp.get("email")
+        records.append(a)
+
+    return jsonify(records), 200
+
+
+# =============================================================================
+# 15. LEAVE MANAGEMENT
+# =============================================================================
+
+@app.route("/api/leaves", methods=["POST"])
+@token_required
+def apply_leave():
+    """
+    Handles employee and manager leave applications. 
+    Parses start/end dates and attempts to upload any attached medical files to Cloudinary.
+    """
+    if request.user.get("role") not in ["employee", "manager"]:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    from_date = request.form.get("from_date")
+    to_date = request.form.get("to_date")
+    
+    if not from_date and request.form.get("date"):
+        from_date = request.form.get("date")
+        to_date = request.form.get("date")
+
+    leave_type = request.form.get("type", "full")
+    period = request.form.get("period")
+    reason = request.form.get("reason", "")
+
+    if not from_date or not to_date:
+        return jsonify({"message": "Start and End dates are required"}), 400
+
+    try:
+        f_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+        t_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format."}), 400
+
+    if t_date < f_date:
+        return jsonify({"message": "End date cannot be before start date"}), 400
+
+    now_ist_date = datetime.now(IST).date()
+    max_past_date = now_ist_date - timedelta(days=7) 
+
+    if f_date < max_past_date:
+        return jsonify({"message": f"Leave application for past dates is limited to 7 days."}), 400
+
+    attachment_url = None
+    file = request.files.get("attachment")
+    
+    if file:
+        try:
+            upload_result = cloudinary.uploader.upload(file, folder="leave_attachments")
+            attachment_url = upload_result.get("secure_url")
+        except Exception as e:
+            return jsonify({"message": "File upload failed"}), 500
+
+    leave = {
+        "user_id": str(request.user["_id"]),
+        "from_date": from_date,
+        "to_date": to_date,
+        "date": from_date, 
+        "type": leave_type,
+        "period": period,
+        "reason": reason,
+        "status": "Pending",
+        "manager_status": "Pending",
+        "admin_status": "Pending",
+        "applied_at": datetime.now(timezone.utc),
+        "attachment_url": attachment_url
+    }
+
+    res = leaves_col.insert_one(leave)
+    return jsonify({"message": "Applied", "id": str(res.inserted_id)}), 201
+
+
+@app.route("/api/admin/leaves", methods=["GET"])
+@token_required
+def admin_view_leaves():
+    """ 
+    Returns leaves contextually based on user role and delegated grants. 
+    Managers see their department; Admins/Delegated see everyone.
+    """
+    role = request.user.get("role")
+    has_delegated = access_grants_col.find_one({"employee_id": str(request.user["_id"]), "is_active": True})
+    
+    if role not in ["admin", "manager"] and not has_delegated:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    query = {}
+    
+    if role == "manager" and not has_delegated:
+        my_dept = request.user.get("department")
+        dept_users = [str(u["_id"]) for u in users_col.find({"department": my_dept}, {"_id": 1})]
+        query = {"user_id": {"$in": dept_users}}
+
+    rows = []
+    
+    # Projection optimization: only get name and department
+    employees = {str(e["_id"]): e for e in users_col.find({}, {"name": 1, "department": 1})}
+    
+    cursor = leaves_col.find(query).sort("applied_at", DESCENDING)
+    
+    for l in cursor:
+        l["_id"] = str(l["_id"])
+        user = employees.get(l.get("user_id"))
+        
+        if user:
+            l["employee_name"] = user.get("name", "Unknown")
+            l["employee_department"] = user.get("department", "")
+        else:
+            l["employee_name"] = "Unknown"
+            l["employee_department"] = ""
+        
+        l["applied_at_str"] = l["applied_at"].strftime("%Y-%m-%d") if l.get("applied_at") else l.get("date")
+            
+        rows.append(l)
+
+    return jsonify(rows), 200
+
+
+@app.route("/api/admin/leaves/<leave_id>", methods=["PUT"])
+@token_required
+def update_leave(leave_id):
+    """
+    Approve or reject leaves with role-based logic.
+    A leave is only strictly "Approved" if BOTH manager and admin approve it.
+    """
+    role = request.user.get("role")
+    has_delegated = access_grants_col.find_one({"employee_id": str(request.user["_id"]), "is_active": True})
+    
+    if role not in ["admin", "manager"] and not has_delegated:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    data = request.json
+    action = data.get("status")
+
+    if action not in ("Approved", "Rejected", "Pending"):
+        return jsonify({"message": "Invalid status"}), 400
+
+    update_fields = {}
+
+    if role == "admin":
+        update_fields["admin_status"] = action
+    elif has_delegated:
+        if has_delegated.get("access_level") == "view_only":
+            return jsonify({"message": "Unauthorized: Your delegated access is View Only."}), 403
+        update_fields["admin_status"] = action
+    elif role == "manager":
+        update_fields["manager_status"] = action
+
+    leaves_col.update_one({"_id": ObjectId(leave_id)}, {"$set": update_fields})
+
+    leave = leaves_col.find_one({"_id": ObjectId(leave_id)})
+    ms = leave.get("manager_status", "Pending")
+    as_ = leave.get("admin_status", "Pending")
+
+    if ms == "Rejected" or as_ == "Rejected":
+        final_status = "Rejected"
+    elif ms == "Approved" and as_ == "Approved":
+        final_status = "Approved"
+    else:
+        final_status = "Pending"
+
+    leaves_col.update_one({"_id": ObjectId(leave_id)}, {"$set": {"status": final_status}})
+
+    try:
+        user = users_col.find_one({"_id": ObjectId(leave["user_id"])})
+        if user:
+            threading.Thread(
+                target=send_email, 
+                args=(user["email"], "Leave Update", f"Your leave status is now: {final_status}"), 
+                daemon=True
+            ).start()
+    except Exception as e:
+        print("Email notification error:", e)
+
+    return jsonify({"message": "Leave updated successfully"}), 200
+
+
+@app.route("/api/my/leaves", methods=["GET"])
+@token_required
+def my_leaves():
+    """ Fetches the authenticated user's leave history. """
+    uid = str(request.user["_id"])
+    rows = []
+    
+    cursor = leaves_col.find({"user_id": uid}).sort("applied_at", DESCENDING)
+    for l in cursor:
+        l["_id"] = str(l["_id"])
+        rows.append(l)
+        
+    return jsonify(rows), 200
+
+
+# =============================================================================
+# 16. NEW: ASSET MANAGEMENT (DUAL-APPROVAL WORKFLOW)
+# =============================================================================
+
+@app.route("/api/assets/request", methods=["POST"])
+@token_required
+def request_asset():
+    """
+    EMPLOYEE ROUTE: Submits a request for new hardware, laptops, or equipment.
+    The request is saved in the database with a dual-pending state.
+    """
+    uid = str(request.user["_id"])
+    data = request.json
+    
+    asset_name = data.get("asset_name")
+    reason = data.get("reason")
+    
+    if not asset_name or not reason:
+        return jsonify({"message": "Asset name and reason are strictly required."}), 400
+        
+    asset_request = {
+        "user_id": uid,
+        "employee_name": request.user.get("name"),
+        "department": request.user.get("department"),
+        "asset_name": asset_name,
+        "reason": reason,
+        "manager_status": "Pending",
+        "admin_status": "Pending",
+        "status": "Pending", 
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    res = assets_col.insert_one(asset_request)
+    return jsonify({"message": "Asset requested successfully.", "id": str(res.inserted_id)}), 201
+
+
+@app.route("/api/assets/my-requests", methods=["GET"])
+@token_required
+def get_my_assets():
+    """
+    EMPLOYEE ROUTE: Retrieves the logged-in employee's personal asset request history.
+    """
+    uid = str(request.user["_id"])
+    rows = []
+    
+    cursor = assets_col.find({"user_id": uid}).sort("created_at", DESCENDING)
+    for asset in cursor:
+        asset["_id"] = str(asset["_id"])
+        rows.append(asset)
+        
+    return jsonify(rows), 200
+
+
+@app.route("/api/manager/assets", methods=["GET"])
+@token_required
+def manager_get_assets():
+    """
+    MANAGER ROUTE: Retrieves all asset requests strictly for employees within their specific department.
+    """
+    if request.user.get("role") not in ["manager", "admin"]:
+        return jsonify({"message": "Unauthorized access to team assets."}), 403
+        
+    my_dept = request.user.get("department")
+    query = {"department": my_dept} if request.user.get("role") == "manager" else {}
+    
+    rows = []
+    cursor = assets_col.find(query).sort("created_at", DESCENDING)
+    for asset in cursor:
+        asset["_id"] = str(asset["_id"])
+        rows.append(asset)
+        
+    return jsonify(rows), 200
+
+
+@app.route("/api/manager/assets/<asset_id>", methods=["PUT"])
+@token_required
+def manager_update_asset(asset_id):
+    """
+    MANAGER ROUTE: Approves or rejects an asset request.
+    This acts as the first gatekeeper. If rejected here, the final status is immediately marked Rejected.
+    """
+    if request.user.get("role") not in ["manager", "admin"]:
+        return jsonify({"message": "Unauthorized action."}), 403
+        
+    data = request.json
+    manager_status = data.get("manager_status")
+    
+    if manager_status not in ["Approved", "Rejected"]:
+        return jsonify({"message": "Invalid manager status provided."}), 400
+        
+    asset = assets_col.find_one({"_id": ObjectId(asset_id)})
+    if not asset:
+        return jsonify({"message": "Asset request not found in database."}), 404
+        
+    update_data = {"manager_status": manager_status}
+    
+    # Immediate kill switch if the manager rejects the request
+    if manager_status == "Rejected":
+        update_data["status"] = "Rejected"
+        
+    assets_col.update_one({"_id": ObjectId(asset_id)}, {"$set": update_data})
+    
+    return jsonify({"message": f"Asset successfully marked as {manager_status} by Manager."}), 200
+
+
+@app.route("/api/admin/assets", methods=["GET"])
+@token_required
+def admin_get_assets():
+    """
+    ADMIN ROUTE: Retrieves all organizational asset requests for final review and provisioning.
+    """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized access. Admins only."}), 403
+        
+    rows = []
+    cursor = assets_col.find().sort("created_at", DESCENDING)
+    for asset in cursor:
+        asset["_id"] = str(asset["_id"])
+        rows.append(asset)
+        
+    return jsonify(rows), 200
+
+
+@app.route("/api/admin/assets/<asset_id>", methods=["PUT"])
+@token_required
+def admin_update_asset(asset_id):
+    """
+    ADMIN ROUTE: Provides final approval or rejection for an asset request.
+    This triggers the final 'status' change in the database.
+    """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized action. Admins only."}), 403
+        
+    data = request.json
+    admin_status = data.get("admin_status")
+    
+    if admin_status not in ["Approved", "Rejected"]:
+        return jsonify({"message": "Invalid admin status provided."}), 400
+        
+    asset = assets_col.find_one({"_id": ObjectId(asset_id)})
+    if not asset:
+        return jsonify({"message": "Asset request not found in database."}), 404
+        
+    update_data = {"admin_status": admin_status}
+    
+    # Calculate the final overarching status combining both tiers
+    mgr_status = asset.get("manager_status", "Pending")
+    
+    if admin_status == "Rejected" or mgr_status == "Rejected":
+        update_data["status"] = "Rejected"
+    elif admin_status == "Approved" and mgr_status == "Approved":
+        update_data["status"] = "Approved"
+    else:
+        update_data["status"] = "Pending"
+        
+    assets_col.update_one({"_id": ObjectId(asset_id)}, {"$set": update_data})
+    
+    return jsonify({"message": f"Asset successfully marked as {admin_status} by Master Admin."}), 200
+
+
+# =============================================================================
+# 17. ANNOUNCEMENTS, CORRECTIONS & NOTIFICATIONS
+# =============================================================================
+
+@app.route("/api/announcements", methods=["POST"])
+@token_required
+def create_announcement():
+    """ Creates a new system-wide announcement. (Admin Only) """
+    if request.user.get("role") != "admin": 
+        return jsonify({"message": "Unauthorized"}), 403
+    
+    data = request.json
+    announcements_col.insert_one({
+        "title": data.get("title"),
+        "message": data.get("message"),
+        "created_at": datetime.now(timezone.utc)
+    })
+    return jsonify({"message": "Announcement broadcasted"}), 201
+
+
+@app.route("/api/announcements", methods=["GET"])
+@token_required
+def get_announcements():
+    """ Fetches all active announcements. Viewable by everyone. """
+    rows = []
+    for a in announcements_col.find().sort("created_at", DESCENDING):
+        a["_id"] = str(a["_id"])
+        rows.append(a)
+    return jsonify(rows), 200
+
+
+@app.route("/api/announcements/<ann_id>", methods=["PUT"])
+@token_required
+def update_announcement(ann_id):
+    """ 
+    Updates an existing announcement's title and message. (Admin Only) 
+    Provides the backend logic for the frontend "Edit" feature.
+    """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized access. Admins only."}), 403
+        
+    data = request.json
+    title = data.get("title")
+    message = data.get("message")
+    
+    if not title or not message:
+        return jsonify({"message": "Title and message are required fields."}), 400
+        
+    result = announcements_col.update_one(
+        {"_id": ObjectId(ann_id)},
+        {"$set": {
+            "title": title,
+            "message": message,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    if result.matched_count == 0:
+        return jsonify({"message": "Announcement not found in the database."}), 404
+        
+    return jsonify({"message": "Announcement successfully updated."}), 200
+
+
+@app.route("/api/announcements/<ann_id>", methods=["DELETE"])
+@token_required
+def delete_announcement(ann_id):
+    """ 
+    Deletes (recalls) an announcement from the system. (Admin Only) 
+    Provides the backend logic for the frontend "Recall" feature.
+    """
+    if request.user.get("role") != "admin":
+        return jsonify({"message": "Unauthorized access. Admins only."}), 403
+        
+    result = announcements_col.delete_one({"_id": ObjectId(ann_id)})
+    
+    if result.deleted_count == 0:
+        return jsonify({"message": "Announcement not found or already deleted."}), 404
+        
+    return jsonify({"message": "Announcement recalled and deleted successfully."}), 200
+
+
+@app.route("/api/attendance/request-correction", methods=["POST"])
+@token_required
+def request_correction():
+    """ Allows an employee to request a fix for a missed or wrong punch. Limits to 3 per month. """
+    uid = str(request.user["_id"])
+    now_ist = datetime.now(IST)
+    month_str = now_ist.strftime("%Y-%m")
+    
+    usage_count = corrections_col.count_documents({"user_id": uid, "month": month_str})
+    
+    if usage_count >= 3:
+        return jsonify({"message": "Monthly limit of 3 corrections reached"}), 400
+
+    data = request.json
+    correction = {
+        "user_id": uid,
+        "manager_id": request.user.get("manager_id"),
+        "attendance_id": data.get("attendance_id"),
+        "new_time": data.get("new_time"),
+        "reason": data.get("reason"),
+        "status": "Pending",
+        "month": month_str,
+        "created_at": datetime.now(timezone.utc)
+    }
+    corrections_col.insert_one(correction)
+    return jsonify({"message": "Correction request dispatched"}), 201
+
+
+@app.route("/api/manager/corrections", methods=["GET"])
+@token_required
+def manager_corrections():
+    """ Fetches pending attendance correction requests for the manager's team. """
+    if request.user.get("role") != "manager": return jsonify({"message": "Unauthorized"}), 403
+    
+    my_dept = request.user.get("department")
+    dept_users = [str(u["_id"]) for u in users_col.find({"department": my_dept}, {"_id": 1})]
+    
+    query = {"$or": [{"manager_id": str(request.user["_id"])}, {"user_id": {"$in": dept_users}}]}
+    
+    rows = []
+    
+    cursor = corrections_col.find(query).sort("created_at", DESCENDING)
+    for c in cursor:
+        c["_id"] = str(c["_id"])
+        u = users_col.find_one({"_id": ObjectId(c["user_id"])}, {"name": 1})
+        c["employee_name"] = u["name"] if u else "Unknown"
+        rows.append(c)
+        
+    return jsonify(rows), 200
+
+
+@app.route("/api/my/corrections", methods=["GET"])
+@token_required
+def my_corrections():
+    """ Fetches the employee's own correction history. """
+    uid = str(request.user["_id"])
+    rows = []
+    
+    cursor = corrections_col.find({"user_id": uid}).sort("created_at", DESCENDING)
+    for c in cursor:
+        c["_id"] = str(c["_id"])
+        rows.append(c)
+        
+    return jsonify(rows), 200
+
+
+@app.route("/api/manager/approve-correction", methods=["POST"])
+@token_required
+def approve_correction():
+    """
+    Manager approves/rejects an attendance fix.
+    If approved, it injects a new synthetic attendance record into the database.
+    """
+    if request.user.get("role") != "manager": return jsonify({"message": "Unauthorized"}), 403
+    data = request.json
+    cid = data.get("id")
+    action = data.get("action")
+    
+    correction = corrections_col.find_one({"_id": ObjectId(cid)})
+    if not correction: return jsonify({"message": "Not found"}), 404
+    
+    corrections_col.update_one({"_id": ObjectId(cid)}, {"$set": {"status": action}})
+    
+    if action == "Approved":
+        try:
+            new_time_str = correction["new_time"]
+            if "T" in new_time_str and not new_time_str.endswith("Z") and "+" not in new_time_str:
+                 new_dt = datetime.fromisoformat(new_time_str)
+            else:
+                 new_dt = datetime.fromisoformat(new_time_str.replace("Z", "+00:00"))
+            
+            attendance_col.insert_one({
+                "user_id": correction["user_id"],
+                "type": "checkin", 
+                "date": str(new_dt.date()),
+                "time": new_dt,
+                "photo_url": None, 
+                "status_indicator": "Corrected",
+                "correction_ref": cid
+            })
+        except Exception as e:
+            print("Error updating attendance log:", e)
+    
+    return jsonify({"message": f"Correction {action}"}), 200
+
+
+@app.route("/api/notifications/counts", methods=["GET"])
+@token_required
+def get_notification_counts():
+    """ Fetch dynamic badge counts for the dashboard sidebar/quick-launch items. """
+    role = request.user.get("role")
+    counts = {
+        "leaves": 0, 
+        "pms": 0, 
+        "corrections": 0, 
+        "assets": 0, 
+        "announcements": announcements_col.count_documents({})
+    }
+    
+    if role == "manager":
+        my_dept = request.user.get("department")
+        dept_users = [str(u["_id"]) for u in users_col.find({"department": my_dept}, {"_id": 1})]
+        
+        counts["leaves"] = leaves_col.count_documents({
+            "user_id": {"$in": dept_users},
+            "status": "Pending",
+            "manager_status": "Pending" 
+        })
+        
+        counts["pms"] = pms_reviews_col.count_documents({
+            "user_id": {"$in": dept_users},
+            "status": "Pending Review"
+        })
+        
+        counts["corrections"] = corrections_col.count_documents({
+            "user_id": {"$in": dept_users},
+            "status": "Pending"
+        })
+        
+        counts["assets"] = assets_col.count_documents({
+            "department": my_dept,
+            "manager_status": "Pending"
+        })
+        
+    return jsonify(counts), 200
+
+
+# =============================================================================
+# 18. STATS & ANALYTICS DASHBOARDS
+# =============================================================================
+
+@app.route("/api/admin/today-stats", methods=["GET"])
+@token_required
+def today_stats():
+    """ Aggregates raw counts for the top dashboard widgets. """
+    role = request.user.get("role")
+    has_delegated = access_grants_col.find_one({"employee_id": str(request.user["_id"]), "is_active": True})
+    
+    if role != "admin" and not has_delegated:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    today = str(datetime.now(IST).date())
+    present = attendance_col.count_documents({"date": today, "type": "checkin"})
+    leaves = leaves_col.count_documents({"date": today, "status": {"$in": ["Approved", "Absent"]}})
+    total = users_col.count_documents({"role": {"$in": ["employee", "manager"]}})
+    not_in = total - present - leaves
+
+    return jsonify({"present": present, "leave": leaves, "not_checked_in": not_in}), 200
+
+
+@app.route("/api/admin/attendance-summary", methods=["GET"])
+@token_required
+def attendance_summary():
+    """ Aggregates full monthly attendance records for the reporting tool. """
+    role = request.user.get("role")
+    has_delegated = access_grants_col.find_one({"employee_id": str(request.user["_id"]), "is_active": True})
+    
+    if role != "admin" and not has_delegated:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    month_param = request.args.get("month")
+    if not month_param: return jsonify({"message": "month required"}), 400
+
+    year, month = map(int, month_param.split("-"))
+    start = datetime(year, month, 1, tzinfo=IST)
+    end = (start + timedelta(days=32)).replace(day=1)
+
+    # Use projection to keep memory usage low
+    employees = list(users_col.find({"role": {"$in": ["employee", "manager"]}}, {"name": 1}))
+    emp_ids = [str(e["_id"]) for e in employees]
+
+    summary = {"total_employees": len(employees), "days": {}}
+
+    curr = start
+    while curr < end:
+        day_str = curr.date().isoformat()
+        
+        recs = list(attendance_col.find({"date": day_str}))
+        present = {r["user_id"] for r in recs if r["type"] == "checkin"}
+        
+        leaves_today_docs = list(leaves_col.find({"date": day_str, "status": {"$in": ["Approved", "Absent"]}}))
+        
+        leave_names = []
+        leave_ids = set()
+        for l in leaves_today_docs:
+            leave_ids.add(l["user_id"])
+            u = users_col.find_one({"_id": ObjectId(l["user_id"])}, {"name": 1})
+            if u: leave_names.append(u["name"])
+
+        not_checked_in = set(emp_ids) - present - leave_ids
+
+        summary["days"][day_str] = {
+            "present": list(present), 
+            "absent": [], 
+            "leave": list(leave_ids), 
+            "leave_names": leave_names, 
+            "not_checked_in": list(not_checked_in),
+        }
+        curr += timedelta(days=1)
+
+    return jsonify(summary), 200
+
+
+@app.route("/api/attendance/auto-absent", methods=["POST"])
+def auto_mark_absent():
+    """ 
+    Script endpoint to auto-flag users who didn't punch in.
+    Usually called internally via cron or external trigger at night.
+    """
+    today = datetime.now(IST).date()
+    today_str = str(today)
+    all_users = users_col.find({"role": {"$in": ["employee", "manager"]}}, {"_id": 1})
+
+    for emp in all_users:
+        uid = str(emp["_id"])
+        
+        if not attendance_col.find_one({"user_id": uid, "type": "checkin", "date": today_str}):
+            if not leaves_col.find_one({"user_id": uid, "status": "Approved", "date": today_str}):
+                
+                if not attendance_col.find_one({"user_id": uid, "type": "absent", "date": today_str}):
+                    attendance_col.insert_one({
+                        "user_id": uid, "type": "absent", "date": today_str, "time": datetime.now(timezone.utc)
+                    })
+                
+                if not leaves_col.find_one({"user_id": uid, "type": "System Absent", "date": today_str}):
+                    leaves_col.insert_one({
+                        "user_id": uid, 
+                        "from_date": today_str, "to_date": today_str, "date": today_str,
+                        "type": "System Absent", 
+                        "reason": "Not checked in by cutoff time", 
+                        "status": "Absent", 
+                        "applied_at": datetime.now(timezone.utc)
+                    })
+
+    return jsonify({"message": "Absent auto-marking completed"}), 200
+
+
+# =============================================================================
+# 19. AUTOMATED SCHEDULED JOBS (APScheduler)
+# =============================================================================
+
+def send_pms_reminders():
+    """
+    Automated job that fires every day at 10 AM IST. 
+    Checks if it is past the 28th of the month. If so, emails managers 
+    reminding them to complete any pending PMS reviews for their staff.
+    """
+    print("[SCHEDULER] Running Automated PMS Reminder Job...")
+    now = datetime.now(IST)
+    
+    if now.day >= 28:
+        pending_reviews = pms_reviews_col.find({"status": "Pending Review"})
+        for rev in pending_reviews:
+            manager = users_col.find_one({"_id": ObjectId(rev["manager_id"])})
+            emp = users_col.find_one({"_id": ObjectId(rev["user_id"])})
+            
+            if manager and emp:
+                subject = f"Action Required: Pending PMS Review for {emp['name']}"
+                body = (
+                    f"Hello {manager['name']},\n\n"
+                    f"This is an automated reminder that you have a pending PMS review for {emp['name']} "
+                    f"in the {emp['department']} department for the month of {rev['month']}.\n\n"
+                    f"Please log in to the HRMS portal to complete the evaluation.\n\n"
+                    f"Thank you,\n"
+                    f"GDMR Connect Automated System"
+                )
+                try:
+                    threading.Thread(
+                        target=send_email, 
+                        args=(manager["email"], subject, body), 
+                        daemon=True
+                    ).start()
+                except Exception as e:
+                    print(f"Reminder email failed: {e}")
+
+def auto_expire_grants():
+    """
+    Automated job running every 30 minutes. 
+    Scans the 'access_grants' collection and deactivates any grants
+    that have passed their expiration deadline (custom or end-of-day).
+    """
+    print("[SCHEDULER] Running Auto-Expire Access Grants Job...")
+    now = datetime.now(IST)
+    active_grants = access_grants_col.find({"is_active": True})
+    
+    for g in active_grants:
+        expired = False
+        
+        if g.get("expiry") == "end_of_day":
+            granted_at_ist = utc_to_ist(g["granted_at"])
+            if now.date() > granted_at_ist.date():
+                expired = True
+                
+        elif g.get("expiry") == "custom_time":
+            custom_time_str = g.get("custom_expiry_time")
+            if custom_time_str:
+                try:
+                    expiry_dt = datetime.strptime(custom_time_str, "%Y-%m-%dT%H:%M")
+                    expiry_dt = IST.localize(expiry_dt)
+                    if now >= expiry_dt:
+                        expired = True
+                except Exception as e:
+                    print(f"Error parsing custom time for grant {g['_id']}: {e}")
+        
+        if expired:
+            access_grants_col.update_one({"_id": g["_id"]}, {"$set": {"is_active": False}})
+            print(f"[SCHEDULER] Automatically expired access grant for employee {g['employee_id']}.")
+
+
+# Initialize the background scheduler
+try:
+    scheduler = BackgroundScheduler(timezone=IST)
+    scheduler.add_job(func=send_pms_reminders, trigger="cron", hour=10, minute=0)
+    scheduler.add_job(func=auto_expire_grants, trigger="interval", minutes=30)
+    scheduler.start()
+    print("[INIT] Background Job Scheduler initialized successfully.")
+except Exception as e:
+    print(f"[WARNING] Failed to start background scheduler. Error: {e}")
+
+
+# =============================================================================
+# RUN SERVER
+# =============================================================================
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    # Production-ready Flask runner (Waitress/Gunicorn recommended for heavy loads)
+    app.run(host="0.0.0.0", port=port, debug=False)
