@@ -43,7 +43,7 @@ import {
   FaRegSquare,
   FaClock,           // Used for Applied On Date/Time
   FaFileDownload,    // Used for File Attachment UI
-  FaLaptop           // NEW: Icon for Team Asset Requests
+  FaLaptop           // Icon for Team Asset Requests
 } from "react-icons/fa";
 
 // ============================================================================
@@ -54,38 +54,72 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // ============================================================================
   // 1. CORE DATA STATES
   // ============================================================================
+  
+  /** 
+   * Stores the attendance records for the current user 
+   */
   const [attendance, setAttendance] = useState([]);
+  
+  /** 
+   * Stores the leave requests submitted by the current user 
+   */
   const [myLeaves, setMyLeaves] = useState([]);
+  
+  /** 
+   * Stores the profile details of employees assigned to this manager 
+   */
   const [teamMembers, setTeamMembers] = useState([]);
+  
+  /** 
+   * Stores the leave requests submitted by the team members 
+   */
   const [teamLeaves, setTeamLeaves] = useState([]); 
   
-  // NEW: Team Asset Requests State
+  /** 
+   * NEW: Stores hardware/equipment requests submitted by the team 
+   */
   const [teamAssets, setTeamAssets] = useState([]);
 
-  // Notifications & Announcements
+  /** 
+   * Stores dynamic badge counts for dashboard quick launch icons 
+   */
   const [notificationCounts, setNotificationCounts] = useState({ 
       leaves: 0, 
       pms: 0, 
       corrections: 0, 
       announcements: 0,
-      assets: 0 // NEW: Added badge count tracking for assets
+      assets: 0 
   });
+  
+  /** 
+   * Stores active system-wide announcements 
+   */
   const [announcements, setAnnouncements] = useState([]);
 
-  // Manager Approval States
+  /** 
+   * Stores pending Performance Management System evaluations 
+   */
   const [pendingPMS, setPendingPMS] = useState([]);
+  
+  /** 
+   * Stores pending attendance time-correction requests 
+   */
   const [pendingCorrections, setPendingCorrections] = useState([]);
 
   // ============================================================================
   // 2. PASSWORD MANAGEMENT STATES
   // ============================================================================
+  
+  /** 
+   * Manages the visibility of the mandatory password change modal 
+   */
   const [showPasswordModal, setShowPasswordModal] = useState(!passwordChanged);
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passError, setPassError] = useState("");
 
-  // Visibility toggles for the 3 password fields
+  // Visibility toggles for the 3 password fields to show/hide plaintext
   const [showOldPass, setShowOldPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
@@ -93,12 +127,20 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // ============================================================================
   // 3. DYNAMIC PMS TEMPLATE BUILDER & REVIEW STATES
   // ============================================================================
+  
+  /** 
+   * Holds the structure of the dynamic evaluation form being built 
+   */
   const [templateSessions, setTemplateSessions] = useState([]);
   
-  // Explicit state to track assigned employees to prevent blanketing the whole org
+  /** 
+   * Explicit state to track assigned employees to prevent blanketing the whole org 
+   */
   const [assignedEmployees, setAssignedEmployees] = useState([]); 
   
-  // PMS Review & Grading State
+  /** 
+   * Holds the manager's assigned scores during an evaluation review 
+   */
   const [managerScores, setManagerScores] = useState({}); 
   const [managerFeedback, setManagerFeedback] = useState("");
   const [viewPMSModalOpen, setViewPMSModalOpen] = useState(false);
@@ -107,14 +149,24 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // ============================================================================
   // 4. DELEGATED ADMIN & DASHBOARD STATES
   // ============================================================================
+  
+  /** 
+   * Stores temporary access permissions granted by the master admin 
+   */
   const [delegatedGrants, setDelegatedGrants] = useState([]);
+  
+  /** 
+   * Stores aggregated performance metrics for the department 
+   */
   const [deptDashboard, setDeptDashboard] = useState([]);
   const [dashboardMonth, setDashboardMonth] = useState(new Date().toISOString().slice(0, 7));
 
-  // Navigation State
+  /** 
+   * Primary routing state for conditional rendering of sub-views 
+   */
   const [view, setView] = useState("dashboard"); 
   
-  // Leave Form State
+  // Leave Form State Variables
   const [leaveDuration, setLeaveDuration] = useState("single");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -123,8 +175,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   const [period, setPeriod] = useState("First Half"); 
   const [file, setFile] = useState(null);
   
-  // Loading & Modal States
-  const [loading, setLoading] = useState(false);
+  // Modal display states
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalList, setModalList] = useState([]);
@@ -132,6 +183,10 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // ============================================================================
   // 5. CAMERA & HARDWARE STATES
   // ============================================================================
+  
+  /** 
+   * Hardware interaction states for photo-verified check-ins 
+   */
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
   const [previewImage, setPreviewImage] = useState(null);
@@ -142,7 +197,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   const streamRef = useRef(null); 
 
   // ============================================================================
-  // 6. DERIVED STATES
+  // 6. DERIVED STATES & CONSTANTS
   // ============================================================================
   const pendingLeaves = myLeaves.filter(l => l.status === 'Pending');
   const approvedLeaves = myLeaves.filter(l => l.status === 'Approved');
@@ -154,10 +209,14 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // ============================================================================
   // INITIAL DATA LOADING FUNCTION
   // ============================================================================
+  
+  /**
+   * Main data loading function. Fetches all required information for the 
+   * manager dashboard in parallel to optimize rendering times.
+   */
   const load = useCallback(async (isAction = false) => {
-    setLoading(true); 
     
-    // Safely check for api to prevent crashes
+    // Safely check for api to prevent crashes during initialization
     const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
     const headers = { 'Authorization': `Bearer ${token}` };
 
@@ -175,7 +234,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         fetch(`${baseUrl}/api/pms-template`, { headers }).then(r => r.json()),
         fetch(`${baseUrl}/api/admin/pms-dashboard?month=${dashboardMonth}`, { headers }).then(r => r.json()),
         fetch(`${baseUrl}/api/my/delegated-access`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/manager/assets`, { headers }).then(r => r.json()) // NEW: Fetching team asset requests
+        fetch(`${baseUrl}/api/manager/assets`, { headers }).then(r => r.json()) 
       ]);
 
       // Map results to state safely avoiding any undefined crashes
@@ -224,16 +283,14 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           setDelegatedGrants(results[10].value);
       }
 
-      // NEW: Map Team Asset Requests
+      // Map Team Asset Requests
       if (results[11].status === 'fulfilled' && Array.isArray(results[11].value)) {
           setTeamAssets(results[11].value);
       }
 
     } catch (err) { 
       console.error("Error loading data", err); 
-    } finally { 
-      setLoading(false); 
-    }
+    } 
   }, [token, dashboardMonth, api, templateSessions.length]); 
 
   // Trigger load on component mount
@@ -247,7 +304,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   
   /**
    * Handles the submission of the password change form.
-   * Validates matching inputs and enforces strong password regex.
+   * Validates matching inputs and enforces strong password regex requirements.
    */
   async function handleSetPassword(e) {
       e.preventDefault();
@@ -258,6 +315,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           return;
       }
 
+      // Requirement: 8+ chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
       const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
       
       if (!strongRegex.test(newPassword)) {
@@ -317,7 +375,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
 
   /**
    * Captures the current frame from the webcam feed and 
-   * converts it to a Base64 string for preview.
+   * converts it to a Base64 string for preview/upload.
    */
   function capturePhoto() {
     const video = videoRef.current;
@@ -358,7 +416,8 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   }
 
   /**
-   * Terminates the webcam media tracks and destroys the stream context.
+   * Terminates the webcam media tracks and destroys the stream context
+   * to ensure the camera light turns off.
    */
   function closeCamera() {
     if (streamRef.current) {
@@ -374,32 +433,38 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // PMS TEMPLATE BUILDER LOGIC
   // ============================================================================
   
+  /** Adds a new blank session block to the PMS evaluation template */
   const handleAddSession = () => {
       setTemplateSessions([...templateSessions, { name: "", questions: [{ text: "", type: "scale" }] }]);
   };
   
+  /** Removes an entire session block from the PMS template */
   const handleRemoveSession = (sIdx) => {
       setTemplateSessions(templateSessions.filter((_, i) => i !== sIdx));
   };
   
+  /** Updates the name of a specific session in the template */
   const handleSessionNameChange = (sIdx, name) => {
       const newS = [...templateSessions];
       newS[sIdx].name = name;
       setTemplateSessions(newS);
   };
   
+  /** Adds a new question field inside a specific session block */
   const handleAddQuestion = (sIdx) => {
       const newS = [...templateSessions];
       newS[sIdx].questions.push({ text: "", type: "scale" });
       setTemplateSessions(newS);
   };
   
+  /** Removes a specific question from a session block */
   const handleRemoveQuestion = (sIdx, qIdx) => {
       const newS = [...templateSessions];
       newS[sIdx].questions = newS[sIdx].questions.filter((_, i) => i !== qIdx);
       setTemplateSessions(newS);
   };
   
+  /** Updates the text or response type of a specific question */
   const handleQuestionChange = (sIdx, qIdx, field, val) => {
       const newS = [...templateSessions];
       newS[sIdx].questions[qIdx][field] = val;
@@ -417,10 +482,12 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       }
   };
 
+  /** Selects all available team members for PMS assignment */
   const selectAllEmployees = () => {
       setAssignedEmployees(teamMembers.map(emp => emp._id));
   };
 
+  /** Deselects all team members from the current PMS assignment list */
   const clearAllEmployees = () => {
       setAssignedEmployees([]);
   };
@@ -445,7 +512,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       
       try {
-          setLoading(true);
           const res = await fetch(`${baseUrl}/api/admin/pms-template`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
@@ -467,8 +533,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           await load(true);
       } catch(err) { 
           alert("Network Error saving PMS Template"); 
-      } finally {
-          setLoading(false);
       }
   }
 
@@ -476,6 +540,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // PMS REVIEW & GRADING LOGIC
   // ============================================================================
   
+  /**
+   * Opens the PMS Evaluation modal and loads the selected employee's data.
+   */
   function handleViewPMS(pms) {
       setSelectedPMS(pms);
       setManagerFeedback(pms.manager_feedback || "");
@@ -504,7 +571,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       }
 
       try {
-          setLoading(true);
           const res = await fetch(`${baseUrl}/api/manager/finalize-pms`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
@@ -527,8 +593,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           }
       } catch(err) { 
           alert(err.message); 
-      } finally {
-          setLoading(false);
       }
   }
 
@@ -586,7 +650,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   async function approveCorrection(id, action) {
       const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
-          setLoading(true); 
           await fetch(`${baseUrl}/api/manager/approve-correction`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
@@ -596,7 +659,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           alert(`Correction Request ${action} successfully.`); 
       } catch(err) { 
           alert(err.message); 
-          setLoading(false);
       }
   }
   
@@ -604,7 +666,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
    * Pushes leave status updates to the dual-tier approval system.
    */
   async function updateLeaveStatus(id, status) {
-       setLoading(true); 
        const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
        try {
           await fetch(`${baseUrl}/api/admin/leaves/${id}`, {
@@ -616,7 +677,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           alert(`Leave ${status} Successfully`); 
        } catch(err) { 
           alert(err.message); 
-          setLoading(false);
        }
   }
 
@@ -626,7 +686,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
    */
   async function applyLeave(e) {
     e.preventDefault();
-    setLoading(true);
     try {
       let payload = { 
           type, 
@@ -648,7 +707,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       setView("my-leaves"); 
     } catch (err) { 
         alert(err.message); 
-        setLoading(false);
     }
   }
 
@@ -657,7 +715,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
    * This is the Manager's tier of the Dual-Approval system.
    */
   async function updateAssetStatus(id, status) {
-      setLoading(true);
       const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
           const res = await fetch(`${baseUrl}/api/manager/assets/${id}`, {
@@ -678,8 +735,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           alert(`Asset Request ${status} successfully. It will now pend Admin approval.`);
       } catch (err) {
           alert("Error updating asset: " + err.message);
-      } finally {
-          setLoading(false);
       }
   }
   
@@ -703,6 +758,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       };
   };
 
+  /**
+   * Validates file uploads to enforce maximum size limits before submission.
+   */
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile && selectedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
@@ -714,6 +772,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
     }
   };
 
+  /**
+   * Enforces a strict word count limit on text areas to maintain clean database records.
+   */
   const handleReasonChange = (e) => {
     const val = e.target.value;
     const words = val.trim().split(/\s+/).filter(w => w.length > 0);
@@ -726,6 +787,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       return reason.trim() === "" ? 0 : reason.trim().split(/\s+/).filter(w => w.length > 0).length;
   };
   
+  /**
+   * Handles opening detailed statistical views in modal overlays.
+   */
   const handleStatClick = (title, list) => { 
       setModalTitle(title); 
       setModalList(list); 
@@ -740,6 +804,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // REUSABLE UI COMPONENTS
   // ============================================================================
   
+  /**
+   * UI Component for rendering the square buttons in the quick action grid.
+   */
   const QuickLaunchItem = ({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) => (
     <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
       <div className="quick-launch-icon" style={{ color: color }}>{icon}</div>
@@ -748,6 +815,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
     </div>
   );
 
+  /**
+   * UI Component for rendering statistical rows in the summary widgets.
+   */
   const StatItem = ({ icon, label, count, colorClass, onClick }) => (
     <div className="stat-row clickable-stat" onClick={onClick}>
       <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
@@ -758,6 +828,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
     </div>
   );
 
+  /**
+   * UI Component to render a quick directory of the manager's assigned team.
+   */
   const TeamMembersList = () => (
     <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
         <div style={{overflowX: 'auto'}}>
@@ -797,27 +870,122 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // ============================================================================
   return (
     <div>
-      {/* ---------------- COMPONENT SCOPED CSS ---------------- */}
+      {/* 
+        -----------------------------------------------------------------------
+        COMPONENT SCOPED CSS STYLING
+        Expanded to multi-line format for superior readability and maintenance.
+        The visual loader class has been entirely removed from this stylesheet.
+        -----------------------------------------------------------------------
+      */}
       <style>{`
         /* Form & Base Styles */
-        .modern-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff; color: #333; }
-        .modern-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; display: block; }
-        .file-upload-label { display: flex; align-items: center; justify-content: center; padding: 20px; border: 2px dashed #ddd; border-radius: 8px; background: #fafafa; color: #666; cursor: pointer; gap: 10px; }
-        .clickable-stat { cursor: pointer; transition: transform 0.2s; }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; justify-content: center; align-items: center; }
+        .modern-input { 
+            width: 100%; 
+            padding: 10px 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 6px; 
+            font-size: 14px; 
+            background: #fff; 
+            color: #333; 
+        }
+        
+        .modern-label { 
+            font-size: 13px; 
+            font-weight: 600; 
+            color: #555; 
+            margin-bottom: 6px; 
+            display: block; 
+        }
+        
+        .file-upload-label { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 20px; 
+            border: 2px dashed #ddd; 
+            border-radius: 8px; 
+            background: #fafafa; 
+            color: #666; 
+            cursor: pointer; 
+            gap: 10px; 
+        }
+        
+        .clickable-stat { 
+            cursor: pointer; 
+            transition: transform 0.2s; 
+        }
+        
+        .modal-overlay { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.5); 
+            z-index: 3000; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+        }
         
         /* Modals */
-        .modal-card { background: white; width: 500px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 85vh; position: relative; }
-        .modal-card.large { width: 800px; max-width: 95%; max-height: 90vh; } 
+        .modal-card { 
+            background: white; 
+            width: 500px; 
+            max-width: 90%; 
+            border-radius: 12px; 
+            padding: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+            display: flex; 
+            flex-direction: column; 
+            max-height: 85vh; 
+            position: relative; 
+        }
+        
+        .modal-card.large { 
+            width: 800px; 
+            max-width: 95%; 
+            max-height: 90vh; 
+        } 
         
         /* Badges */
-        .status-badge { padding: 4px 6px; border-radius: 20px; font-size: 10px; font-weight: 600; display: inline-block; text-transform: capitalize; min-width: 65px; text-align: center; }
-        .status-badge.approved { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0;}
-        .status-badge.rejected { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca;}
-        .status-badge.pending { background: #fef3c7; color: #d97706; border: 1px solid #fde68a;}
+        .status-badge { 
+            padding: 4px 6px; 
+            border-radius: 20px; 
+            font-size: 10px; 
+            font-weight: 600; 
+            display: inline-block; 
+            text-transform: capitalize; 
+            min-width: 65px; 
+            text-align: center; 
+        }
+        
+        .status-badge.approved { 
+            background: #dcfce7; 
+            color: #16a34a; 
+            border: 1px solid #bbf7d0;
+        }
+        
+        .status-badge.rejected { 
+            background: #fee2e2; 
+            color: #dc2626; 
+            border: 1px solid #fecaca;
+        }
+        
+        .status-badge.pending { 
+            background: #fef3c7; 
+            color: #d97706; 
+            border: 1px solid #fde68a;
+        }
         
         /* Universal Table Layout - STRICT OVERRIDES TO PREVENT SCROLL */
-        .styled-table-global { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: auto !important; }
+        .styled-table-global { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 13px; 
+            table-layout: auto !important; 
+        }
+        
         .styled-table-global th, .styled-table-global td { 
             padding: 10px 8px !important; 
             border-bottom: 1px solid #f2f2f2; 
@@ -825,7 +993,14 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
             white-space: normal !important; /* CRITICAL: Allows text to wrap */
             word-wrap: break-word !important; 
         }
-        .styled-table-global th { background-color: #f8f9fa; color: #334155; font-weight:600; text-align:left; border-bottom: 2px solid #e2e8f0; }
+        
+        .styled-table-global th { 
+            background-color: #f8f9fa; 
+            color: #334155; 
+            font-weight:600; 
+            text-align:left; 
+            border-bottom: 2px solid #e2e8f0; 
+        }
         
         /* Action Buttons - Strictly Stacked Vertically */
         .action-btn-group {
@@ -834,6 +1009,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           gap: 6px !important;
           min-width: 85px !important;
         }
+        
         .action-btn {
           display: inline-flex !important;
           align-items: center !important;
@@ -848,27 +1024,101 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           color: white !important;
           width: 100% !important; /* Ensures identical width */
         }
+        
         .action-btn:active { transform: scale(0.95); }
         .action-btn:hover { opacity: 0.9; }
         .btn-approve { background: #10b981 !important; }
         .btn-reject { background: #ef4444 !important; }
 
-        /* Loader & Utilities */
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #b91c1c; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .btn-small { padding: 5px 10px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; color: white; margin-right: 5px; display:inline-flex; align-items:center; gap:5px; }
-        .icon-badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
+        /* Utilities */
+        .btn-small { 
+            padding: 5px 10px; 
+            font-size: 12px; 
+            border-radius: 4px; 
+            border: none; 
+            cursor: pointer; 
+            color: white; 
+            margin-right: 5px; 
+            display:inline-flex; 
+            align-items:center; 
+            gap:5px; 
+        }
         
-        .qa-box { margin-bottom: 15px; background: #f9f9f9; padding: 12px; border-radius: 8px; border-left: 4px solid var(--red); transition: background 0.2s; }
+        .icon-badge { 
+            position: absolute; 
+            top: -5px; 
+            right: -5px; 
+            background: red; 
+            color: white; 
+            border-radius: 50%; 
+            padding: 2px 6px; 
+            font-size: 10px; 
+            font-weight: bold; 
+        }
+        
+        .qa-box { 
+            margin-bottom: 15px; 
+            background: #f9f9f9; 
+            padding: 12px; 
+            border-radius: 8px; 
+            border-left: 4px solid var(--red); 
+            transition: background 0.2s; 
+        }
+        
         .qa-box:hover { background: #f1f5f9; }
         
-        .inline-loader { display: flex; justify-content: center; align-items: center; padding: 40px; color: #666; font-weight: 500; gap: 10px; flex-direction: column; }
+        .inline-loader { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 40px; 
+            color: #666; 
+            font-weight: 500; 
+            gap: 10px; 
+            flex-direction: column; 
+        }
         
-        .password-input-wrapper { position: relative; display: flex; align-items: center; margin-bottom: 15px; }
-        .password-toggle-icon { position: absolute; right: 12px; cursor: pointer; color: #666; font-size: 16px; top: 38px; }
-        .delegation-alert { background: #e0e7ff; color: #4f46e5; border-left: 4px solid #4f46e5; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
+        .password-input-wrapper { 
+            position: relative; 
+            display: flex; 
+            align-items: center; 
+            margin-bottom: 15px; 
+        }
         
-        .employee-chip { display: flex; align-items: center; gap: 8px; background: #fff; padding: 10px 14px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; color: #555; }
+        .password-toggle-icon { 
+            position: absolute; 
+            right: 12px; 
+            cursor: pointer; 
+            color: #666; 
+            font-size: 16px; 
+            top: 38px; 
+        }
+        
+        .delegation-alert { 
+            background: #e0e7ff; 
+            color: #4f46e5; 
+            border-left: 4px solid #4f46e5; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-bottom: 20px; 
+            font-weight: 500; 
+        }
+        
+        .employee-chip { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            background: #fff; 
+            padding: 10px 14px; 
+            border: 1px solid #ddd; 
+            border-radius: 20px; 
+            cursor: pointer; 
+            font-size: 13px; 
+            font-weight: 600; 
+            transition: all 0.2s; 
+            color: #555; 
+        }
+        
         .employee-chip:hover { border-color: var(--red); background: #fff5f5; }
         .employee-chip.selected { background: var(--red); color: white; border-color: var(--red); box-shadow: 0 4px 6px rgba(220, 38, 38, 0.2); }
 
@@ -883,21 +1133,25 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             transition: box-shadow 0.2s;
         }
+        
         .announcement-card:hover {
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
+        
         .announcement-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 10px;
         }
+        
         .announcement-title {
             margin: 0;
             color: #1e293b;
             font-size: 18px;
             font-weight: 700;
         }
+        
         .announcement-date {
             font-size: 12px;
             color: #64748b;
@@ -905,6 +1159,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
             padding: 4px 8px;
             border-radius: 4px;
         }
+        
         .announcement-body {
             color: #475569;
             font-size: 14px;
@@ -933,7 +1188,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                 >
                     <FaTimes />
                 </button>
-                
+
                 <h3 style={{color: "var(--red)", marginTop: 0}}>Set Secure Password</h3>
                 <p className="small">Please set a strong password to secure your account.</p>
                 {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px'}}>{passError}</div>}
@@ -1029,21 +1284,11 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>{view.replace("-", " ")}</h3>
         </div>
       )}
-
-      {/* LOADING OVERLAY */}
-      {loading && (
-        <div className="card" style={{ marginTop: 16 }}>
-           <div className="inline-loader">
-              <div className="loader" style={{width: 40, height: 40, borderWidth: 4}}></div>
-              <span style={{color: '#b91c1c', marginTop: 10}}>Updating Data...</span>
-           </div>
-        </div>
-      )}
       
       {/* ============================================================================ */}
       {/* 3. DASHBOARD HOME VIEW (Widgets) */}
       {/* ============================================================================ */}
-      {!loading && view === "dashboard" && (
+      {view === "dashboard" && (
         <div className="dashboard-grid-container">
           
           <div className="card dashboard-widget">
@@ -1100,7 +1345,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       {/* ============================================================================ */}
       {/* 4. DELEGATED ADMIN PORTAL HUB */}
       {/* ============================================================================ */}
-      {!loading && view === "delegated-admin-portal" && (
+      {view === "delegated-admin-portal" && (
          <div className="card" style={{ marginTop: "16px" }}>
             <h2 style={{ color: '#4f46e5', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <FaUserShield /> Temporary Admin Portal
@@ -1127,7 +1372,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       )}
 
       {/* --- SUB-VIEWS FOR DELEGATED ADMIN --- */}
-      {!loading && view === "delegated-leaves" && (
+      {view === "delegated-leaves" && (
          <div style={{ marginTop: "16px" }}>
             <div className="delegation-alert">
                🛡️ You are currently viewing the Leave Approval interface using temporary Delegated Access. 
@@ -1137,7 +1382,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
          </div>
       )}
 
-      {!loading && view === "delegated-attendance" && (
+      {view === "delegated-attendance" && (
          <div style={{ marginTop: "16px" }}>
             <div className="delegation-alert">
                🛡️ You are currently viewing the Daily Attendance Logs using temporary Delegated Access. 
@@ -1150,7 +1395,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       {/* ============================================================================ */}
       {/* 5. ANNOUNCEMENTS (UPGRADED UI - NO EDIT CONTROLS) */}
       {/* ============================================================================ */}
-      {!loading && view === "announcements" && (
+      {view === "announcements" && (
          <div className="card" style={{ marginTop: "16px", background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
             <h3 style={{color: 'var(--red)'}}>Company Announcements</h3>
             <p style={{color: '#64748b', marginBottom: 20}}>View the latest news and updates from the administration.</p>
@@ -1187,7 +1432,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       {/* ============================================================================ */}
       {/* 6. PMS TEMPLATE BUILDER (WITH STRICT EMPLOYEE ASSIGNMENT) */}
       {/* ============================================================================ */}
-      {!loading && view === "pms-builder" && (
+      {view === "pms-builder" && (
           <div className="card">
               <h3>Create Department PMS Evaluation Form</h3>
               <p className="small" style={{marginBottom: 20}}>Structure performance reviews and explicitly assign them to specific employees in your department.</p>
@@ -1295,7 +1540,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       {/* ============================================================================ */}
       {/* 7. DEPARTMENT PERFORMANCE DASHBOARD */}
       {/* ============================================================================ */}
-      {!loading && view === "dept-dashboard" && (
+      {view === "dept-dashboard" && (
           <div className="card">
               <div style={{display:'flex', justifyContent: 'space-between', alignItems:'center', marginBottom: 20}}>
                   <h3 style={{margin:0}}>Department Performance Dashboard</h3>
@@ -1345,7 +1590,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       {/* ============================================================================ */}
       {/* 8. PMS REVIEWS LIST */}
       {/* ============================================================================ */}
-      {!loading && view === "pms-manager" && (
+      {view === "pms-manager" && (
           <div className="card">
               <h3>Pending PMS Reviews</h3>
               <div style={{overflowX:'auto', marginBottom:30}}>
@@ -1395,7 +1640,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       {/* ============================================================================ */}
       {/* 9. CORRECTIONS VIEW */}
       {/* ============================================================================ */}
-      {!loading && view === "corrections" && (
+      {view === "corrections" && (
           <div className="card">
               <h3>Pending Attendance Corrections</h3>
               <div style={{overflowX:'auto'}}>
@@ -1434,7 +1679,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       {/* ============================================================================ */}
       {/* 10. TEAM LEAVES VIEW (GUARANTEED NO-SCROLL LAYOUT)                             */}
       {/* ============================================================================ */}
-      {!loading && view === "team-leaves" && (
+      {view === "team-leaves" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Team Leave Requests</h3>
               <div style={{overflowX: 'auto'}}>
@@ -1549,7 +1794,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       {/* ============================================================================ */}
       {/* 11. TEAM ASSETS VIEW (NEW FEATURE) */}
       {/* ============================================================================ */}
-      {!loading && view === "team-assets" && (
+      {view === "team-assets" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Team Hardware & Asset Requests</h3>
               <p className="small" style={{marginBottom: 20}}>Review and approve equipment requests from your department employees. Approved requests will be forwarded to Administration for final provisioning.</p>
@@ -1599,7 +1844,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                                         <button 
                                             className="action-btn btn-approve" 
                                             onClick={async () => {
-                                                setLoading(true);
                                                 try {
                                                     const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
                                                     await fetch(`${baseUrl}/api/manager/assets/${asset._id}`, {
@@ -1610,7 +1854,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                                                     await load(true);
                                                     alert('Asset Request Approved');
                                                 } catch(e) { alert(e.message); }
-                                                setLoading(false);
                                             }}
                                         >
                                             <FaCheckCircle /> Approve
@@ -1618,7 +1861,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                                         <button 
                                             className="action-btn btn-reject" 
                                             onClick={async () => {
-                                                setLoading(true);
                                                 try {
                                                     const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
                                                     await fetch(`${baseUrl}/api/manager/assets/${asset._id}`, {
@@ -1629,7 +1871,6 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
                                                     await load(true);
                                                     alert('Asset Request Rejected');
                                                 } catch(e) { alert(e.message); }
-                                                setLoading(false);
                                             }}
                                         >
                                             <FaTimesCircle /> Reject
@@ -1647,12 +1888,12 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       {/* ============================================================================ */}
       {/* 12. TEAM DIRECTORY */}
       {/* ============================================================================ */}
-      {!loading && view === "team-members" && <TeamMembersList />}
+      {view === "team-members" && <TeamMembersList />}
       
       {/* ============================================================================ */}
       {/* 13. APPLY LEAVE MODULE */}
       {/* ============================================================================ */}
-      {!loading && view === "apply-leave" && (
+      {view === "apply-leave" && (
         <div className="card">
           <form onSubmit={applyLeave}>
              <h3 style={{marginTop:0}}>Apply for Leave</h3>
@@ -1719,7 +1960,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       {/* ============================================================================ */}
       {/* 14. MY LEAVES HISTORY */}
       {/* ============================================================================ */}
-      {!loading && view === "my-leaves" && (
+      {view === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
               <h3 style={{margin:0, color:'var(--red)'}}>My Leaves</h3>
@@ -1752,7 +1993,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
       {/* ============================================================================ */}
       {/* 15. MY ATTENDANCE LOG */}
       {/* ============================================================================ */}
-      {!loading && view === "attendance-log" && (
+      {view === "attendance-log" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
                 <h3 style={{margin:0, color:'var(--red)'}}>My Attendance Log</h3>
@@ -1803,9 +2044,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* --- PMS DETAILS & MANAGER GRADING MODAL (WITH SESSION NAMES) ---             */}
-      {/* ============================================================================ */}
+      {/* --- PMS DETAILS MODAL --- */}
       {viewPMSModalOpen && selectedPMS && (
         <div className="modal-overlay" style={{zIndex: 4000}} onClick={() => setViewPMSModalOpen(false)}>
           <div className="modal-card large" onClick={e => e.stopPropagation()} style={{ padding: '25px' }}>
@@ -1959,9 +2198,8 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
 
             {submittingPhoto ? (
                 <div style={{ padding: "40px 20px" }}>
-                    <div className="loader"></div>
-                    <p style={{ marginTop: 15, fontWeight:500, color:'#555' }}>Submitting attendance...</p>
-                    <p style={{ fontSize:12, color:'#888' }}>Please wait...</p>
+                    <p style={{ marginTop: 15, fontWeight:500, color:'#555', fontSize: '18px' }}>Submitting attendance...</p>
+                    <p style={{ fontSize:14, color:'#888' }}>Please wait...</p>
                 </div>
             ) : (
                 <>
