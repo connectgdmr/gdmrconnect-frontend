@@ -439,6 +439,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       <div className="main-area">
         <div className="main-topbar">
           <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><FaBars /></button>
+          {view !== "dashboard" && (
+            <button className="topbar-back" onClick={() => setView("dashboard")}><FaArrowLeft /></button>
+          )}
           <span className="topbar-title">
             {view === "dashboard" ? "Admin Dashboard" : view.replace(/-/g, " ")}
           </span>

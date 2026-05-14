@@ -911,10 +911,21 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       <div className="main-area">
         <div className="main-topbar">
           <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><FaBars /></button>
+          {view !== "dashboard" && (
+            <button className="topbar-back" onClick={() => setView("dashboard")}><FaArrowLeft /></button>
+          )}
           <span className="topbar-title">
             {view === "dashboard" ? "Manager Dashboard" : view.replace(/-/g, " ")}
           </span>
           <div className="topbar-right">
+            {view === "dashboard" && (
+              <button
+                className="topbar-action-btn"
+                onClick={() => { setPassError(""); setOldPassword(""); setNewPassword(""); setConfirmPassword(""); setShowPasswordModal(true); }}
+              >
+                <FaLock /> Change Password
+              </button>
+            )}
             <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
             <span className="topbar-user-name">{user?.name}</span>
           </div>

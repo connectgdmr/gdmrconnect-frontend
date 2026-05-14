@@ -558,10 +558,18 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       <div className="main-area">
         <div className="main-topbar">
           <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><FaBars /></button>
+          {view !== "dashboard" && (
+            <button className="topbar-back" onClick={handleBackNavigation}><FaArrowLeft /></button>
+          )}
           <span className="topbar-title">
             {view === "dashboard" ? "My Dashboard" : view.replace(/-/g, " ")}
           </span>
           <div className="topbar-right">
+            {view === "dashboard" && Array.isArray(delegatedGrants) && delegatedGrants.length > 0 && (
+              <div className="topbar-badge-chip">
+                <FaShieldAlt /> Special Access Active
+              </div>
+            )}
             <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
             <span className="topbar-user-name">{user?.name}</span>
           </div>
