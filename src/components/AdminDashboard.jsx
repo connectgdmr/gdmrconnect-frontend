@@ -40,6 +40,27 @@ import {
 // ============================================================================
 // MAIN EXPORT: ADMIN DASHBOARD
 // ============================================================================
+function QuickLaunchItem({ icon, label, onClick, color = "var(--red)" }) {
+  return (
+    <div className="quick-launch-item" onClick={onClick}>
+      <div className="quick-launch-icon" style={{color}}>{icon}</div>
+      <div className="quick-launch-label">{label}</div>
+    </div>
+  );
+}
+
+function StatItem({ icon, label, count, colorClass, onClick }) {
+  return (
+    <div className="stat-row clickable-stat" onClick={onClick} title="Click to view details">
+      <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
+      <div className="stat-info">
+        <span className="stat-count">{count}</span>
+        <span className="stat-label">{label}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard({ token, api }) {
   
   // ============================================================================
@@ -396,25 +417,7 @@ export default function AdminDashboard({ token, api }) {
   // Status Badge Helper
   const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
 
-  // ============================================================================
-  // REUSABLE UI COMPONENTS
-  // ============================================================================
-  const QuickLaunchItem = ({ icon, label, onClick, color="var(--red)" }) => (
-    <div className="quick-launch-item" onClick={onClick}>
-      <div className="quick-launch-icon" style={{color: color}}>{icon}</div>
-      <div className="quick-launch-label">{label}</div>
-    </div>
-  );
-
-  const StatItem = ({ icon, label, count, colorClass, onClick }) => (
-    <div className="stat-row clickable-stat" onClick={onClick} title="Click to view details">
-      <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
-      <div className="stat-info">
-        <span className="stat-count">{count}</span>
-        <span className="stat-label">{label}</span>
-      </div>
-    </div>
-  );
+  // QuickLaunchItem and StatItem are defined above the component for performance
 
   // ============================================================================
   // MAIN RENDER TEMPLATE

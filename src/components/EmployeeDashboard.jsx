@@ -34,6 +34,28 @@ import {
   FaLaptop         // NEW: Added the Laptop icon for the Asset module
 } from "react-icons/fa";
 
+function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) {
+  return (
+    <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
+      <div className="quick-launch-icon" style={{ color }}>{icon}</div>
+      <div className="quick-launch-label">{label}</div>
+      {badgeCount > 0 && <span className="icon-badge">{badgeCount}</span>}
+    </div>
+  );
+}
+
+function StatItem({ icon, label, count, colorClass, onClick }) {
+  return (
+    <div className="stat-row clickable-stat" onClick={onClick} title="Click to view details">
+      <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
+      <div className="stat-info">
+        <span className="stat-count">{count}</span>
+        <span className="stat-label">{label}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function EmployeeDashboard({ token, api, passwordChanged = true }) {
   // ============================================================================
   // 1. CORE DATA STATES
@@ -138,74 +160,35 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
     const headers = { 'Authorization': `Bearer ${token}` };
 
+    // Returns parsed JSON on success, null on any failure — never throws
+    const safeFetch = (url) =>
+      fetch(url, { headers })
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null);
+
     try {
-      // 1. Fetch Core Attendance
-      const attRes = await fetch(`${baseUrl}/api/my/attendance`, { headers });
-      if (attRes.ok) {
-          const attData = await attRes.json();
-          setAttendance(attData);
-      }
+      const [
+        attData, leaveData, pmsData, corrData,
+        templateData, annData, assetsData, grantsData,
+      ] = await Promise.all([
+        safeFetch(`${baseUrl}/api/my/attendance`),
+        safeFetch(`${baseUrl}/api/my/leaves`),
+        safeFetch(`${baseUrl}/api/my/pms`),
+        safeFetch(`${baseUrl}/api/my/corrections`),
+        safeFetch(`${baseUrl}/api/pms-template`),
+        safeFetch(`${baseUrl}/api/announcements`),
+        safeFetch(`${baseUrl}/api/assets/my-requests`),
+        safeFetch(`${baseUrl}/api/my/delegated-access`),
+      ]);
 
-      // 2. Fetch Core Leaves
-      const leaveRes = await fetch(`${baseUrl}/api/my/leaves`, { headers });
-      if (leaveRes.ok) {
-          const leaveData = await leaveRes.json();
-          setLeaves(leaveData);
-      }
-
-      // 3. Fetch PMS History
-      const pmsRes = await fetch(`${baseUrl}/api/my/pms`, { headers });
-      if (pmsRes.ok) {
-          const pmsData = await pmsRes.json();
-          setPmsHistory(pmsData);
-      }
-
-      // 4. Fetch Corrections
-      const corrRes = await fetch(`${baseUrl}/api/my/corrections`, { headers });
-      if (corrRes.ok) {
-          const corrData = await corrRes.json();
-          setCorrectionHistory(corrData);
-      }
-      
-      // 5. Fetch Dynamic PMS Template
-      const templateRes = await fetch(`${baseUrl}/api/pms-template`, { headers });
-      if (templateRes.ok) {
-          const templateData = await templateRes.json();
-          setPmsTemplate(templateData);
-      }
-
-      // 6. Fetch Announcements
-      const annRes = await fetch(`${baseUrl}/api/announcements`, { headers });
-      if (annRes.ok) {
-          const annData = await annRes.json();
-          const sorted = annData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-          setAnnouncements(sorted);
-      }
-
-      // 7. NEW: Fetch Employee Asset Requests
-      const assetsRes = await fetch(`${baseUrl}/api/assets/my-requests`, { headers });
-      if (assetsRes.ok) {
-          const assetsData = await assetsRes.json();
-          setMyAssets(assetsData);
-      }
-
-      // 8. Fetch Delegated Admin Grants
-      try {
-          const grantsRes = await fetch(`${baseUrl}/api/my/delegated-access`, { headers });
-          if (grantsRes.ok) {
-              const grantsData = await grantsRes.json();
-              if (Array.isArray(grantsData)) {
-                  setDelegatedGrants(grantsData);
-              } else {
-                  setDelegatedGrants([]);
-              }
-          } else {
-              setDelegatedGrants([]);
-          }
-      } catch (grantErr) {
-          console.error("Delegated access check failed:", grantErr);
-          setDelegatedGrants([]);
-      }
+      if (attData)      setAttendance(attData);
+      if (leaveData)    setLeaves(leaveData);
+      if (pmsData)      setPmsHistory(pmsData);
+      if (corrData)     setCorrectionHistory(corrData);
+      if (templateData) setPmsTemplate(templateData);
+      if (annData)      setAnnouncements([...annData].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+      if (assetsData)   setMyAssets(assetsData);
+      setDelegatedGrants(Array.isArray(grantsData) ? grantsData : []);
 
     } catch (err) {
       console.error("Error loading employee dashboard data:", err);
@@ -553,30 +536,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
 
   const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
 
-  // ============================================================================
-  // REUSABLE UI COMPONENTS
-  // ============================================================================
-  const QuickLaunchItem = ({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) => (
-    <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
-      <div className="quick-launch-icon" style={{ color: color }}>{icon}</div>
-      <div className="quick-launch-label">{label}</div>
-      {badgeCount > 0 && <span className="icon-badge">{badgeCount}</span>}
-    </div>
-  );
-
-  const StatItem = ({ icon, label, count, colorClass, onClick }) => (
-    <div 
-      className="stat-row clickable-stat" 
-      onClick={onClick}
-      title="Click to view details"
-    >
-      <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
-      <div className="stat-info">
-        <span className="stat-count">{count}</span>
-        <span className="stat-label">{label}</span>
-      </div>
-    </div>
-  );
+  // QuickLaunchItem and StatItem are defined above the component for performance
 
   // ============================================================================
   // MAIN RENDER METHOD

@@ -1,12 +1,13 @@
 // attendance-frontend/src/App.jsx
-import React, {useState, useEffect} from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import Navbar from "./components/Navbar";
 import Login from "./components/Login";
-import AdminDashboard from "./components/AdminDashboard";
-import EmployeeDashboard from "./components/EmployeeDashboard";
-import ManagerDashboard from "./components/ManagerDashboard";
 import SplashScreen from "./components/SplashScreen";
 import api from "./api";
+
+const AdminDashboard    = lazy(() => import("./components/AdminDashboard"));
+const EmployeeDashboard = lazy(() => import("./components/EmployeeDashboard"));
+const ManagerDashboard  = lazy(() => import("./components/ManagerDashboard"));
 
 // Helper to decode JWT simply to check expiration
 function parseJwt (token) {
@@ -100,13 +101,15 @@ export default function App(){
     <>
       <Navbar user={user} onLogout={onLogout} />
       <div className="app">
-        {role === "admin" ? (
-          <AdminDashboard token={token} api={api} />
-        ) : role === "manager" ? (
-          <ManagerDashboard token={token} api={api} />
-        ) : (
-          <EmployeeDashboard token={token} api={api} />
-        )}
+        <Suspense fallback={<div className="loader-container"><div className="loader"></div></div>}>
+          {role === "admin" ? (
+            <AdminDashboard token={token} api={api} />
+          ) : role === "manager" ? (
+            <ManagerDashboard token={token} api={api} />
+          ) : (
+            <EmployeeDashboard token={token} api={api} />
+          )}
+        </Suspense>
 
         <div className="footer">
           &copy; {new Date().getFullYear()} GDMR CONNECT

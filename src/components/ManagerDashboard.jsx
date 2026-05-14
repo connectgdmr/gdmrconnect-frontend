@@ -49,6 +49,28 @@ import {
 // ============================================================================
 // MAIN EXPORT: MANAGER DASHBOARD
 // ============================================================================
+function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) {
+  return (
+    <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
+      <div className="quick-launch-icon" style={{ color }}>{icon}</div>
+      <div className="quick-launch-label">{label}</div>
+      {badgeCount > 0 && <span className="icon-badge">{badgeCount}</span>}
+    </div>
+  );
+}
+
+function StatItem({ icon, label, count, colorClass, onClick }) {
+  return (
+    <div className="stat-row clickable-stat" onClick={onClick}>
+      <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
+      <div className="stat-info">
+        <span className="stat-count">{count}</span>
+        <span className="stat-label">{label}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function ManagerDashboard({ token, api, passwordChanged = true }) {
   
   // ============================================================================
@@ -823,29 +845,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // REUSABLE UI COMPONENTS
   // ============================================================================
   
-  /**
-   * UI Component for rendering the square buttons in the quick action grid.
-   */
-  const QuickLaunchItem = ({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) => (
-    <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
-      <div className="quick-launch-icon" style={{ color: color }}>{icon}</div>
-      <div className="quick-launch-label">{label}</div>
-      {badgeCount > 0 && <span className="icon-badge">{badgeCount}</span>}
-    </div>
-  );
-
-  /**
-   * UI Component for rendering statistical rows in the summary widgets.
-   */
-  const StatItem = ({ icon, label, count, colorClass, onClick }) => (
-    <div className="stat-row clickable-stat" onClick={onClick}>
-      <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
-      <div className="stat-info">
-          <span className="stat-count">{count}</span>
-          <span className="stat-label">{label}</span>
-      </div>
-    </div>
-  );
+  // QuickLaunchItem and StatItem are defined above the component for performance
 
   /**
    * UI Component to render a quick directory of the manager's assigned team.

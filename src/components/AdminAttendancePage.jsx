@@ -56,6 +56,18 @@ function groupAttendance(records) {
 // MAIN COMPONENT EXPORT
 // ============================================================================
 
+function StatItem({ icon, label, count, colorClass, onClick, statsLoading }) {
+  return (
+    <div className="stat-row clickable-stat" style={{ flex: 1, minWidth: '200px' }} onClick={onClick}>
+      <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
+      <div className="stat-info">
+        <span className="stat-count">{statsLoading ? "..." : count}</span>
+        <span className="stat-label">{label}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminAttendancePage({ token, api }) {
   // --- Employee Data States ---
   const [employees, setEmployees] = useState([]);
@@ -305,16 +317,7 @@ export default function AdminAttendancePage({ token, api }) {
       return "-";
   };
 
-  // Reusable Stat Widget Component (Now accepts onClick)
-  const StatItem = ({ icon, label, count, colorClass, onClick }) => (
-    <div className="stat-row clickable-stat" style={{ flex: 1, minWidth: '200px' }} onClick={onClick}>
-      <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
-      <div className="stat-info">
-        <span className="stat-count">{statsLoading ? "..." : count}</span>
-        <span className="stat-label">{label}</span>
-      </div>
-    </div>
-  );
+  // StatItem is defined above the component for performance
 
   // ============================================================================
   // COMPONENT RENDER
@@ -438,34 +441,10 @@ export default function AdminAttendancePage({ token, api }) {
       {/* TODAY'S STATS WIDGETS (NOW FULLY CLICKABLE)               */}
       {/* ========================================================= */}
       <div className="stats-grid-container">
-          <StatItem 
-            icon={<FaCheckCircle />} 
-            label="Present Today" 
-            count={stats.present} 
-            colorClass="text-green"
-            onClick={() => handleStatClick('present', 'Present Today')}
-          />
-          <StatItem 
-            icon={<FaTimesCircle />} 
-            label="Absent Today" 
-            count={stats.absent} 
-            colorClass="text-red"
-            onClick={() => handleStatClick('absent', 'Absent Today')}
-          />
-          <StatItem 
-            icon={<FaUserClock />} 
-            label="On Leave Today" 
-            count={stats.leave} 
-            colorClass="text-dark-red"
-            onClick={() => handleStatClick('leave', 'On Leave Today')}
-          />
-          <StatItem 
-            icon={<FaUserSlash />} 
-            label="Not Checked In" 
-            count={stats.not_checked_in} 
-            colorClass="text-orange"
-            onClick={() => handleStatClick('not_checked_in', 'Not Checked In')}
-          />
+          <StatItem statsLoading={statsLoading} icon={<FaCheckCircle />} label="Present Today"    count={stats.present}        colorClass="text-green"    onClick={() => handleStatClick('present',        'Present Today')} />
+          <StatItem statsLoading={statsLoading} icon={<FaTimesCircle />} label="Absent Today"     count={stats.absent}         colorClass="text-red"      onClick={() => handleStatClick('absent',         'Absent Today')} />
+          <StatItem statsLoading={statsLoading} icon={<FaUserClock />}   label="On Leave Today"   count={stats.leave}          colorClass="text-dark-red" onClick={() => handleStatClick('leave',          'On Leave Today')} />
+          <StatItem statsLoading={statsLoading} icon={<FaUserSlash />}   label="Not Checked In"   count={stats.not_checked_in} colorClass="text-orange"   onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
       </div>
 
       {/* Global Filter Bar */}
