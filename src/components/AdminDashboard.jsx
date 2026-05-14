@@ -468,49 +468,11 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         </div>
         <div className="main-content">
       <style>{`
-        .clickable-stat { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
-        .clickable-stat:hover { transform: translateX(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); background: #fff; border-color: #e5e5e5; }
-        .detail-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; justify-content: center; align-items: center; animation: fadeIn 0.2s; }
-        .detail-modal-card { background: white; width: 400px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 80vh; }
-        .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .detail-list { overflow-y: auto; flex: 1; }
-        .detail-item { padding: 8px 10px; border-bottom: 1px solid #f9f9f9; display: flex; align-items: center; gap: 10px; }
-        .detail-avatar { width: 32px; height: 32px; background: #eee; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #666; font-weight: bold; }
-        .modern-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff; color: #333; }
-        .grant-form-section { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 20px; }
-        .grant-form-row { display: flex; gap: 20px; margin-bottom: 15px; }
-        .grant-form-col { flex: 1; }
-        .radio-group { display: flex; gap: 15px; align-items: center; margin-top: 8px; }
-        .radio-label { display: flex; align-items: center; gap: 5px; font-size: 14px; cursor: pointer; color: #444; }
-        
-        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; text-transform: capitalize; min-width: 80px; text-align: center; }
-        .status-badge.approved { background: #dcfce7; color: #16a34a; }
-        .status-badge.rejected { background: #fee2e2; color: #dc2626; }
-        .status-badge.pending { background: #fef3c7; color: #d97706; }
-        
-        .action-btn-group { display: flex; flex-direction: column; gap: 6px; min-width: 85px; }
-        .action-btn { display: inline-flex; align-items: center; justify-content: flex-start; gap: 5px; padding: 6px 10px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; color: white; width: 100%; }
-        .action-btn:hover { opacity: 0.9; }
-        .btn-approve { background: #10b981; }
-        .btn-reject { background: #ef4444; }
-        
-        .announcement-card { background: #fff; border: 1px solid #e2e8f0; border-left: 4px solid var(--red); border-radius: 8px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: box-shadow 0.2s; }
-        .announcement-card:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .announcement-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-        .announcement-title { margin: 0; color: #1e293b; font-size: 18px; font-weight: 700; }
-        .announcement-date { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; }
-        .announcement-body { color: #475569; font-size: 14px; line-height: 1.6; white-space: pre-wrap; margin-bottom: 15px; }
-        .announcement-actions { display: flex; gap: 10px; border-top: 1px solid #f1f5f9; padding-top: 15px; }
-        .btn-action-edit { background: #f8fafc; color: #3b82f6; border: 1px solid #bfdbfe; padding: 6px 12px; border-radius: 4px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
-        .btn-action-edit:hover { background: #eff6ff; }
-        .btn-action-recall { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 4px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
-        .btn-action-recall:hover { background: #fee2e2; }
-        .edit-mode-card { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px; margin-bottom: 15px; }
-        
-        .styled-table-global { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: auto !important; }
-        .styled-table-global th, .styled-table-global td { padding: 10px 8px !important; border-bottom: 1px solid #f2f2f2; vertical-align: top !important; white-space: normal !important; word-wrap: break-word !important; }
-        .styled-table-global th { background-color: #f8f9fa; color: #334155; font-weight:600; text-align:left; border-bottom: 2px solid #e2e8f0; }
-        
+        .styled-table-global { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; table-layout: auto !important; border-radius: 14px; overflow: hidden; border: 1px solid #e2e8f0; background: #fff; }
+        .styled-table-global th { background: #f8fafc; color: #64748b; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; text-align: left; padding: 11px 16px !important; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+        .styled-table-global td { padding: 12px 16px !important; border-bottom: 1px solid #f8fafc; color: #334155; vertical-align: middle !important; white-space: normal !important; word-wrap: break-word !important; }
+        .styled-table-global tr:last-child td { border-bottom: none; }
+        .styled-table-global tbody tr:hover td { background: #f8fafc; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
 
