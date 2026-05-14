@@ -291,12 +291,21 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
     } catch (err) { 
       console.error("Error loading data", err); 
     } 
-  }, [token, dashboardMonth, api, templateSessions.length]); 
+  }, [token, dashboardMonth, api]);
 
   // Trigger load on component mount
   useEffect(() => {
-      load(); 
+      load();
   }, [load]);
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
 
   // ============================================================================
   // PASSWORD MANAGEMENT
@@ -650,15 +659,19 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   async function approveCorrection(id, action) {
       const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
       try {
-          await fetch(`${baseUrl}/api/manager/approve-correction`, {
+          const res = await fetch(`${baseUrl}/api/manager/approve-correction`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ id, action })
           });
+          if (!res.ok) {
+              const errData = await res.json();
+              throw new Error(errData.message || "Failed to process correction request.");
+          }
           await load(true);
-          alert(`Correction Request ${action} successfully.`); 
-      } catch(err) { 
-          alert(err.message); 
+          alert(`Correction Request ${action} successfully.`);
+      } catch(err) {
+          alert(err.message);
       }
   }
   
@@ -668,15 +681,19 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   async function updateLeaveStatus(id, status) {
        const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
        try {
-          await fetch(`${baseUrl}/api/admin/leaves/${id}`, {
+          const res = await fetch(`${baseUrl}/api/admin/leaves/${id}`, {
               method: 'PUT',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ status })
           });
-          await load(true); 
-          alert(`Leave ${status} Successfully`); 
-       } catch(err) { 
-          alert(err.message); 
+          if (!res.ok) {
+              const errData = await res.json();
+              throw new Error(errData.message || "Failed to update leave status.");
+          }
+          await load(true);
+          alert(`Leave ${status} Successfully`);
+       } catch(err) {
+          alert(err.message);
        }
   }
 
@@ -1281,7 +1298,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           <button className="btn ghost" onClick={() => setView("dashboard")} style={{padding: '8px 12px', display:'flex', alignItems:'center', gap:6}}>
             <FaArrowLeft /> Back
           </button>
-          <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>{view.replace("-", " ")}</h3>
+          <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>{view.replace(/-/g, " ")}</h3>
         </div>
       )}
       

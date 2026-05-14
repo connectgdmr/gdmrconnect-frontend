@@ -216,6 +216,15 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
     load();
   }, [load]);
 
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
+
   // ============================================================================
   // ASSET SUBMISSION LOGIC (NEW)
   // ============================================================================
@@ -514,7 +523,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
         const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
         if (selectedFile.size > maxSize) {
             alert(`File is too large. Maximum size allowed is ${MAX_FILE_SIZE_MB}MB.`);
-            e.target.value = null; 
+            e.target.value = "";
             setFile(null);
         } else {
             setFile(selectedFile);
@@ -915,7 +924,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
             <FaArrowLeft /> Back
           </button>
           <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>
-            {view.replace("-", " ")}
+            {view.replace(/-/g, " ")}
           </h3>
         </div>
       )}

@@ -1,5 +1,5 @@
 // attendance-frontend/src/api.jsx
-const API_BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+const API_BASE = import.meta.env.VITE_API_URL || "https://gdmrconnect-backend-production.up.railway.app/api";
 
 async function request(path, method = "GET", body, token) {
   const headers = { "Content-Type": "application/json" };

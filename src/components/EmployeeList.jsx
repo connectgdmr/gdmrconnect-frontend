@@ -86,18 +86,18 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPromote
     // ============================================================================
     // FILTERING LOGIC
     // ============================================================================
+    if (!employees) return <div className="loader-container"><div className="loader"></div></div>;
+
     const filteredEmployees = employees.filter((emp) => {
-        const matchesSearch = 
+        const matchesSearch =
             (emp.name && emp.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (emp.email && emp.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (emp.department && emp.department.toLowerCase().includes(searchTerm.toLowerCase()));
-            
+
         const matchesRole = roleFilter === "All" || emp.role === roleFilter;
-        
+
         return matchesSearch && matchesRole;
     });
-
-    if (!employees) return <div className="loader-container"><div className="loader"></div></div>;
 
     // ============================================================================
     // RENDER
