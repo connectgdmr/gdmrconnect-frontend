@@ -1068,24 +1068,19 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {/* ============================================================================ */}
       {showPasswordModal && (
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
-            <div className="modal-card">
-                <button 
-                    className="btn ghost" 
-                    style={{ position: 'absolute', top: 15, right: 15, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 
-                    onClick={() => {
-                        setShowPasswordModal(false);
-                        setPassError("");
-                        setOldPassword("");
-                        setNewPassword("");
-                        setConfirmPassword("");
-                    }}
-                >
-                    <FaTimes />
-                </button>
-
-                <h3 style={{color: "var(--red)", marginTop: 0}}>Set Secure Password</h3>
-                <p className="small">Please set a strong password to secure your account.</p>
-                {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px'}}>{passError}</div>}
+            <div className="modal-card" style={{padding: 0}}>
+                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'20px 24px 16px', borderBottom:'1px solid #f1f5f9'}}>
+                  <div>
+                    <h3 style={{color:'var(--red)', margin:0, fontSize:18, fontWeight:700}}>Set Secure Password</h3>
+                    <p style={{margin:'4px 0 0', fontSize:13, color:'#64748b'}}>Please set a strong password to secure your account.</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowPasswordModal(false); setPassError(""); setOldPassword(""); setNewPassword(""); setConfirmPassword(""); }}
+                    style={{background:'#f1f5f9', border:'none', borderRadius:'50%', width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#64748b', flexShrink:0}}
+                  ><FaTimes size={13} /></button>
+                </div>
+                <div style={{padding:'20px 24px 24px'}}>
+                {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '8px'}}>{passError}</div>}
                 
                 <form onSubmit={handleSetPassword}>
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
@@ -1139,6 +1134,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
 
                     <button className="btn" style={{width: '100%', marginTop: 20, padding: 12}}>Save Password</button>
                 </form>
+                </div>
             </div>
         </div>
       )}

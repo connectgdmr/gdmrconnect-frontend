@@ -536,9 +536,10 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 .modal-card {
   background: #fff; width: 600px; max-width: 95vw;
   border-radius: var(--radius-xl); border: 1px solid var(--slate-200);
-  box-shadow: var(--shadow-xl); animation: fadeScale 0.22s ease; overflow: hidden;
+  box-shadow: var(--shadow-xl); animation: fadeScale 0.22s ease;
+  position: relative;
 }
-.modal-card.large { width: 780px; max-width: 95vw; max-height: 90vh; }
+.modal-card.large { width: 780px; max-width: 95vw; max-height: 90vh; overflow: hidden; }
 .modal-actions { margin-top: 20px; display: flex; gap: 10px; justify-content: center; }
 
 .detail-modal-overlay {
