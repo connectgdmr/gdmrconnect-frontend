@@ -1,19 +1,36 @@
 // attendance-frontend/src/api.jsx
 const API_BASE = import.meta.env.VITE_API_URL || "https://gdmrconnect-backend-production.up.railway.app/api";
 
+const REQUEST_TIMEOUT_MS = 30000;
+
 async function request(path, method = "GET", body, token) {
   const headers = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  const data = await res.json();
-  if (!res.ok) throw data;
-  return data;
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    const data = await res.json();
+    if (!res.ok) throw data;
+    return data;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === "AbortError") {
+      throw new Error("Request timed out. The server may be starting up — please try again in a moment.");
+    }
+    if (err instanceof TypeError) {
+      throw new Error("Network error — please check your internet connection and try again.");
+    }
+    throw err;
+  }
 }
 
 export default {

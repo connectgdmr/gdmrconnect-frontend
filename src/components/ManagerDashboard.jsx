@@ -164,8 +164,9 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   /** 
    * Primary routing state for conditional rendering of sub-views 
    */
-  const [view, setView] = useState("dashboard"); 
-  
+  const [view, setView] = useState("dashboard");
+  const [loadError, setLoadError] = useState(false);
+
   // Leave Form State Variables
   const [leaveDuration, setLeaveDuration] = useState("single");
   const [startDate, setStartDate] = useState("");
@@ -215,8 +216,8 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
    * manager dashboard in parallel to optimize rendering times.
    */
   const load = useCallback(async (isAction = false) => {
-    
-    // Safely check for api to prevent crashes during initialization
+    if (!isAction) setLoadError(false);
+
     const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
     const headers = { 'Authorization': `Bearer ${token}` };
 
@@ -288,9 +289,10 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           setTeamAssets(results[11].value);
       }
 
-    } catch (err) { 
-      console.error("Error loading data", err); 
-    } 
+    } catch (err) {
+      console.error("Error loading data", err);
+      if (!isAction) setLoadError(true);
+    }
   }, [token, dashboardMonth, api]);
 
   // Trigger load on component mount
@@ -1302,6 +1304,25 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
         </div>
       )}
       
+      {/* ============================================================================ */}
+      {/* NETWORK ERROR BANNER */}
+      {/* ============================================================================ */}
+      {loadError && (
+        <div style={{
+          background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px',
+          padding: '20px', marginTop: '16px', textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '28px', marginBottom: '8px' }}>⚠️</div>
+          <div style={{ fontWeight: 700, color: '#dc2626', marginBottom: '4px' }}>Failed to load your data</div>
+          <div style={{ color: '#666', fontSize: '14px', marginBottom: '16px' }}>
+            This usually happens on a slow or new network. The server may be starting up.
+          </div>
+          <button className="btn" onClick={() => load()} style={{ padding: '10px 28px' }}>
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* ============================================================================ */}
       {/* 3. DASHBOARD HOME VIEW (Widgets) */}
       {/* ============================================================================ */}

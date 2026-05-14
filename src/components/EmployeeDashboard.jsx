@@ -78,8 +78,9 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   // ============================================================================
   // 6. NAVIGATION & UI STATES
   // ============================================================================
-  const [view, setView] = useState("dashboard"); 
+  const [view, setView] = useState("dashboard");
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   
   // ============================================================================
   // 7. FORM STATES (LEAVES & CORRECTIONS)
@@ -133,6 +134,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
    */
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
     const headers = { 'Authorization': `Bearer ${token}` };
 
@@ -207,6 +209,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
 
     } catch (err) {
       console.error("Error loading employee dashboard data:", err);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -926,6 +929,25 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
           <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>
             {view.replace(/-/g, " ")}
           </h3>
+        </div>
+      )}
+
+      {/* ============================================================================ */}
+      {/* NETWORK ERROR BANNER */}
+      {/* ============================================================================ */}
+      {loadError && (
+        <div style={{
+          background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px',
+          padding: '20px', marginTop: '16px', textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '28px', marginBottom: '8px' }}>⚠️</div>
+          <div style={{ fontWeight: 700, color: '#dc2626', marginBottom: '4px' }}>Failed to load your data</div>
+          <div style={{ color: '#666', fontSize: '14px', marginBottom: '16px' }}>
+            This usually happens on a slow or new network. The server may be starting up.
+          </div>
+          <button className="btn" onClick={() => load()} style={{ padding: '10px 28px' }}>
+            Retry
+          </button>
         </div>
       )}
 

@@ -29,7 +29,11 @@ export default function Login({ onLogin, api }) {
       const data = await api.login({ email, password });
       onLogin(data); 
     } catch (err) {
-      setErr(err.message || "Invalid email or password");
+      if (err.message?.includes("Network error") || err.message?.includes("timed out")) {
+        setErr(err.message);
+      } else {
+        setErr(err.message || "Invalid email or password");
+      }
     } finally {
       setLoading(false);
     }
