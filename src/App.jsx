@@ -1,6 +1,5 @@
 // attendance-frontend/src/App.jsx
 import React, { useState, useEffect, lazy, Suspense } from "react";
-import Navbar from "./components/Navbar";
 import Login from "./components/Login";
 import SplashScreen from "./components/SplashScreen";
 import api from "./api";
@@ -89,32 +88,18 @@ export default function App(){
   }
 
   if(!token) {
-    return (
-      <>
-        <Navbar user={null} />
-        <Login onLogin={handleLogin} api={api} />
-      </>
-    );
+    return <Login onLogin={handleLogin} api={api} />;
   }
 
   return (
-    <>
-      <Navbar user={user} onLogout={onLogout} />
-      <div className="app">
-        <Suspense fallback={<div className="loader-container"><div className="loader"></div></div>}>
-          {role === "admin" ? (
-            <AdminDashboard token={token} api={api} />
-          ) : role === "manager" ? (
-            <ManagerDashboard token={token} api={api} />
-          ) : (
-            <EmployeeDashboard token={token} api={api} />
-          )}
-        </Suspense>
-
-        <div className="footer">
-          &copy; {new Date().getFullYear()} GDMR CONNECT
-        </div>
-      </div>
-    </>
+    <Suspense fallback={<div className="loader-container"><div className="loader"></div></div>}>
+      {role === "admin" ? (
+        <AdminDashboard token={token} api={api} user={user} onLogout={onLogout} />
+      ) : role === "manager" ? (
+        <ManagerDashboard token={token} api={api} user={user} onLogout={onLogout} />
+      ) : (
+        <EmployeeDashboard token={token} api={api} user={user} onLogout={onLogout} />
+      )}
+    </Suspense>
   );
 }

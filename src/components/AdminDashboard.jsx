@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Sidebar from "./Sidebar";
 
 // ============================================================================
 // COMPONENT IMPORTS
@@ -29,12 +30,13 @@ import {
   FaTimes,
   FaCalendarAlt,
   FaBullhorn,
-  FaUserShield, 
+  FaUserShield,
   FaTrash,
-  FaEdit,      
-  FaSave,      
+  FaEdit,
+  FaSave,
   FaUndo,
-  FaLaptop         // NEW: Icon for Organization Asset Management
+  FaLaptop,        // NEW: Icon for Organization Asset Management
+  FaBars
 } from "react-icons/fa";
 
 // ============================================================================
@@ -61,15 +63,16 @@ function StatItem({ icon, label, count, colorClass, onClick }) {
   );
 }
 
-export default function AdminDashboard({ token, api }) {
+export default function AdminDashboard({ token, api, user, onLogout }) {
   
   // ============================================================================
   // 1. CORE STATES
   // ============================================================================
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [view, setView] = useState("dashboard"); 
+  const [view, setView] = useState("dashboard");
   const [subView, setSubView] = useState("list");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Stats State for Dashboard Overview Widgets
   const [stats, setStats] = useState({
@@ -423,7 +426,28 @@ export default function AdminDashboard({ token, api }) {
   // MAIN RENDER TEMPLATE
   // ============================================================================
   return (
-    <div>
+    <div className="app-shell">
+      <Sidebar
+        role="admin"
+        user={user}
+        view={view}
+        setView={(v) => { setView(v); if (v === "employees") setSubView("list"); }}
+        onLogout={onLogout}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      <div className="main-area">
+        <div className="main-topbar">
+          <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><FaBars /></button>
+          <span className="topbar-title">
+            {view === "dashboard" ? "Admin Dashboard" : view.replace(/-/g, " ")}
+          </span>
+          <div className="topbar-right">
+            <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
+            <span className="topbar-user-name">{user?.name}</span>
+          </div>
+        </div>
+        <div className="main-content">
       <style>{`
         .clickable-stat { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
         .clickable-stat:hover { transform: translateX(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); background: #fff; border-color: #e5e5e5; }
@@ -830,6 +854,8 @@ export default function AdminDashboard({ token, api }) {
           </div>
       )}
 
+        </div>
+      </div>
     </div>
   );
 }

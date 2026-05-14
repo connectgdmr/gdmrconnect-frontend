@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import Sidebar from "./Sidebar";
 
 // ============================================================================
 // IMPORTING ADMIN COMPONENTS FOR DELEGATED ACCESS
@@ -43,7 +44,8 @@ import {
   FaRegSquare,
   FaClock,           // Used for Applied On Date/Time
   FaFileDownload,    // Used for File Attachment UI
-  FaLaptop           // Icon for Team Asset Requests
+  FaLaptop,          // Icon for Team Asset Requests
+  FaBars
 } from "react-icons/fa";
 
 // ============================================================================
@@ -71,7 +73,7 @@ function StatItem({ icon, label, count, colorClass, onClick }) {
   );
 }
 
-export default function ManagerDashboard({ token, api, passwordChanged = true }) {
+export default function ManagerDashboard({ token, api, user, onLogout, passwordChanged = true }) {
   
   // ============================================================================
   // 1. CORE DATA STATES
@@ -188,6 +190,7 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
    */
   const [view, setView] = useState("dashboard");
   const [loadError, setLoadError] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Leave Form State Variables
   const [leaveDuration, setLeaveDuration] = useState("single");
@@ -888,8 +891,36 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
   // RENDER TEMPLATE
   // ============================================================================
   return (
-    <div>
-      {/* 
+    <div className="app-shell">
+      <Sidebar
+        role="manager"
+        user={user}
+        view={view}
+        setView={setView}
+        onLogout={onLogout}
+        navBadges={{
+          "team-leaves": notificationCounts?.leaves || 0,
+          "pms-manager": notificationCounts?.pms || 0,
+          "corrections": notificationCounts?.corrections || 0,
+          "announcements": notificationCounts?.announcements || 0,
+          "team-assets": notificationCounts?.assets || 0,
+        }}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      <div className="main-area">
+        <div className="main-topbar">
+          <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><FaBars /></button>
+          <span className="topbar-title">
+            {view === "dashboard" ? "Manager Dashboard" : view.replace(/-/g, " ")}
+          </span>
+          <div className="topbar-right">
+            <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
+            <span className="topbar-user-name">{user?.name}</span>
+          </div>
+        </div>
+        <div className="main-content">
+      {/*
         -----------------------------------------------------------------------
         COMPONENT SCOPED CSS STYLING
         Expanded to multi-line format for superior readability and maintenance.
@@ -2263,6 +2294,8 @@ export default function ManagerDashboard({ token, api, passwordChanged = true })
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

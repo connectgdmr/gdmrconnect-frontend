@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import Sidebar from "./Sidebar";
 import HolidayCalendar from "./HolidayCalendar"; 
 
 // ============================================================================
@@ -28,10 +29,11 @@ import {
   FaEye,
   FaEyeSlash, 
   FaLock,
-  FaUserShield,    
-  FaClipboardList, 
+  FaUserShield,
+  FaClipboardList,
   FaShieldAlt,
-  FaLaptop         // NEW: Added the Laptop icon for the Asset module
+  FaLaptop,        // NEW: Added the Laptop icon for the Asset module
+  FaBars
 } from "react-icons/fa";
 
 function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) {
@@ -56,7 +58,7 @@ function StatItem({ icon, label, count, colorClass, onClick }) {
   );
 }
 
-export default function EmployeeDashboard({ token, api, passwordChanged = true }) {
+export default function EmployeeDashboard({ token, api, user, onLogout, passwordChanged = true }) {
   // ============================================================================
   // 1. CORE DATA STATES
   // ============================================================================
@@ -103,6 +105,7 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   const [view, setView] = useState("dashboard");
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // ============================================================================
   // 7. FORM STATES (LEAVES & CORRECTIONS)
@@ -542,8 +545,29 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
   // MAIN RENDER METHOD
   // ============================================================================
   return (
-    <div>
-      {/* 
+    <div className="app-shell">
+      <Sidebar
+        role="employee"
+        user={user}
+        view={view}
+        setView={setView}
+        onLogout={onLogout}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      <div className="main-area">
+        <div className="main-topbar">
+          <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><FaBars /></button>
+          <span className="topbar-title">
+            {view === "dashboard" ? "My Dashboard" : view.replace(/-/g, " ")}
+          </span>
+          <div className="topbar-right">
+            <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
+            <span className="topbar-user-name">{user?.name}</span>
+          </div>
+        </div>
+        <div className="main-content">
+      {/*
         ========================================================================
         EXPANDED CSS STYLING
         Expanded to multi-line format for superior readability and maintenance.
@@ -1527,6 +1551,8 @@ export default function EmployeeDashboard({ token, api, passwordChanged = true }
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }
