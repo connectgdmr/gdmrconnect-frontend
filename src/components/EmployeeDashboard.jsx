@@ -36,6 +36,20 @@ import {
   FaBars
 } from "react-icons/fa";
 
+const RATING_SCALE = [
+  { value: 1, label: "Needs Development", color: "#ef4444" },
+  { value: 2, label: "Developing", color: "#f97316" },
+  { value: 3, label: "Meeting Expectations", color: "#eab308" },
+  { value: 4, label: "Exceeding Expectations", color: "#22c55e" },
+  { value: 5, label: "Outstanding", color: "#6366f1" },
+];
+
+function getRatingInfo(score) {
+  const s = parseInt(score);
+  if (!s || isNaN(s)) return null;
+  return RATING_SCALE.find(r => r.value === s) || null;
+}
+
 function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) {
   return (
     <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
@@ -139,6 +153,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   const [modalList, setModalList] = useState([]);
   const [pmsModalOpen, setPmsModalOpen] = useState(false);
   const [selectedPms, setSelectedPms] = useState(null);
+  const [pmsAcknowledging, setPmsAcknowledging] = useState(false);
   
   // ============================================================================
   // 10. DERIVED DATA
@@ -423,6 +438,26 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   function viewPMS(pmsData) {
       setSelectedPms(pmsData);
       setPmsModalOpen(true);
+  }
+
+  async function acknowledgeReview(reviewId) {
+      setPmsAcknowledging(true);
+      try {
+          const res = await fetch(`${api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/pms/acknowledge`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ review_id: reviewId })
+          });
+          if (res.ok) {
+              setPmsModalOpen(false);
+              setSelectedPms(null);
+              await load();
+              alert("Review acknowledged successfully!");
+          } else {
+              alert("Failed to acknowledge review.");
+          }
+      } catch { alert("Network error. Please try again."); }
+      finally { setPmsAcknowledging(false); }
   }
 
   const getGroupedResponses = () => {
@@ -1173,74 +1208,211 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       )}
 
       {/* ============================================================================ */}
-      {/* 7. DYNAMIC PMS VIEW (SELF-EVALUATION) */}
+      {/* 7. PERFORMANCE SELF-EVALUATION — WORLD CLASS DESIGN */}
       {/* ============================================================================ */}
-      {view === "pms" && (
-          <div className="card" style={{marginTop: 16}}>
-              <h3>Monthly Performance Self-Evaluation</h3>
-              {!pmsTemplate || !pmsTemplate.sessions || pmsTemplate.sessions.length === 0 ? (
-                  <p style={{color:'#777', padding: 20, textAlign: 'center', border: '1px dashed #ccc', borderRadius: 8}}>
-                      No active evaluation sessions available for this month.
-                  </p>
-              ) : (
-                  <form onSubmit={submitPMS}>
-                      {pmsTemplate.sessions.map((session, sIdx) => (
-                          <div key={sIdx} style={{marginBottom: 30, padding: 25, background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb'}}>
-                              <h4 style={{color: 'var(--red)', marginTop: 0, borderBottom: '2px solid #fecaca', paddingBottom: 10, fontSize: 18}}>
-                                  Session {sIdx + 1}: {session.name}
-                              </h4>
-                              {session.questions.map((q, qIdx) => {
-                                  const responseKey = `${sIdx}_${qIdx}`;
-                                  const currentScore = pmsResponses[responseKey]?.self_score || 5;
-                                  return (
-                                  <div key={qIdx} style={{marginTop: 25, padding: '15px', background: '#fff', borderRadius: '8px', border: '1px solid #f1f5f9'}}>
-                                      <label className="modern-label" style={{fontSize: 15, color: '#1e293b', marginBottom: 12}}>{q.text}</label>
-                                      {q.type === 'scale' ? (
-                                          <div style={{display:'flex', alignItems:'center', gap: 20, marginTop: 10, marginBottom: 15}}>
-                                              <input type="range" min="1" max="10" value={currentScore} onChange={(e) => handlePmsChange(sIdx, session.name, qIdx, q.text, 'self_score', e.target.value)} required style={{flex: 1, accentColor: 'var(--red)', cursor: 'pointer'}} />
-                                              <div style={{background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', minWidth: '80px', textAlign: 'center'}}>
-                                                  <strong style={{fontSize: 20, color: 'var(--red)'}}>{currentScore}</strong><span style={{color: '#64748b'}}>/10</span>
-                                              </div>
-                                          </div>
-                                      ) : (
-                                          <textarea className="modern-input" style={{minHeight: 100, marginTop: 10, marginBottom: 15, resize: 'vertical'}} placeholder="Enter your descriptive answer here..." onChange={(e) => handlePmsChange(sIdx, session.name, qIdx, q.text, 'descriptive_answer', e.target.value)} required />
-                                      )}
-                                      <input type="text" className="modern-input" style={{background: '#f8fafc', borderStyle: 'dashed'}} placeholder="Remarks / Context explaining your response (Optional)" onChange={(e) => handlePmsChange(sIdx, session.name, qIdx, q.text, 'remarks', e.target.value)} />
-                                  </div>
-                              )})}
-                          </div>
-                      ))}
-                      <div style={{display:'flex', justifyContent:'flex-end'}}>
-                          <button type="submit" className="btn" style={{padding: '15px 40px', fontSize: 16, borderRadius: 30}}>
-                              {loading ? 'Submitting...' : 'Submit Evaluation securely'}
-                          </button>
-                      </div>
-                  </form>
-              )}
+      {view === "pms" && (() => {
+        const totalQuestions = pmsTemplate?.sessions?.reduce((s, sess) => s + (sess.questions?.length || 0), 0) || 0;
+        const answeredQuestions = Object.keys(pmsResponses).length;
+        const progressPct = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
 
-              {/* PMS HISTORY TABLE */}
-              <h4 style={{marginTop:40, color:'var(--red)', borderTop: '2px solid #eee', paddingTop: 20}}>My PMS Evaluation History</h4>
-              <div style={{overflowX: 'auto'}}>
-                <table className="styled-table">
-                    <thead><tr><th>Month</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody>
-                        {pmsHistory.length === 0 && <tr><td colSpan="3" style={{textAlign: 'center', color: '#999', padding: 20}}>No history found.</td></tr>}
-                        {pmsHistory.map(p => (
-                            <tr key={p._id}>
-                                <td style={{fontWeight: 'bold'}}>{p.month}</td>
-                                <td><span className={`status-badge ${p.status === 'Manager Review Completed' ? 'approved' : 'pending'}`}>{p.status}</span></td>
-                                <td>
-                                    <button className="btn ghost" style={{padding: "6px 12px", fontSize: "13px", border: '1px solid #ccc'}} onClick={() => viewPMS(p)}>
-                                        <FaEye style={{marginRight: 4}}/> View
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+        return (
+          <div style={{maxWidth: 900, margin: '0 auto'}}>
+
+            {/* Header */}
+            <div className="card" style={{marginBottom:16}}>
+              <div style={{display:'flex', alignItems:'center', gap:14, marginBottom: pmsTemplate?.cycle_name || pmsTemplate?.due_date ? 16 : 0}}>
+                <div style={{width:46, height:46, borderRadius:12, background:'linear-gradient(135deg, var(--red), #f97316)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
+                  <FaChartLine color="#fff" size={20} />
+                </div>
+                <div style={{flex:1}}>
+                  <h3 style={{margin:0, fontSize:20, color:'#0f172a'}}>Performance Self-Evaluation</h3>
+                  <p style={{margin:0, fontSize:13, color:'#64748b'}}>Reflect honestly on your work — your responses are reviewed by your manager</p>
+                </div>
               </div>
+              {(pmsTemplate?.cycle_name || pmsTemplate?.due_date) && (
+                <div style={{display:'flex', gap:16, flexWrap:'wrap', padding:'12px 16px', background:'#f8fafc', borderRadius:8, border:'1px solid #e2e8f0'}}>
+                  {pmsTemplate.cycle_name && (
+                    <div style={{display:'flex', alignItems:'center', gap:6}}>
+                      <FaClipboardList style={{color:'var(--red)', fontSize:12}} />
+                      <span style={{fontSize:13, color:'#0f172a', fontWeight:600}}>{pmsTemplate.cycle_name}</span>
+                    </div>
+                  )}
+                  {pmsTemplate.due_date && (
+                    <div style={{display:'flex', alignItems:'center', gap:6}}>
+                      <FaCalendarAlt style={{color:'#f59e0b', fontSize:12}} />
+                      <span style={{fontSize:13, color:'#64748b'}}>Due: <strong style={{color:'#0f172a'}}>{new Date(pmsTemplate.due_date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}</strong></span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {!pmsTemplate || !pmsTemplate.sessions || pmsTemplate.sessions.length === 0 ? (
+              <div className="card" style={{textAlign:'center', padding:'50px 20px', color:'#94a3b8'}}>
+                <FaClipboardList size={40} style={{marginBottom:14, opacity:0.3}} />
+                <div style={{fontSize:16, fontWeight:500}}>No active evaluation available</div>
+                <div style={{fontSize:13, marginTop:6}}>Your manager hasn't assigned an evaluation form for this period yet.</div>
+              </div>
+            ) : (
+              <>
+                {/* Progress Bar */}
+                {totalQuestions > 0 && (
+                  <div className="card" style={{marginBottom:16, padding:'14px 18px'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8}}>
+                      <span style={{fontSize:13, color:'#475569', fontWeight:600}}>Completion Progress</span>
+                      <span style={{fontSize:13, fontWeight:700, color: progressPct === 100 ? '#22c55e' : 'var(--red)'}}>{answeredQuestions}/{totalQuestions} answered · {progressPct}%</span>
+                    </div>
+                    <div style={{height:8, background:'#f1f5f9', borderRadius:99, overflow:'hidden'}}>
+                      <div style={{height:'100%', borderRadius:99, width:`${progressPct}%`, background: progressPct === 100 ? '#22c55e' : 'var(--red)', transition:'width 0.4s ease'}} />
+                    </div>
+                  </div>
+                )}
+
+                <form onSubmit={submitPMS}>
+                  {pmsTemplate.sessions.map((session, sIdx) => (
+                    <div key={sIdx} className="card" style={{marginBottom:14}}>
+                      <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:18, paddingBottom:12, borderBottom:'2px solid #fecaca'}}>
+                        <div style={{width:30, height:30, borderRadius:8, background:'var(--red)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:14, flexShrink:0}}>
+                          {sIdx + 1}
+                        </div>
+                        <div style={{flex:1}}>
+                          <h4 style={{margin:0, color:'#0f172a', fontSize:16}}>{session.name}</h4>
+                        </div>
+                        {session.weight && (
+                          <span style={{fontSize:11, padding:'3px 10px', borderRadius:20, background:'#fef2f2', color:'var(--red)', border:'1px solid #fecaca', fontWeight:700}}>{session.weight}%</span>
+                        )}
+                      </div>
+
+                      {session.questions.map((q, qIdx) => {
+                        const responseKey = `${sIdx}_${qIdx}`;
+                        const currentScore = parseInt(pmsResponses[responseKey]?.self_score) || null;
+                        const isAnswered = pmsResponses[responseKey]?.self_score || pmsResponses[responseKey]?.descriptive_answer;
+
+                        return (
+                          <div key={qIdx} style={{padding:16, background: isAnswered ? '#f0fdf4' : '#fafafa', borderRadius:10, border:`1px solid ${isAnswered ? '#bbf7d0' : '#e2e8f0'}`, marginBottom:12, transition:'all 0.2s'}}>
+                            <div style={{display:'flex', alignItems:'flex-start', gap:8, marginBottom:14}}>
+                              <div style={{width:20, height:20, borderRadius:4, background: isAnswered ? '#22c55e' : '#e2e8f0', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1}}>
+                                {isAnswered ? <FaCheckCircle color="#fff" size={11} /> : <span style={{fontSize:11, color:'#64748b', fontWeight:600}}>{qIdx+1}</span>}
+                              </div>
+                              <label style={{fontSize:14, color:'#1e293b', fontWeight:500, lineHeight:1.5}}>{q.text}</label>
+                            </div>
+
+                            {q.type === 'scale' && (
+                              <div style={{marginBottom:14}}>
+                                <div style={{fontSize:11, color:'#64748b', fontWeight:600, marginBottom:10}}>SELECT YOUR RATING</div>
+                                <div style={{display:'flex', gap:8, flexWrap:'wrap', marginBottom:8}}>
+                                  {RATING_SCALE.map(r => (
+                                    <button key={r.value} type="button"
+                                      onClick={() => handlePmsChange(sIdx, session.name, qIdx, q.text, 'self_score', r.value)}
+                                      style={{
+                                        padding:'10px 14px', borderRadius:10, border:'2px solid',
+                                        borderColor: currentScore === r.value ? r.color : '#e2e8f0',
+                                        background: currentScore === r.value ? r.color : '#fff',
+                                        color: currentScore === r.value ? '#fff' : '#475569',
+                                        cursor:'pointer', fontSize:12, fontWeight:600, transition:'all 0.15s',
+                                        display:'flex', flexDirection:'column', alignItems:'center', gap:2, minWidth:52
+                                      }}>
+                                      <span style={{fontSize:16, fontWeight:700}}>{r.value}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                                {currentScore && (
+                                  <div style={{fontSize:12, color: getRatingInfo(currentScore)?.color, fontWeight:600, display:'flex', alignItems:'center', gap:6}}>
+                                    <div style={{width:8, height:8, borderRadius:'50%', background: getRatingInfo(currentScore)?.color}} />
+                                    {getRatingInfo(currentScore)?.label}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {q.type === 'descriptive' && (
+                              <textarea className="modern-input" style={{minHeight:90, resize:'vertical', marginBottom:10}}
+                                placeholder="Provide a detailed, honest assessment..."
+                                value={pmsResponses[responseKey]?.descriptive_answer || ""}
+                                onChange={e => handlePmsChange(sIdx, session.name, qIdx, q.text, 'descriptive_answer', e.target.value)}
+                                required
+                              />
+                            )}
+
+                            {q.type === 'goals' && (
+                              <textarea className="modern-input" style={{minHeight:90, resize:'vertical', marginBottom:10}}
+                                placeholder="Describe your goals, achievements, and what you aim to accomplish..."
+                                value={pmsResponses[responseKey]?.descriptive_answer || ""}
+                                onChange={e => handlePmsChange(sIdx, session.name, qIdx, q.text, 'descriptive_answer', e.target.value)}
+                                required
+                              />
+                            )}
+
+                            <input type="text" className="modern-input"
+                              style={{background:'transparent', borderStyle:'dashed', fontSize:12}}
+                              placeholder="Optional: Add context or remarks for this response..."
+                              value={pmsResponses[responseKey]?.remarks || ""}
+                              onChange={e => handlePmsChange(sIdx, session.name, qIdx, q.text, 'remarks', e.target.value)}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+
+                  <div style={{display:'flex', justifyContent:'flex-end', paddingBottom:20}}>
+                    <button type="submit" className="btn" style={{padding:'14px 40px', fontSize:15, borderRadius:12, background:'linear-gradient(135deg, var(--red), #dc2626)', border:'none', display:'flex', alignItems:'center', gap:8}}>
+                      {loading ? 'Submitting...' : <><FaCheckCircle /> Submit Evaluation</>}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+
+            {/* PMS History */}
+            <div className="card" style={{marginTop:8}}>
+              <h4 style={{margin:'0 0 14px', color:'#0f172a', display:'flex', alignItems:'center', gap:8}}>
+                <FaHistory style={{color:'var(--red)'}} /> My Evaluation History
+              </h4>
+              {pmsHistory.length === 0 ? (
+                <div style={{textAlign:'center', padding:24, color:'#94a3b8', border:'1px dashed #e2e8f0', borderRadius:8}}>No evaluation history yet.</div>
+              ) : (
+                <div style={{display:'grid', gap:10}}>
+                  {pmsHistory.map(p => {
+                    const isCompleted = p.status === 'Manager Review Completed';
+                    const isAcknowledged = p.acknowledged_by_employee;
+                    return (
+                      <div key={p._id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', background: isCompleted ? '#f0fdf4' : '#fffbeb', border:`1px solid ${isCompleted ? '#bbf7d0' : '#fde68a'}`, borderRadius:10, gap:12, flexWrap:'wrap'}}>
+                        <div style={{display:'flex', alignItems:'center', gap:12}}>
+                          <div style={{width:36, height:36, borderRadius:8, background: isCompleted ? '#22c55e' : '#f59e0b', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
+                            {isCompleted ? <FaCheckCircle size={14}/> : <FaHourglassHalf size={14}/>}
+                          </div>
+                          <div>
+                            <div style={{fontWeight:600, color:'#0f172a', fontSize:14}}>{p.cycle_name ? `${p.cycle_name} · ` : ''}{p.month}</div>
+                            <div style={{fontSize:12, color:'#64748b', marginTop:2}}>
+                              {isCompleted ? (p.overall_rating || 'Completed') : 'Awaiting Manager Review'}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{display:'flex', alignItems:'center', gap:8, flexWrap:'wrap'}}>
+                          {isCompleted && !isAcknowledged && (
+                            <span style={{fontSize:11, padding:'3px 10px', borderRadius:20, background:'#fff7ed', color:'#92400e', border:'1px solid #fcd34d', fontWeight:600}}>
+                              Acknowledgment Pending
+                            </span>
+                          )}
+                          {isCompleted && isAcknowledged && (
+                            <span style={{fontSize:11, padding:'3px 10px', borderRadius:20, background:'#f0fdf4', color:'#166534', border:'1px solid #86efac', fontWeight:600, display:'flex', alignItems:'center', gap:4}}>
+                              <FaCheckCircle size={9}/> Acknowledged
+                            </span>
+                          )}
+                          <button style={{padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#475569', cursor:'pointer', fontSize:12, fontWeight:600, display:'flex', alignItems:'center', gap:5}} onClick={() => viewPMS(p)}>
+                            <FaEye size={11}/> View
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-      )}
+        );
+      })()}
 
       {/* ============================================================================ */}
       {/* 8. CORRECTION VIEW */}
@@ -1444,83 +1616,197 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {/* --- PMS DETAILS MODAL --- */}
-      {pmsModalOpen && selectedPms && (
-        <div className="modal-overlay" onClick={() => setPmsModalOpen(false)}>
-          <div className="modal-card large" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
-            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15, borderBottom:'2px solid #fee2e2', paddingBottom:15}}>
-              <div>
-                  <h3 style={{ margin: 0, color: 'var(--red)' }}>PMS Evaluation Details</h3>
-                  <span className="small" style={{color: '#666'}}>Evaluation for {selectedPms.month}</span>
+      {/* --- PMS DETAILS MODAL — WORLD CLASS DESIGN --- */}
+      {pmsModalOpen && selectedPms && (() => {
+        const isCompleted = selectedPms.status === 'Manager Review Completed';
+        const scaleResps = selectedPms.responses?.filter(r => r.self_score) || [];
+        const selfAvg = scaleResps.length > 0
+          ? (scaleResps.reduce((s, r) => s + parseFloat(r.self_score || 0), 0) / scaleResps.length).toFixed(1)
+          : null;
+        const mgrScoresArr = selectedPms.manager_scores || [];
+        const mgrAvg = mgrScoresArr.length > 0
+          ? (mgrScoresArr.reduce((s, m) => s + parseFloat(m.score || 0), 0) / mgrScoresArr.length).toFixed(1)
+          : null;
+
+        return (
+          <div className="modal-overlay" onClick={() => setPmsModalOpen(false)}>
+            <div className="modal-card large" onClick={e => e.stopPropagation()} style={{padding:0, display:'flex', flexDirection:'column', maxHeight:'90vh'}}>
+
+              {/* Modal Header */}
+              <div style={{padding:'20px 24px', borderBottom:'1px solid #e2e8f0', background: isCompleted ? '#f0fdf4' : '#fffbeb', flexShrink:0}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+                  <div>
+                    <div style={{fontSize:11, fontWeight:700, color: isCompleted ? '#166534' : '#92400e', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4}}>
+                      {isCompleted ? 'Review Completed' : 'Pending Manager Review'}
+                    </div>
+                    <h3 style={{margin:0, fontSize:19, color:'#0f172a'}}>My Performance Review</h3>
+                    <div style={{fontSize:13, color:'#64748b', marginTop:3}}>
+                      {selectedPms.cycle_name ? `${selectedPms.cycle_name} · ` : ''}{selectedPms.month}
+                    </div>
+                  </div>
+                  <button style={{background:'#f1f5f9', border:'none', borderRadius:'50%', width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569'}} onClick={() => setPmsModalOpen(false)}>
+                    <FaTimes size={15}/>
+                  </button>
+                </div>
+
+                {/* Score Summary */}
+                {(selfAvg || mgrAvg) && (
+                  <div style={{display:'flex', gap:14, marginTop:12, flexWrap:'wrap'}}>
+                    {selfAvg && (
+                      <div style={{background:'rgba(255,255,255,0.75)', borderRadius:8, padding:'8px 14px', border:'1px solid #e2e8f0'}}>
+                        <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>My Avg Score</div>
+                        <div style={{fontSize:18, fontWeight:700, color:'#1d4ed8'}}>{selfAvg}<span style={{fontSize:12, color:'#94a3b8'}}>/5</span></div>
+                      </div>
+                    )}
+                    {mgrAvg && (
+                      <div style={{background:'rgba(255,255,255,0.75)', borderRadius:8, padding:'8px 14px', border:'1px solid #e2e8f0'}}>
+                        <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>Manager Avg</div>
+                        <div style={{fontSize:18, fontWeight:700, color:'#7e22ce'}}>{mgrAvg}<span style={{fontSize:12, color:'#94a3b8'}}>/5</span></div>
+                      </div>
+                    )}
+                    {selectedPms.overall_rating && (
+                      <div style={{background:'rgba(255,255,255,0.75)', borderRadius:8, padding:'8px 14px', border:'1px solid #e2e8f0'}}>
+                        <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>Overall Rating</div>
+                        <div style={{fontSize:14, fontWeight:700, color:'#166534'}}>{selectedPms.overall_rating}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <button className="btn ghost" style={{background: '#f1f5f9', borderRadius: '50%', padding: '10px'}} onClick={() => setPmsModalOpen(false)}>
-                  <FaTimes size={16} color="#333" />
-              </button>
-            </div>
 
-            <div style={{overflowY:'auto', flex:1, paddingRight: 10}}>
-               <p><strong>Status:</strong> <span className={`status-badge ${selectedPms.status === 'Manager Review Completed' ? 'approved' : 'pending'}`} style={{marginLeft: 10}}>{selectedPms.status}</span></p>
-               
-               {selectedPms.manager_feedback && (
-                   <div style={{background: '#fef2f2', padding: 15, borderRadius: 8, marginTop: 15, border: '1px solid #fee2e2'}}>
-                       <h4 style={{margin: '0 0 10px 0', color: 'var(--red)'}}>Manager Remarks</h4>
-                       <p style={{margin: 0, fontSize: 14, whiteSpace: 'pre-wrap'}}>{selectedPms.manager_feedback}</p>
-                   </div>
-               )}
+              {/* Scrollable Body */}
+              <div style={{overflowY:'auto', padding:'20px 24px', flex:1}}>
 
-               <h4 style={{marginTop: 25, borderBottom: '1px solid #eee', paddingBottom: 10}}>Evaluation Breakdown</h4>
-               
-               {(!selectedPms.responses || selectedPms.responses.length === 0) ? (
-                   <p style={{color: '#999', fontStyle: 'italic', textAlign: 'center', padding: 20}}>No details available.</p>
-               ) : (
-                   Object.entries(getGroupedResponses()).map(([sessionName, responsesInSession], sessionIndex) => (
-                       <div key={sessionIndex} style={{marginBottom: '30px'}}>
-                           <h5 style={{ color: 'var(--red)', borderBottom: '2px solid #fecaca', paddingBottom: '8px', marginBottom: '15px', fontSize: '15px', textTransform: 'uppercase' }}>
-                               Session: {sessionName}
-                           </h5>
-                           
-                           {responsesInSession.map((resp, idx) => {
-                               const mgrScoreObj = selectedPms.manager_scores?.find(m => m.question === resp.question);
-                               return (
-                               <div key={idx} className="qa-box">
-                                   <div style={{fontWeight: 600, marginBottom: 8, color: '#222'}}>{resp.question}</div>
-                                   {resp.self_score && (
-                                       <div style={{display: 'flex', gap: 20, marginBottom: 10}}>
-                                           <div style={{background: '#fff', padding: '6px 12px', borderRadius: '4px', border: '1px solid #e2e8f0'}}>
-                                               <span style={{fontSize: 12, color: '#666', display: 'block'}}>Self Score</span> 
-                                               <strong style={{fontSize: 16}}>{resp.self_score}</strong>/10
-                                           </div>
-                                           {mgrScoreObj && (
-                                               <div style={{background: '#fef2f2', padding: '6px 12px', borderRadius: '4px', border: '1px solid #fecaca'}}>
-                                                   <span style={{fontSize: 12, color: '#dc2626', display: 'block'}}>Manager Score</span> 
-                                                   <strong style={{fontSize: 16, color: 'var(--red)'}}>{mgrScoreObj.score}</strong>/10
-                                               </div>
-                                           )}
-                                       </div>
-                                   )}
-                                   {resp.descriptive_answer && (
-                                       <div style={{marginBottom: 10}}>
-                                           <div style={{fontSize: 12, color: '#666', fontWeight: 'bold', marginBottom: 4}}>Answer:</div>
-                                           <div style={{background: '#fff', padding: 12, borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 14, whiteSpace: 'pre-wrap'}}>
-                                               {resp.descriptive_answer}
-                                           </div>
-                                       </div>
-                                   )}
-                                   {resp.remarks && (
-                                       <div style={{fontSize: 13, fontStyle: 'italic', color: '#475569', marginTop: 10, background: '#f1f5f9', padding: '8px 10px', borderRadius: '4px'}}>
-                                           <strong>Remarks:</strong> {resp.remarks}
-                                       </div>
-                                   )}
-                               </div>
-                               );
-                           })}
-                       </div>
-                   ))
-               )}
+                {/* Manager Feedback Summary */}
+                {selectedPms.manager_feedback && (
+                  <div style={{padding:16, background:'#fef2f2', borderRadius:10, border:'1px solid #fecaca', marginBottom:18}}>
+                    <div style={{fontSize:11, color:'#64748b', fontWeight:600, marginBottom:6}}>MANAGER FEEDBACK</div>
+                    <p style={{margin:0, fontSize:13, color:'#450a0a', whiteSpace:'pre-wrap', lineHeight:1.6}}>{selectedPms.manager_feedback}</p>
+                  </div>
+                )}
+
+                {/* Development Plan */}
+                {selectedPms.development_plan && (
+                  <div style={{padding:16, background:'#f5f3ff', borderRadius:10, border:'1px solid #e9d5ff', marginBottom:18}}>
+                    <div style={{fontSize:11, color:'#64748b', fontWeight:600, marginBottom:6}}>DEVELOPMENT PLAN</div>
+                    <p style={{margin:0, fontSize:13, color:'#3b0764', whiteSpace:'pre-wrap', lineHeight:1.6}}>{selectedPms.development_plan}</p>
+                  </div>
+                )}
+
+                {/* Responses Breakdown */}
+                {(!selectedPms.responses || selectedPms.responses.length === 0) ? (
+                  <div style={{textAlign:'center', padding:30, color:'#94a3b8'}}>No response details available.</div>
+                ) : (
+                  Object.entries(getGroupedResponses()).map(([sessionName, responsesInSession], sessionIndex) => (
+                    <div key={sessionIndex} style={{marginBottom:24}}>
+                      <div style={{paddingBottom:8, marginBottom:12, borderBottom:'2px solid #fecaca'}}>
+                        <h5 style={{margin:0, color:'var(--red)', fontSize:13, textTransform:'uppercase', letterSpacing:'0.05em'}}>{sessionName}</h5>
+                      </div>
+                      {responsesInSession.map((resp, idx) => {
+                        const mgrScoreObj = selectedPms.manager_scores?.find(m => m.question === resp.question);
+                        const mgrCommentObj = selectedPms.manager_comments?.find(m => m.question === resp.question);
+                        const selfScoreNum = parseInt(resp.self_score);
+                        const mgrScoreNum = mgrScoreObj ? parseInt(mgrScoreObj.score) : null;
+
+                        return (
+                          <div key={idx} style={{marginBottom:12, padding:16, background:'#fff', borderRadius:10, border:'1px solid #e2e8f0', borderLeft:'4px solid var(--red)'}}>
+                            <div style={{fontWeight:600, color:'#1e293b', fontSize:13, marginBottom:12}}>{resp.question}</div>
+
+                            {resp.self_score && (
+                              <div style={{display:'flex', gap:16, flexWrap:'wrap', marginBottom: mgrCommentObj?.comment ? 12 : 0}}>
+                                {/* Self Score */}
+                                <div style={{minWidth:120}}>
+                                  <div style={{fontSize:10, color:'#64748b', fontWeight:600, marginBottom:5}}>MY RATING</div>
+                                  {selfScoreNum > 5 ? (
+                                    <span style={{fontWeight:700, fontSize:16, color:'#1d4ed8'}}>{selfScoreNum}/10</span>
+                                  ) : (
+                                    <div>
+                                      <div style={{display:'flex', gap:3, marginBottom:3}}>
+                                        {RATING_SCALE.map(r => (
+                                          <div key={r.value} style={{width:22, height:22, borderRadius:5, display:'flex', alignItems:'center', justifyContent:'center', background: r.value <= selfScoreNum ? r.color : '#f1f5f9', color: r.value <= selfScoreNum ? '#fff' : '#94a3b8', fontSize:11, fontWeight:700}}>
+                                            {r.value}
+                                          </div>
+                                        ))}
+                                      </div>
+                                      {getRatingInfo(selfScoreNum) && <div style={{fontSize:10, color: getRatingInfo(selfScoreNum).color, fontWeight:600}}>{getRatingInfo(selfScoreNum).label}</div>}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Manager Score */}
+                                {mgrScoreObj && (
+                                  <div style={{minWidth:120}}>
+                                    <div style={{fontSize:10, color:'#64748b', fontWeight:600, marginBottom:5}}>MANAGER RATING</div>
+                                    {mgrScoreNum > 5 ? (
+                                      <span style={{fontWeight:700, fontSize:16, color:'var(--red)'}}>{mgrScoreNum}/10</span>
+                                    ) : (
+                                      <div>
+                                        <div style={{display:'flex', gap:3, marginBottom:3}}>
+                                          {RATING_SCALE.map(r => (
+                                            <div key={r.value} style={{width:22, height:22, borderRadius:5, display:'flex', alignItems:'center', justifyContent:'center', background: r.value <= mgrScoreNum ? r.color : '#f1f5f9', color: r.value <= mgrScoreNum ? '#fff' : '#94a3b8', fontSize:11, fontWeight:700}}>
+                                              {r.value}
+                                            </div>
+                                          ))}
+                                        </div>
+                                        {getRatingInfo(mgrScoreNum) && <div style={{fontSize:10, color: getRatingInfo(mgrScoreNum).color, fontWeight:600}}>{getRatingInfo(mgrScoreNum).label}</div>}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {resp.descriptive_answer && (
+                              <div style={{marginBottom:10}}>
+                                <div style={{fontSize:10, color:'#64748b', fontWeight:600, marginBottom:5}}>MY ANSWER</div>
+                                <div style={{background:'#f8fafc', padding:10, borderRadius:6, border:'1px solid #e2e8f0', fontSize:13, whiteSpace:'pre-wrap', lineHeight:1.6}}>{resp.descriptive_answer}</div>
+                              </div>
+                            )}
+
+                            {resp.remarks && (
+                              <div style={{fontSize:12, color:'#475569', background:'#f1f5f9', padding:'7px 10px', borderRadius:5, borderLeft:'2px solid #94a3b8', marginBottom:10}}>
+                                <strong>Remarks:</strong> {resp.remarks}
+                              </div>
+                            )}
+
+                            {mgrCommentObj?.comment && (
+                              <div style={{background:'#fdf4ff', padding:'8px 12px', borderRadius:6, border:'1px solid #e9d5ff', fontSize:12, color:'#6b21a8', borderLeft:'3px solid #a855f7'}}>
+                                <strong>Manager's Note:</strong> {mgrCommentObj.comment}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))
+                )}
+
+                {/* Acknowledge Button */}
+                {isCompleted && !selectedPms.acknowledged_by_employee && (
+                  <div style={{borderTop:'2px solid #e2e8f0', paddingTop:20, marginTop:8, textAlign:'center'}}>
+                    <p style={{color:'#64748b', fontSize:13, marginBottom:16}}>
+                      Please acknowledge that you have read and understood your performance review.
+                    </p>
+                    <button className="btn" style={{padding:'12px 32px', fontSize:14, background:'linear-gradient(135deg, #22c55e, #16a34a)', border:'none', borderRadius:10, display:'inline-flex', alignItems:'center', gap:8}}
+                      onClick={() => acknowledgeReview(selectedPms._id)}
+                      disabled={pmsAcknowledging}>
+                      <FaCheckCircle /> {pmsAcknowledging ? 'Acknowledging...' : 'Acknowledge Review'}
+                    </button>
+                  </div>
+                )}
+
+                {isCompleted && selectedPms.acknowledged_by_employee && (
+                  <div style={{borderTop:'2px solid #e2e8f0', paddingTop:16, marginTop:8, textAlign:'center'}}>
+                    <div style={{display:'inline-flex', alignItems:'center', gap:6, padding:'10px 20px', background:'#f0fdf4', borderRadius:20, border:'1px solid #86efac', fontSize:13, color:'#166534', fontWeight:600}}>
+                      <FaCheckCircle /> Review Acknowledged
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* --- CAMERA MODAL --- */}
       {cameraOpen && (

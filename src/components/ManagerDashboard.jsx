@@ -51,6 +51,28 @@ import {
 // ============================================================================
 // MAIN EXPORT: MANAGER DASHBOARD
 // ============================================================================
+const RATING_SCALE = [
+  { value: 1, label: "Needs Development", color: "#ef4444" },
+  { value: 2, label: "Developing", color: "#f97316" },
+  { value: 3, label: "Meeting Expectations", color: "#eab308" },
+  { value: 4, label: "Exceeding Expectations", color: "#22c55e" },
+  { value: 5, label: "Outstanding", color: "#6366f1" },
+];
+
+const OVERALL_RATINGS = [
+  "Exceptional",
+  "Exceeds Expectations",
+  "Meets Expectations",
+  "Needs Improvement",
+  "Unsatisfactory",
+];
+
+function getRatingInfo(score) {
+  const s = parseInt(score);
+  if (!s || isNaN(s)) return null;
+  return RATING_SCALE.find(r => r.value === s) || null;
+}
+
 function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) {
   return (
     <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
@@ -165,10 +187,17 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   /** 
    * Holds the manager's assigned scores during an evaluation review 
    */
-  const [managerScores, setManagerScores] = useState({}); 
+  const [managerScores, setManagerScores] = useState({});
   const [managerFeedback, setManagerFeedback] = useState("");
   const [viewPMSModalOpen, setViewPMSModalOpen] = useState(false);
   const [selectedPMS, setSelectedPMS] = useState(null);
+  const [cycleName, setCycleName] = useState("");
+  const [cycleDueDate, setCycleDueDate] = useState("");
+  const [overallRating, setOverallRating] = useState("");
+  const [developmentPlan, setDevelopmentPlan] = useState("");
+  const [managerQuestionComments, setManagerQuestionComments] = useState({});
+  const [calibrationData, setCalibrationData] = useState([]);
+  const [calibrationMonth, setCalibrationMonth] = useState(new Date().toISOString().slice(0, 7));
 
   // ============================================================================
   // 4. DELEGATED ADMIN & DASHBOARD STATES
@@ -334,6 +363,10 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
     };
   }, []);
 
+  useEffect(() => {
+    if (view === "pms-calibration") fetchCalibration(calibrationMonth);
+  }, [view, calibrationMonth]);
+
   // ============================================================================
   // PASSWORD MANAGEMENT
   // ============================================================================
@@ -471,7 +504,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   
   /** Adds a new blank session block to the PMS evaluation template */
   const handleAddSession = () => {
-      setTemplateSessions([...templateSessions, { name: "", questions: [{ text: "", type: "scale" }] }]);
+      setTemplateSessions([...templateSessions, { name: "", weight: 20, questions: [{ text: "", type: "scale" }] }]);
   };
   
   /** Removes an entire session block from the PMS template */
@@ -485,7 +518,14 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       newS[sIdx].name = name;
       setTemplateSessions(newS);
   };
-  
+
+  /** Updates the weight percentage of a specific session in the template */
+  const handleSessionWeightChange = (sIdx, weight) => {
+      const newS = [...templateSessions];
+      newS[sIdx].weight = parseInt(weight) || 0;
+      setTemplateSessions(newS);
+  };
+
   /** Adds a new question field inside a specific session block */
   const handleAddQuestion = (sIdx) => {
       const newS = [...templateSessions];
@@ -551,9 +591,11 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           const res = await fetch(`${baseUrl}/api/admin/pms-template`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-              body: JSON.stringify({ 
+              body: JSON.stringify({
                   sessions: templateSessions,
-                  assigned_to: assignedEmployees 
+                  assigned_to: assignedEmployees,
+                  cycle_name: cycleName,
+                  due_date: cycleDueDate
               })
           });
           
@@ -561,6 +603,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               alert("Success! PMS Evaluation Form has been assigned and saved.");
               setTemplateSessions([]);
               setAssignedEmployees([]);
+              setCycleName("");
+              setCycleDueDate("");
               setView("dashboard");
           } else {
               const errData = await res.json();
@@ -582,11 +626,18 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   function handleViewPMS(pms) {
       setSelectedPMS(pms);
       setManagerFeedback(pms.manager_feedback || "");
+      setOverallRating(pms.overall_rating || "");
+      setDevelopmentPlan(pms.development_plan || "");
       const scores = {};
-      if(pms.manager_scores) {
-          pms.manager_scores.forEach(m => scores[m.question] = m.score);
+      const comments = {};
+      if (pms.manager_scores) {
+          pms.manager_scores.forEach(m => { scores[m.question] = m.score; });
+      }
+      if (pms.manager_comments) {
+          pms.manager_comments.forEach(m => { comments[m.question] = m.comment; });
       }
       setManagerScores(scores);
+      setManagerQuestionComments(comments);
       setViewPMSModalOpen(true);
   }
 
@@ -610,18 +661,27 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           const res = await fetch(`${baseUrl}/api/manager/finalize-pms`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-              body: JSON.stringify({ 
-                  review_id: id, 
+              body: JSON.stringify({
+                  review_id: id,
                   manager_scores: scoresArr,
-                  manager_feedback: managerFeedback
+                  manager_feedback: managerFeedback,
+                  overall_rating: overallRating,
+                  development_plan: developmentPlan,
+                  manager_comments: Object.keys(managerQuestionComments).map(q => ({
+                      question: q,
+                      comment: managerQuestionComments[q]
+                  }))
               })
           });
           
           if (res.ok) {
-              alert("PMS Review Finalized Successfully!"); 
+              alert("PMS Review Finalized Successfully!");
               setManagerScores({});
               setManagerFeedback("");
-              setViewPMSModalOpen(false); 
+              setOverallRating("");
+              setDevelopmentPlan("");
+              setManagerQuestionComments({});
+              setViewPMSModalOpen(false);
               setSelectedPMS(null);
               await load(true);
           } else {
@@ -678,6 +738,17 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       } catch(err) {
           alert("Export failed: " + err.message);
       }
+  }
+
+  async function fetchCalibration(month) {
+      const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      try {
+          const res = await fetch(`${baseUrl}/api/manager/pms-calibration?month=${month}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) setCalibrationData(await res.json());
+          else setCalibrationData([]);
+      } catch { setCalibrationData([]); }
   }
 
   /**
@@ -1510,112 +1581,158 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       )}
 
       {/* ============================================================================ */}
-      {/* 6. PMS TEMPLATE BUILDER (WITH STRICT EMPLOYEE ASSIGNMENT) */}
+      {/* 6. PMS TEMPLATE BUILDER — WORLD CLASS DESIGN */}
       {/* ============================================================================ */}
-      {view === "pms-builder" && (
-          <div className="card">
-              <h3>Create Department PMS Evaluation Form</h3>
-              <p className="small" style={{marginBottom: 20}}>Structure performance reviews and explicitly assign them to specific employees in your department.</p>
-              
-              <form onSubmit={savePmsTemplate}>
-                  
-                  <div style={{marginBottom: 30, background: '#fef2f2', padding: 20, borderRadius: 8, border: '1px solid #fee2e2'}}>
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15}}>
-                          <h4 style={{margin: 0, color: 'var(--red)'}}>1. Assign To Employees (Required)</h4>
-                          <div>
-                              <button type="button" className="btn-small ghost" onClick={selectAllEmployees} style={{color: '#16a34a', fontWeight: 'bold'}}>
-                                  <FaCheckSquare style={{marginRight: 4}}/> Select All
-                              </button>
-                              <button type="button" className="btn-small ghost" onClick={clearAllEmployees} style={{color: '#dc2626', fontWeight: 'bold'}}>
-                                  <FaRegSquare style={{marginRight: 4}}/> Clear All
-                              </button>
-                          </div>
-                      </div>
-                      
-                      {teamMembers.length === 0 ? (
-                          <p style={{color: '#777', fontStyle: 'italic', fontSize: 13}}>No team members available for assignment.</p>
-                      ) : (
-                          <div style={{display: 'flex', flexWrap: 'wrap', gap: 12}}>
-                              {teamMembers.map(emp => (
-                                  <label 
-                                      key={emp._id} 
-                                      className={`employee-chip ${assignedEmployees.includes(emp._id) ? 'selected' : ''}`}
-                                  >
-                                      <input
-                                          type="checkbox"
-                                          style={{display: 'none'}}
-                                          checked={assignedEmployees.includes(emp._id)}
-                                          onChange={() => toggleEmployeeAssignment(emp._id)}
-                                      />
-                                      <FaUserCheck style={{opacity: assignedEmployees.includes(emp._id) ? 1 : 0.4}} />
-                                      {emp.name} 
-                                  </label>
-                              ))}
-                          </div>
-                      )}
+      {view === "pms-builder" && (() => {
+        const totalWeight = templateSessions.reduce((sum, s) => sum + (parseInt(s.weight) || 0), 0);
+        return (
+          <div style={{maxWidth: 960, margin: '0 auto'}}>
+            {/* Header */}
+            <div className="card" style={{marginBottom: 16}}>
+              <div style={{display:'flex', alignItems:'center', gap:14, marginBottom:20}}>
+                <div style={{width:46, height:46, borderRadius:12, background:'linear-gradient(135deg, #6366f1, #818cf8)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
+                  <FaEdit color="#fff" size={20} />
+                </div>
+                <div>
+                  <h3 style={{margin:0, fontSize:20, color:'#0f172a'}}>PMS Template Builder</h3>
+                  <p style={{margin:0, fontSize:13, color:'#64748b'}}>Design performance evaluation forms with weighted sections and assign them to your team</p>
+                </div>
+              </div>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, padding:20, background:'#f8fafc', borderRadius:10, border:'1px solid #e2e8f0'}}>
+                <div>
+                  <label className="modern-label">Review Cycle Name</label>
+                  <input className="modern-input" placeholder="e.g., Q1 2025, H1 2025, Annual Review 2025" value={cycleName} onChange={e => setCycleName(e.target.value)} />
+                </div>
+                <div>
+                  <label className="modern-label">Submission Due Date</label>
+                  <input className="modern-input" type="date" value={cycleDueDate} onChange={e => setCycleDueDate(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={savePmsTemplate}>
+              {/* Employee Assignment */}
+              <div className="card" style={{marginBottom:16}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14}}>
+                  <div>
+                    <h4 style={{margin:0, color:'#0f172a'}}>Assign to Employees</h4>
+                    <p style={{margin:'3px 0 0', fontSize:13, color:'#64748b'}}>Select who should complete this evaluation</p>
                   </div>
+                  <div style={{display:'flex', gap:8}}>
+                    <button type="button" style={{display:'flex', alignItems:'center', gap:5, padding:'6px 12px', background:'#dcfce7', color:'#166534', border:'1px solid #86efac', borderRadius:6, cursor:'pointer', fontSize:12, fontWeight:600}} onClick={selectAllEmployees}>
+                      <FaCheckSquare size={11}/> All
+                    </button>
+                    <button type="button" style={{display:'flex', alignItems:'center', gap:5, padding:'6px 12px', background:'#fee2e2', color:'#991b1b', border:'1px solid #fca5a5', borderRadius:6, cursor:'pointer', fontSize:12, fontWeight:600}} onClick={clearAllEmployees}>
+                      <FaRegSquare size={11}/> Clear
+                    </button>
+                  </div>
+                </div>
+                {teamMembers.length === 0 ? (
+                  <div style={{textAlign:'center', padding:30, color:'#94a3b8', border:'1px dashed #e2e8f0', borderRadius:8}}>No team members found.</div>
+                ) : (
+                  <div style={{display:'flex', flexWrap:'wrap', gap:10}}>
+                    {teamMembers.map(emp => (
+                      <label key={emp._id} className={`employee-chip ${assignedEmployees.includes(emp._id) ? 'selected' : ''}`}>
+                        <input type="checkbox" style={{display:'none'}} checked={assignedEmployees.includes(emp._id)} onChange={() => toggleEmployeeAssignment(emp._id)} />
+                        <FaUserCheck style={{opacity: assignedEmployees.includes(emp._id) ? 1 : 0.35}} />
+                        {emp.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {assignedEmployees.length > 0 && (
+                  <div style={{marginTop:12, padding:'8px 14px', background:'#f0fdf4', borderRadius:6, border:'1px solid #bbf7d0', fontSize:13, color:'#166534', display:'flex', alignItems:'center', gap:6}}>
+                    <FaCheckCircle />{assignedEmployees.length} employee{assignedEmployees.length !== 1 ? 's' : ''} selected
+                  </div>
+                )}
+              </div>
 
-                  <h4 style={{marginBottom: 15, borderBottom: '2px solid #eee', paddingBottom: 10}}>2. Build Evaluation Sessions</h4>
-                  
-                  {templateSessions.map((session, sIdx) => (
-                      <div key={sIdx} style={{marginBottom: 25, padding: 15, background: '#f8f9fa', border: '1px solid #ddd', borderRadius: 8}}>
-                          <div style={{display:'flex', gap: 10, alignItems: 'center', marginBottom: 15}}>
-                              <h4 style={{margin:0}}>Session {sIdx + 1}</h4>
-                              <input 
-                                  className="modern-input" style={{flex: 1}} 
-                                  placeholder="Session Title (e.g., Work Productivity)" 
-                                  value={session.name} 
-                                  onChange={e => handleSessionNameChange(sIdx, e.target.value)} 
-                                  required 
-                              />
-                              <button type="button" className="btn-small ghost" style={{color: 'red'}} onClick={() => handleRemoveSession(sIdx)}>
-                                  <FaTrash /> Remove Session
-                              </button>
-                          </div>
-
-                          <div style={{paddingLeft: 20, borderLeft: '2px solid var(--red)'}}>
-                              {session.questions.map((q, qIdx) => (
-                                  <div key={qIdx} style={{display:'flex', gap: 10, marginBottom: 10, alignItems: 'center'}}>
-                                      <input 
-                                          className="modern-input" style={{flex: 2}} 
-                                          placeholder="Question text..." 
-                                          value={q.text} 
-                                          onChange={e => handleQuestionChange(sIdx, qIdx, 'text', e.target.value)} 
-                                          required 
-                                      />
-                                      <select 
-                                          className="modern-input" style={{flex: 1}} 
-                                          value={q.type} 
-                                          onChange={e => handleQuestionChange(sIdx, qIdx, 'type', e.target.value)}
-                                      >
-                                          <option value="scale">Linear Scale (1-10)</option>
-                                          <option value="descriptive">Descriptive Answer</option>
-                                      </select>
-                                      <button type="button" className="btn-small ghost" style={{color: '#888'}} onClick={() => handleRemoveQuestion(sIdx, qIdx)}>
-                                          <FaTimes />
-                                      </button>
-                                  </div>
-                              ))}
-                              <button type="button" className="btn-small ghost" style={{marginTop: 5, color: '#10b981', fontWeight: 'bold'}} onClick={() => handleAddQuestion(sIdx)}>
-                                  <FaPlus style={{marginRight: 4}}/> Add Question
-                              </button>
-                          </div>
-                      </div>
-                  ))}
-
-                  {templateSessions.length === 0 && (
-                      <div style={{textAlign: 'center', padding: '30px', background: '#f8f9fa', border: '1px dashed #ccc', borderRadius: 8, color: '#888', marginBottom: 20}}>
-                          Click "Add New Session" below to start building the form.
-                      </div>
+              {/* Sections Builder */}
+              <div className="card" style={{marginBottom:16}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
+                  <div>
+                    <h4 style={{margin:0, color:'#0f172a'}}>Evaluation Sections</h4>
+                    <p style={{margin:'3px 0 0', fontSize:13, color:'#64748b'}}>Build weighted sections — total must equal 100%</p>
+                  </div>
+                  {templateSessions.length > 0 && (
+                    <div style={{padding:'6px 16px', borderRadius:20, fontSize:13, fontWeight:700,
+                      background: totalWeight === 100 ? '#dcfce7' : totalWeight > 100 ? '#fee2e2' : '#fff7ed',
+                      color: totalWeight === 100 ? '#166534' : totalWeight > 100 ? '#991b1b' : '#92400e',
+                      border: `1px solid ${totalWeight === 100 ? '#86efac' : totalWeight > 100 ? '#fca5a5' : '#fcd34d'}`
+                    }}>
+                      {totalWeight}% / 100%
+                    </div>
                   )}
+                </div>
 
-                  <div style={{display:'flex', justifyContent: 'space-between', marginTop: 20}}>
-                      <button type="button" className="btn ghost" onClick={handleAddSession}><FaPlus style={{marginRight: 6}}/> Add New Session</button>
-                      <button type="submit" className="btn" style={{padding: '10px 20px', fontSize: '15px'}}>Assign & Save PMS Form</button>
+                {templateSessions.length === 0 && (
+                  <div style={{textAlign:'center', padding:'40px 20px', background:'#f8fafc', border:'1px dashed #cbd5e1', borderRadius:10, color:'#94a3b8', marginBottom:16}}>
+                    <FaClipboardList size={32} style={{marginBottom:10, opacity:0.3}} />
+                    <div style={{fontSize:15, fontWeight:500}}>No sections yet</div>
+                    <div style={{fontSize:13, marginTop:4}}>Click "Add Section" below to start building</div>
                   </div>
-              </form>
+                )}
+
+                {templateSessions.map((session, sIdx) => (
+                  <div key={sIdx} style={{marginBottom:14, background:'#fff', border:'1px solid #e2e8f0', borderRadius:10, overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
+                    <div style={{display:'flex', gap:10, alignItems:'center', padding:'12px 14px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0'}}>
+                      <div style={{width:26, height:26, borderRadius:6, background:'var(--red)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, flexShrink:0}}>
+                        {sIdx + 1}
+                      </div>
+                      <input className="modern-input" style={{flex:2, background:'#fff'}}
+                        placeholder="Section Title (e.g., Work Quality, Communication Skills)"
+                        value={session.name} onChange={e => handleSessionNameChange(sIdx, e.target.value)} required />
+                      <div style={{display:'flex', alignItems:'center', gap:6, flexShrink:0}}>
+                        <span style={{fontSize:12, color:'#64748b', fontWeight:600, whiteSpace:'nowrap'}}>Weight %</span>
+                        <input type="number" min="0" max="100" className="modern-input" style={{width:72, textAlign:'center', background:'#fff'}}
+                          value={session.weight ?? ""} onChange={e => handleSessionWeightChange(sIdx, e.target.value)} placeholder="20" />
+                      </div>
+                      <button type="button" style={{background:'#fee2e2', color:'#991b1b', border:'1px solid #fca5a5', borderRadius:6, padding:'7px 10px', cursor:'pointer', flexShrink:0, display:'flex', alignItems:'center'}} onClick={() => handleRemoveSession(sIdx)}>
+                        <FaTrash size={12} />
+                      </button>
+                    </div>
+                    <div style={{padding:14}}>
+                      {session.questions.map((q, qIdx) => (
+                        <div key={qIdx} style={{display:'flex', gap:8, marginBottom:8, alignItems:'center'}}>
+                          <div style={{width:20, height:20, borderRadius:4, background:'#f1f5f9', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:'#64748b', fontWeight:600, flexShrink:0}}>
+                            {qIdx + 1}
+                          </div>
+                          <input className="modern-input" style={{flex:2}}
+                            placeholder="Question text..." value={q.text}
+                            onChange={e => handleQuestionChange(sIdx, qIdx, 'text', e.target.value)} required />
+                          <select className="modern-input" style={{flex:1}}
+                            value={q.type} onChange={e => handleQuestionChange(sIdx, qIdx, 'type', e.target.value)}>
+                            <option value="scale">Rating Scale (1–5)</option>
+                            <option value="descriptive">Descriptive Answer</option>
+                            <option value="goals">Goals & Objectives</option>
+                          </select>
+                          <button type="button" style={{background:'transparent', border:'none', cursor:'pointer', color:'#94a3b8', padding:'8px 6px', flexShrink:0}} onClick={() => handleRemoveQuestion(sIdx, qIdx)}>
+                            <FaTimes />
+                          </button>
+                        </div>
+                      ))}
+                      <button type="button" style={{display:'flex', alignItems:'center', gap:5, padding:'7px 14px', background:'#f0fdf4', color:'#166534', border:'1px dashed #86efac', borderRadius:6, cursor:'pointer', fontSize:12, fontWeight:600, marginTop:6}} onClick={() => handleAddQuestion(sIdx)}>
+                        <FaPlus size={10} /> Add Question
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <button type="button" style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'12px 20px', background:'#f8fafc', color:'#475569', border:'2px dashed #cbd5e1', borderRadius:10, cursor:'pointer', fontSize:14, fontWeight:600, width:'100%', marginTop: templateSessions.length > 0 ? 8 : 0}} onClick={handleAddSession}>
+                  <FaPlus /> Add Section
+                </button>
+              </div>
+
+              <div style={{display:'flex', justifyContent:'flex-end', gap:12}}>
+                <button type="button" className="btn ghost" onClick={() => setView("dashboard")}>Cancel</button>
+                <button type="submit" className="btn" style={{padding:'12px 28px', fontSize:15, display:'flex', alignItems:'center', gap:8}}>
+                  <FaCheckCircle /> Assign & Save Template
+                </button>
+              </div>
+            </form>
           </div>
-      )}
+        );
+      })()}
 
       {/* ============================================================================ */}
       {/* 7. DEPARTMENT PERFORMANCE DASHBOARD */}
@@ -1668,53 +1785,167 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       )}
 
       {/* ============================================================================ */}
-      {/* 8. PMS REVIEWS LIST */}
+      {/* 8. PMS REVIEWS LIST — WORLD CLASS DESIGN */}
       {/* ============================================================================ */}
       {view === "pms-manager" && (
-          <div className="card">
-              <h3>Pending PMS Reviews</h3>
-              <div style={{overflowX:'auto', marginBottom:30}}>
-                <table className="styled-table-global">
-                    <thead><tr><th>Employee</th><th>Month</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody>
-                        {pendingPMS.length === 0 && <tr><td colSpan="4" style={{textAlign:'center', padding:20, color:'#999'}}>No pending reviews found.</td></tr>}
-                        {pendingPMS.filter(p => p.status === 'Pending Review').map(p => (
-                            <tr key={p._id}>
-                                <td>{p.employee_name}</td>
-                                <td>{p.month}</td>
-                                <td><span className="status-badge pending">{p.status}</span></td>
-                                <td>
-                                    <button className="btn-small" style={{background:'#6366f1', padding: '6px 12px'}} onClick={() => handleViewPMS(p)}>
-                                        <FaEye style={{marginRight: 4}}/> View & Grade
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+        <div>
+          {/* Stats Row */}
+          <div style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:16, marginBottom:20}}>
+            {[
+              { count: pendingPMS.filter(p => p.status === 'Pending Review').length, label: 'Awaiting Review', color: '#f59e0b', bg: '#fffbeb' },
+              { count: pendingPMS.filter(p => p.status === 'Manager Review Completed').length, label: 'Completed', color: '#22c55e', bg: '#f0fdf4' },
+              { count: pendingPMS.length, label: 'Total Submissions', color: '#6366f1', bg: '#f5f3ff' },
+            ].map((s, i) => (
+              <div key={i} className="card" style={{textAlign:'center', padding:'18px 16px', background: s.bg, border:`1px solid ${s.color}22`}}>
+                <div style={{fontSize:30, fontWeight:700, color: s.color}}>{s.count}</div>
+                <div style={{fontSize:13, color:'#64748b', marginTop:4}}>{s.label}</div>
               </div>
+            ))}
+          </div>
 
-              <h4 style={{color:'#555', borderTop: '2px solid #eee', paddingTop: 20}}>Completed PMS History</h4>
+          {/* Pending Reviews */}
+          {pendingPMS.filter(p => p.status === 'Pending Review').length > 0 && (
+            <div className="card" style={{marginBottom:16}}>
+              <h4 style={{margin:'0 0 14px', color:'#0f172a', display:'flex', alignItems:'center', gap:8}}>
+                <span style={{width:9, height:9, borderRadius:'50%', background:'#f59e0b', display:'inline-block'}}></span>
+                Awaiting Your Review
+              </h4>
+              <div style={{display:'grid', gap:10}}>
+                {pendingPMS.filter(p => p.status === 'Pending Review').map(p => (
+                  <div key={p._id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:16, background:'#fffbeb', border:'1px solid #fde68a', borderRadius:10, gap:12}}>
+                    <div style={{display:'flex', alignItems:'center', gap:12}}>
+                      <div style={{width:44, height:44, borderRadius:10, background:'#f59e0b', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:18, flexShrink:0}}>
+                        {p.employee_name?.[0]?.toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{fontWeight:600, color:'#0f172a', fontSize:15}}>{p.employee_name}</div>
+                        <div style={{fontSize:12, color:'#78716c', marginTop:2}}>
+                          {p.cycle_name ? `${p.cycle_name} · ` : ''}{p.month}
+                        </div>
+                      </div>
+                    </div>
+                    <button className="btn" style={{background:'#6366f1', padding:'9px 20px', fontSize:13, display:'flex', alignItems:'center', gap:6, flexShrink:0}} onClick={() => handleViewPMS(p)}>
+                      <FaChartLine /> Review Now
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Completed Reviews */}
+          <div className="card">
+            <h4 style={{margin:'0 0 14px', color:'#0f172a', display:'flex', alignItems:'center', gap:8}}>
+              <span style={{width:9, height:9, borderRadius:'50%', background:'#22c55e', display:'inline-block'}}></span>
+              Completed Reviews
+            </h4>
+            {pendingPMS.filter(p => p.status === 'Manager Review Completed').length === 0 ? (
+              <div style={{textAlign:'center', padding:30, color:'#94a3b8'}}>No completed reviews yet.</div>
+            ) : (
               <div style={{overflowX:'auto'}}>
                 <table className="styled-table-global">
-                    <thead><tr><th>Employee</th><th>Month</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody>
-                        {pendingPMS.filter(p => p.status === 'Manager Review Completed').map(p => (
-                            <tr key={p._id}>
-                                <td>{p.employee_name}</td>
-                                <td>{p.month}</td>
-                                <td><span className="status-badge approved">Completed</span></td>
-                                <td>
-                                    <button className="btn-small ghost" style={{border: '1px solid #888', color: '#555', padding: '6px 12px'}} onClick={() => handleViewPMS(p)}>
-                                        <FaEye style={{marginRight: 4}}/> View Details
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      <th>Cycle / Month</th>
+                      <th>Overall Rating</th>
+                      <th>Acknowledged</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingPMS.filter(p => p.status === 'Manager Review Completed').map(p => (
+                      <tr key={p._id}>
+                        <td style={{fontWeight:600}}>{p.employee_name}</td>
+                        <td>{p.cycle_name ? `${p.cycle_name} · ${p.month}` : p.month}</td>
+                        <td>
+                          {p.overall_rating
+                            ? <span style={{fontSize:12, padding:'3px 10px', borderRadius:20, background:'#f0fdf4', color:'#166534', border:'1px solid #86efac', fontWeight:600}}>{p.overall_rating}</span>
+                            : <span style={{color:'#94a3b8', fontSize:12}}>—</span>}
+                        </td>
+                        <td>
+                          {p.acknowledged_by_employee
+                            ? <span style={{fontSize:12, color:'#22c55e', fontWeight:600, display:'flex', alignItems:'center', gap:4}}><FaCheckCircle/> Yes</span>
+                            : <span style={{fontSize:12, color:'#94a3b8'}}>Pending</span>}
+                        </td>
+                        <td>
+                          <button className="btn-small ghost" style={{border:'1px solid #e2e8f0', color:'#475569', padding:'6px 14px', display:'inline-flex', alignItems:'center', gap:4}} onClick={() => handleViewPMS(p)}>
+                            <FaEye /> View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
                 </table>
               </div>
+            )}
           </div>
+        </div>
+      )}
+
+      {/* ============================================================================ */}
+      {/* 8b. PMS TEAM CALIBRATION */}
+      {/* ============================================================================ */}
+      {view === "pms-calibration" && (
+        <div className="card">
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20, flexWrap:'wrap', gap:12}}>
+            <div>
+              <h3 style={{margin:0, color:'#0f172a'}}>Team Performance Calibration</h3>
+              <p style={{margin:'4px 0 0', fontSize:13, color:'#64748b'}}>Compare self-assessments vs manager ratings side-by-side for your entire team</p>
+            </div>
+            <input type="month" className="modern-input" style={{width:'auto'}} value={calibrationMonth} onChange={e => setCalibrationMonth(e.target.value)} />
+          </div>
+
+          {calibrationData.length === 0 ? (
+            <div style={{textAlign:'center', padding:'50px 20px', color:'#94a3b8', border:'1px dashed #e2e8f0', borderRadius:10}}>
+              <FaChartLine size={36} style={{marginBottom:12, opacity:0.3}} />
+              <div style={{fontSize:15, fontWeight:500}}>No calibration data for this period</div>
+              <div style={{fontSize:13, marginTop:4}}>Complete PMS reviews to see calibration data here</div>
+            </div>
+          ) : (
+            <div style={{overflowX:'auto'}}>
+              <table className="styled-table-global">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th style={{textAlign:'center'}}>Self Avg</th>
+                    <th style={{textAlign:'center'}}>Manager Avg</th>
+                    <th style={{textAlign:'center'}}>Variance</th>
+                    <th>Overall Rating</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {calibrationData.map((row, idx) => {
+                    const variance = row.manager_avg != null ? (row.manager_avg - row.self_avg).toFixed(1) : null;
+                    return (
+                      <tr key={idx}>
+                        <td style={{fontWeight:600}}>{row.employee_name}</td>
+                        <td style={{textAlign:'center'}}>
+                          <span style={{padding:'3px 10px', borderRadius:20, background:'#eff6ff', color:'#1d4ed8', fontWeight:700, fontSize:13}}>{row.self_avg?.toFixed(1)}/5</span>
+                        </td>
+                        <td style={{textAlign:'center'}}>
+                          {row.manager_avg != null
+                            ? <span style={{padding:'3px 10px', borderRadius:20, background:'#fdf4ff', color:'#7e22ce', fontWeight:700, fontSize:13}}>{row.manager_avg?.toFixed(1)}/5</span>
+                            : <span style={{color:'#94a3b8', fontSize:12}}>Pending</span>}
+                        </td>
+                        <td style={{textAlign:'center'}}>
+                          {variance != null
+                            ? <span style={{fontWeight:700, color: parseFloat(variance) >= 0 ? '#22c55e' : '#ef4444'}}>{parseFloat(variance) >= 0 ? '+' : ''}{variance}</span>
+                            : '—'}
+                        </td>
+                        <td>
+                          {row.overall_rating
+                            ? <span style={{fontSize:12, padding:'3px 10px', borderRadius:20, background:'#f0fdf4', color:'#166534', border:'1px solid #bbf7d0', fontWeight:600}}>{row.overall_rating}</span>
+                            : <span style={{color:'#94a3b8', fontSize:12}}>Not Set</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ============================================================================ */}
@@ -2124,142 +2355,299 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
-      {/* --- PMS DETAILS MODAL --- */}
-      {viewPMSModalOpen && selectedPMS && (
-        <div className="modal-overlay" style={{zIndex: 4000}} onClick={() => setViewPMSModalOpen(false)}>
-          <div className="modal-card large" onClick={e => e.stopPropagation()} style={{ padding: '25px' }}>
-            
-            {/* Sticky Header */}
-            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15, borderBottom:'2px solid #fee2e2', paddingBottom:15}}>
-              <div>
-                  <h3 style={{ margin: 0, color: 'var(--red)', fontSize: '22px' }}>PMS Review Submissions</h3>
-                  <span className="small" style={{color: '#666'}}>Reviewing responses for <strong>{selectedPMS.employee_name}</strong> ({selectedPMS.month})</span>
-              </div>
-              <button className="btn ghost" style={{background: '#f1f5f9', borderRadius: '50%', padding: '10px'}} onClick={() => setViewPMSModalOpen(false)}>
-                  <FaTimes size={16} color="#333" />
-              </button>
-            </div>
+      {/* --- PMS REVIEW MODAL — WORLD CLASS DESIGN --- */}
+      {viewPMSModalOpen && selectedPMS && (() => {
+        const isPending = selectedPMS.status === 'Pending Review';
+        const grouped = getGroupedResponses();
+        const scaleResponses = selectedPMS.responses?.filter(r => r.self_score) || [];
+        const selfAvg = scaleResponses.length > 0
+          ? (scaleResponses.reduce((s, r) => s + parseFloat(r.self_score || 0), 0) / scaleResponses.length).toFixed(1)
+          : null;
+        const mgrScores = selectedPMS.manager_scores || [];
+        const mgrAvg = mgrScores.length > 0
+          ? (mgrScores.reduce((s, m) => s + parseFloat(m.score || 0), 0) / mgrScores.length).toFixed(1)
+          : null;
 
-            {/* Scrollable Content Area */}
-            <div style={{ overflowY: 'auto', paddingRight: '15px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                
-                <div style={{background:'#f8f9fa', padding:15, borderRadius:8, marginBottom:25, display:'flex', gap: 20, border: '1px solid #e2e8f0'}}>
-                    <div style={{flex: 1}}><span style={{color: '#64748b', fontSize: 12, display: 'block'}}>Employee Name</span> <strong style={{fontSize: 15}}>{selectedPMS.employee_name}</strong></div>
-                    <div style={{flex: 1}}><span style={{color: '#64748b', fontSize: 12, display: 'block'}}>Evaluation Month</span> <strong style={{fontSize: 15}}>{selectedPMS.month}</strong></div>
-                    <div style={{flex: 1}}>
-                        <span style={{color: '#64748b', fontSize: 12, display: 'block', marginBottom: 4}}>Current Status</span> 
-                        <span className={`status-badge ${selectedPMS.status === 'Manager Review Completed' ? 'approved' : 'pending'}`}>{selectedPMS.status}</span>
+        return (
+          <div className="modal-overlay" style={{zIndex: 4000}} onClick={() => setViewPMSModalOpen(false)}>
+            <div className="modal-card large" onClick={e => e.stopPropagation()} style={{padding:0, display:'flex', flexDirection:'column', maxHeight:'90vh'}}>
+
+              {/* Modal Header */}
+              <div style={{padding:'20px 24px', borderBottom:'1px solid #e2e8f0', background: isPending ? '#fffbeb' : '#f0fdf4', flexShrink:0}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+                  <div>
+                    <div style={{fontSize:11, fontWeight:700, color: isPending ? '#92400e' : '#166534', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4}}>
+                      {isPending ? 'Pending Review' : 'Review Completed'}
                     </div>
+                    <h3 style={{margin:0, fontSize:20, color:'#0f172a'}}>{selectedPMS.employee_name}</h3>
+                    <div style={{fontSize:13, color:'#64748b', marginTop:3}}>
+                      {selectedPMS.cycle_name ? `${selectedPMS.cycle_name} · ` : ''}{selectedPMS.month}
+                    </div>
+                  </div>
+                  <button style={{background:'#f1f5f9', border:'none', borderRadius:'50%', width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569', flexShrink:0}} onClick={() => setViewPMSModalOpen(false)}>
+                    <FaTimes size={15} />
+                  </button>
                 </div>
-                
-                <h4 style={{marginBottom:15, color:'#333', background: '#fff', position: 'sticky', top: 0, zIndex: 10, paddingBottom: 10, borderBottom: '1px solid #eee'}}>
-                    Submitted Responses ({selectedPMS.responses?.length || 0} Total)
-                </h4>
-                
+
+                {/* Score Summary Strip */}
+                {(selfAvg || mgrAvg) && (
+                  <div style={{display:'flex', gap:16, marginTop:14, flexWrap:'wrap'}}>
+                    {selfAvg && (
+                      <div style={{background:'rgba(255,255,255,0.7)', borderRadius:8, padding:'8px 14px', border:'1px solid #e2e8f0'}}>
+                        <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>Self Average</div>
+                        <div style={{fontSize:18, fontWeight:700, color:'#1d4ed8'}}>{selfAvg}<span style={{fontSize:12, color:'#94a3b8'}}>/5</span></div>
+                      </div>
+                    )}
+                    {mgrAvg && (
+                      <div style={{background:'rgba(255,255,255,0.7)', borderRadius:8, padding:'8px 14px', border:'1px solid #e2e8f0'}}>
+                        <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>Manager Average</div>
+                        <div style={{fontSize:18, fontWeight:700, color:'#7e22ce'}}>{mgrAvg}<span style={{fontSize:12, color:'#94a3b8'}}>/5</span></div>
+                      </div>
+                    )}
+                    {selectedPMS.overall_rating && (
+                      <div style={{background:'rgba(255,255,255,0.7)', borderRadius:8, padding:'8px 14px', border:'1px solid #e2e8f0'}}>
+                        <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>Overall Rating</div>
+                        <div style={{fontSize:14, fontWeight:700, color:'#166534'}}>{selectedPMS.overall_rating}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Scrollable Body */}
+              <div style={{overflowY:'auto', padding:'20px 24px', flex:1}}>
+
                 {(!selectedPMS.responses || selectedPMS.responses.length === 0) ? (
-                    <p style={{fontStyle:'italic', color:'#999', textAlign: 'center', padding: 40}}>No responses found in this submission.</p>
+                  <div style={{textAlign:'center', padding:40, color:'#94a3b8'}}>No responses in this submission.</div>
                 ) : (
-                    // Dynamically mapping the responses Grouped by Session Name
-                    Object.entries(getGroupedResponses()).map(([sessionName, responsesInSession], sessionIndex) => (
-                        <div key={sessionIndex} style={{marginBottom: '30px'}}>
-                            
-                            {/* SESSION HEADER */}
-                            <h5 style={{ color: 'var(--red)', borderBottom: '2px solid #fecaca', paddingBottom: '8px', marginBottom: '15px', fontSize: '16px', textTransform: 'uppercase' }}>
-                                Session: {sessionName}
-                            </h5>
-
-                            {responsesInSession.map((resp, idx) => {
-                                const existingMgrScore = selectedPMS.manager_scores?.find(m => m.question === resp.question);
-                                const isPending = selectedPMS.status === 'Pending Review';
-
-                                return (
-                                <div key={idx} className="qa-box" style={{marginBottom: 20, background: '#fff', padding: '20px', borderRadius: 8, borderLeft: '4px solid var(--red)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'}}>
-                                    <div style={{fontWeight:600, marginBottom:12, color:'#1e293b', fontSize: '15px'}}>
-                                        Q: {resp.question}
-                                    </div>
-                                    
-                                    {resp.self_score && (
-                                        <div style={{marginBottom: 15}}>
-                                            <div style={{display: 'flex', gap: 30, marginBottom: 10, alignItems: 'center'}}>
-                                                <div style={{background: '#f1f5f9', padding: '8px 16px', borderRadius: '6px'}}>
-                                                    <span style={{fontSize: 12, color: '#64748b', display: 'block'}}>Self Score</span> 
-                                                    <strong style={{fontSize: 18, color: '#0f172a'}}>{resp.self_score}</strong><span style={{fontSize: 14, color: '#94a3b8'}}>/10</span>
-                                                </div>
-                                                
-                                                {!isPending && existingMgrScore && (
-                                                    <div style={{background: '#fef2f2', padding: '8px 16px', borderRadius: '6px'}}>
-                                                        <span style={{fontSize: 12, color: '#dc2626', display: 'block'}}>Manager Score</span> 
-                                                        <strong style={{fontSize: 18, color: '#b91c1c'}}>{existingMgrScore.score}</strong><span style={{fontSize: 14, color: '#f87171'}}>/10</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            
-                                            {isPending && (
-                                                <div style={{marginTop: 15, background: '#f8fafc', padding: 15, border: '1px solid #cbd5e1', borderRadius: 6}}>
-                                                    <label className="modern-label" style={{fontSize: 13, color: '#0f172a'}}>Assign Manager Score (1-10)</label>
-                                                    <input 
-                                                        type="number" min="1" max="10" className="modern-input" required
-                                                        style={{ maxWidth: '150px' }}
-                                                        value={managerScores[resp.question] || ""}
-                                                        onChange={(e) => setManagerScores({...managerScores, [resp.question]: e.target.value})}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {resp.descriptive_answer && (
-                                        <div style={{marginBottom: 15}}>
-                                            <div style={{fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 'bold'}}>Employee Answer:</div>
-                                            <div style={{background: '#f8fafc', padding: 15, borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 14, color: '#334155', whiteSpace: 'pre-wrap'}}>
-                                                {resp.descriptive_answer}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {resp.remarks && (
-                                        <div style={{fontSize: 13, color: '#475569', marginTop: 10, background: '#f1f5f9', padding: '8px 12px', borderRadius: '4px', borderLeft: '3px solid #94a3b8'}}>
-                                            <strong>Employee Remarks:</strong> {resp.remarks}
-                                        </div>
-                                    )}
-                                </div>
-                            )})}
+                  Object.entries(grouped).map(([sessionName, responsesInSession], sessionIndex) => {
+                    const sessionTemplate = selectedPMS.sessions?.find(s => s.name === sessionName);
+                    return (
+                      <div key={sessionIndex} style={{marginBottom:28}}>
+                        <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:14, paddingBottom:10, borderBottom:'2px solid #fecaca'}}>
+                          <h5 style={{margin:0, color:'var(--red)', fontSize:15, textTransform:'uppercase', letterSpacing:'0.04em', flex:1}}>
+                            {sessionName}
+                          </h5>
+                          {sessionTemplate?.weight && (
+                            <span style={{fontSize:11, padding:'3px 10px', borderRadius:20, background:'#fef2f2', color:'var(--red)', border:'1px solid #fecaca', fontWeight:700}}>
+                              {sessionTemplate.weight}% weight
+                            </span>
+                          )}
                         </div>
-                    ))
+
+                        {responsesInSession.map((resp, idx) => {
+                          const existingMgrScore = selectedPMS.manager_scores?.find(m => m.question === resp.question);
+                          const existingMgrComment = selectedPMS.manager_comments?.find(m => m.question === resp.question);
+                          const selfScoreNum = parseInt(resp.self_score);
+                          const selfRating = getRatingInfo(selfScoreNum);
+                          const isGoalsType = !resp.self_score && !resp.descriptive_answer && resp.goals_text;
+
+                          return (
+                            <div key={idx} style={{marginBottom:16, background:'#fff', padding:18, borderRadius:10, border:'1px solid #e2e8f0', borderLeft:'4px solid var(--red)', boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
+                              <div style={{fontWeight:600, color:'#1e293b', fontSize:14, marginBottom:14}}>
+                                {resp.question}
+                              </div>
+
+                              {/* Scale response */}
+                              {resp.self_score && (
+                                <div style={{marginBottom:12}}>
+                                  <div style={{display:'flex', gap:20, flexWrap:'wrap', alignItems:'flex-start', marginBottom: isPending ? 16 : 0}}>
+                                    {/* Self Score Display */}
+                                    <div style={{minWidth:130}}>
+                                      <div style={{fontSize:11, color:'#64748b', fontWeight:600, marginBottom:6}}>SELF RATING</div>
+                                      {selfScoreNum > 5 ? (
+                                        <div style={{background:'#f1f5f9', padding:'8px 14px', borderRadius:8}}>
+                                          <span style={{fontSize:20, fontWeight:700, color:'#0f172a'}}>{resp.self_score}</span>
+                                          <span style={{fontSize:13, color:'#94a3b8'}}>/10</span>
+                                        </div>
+                                      ) : (
+                                        <div>
+                                          <div style={{display:'flex', gap:4, marginBottom:4}}>
+                                            {RATING_SCALE.map(r => (
+                                              <div key={r.value} style={{
+                                                width:26, height:26, borderRadius:6, display:'flex', alignItems:'center', justifyContent:'center',
+                                                background: r.value <= selfScoreNum ? r.color : '#f1f5f9',
+                                                color: r.value <= selfScoreNum ? '#fff' : '#94a3b8',
+                                                fontSize:12, fontWeight:700
+                                              }}>{r.value}</div>
+                                            ))}
+                                          </div>
+                                          {selfRating && <div style={{fontSize:11, color: selfRating.color, fontWeight:600}}>{selfRating.label}</div>}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Manager Score Display (completed) */}
+                                    {!isPending && existingMgrScore && (
+                                      <div style={{minWidth:130}}>
+                                        <div style={{fontSize:11, color:'#64748b', fontWeight:600, marginBottom:6}}>MANAGER RATING</div>
+                                        {parseInt(existingMgrScore.score) > 5 ? (
+                                          <div style={{background:'#fef2f2', padding:'8px 14px', borderRadius:8}}>
+                                            <span style={{fontSize:20, fontWeight:700, color:'var(--red)'}}>{existingMgrScore.score}</span>
+                                            <span style={{fontSize:13, color:'#f87171'}}>/10</span>
+                                          </div>
+                                        ) : (
+                                          <div>
+                                            <div style={{display:'flex', gap:4, marginBottom:4}}>
+                                              {RATING_SCALE.map(r => (
+                                                <div key={r.value} style={{
+                                                  width:26, height:26, borderRadius:6, display:'flex', alignItems:'center', justifyContent:'center',
+                                                  background: r.value <= parseInt(existingMgrScore.score) ? r.color : '#f1f5f9',
+                                                  color: r.value <= parseInt(existingMgrScore.score) ? '#fff' : '#94a3b8',
+                                                  fontSize:12, fontWeight:700
+                                                }}>{r.value}</div>
+                                              ))}
+                                            </div>
+                                            {getRatingInfo(parseInt(existingMgrScore.score)) && (
+                                              <div style={{fontSize:11, color: getRatingInfo(parseInt(existingMgrScore.score)).color, fontWeight:600}}>
+                                                {getRatingInfo(parseInt(existingMgrScore.score)).label}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Manager Grading (pending) */}
+                                  {isPending && (
+                                    <div style={{background:'#f8fafc', padding:14, borderRadius:8, border:'1px solid #e2e8f0'}}>
+                                      <div style={{fontSize:12, color:'#0f172a', fontWeight:600, marginBottom:10}}>Assign Manager Rating</div>
+                                      <div style={{display:'flex', gap:8, flexWrap:'wrap', marginBottom:10}}>
+                                        {RATING_SCALE.map(r => (
+                                          <button key={r.value} type="button"
+                                            onClick={() => setManagerScores({...managerScores, [resp.question]: r.value})}
+                                            style={{
+                                              padding:'8px 12px', borderRadius:8, border:'2px solid',
+                                              borderColor: managerScores[resp.question] === r.value ? r.color : '#e2e8f0',
+                                              background: managerScores[resp.question] === r.value ? r.color : '#fff',
+                                              color: managerScores[resp.question] === r.value ? '#fff' : '#475569',
+                                              cursor:'pointer', fontSize:12, fontWeight:600, transition:'all 0.15s',
+                                              minWidth:36
+                                            }}>
+                                            {r.value}
+                                          </button>
+                                        ))}
+                                      </div>
+                                      {managerScores[resp.question] && (
+                                        <div style={{fontSize:12, color: getRatingInfo(managerScores[resp.question])?.color, fontWeight:600}}>
+                                          Selected: {getRatingInfo(managerScores[resp.question])?.label}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Descriptive / Goals answer */}
+                              {(resp.descriptive_answer || isGoalsType) && (
+                                <div style={{marginBottom:12}}>
+                                  <div style={{fontSize:11, color:'#64748b', fontWeight:600, marginBottom:6}}>EMPLOYEE ANSWER</div>
+                                  <div style={{background:'#f8fafc', padding:12, borderRadius:6, border:'1px solid #e2e8f0', fontSize:13, color:'#334155', whiteSpace:'pre-wrap', lineHeight:1.6}}>
+                                    {resp.descriptive_answer || resp.goals_text}
+                                  </div>
+                                </div>
+                              )}
+
+                              {resp.remarks && (
+                                <div style={{fontSize:12, color:'#475569', background:'#f1f5f9', padding:'8px 12px', borderRadius:6, borderLeft:'3px solid #94a3b8', marginBottom:12}}>
+                                  <strong>Remarks:</strong> {resp.remarks}
+                                </div>
+                              )}
+
+                              {/* Per-question Manager Comment */}
+                              {isPending ? (
+                                <div style={{marginTop:10}}>
+                                  <label style={{fontSize:11, color:'#64748b', fontWeight:600, display:'block', marginBottom:6}}>MANAGER COMMENT (optional)</label>
+                                  <textarea
+                                    className="modern-input" style={{minHeight:60, resize:'vertical', fontSize:13}}
+                                    placeholder="Add specific feedback for this question..."
+                                    value={managerQuestionComments[resp.question] || ""}
+                                    onChange={e => setManagerQuestionComments({...managerQuestionComments, [resp.question]: e.target.value})}
+                                  />
+                                </div>
+                              ) : (existingMgrComment?.comment && (
+                                <div style={{marginTop:10, background:'#fdf4ff', padding:'8px 12px', borderRadius:6, border:'1px solid #e9d5ff', fontSize:12, color:'#6b21a8', borderLeft:'3px solid #a855f7'}}>
+                                  <strong>Manager's Note:</strong> {existingMgrComment.comment}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })
                 )}
-                
-                {/* MANAGER FINAL FEEDBACK & SUBMIT */}
-                {selectedPMS.status === 'Pending Review' && (
-                    <div style={{marginTop:30, borderTop:'2px solid #eee', paddingTop:25, paddingBottom: 20}}>
-                        <h4 style={{marginBottom:15, color: '#0f172a'}}>Manager Final Evaluation & Summary</h4>
-                        <label className="modern-label">Overall Remarks & Feedback</label>
-                        <textarea 
-                            className="modern-input" 
-                            style={{minHeight: 120, resize: 'vertical'}}
-                            placeholder="Provide constructive feedback and summarize the evaluation..."
-                            value={managerFeedback}
-                            onChange={e => setManagerFeedback(e.target.value)}
-                        />
-                        <button 
-                            className="btn" 
-                            style={{marginTop:20, width:'100%', fontSize:'16px', padding: '15px'}} 
-                            onClick={() => finalizePMS(selectedPMS._id)}
-                        >
-                            Submit Scores & Finalize Review
-                        </button>
+
+                {/* Manager Final Section */}
+                {isPending && (
+                  <div style={{borderTop:'2px solid #e2e8f0', paddingTop:24, marginTop:8}}>
+                    <h4 style={{margin:'0 0 16px', color:'#0f172a', fontSize:16}}>Finalize Evaluation</h4>
+
+                    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16}}>
+                      <div>
+                        <label className="modern-label">Overall Performance Rating</label>
+                        <select className="modern-input" value={overallRating} onChange={e => setOverallRating(e.target.value)}>
+                          <option value="">— Select Rating —</option>
+                          {OVERALL_RATINGS.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </div>
                     </div>
-                )}
-                
-                {selectedPMS.status === 'Manager Review Completed' && selectedPMS.manager_feedback && (
-                    <div style={{marginTop:20, padding:20, background:'#fef2f2', borderRadius:8, border: '1px solid #fecaca'}}>
-                        <h4 style={{margin: '0 0 10px 0', color:'var(--red)'}}>Your Final Official Remarks:</h4>
-                        <p style={{margin: 0, fontSize: 14, color: '#450a0a', whiteSpace: 'pre-wrap'}}>{selectedPMS.manager_feedback}</p>
+
+                    <div style={{marginBottom:16}}>
+                      <label className="modern-label">Overall Remarks & Feedback</label>
+                      <textarea className="modern-input" style={{minHeight:100, resize:'vertical'}}
+                        placeholder="Provide constructive, specific feedback summarizing the employee's performance..."
+                        value={managerFeedback} onChange={e => setManagerFeedback(e.target.value)}
+                      />
                     </div>
+
+                    <div style={{marginBottom:20}}>
+                      <label className="modern-label">Development Plan & Action Items</label>
+                      <textarea className="modern-input" style={{minHeight:90, resize:'vertical'}}
+                        placeholder="Outline key areas for growth and specific action items to improve performance..."
+                        value={developmentPlan} onChange={e => setDevelopmentPlan(e.target.value)}
+                      />
+                    </div>
+
+                    <button className="btn" style={{width:'100%', fontSize:16, padding:16, background:'linear-gradient(135deg, #6366f1, #4f46e5)', border:'none', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', gap:8}}
+                      onClick={() => finalizePMS(selectedPMS._id)}>
+                      <FaCheckCircle /> Submit Scores & Finalize Review
+                    </button>
+                  </div>
                 )}
+
+                {/* Completed State Summary */}
+                {!isPending && (
+                  <div style={{borderTop:'2px solid #e2e8f0', paddingTop:20, marginTop:8}}>
+                    {selectedPMS.overall_rating && (
+                      <div style={{marginBottom:14, padding:'10px 16px', background:'#f0fdf4', borderRadius:8, border:'1px solid #bbf7d0', display:'flex', alignItems:'center', gap:10}}>
+                        <FaCheckCircle color="#22c55e" />
+                        <div>
+                          <span style={{fontSize:12, color:'#64748b'}}>Overall Rating: </span>
+                          <strong style={{color:'#166534'}}>{selectedPMS.overall_rating}</strong>
+                        </div>
+                      </div>
+                    )}
+                    {selectedPMS.manager_feedback && (
+                      <div style={{marginBottom:14, padding:16, background:'#fef2f2', borderRadius:8, border:'1px solid #fecaca'}}>
+                        <div style={{fontSize:12, color:'#64748b', fontWeight:600, marginBottom:6}}>MANAGER FEEDBACK</div>
+                        <p style={{margin:0, fontSize:13, color:'#450a0a', whiteSpace:'pre-wrap', lineHeight:1.6}}>{selectedPMS.manager_feedback}</p>
+                      </div>
+                    )}
+                    {selectedPMS.development_plan && (
+                      <div style={{padding:16, background:'#f5f3ff', borderRadius:8, border:'1px solid #e9d5ff'}}>
+                        <div style={{fontSize:12, color:'#64748b', fontWeight:600, marginBottom:6}}>DEVELOPMENT PLAN</div>
+                        <p style={{margin:0, fontSize:13, color:'#3b0764', whiteSpace:'pre-wrap', lineHeight:1.6}}>{selectedPMS.development_plan}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ============================================================================ */}
       {/* 17. CAMERA MODAL FOR CHECK-IN / CHECK-OUT */}
