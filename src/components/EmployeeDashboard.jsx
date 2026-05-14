@@ -32,9 +32,11 @@ import {
   FaUserShield,
   FaClipboardList,
   FaShieldAlt,
-  FaLaptop,        // NEW: Added the Laptop icon for the Asset module
-  FaBars
+  FaLaptop,
+  FaBars,
+  FaGift
 } from "react-icons/fa";
+import ProfilePanel from "./ProfilePanel";
 
 const RATING_SCALE = [
   { value: 1, label: "Needs Development", color: "#ef4444" },
@@ -120,6 +122,9 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [todayBirthdays, setTodayBirthdays] = useState([]);
+  const [birthdayDismissed, setBirthdayDismissed] = useState(false);
   
   // ============================================================================
   // 7. FORM STATES (LEAVES & CORRECTIONS)
@@ -228,6 +233,14 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       }
     };
   }, []);
+
+  useEffect(() => {
+    const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+    fetch(`${baseUrl}/api/notifications/birthdays`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { if (Array.isArray(data) && data.length > 0) setTodayBirthdays(data); })
+      .catch(() => {});
+  }, [token, api]);
 
   // ============================================================================
   // ASSET SUBMISSION LOGIC (NEW)
@@ -580,6 +593,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // MAIN RENDER METHOD
   // ============================================================================
   return (
+    <>
     <div className="app-shell">
       <Sidebar
         role="employee"
@@ -605,8 +619,10 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                 <FaShieldAlt /> Special Access Active
               </div>
             )}
-            <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
-            <span className="topbar-user-name">{user?.name}</span>
+            <button className="topbar-profile-btn" onClick={() => setProfileOpen(true)}>
+              <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
+              <span className="topbar-user-name">{user?.name}</span>
+            </button>
           </div>
         </div>
         <div className="main-content">
@@ -848,6 +864,29 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
             margin-bottom: 5px;
         }
       `}</style>
+
+      {/* Birthday Notification Banner */}
+      {!birthdayDismissed && todayBirthdays.length > 0 && (
+        <div className={`birthday-banner ${todayBirthdays.some(b => b.is_self) ? 'birthday-banner-self' : 'birthday-banner-others'}`}>
+          <div className="birthday-banner-icon"><FaGift /></div>
+          <div className="birthday-banner-text">
+            {todayBirthdays.some(b => b.is_self) ? (
+              <>
+                <div className="birthday-banner-title">Happy Birthday, {user?.name?.split(' ')[0]}!</div>
+                <div className="birthday-banner-sub">Wishing you a wonderful day filled with joy and success!</div>
+              </>
+            ) : (
+              <>
+                <div className="birthday-banner-title">
+                  {todayBirthdays.slice(0, 3).map(b => b.name).join(', ')}{todayBirthdays.length > 3 ? ` +${todayBirthdays.length - 3} more` : ''} {todayBirthdays.length === 1 ? 'has' : 'have'} a birthday today!
+                </div>
+                <div className="birthday-banner-sub">Don't forget to wish them a great day!</div>
+              </>
+            )}
+          </div>
+          <button className="birthday-banner-dismiss" onClick={() => setBirthdayDismissed(true)}><FaTimes size={12} /></button>
+        </div>
+      )}
 
       {/* ============================================================================ */}
       {/* 1. PASSWORD RESET MODAL */}
@@ -1848,5 +1887,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       </div>
     </div>
+
+    <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
+    </>
   );
 }

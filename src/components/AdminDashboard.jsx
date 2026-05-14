@@ -19,7 +19,7 @@ import {
   FaUserPlus,
   FaUsers,
   FaCalendarCheck,
-  FaClock, 
+  FaClock,
   FaChartPie,
   FaUserTie,
   FaArrowLeft,
@@ -35,9 +35,11 @@ import {
   FaEdit,
   FaSave,
   FaUndo,
-  FaLaptop,        // NEW: Icon for Organization Asset Management
-  FaBars
+  FaLaptop,
+  FaBars,
+  FaGift
 } from "react-icons/fa";
+import ProfilePanel from "./ProfilePanel";
 
 // ============================================================================
 // MAIN EXPORT: ADMIN DASHBOARD
@@ -73,6 +75,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   const [view, setView] = useState("dashboard");
   const [subView, setSubView] = useState("list");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [todayBirthdays, setTodayBirthdays] = useState([]);
+  const [birthdayDismissed, setBirthdayDismissed] = useState(false);
 
   // Stats State for Dashboard Overview Widgets
   const [stats, setStats] = useState({
@@ -212,8 +217,16 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   useEffect(() => {
     if (view === "announcements") loadAnnouncements();
     if (view === "grant-access") loadAccessGrants();
-    if (view === "assets") loadAssets(); // NEW: Load assets when view is active
+    if (view === "assets") loadAssets();
   }, [view]);
+
+  useEffect(() => {
+    const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+    fetch(`${baseUrl}/api/notifications/birthdays`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { if (Array.isArray(data) && data.length > 0) setTodayBirthdays(data); })
+      .catch(() => {});
+  }, [token, api]);
 
   // ============================================================================
   // 6. EMPLOYEE ACTIONS (ADD, PROMOTE, DELETE)
@@ -426,6 +439,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   // MAIN RENDER TEMPLATE
   // ============================================================================
   return (
+    <>
     <div className="app-shell">
       <Sidebar
         role="admin"
@@ -446,8 +460,10 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
             {view === "dashboard" ? "Admin Dashboard" : view.replace(/-/g, " ")}
           </span>
           <div className="topbar-right">
-            <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
-            <span className="topbar-user-name">{user?.name}</span>
+            <button className="topbar-profile-btn" onClick={() => setProfileOpen(true)}>
+              <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
+              <span className="topbar-user-name">{user?.name}</span>
+            </button>
           </div>
         </div>
         <div className="main-content">
@@ -497,6 +513,29 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
+
+      {/* Birthday Notification Banner */}
+      {!birthdayDismissed && todayBirthdays.length > 0 && (
+        <div className={`birthday-banner ${todayBirthdays.some(b => b.is_self) ? 'birthday-banner-self' : 'birthday-banner-others'}`}>
+          <div className="birthday-banner-icon"><FaGift /></div>
+          <div className="birthday-banner-text">
+            {todayBirthdays.some(b => b.is_self) ? (
+              <>
+                <div className="birthday-banner-title">Happy Birthday, {user?.name?.split(' ')[0]}!</div>
+                <div className="birthday-banner-sub">Wishing you a wonderful day filled with joy and success!</div>
+              </>
+            ) : (
+              <>
+                <div className="birthday-banner-title">
+                  {todayBirthdays.slice(0, 3).map(b => b.name).join(', ')}{todayBirthdays.length > 3 ? ` +${todayBirthdays.length - 3} more` : ''} {todayBirthdays.length === 1 ? 'has' : 'have'} a birthday today!
+                </div>
+                <div className="birthday-banner-sub">Don't forget to wish them a great day!</div>
+              </>
+            )}
+          </div>
+          <button className="birthday-banner-dismiss" onClick={() => setBirthdayDismissed(true)}><FaTimes size={12} /></button>
+        </div>
+      )}
 
       {/* ============================================================================ */}
       {/* HEADER LOGIC */}
@@ -860,5 +899,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         </div>
       </div>
     </div>
+
+    <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
+    </>
   );
 }

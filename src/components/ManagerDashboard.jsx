@@ -42,11 +42,13 @@ import {
   FaClipboardList,
   FaCheckSquare,
   FaRegSquare,
-  FaClock,           // Used for Applied On Date/Time
-  FaFileDownload,    // Used for File Attachment UI
-  FaLaptop,          // Icon for Team Asset Requests
-  FaBars
+  FaClock,
+  FaFileDownload,
+  FaLaptop,
+  FaBars,
+  FaGift
 } from "react-icons/fa";
+import ProfilePanel from "./ProfilePanel";
 
 // ============================================================================
 // MAIN EXPORT: MANAGER DASHBOARD
@@ -220,6 +222,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   const [view, setView] = useState("dashboard");
   const [loadError, setLoadError] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [todayBirthdays, setTodayBirthdays] = useState([]);
+  const [birthdayDismissed, setBirthdayDismissed] = useState(false);
 
   // Leave Form State Variables
   const [leaveDuration, setLeaveDuration] = useState("single");
@@ -366,6 +371,14 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   useEffect(() => {
     if (view === "pms-calibration") fetchCalibration(calibrationMonth);
   }, [view, calibrationMonth]);
+
+  useEffect(() => {
+    const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+    fetch(`${baseUrl}/api/notifications/birthdays`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { if (Array.isArray(data) && data.length > 0) setTodayBirthdays(data); })
+      .catch(() => {});
+  }, [token, api]);
 
   // ============================================================================
   // PASSWORD MANAGEMENT
@@ -962,6 +975,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   // RENDER TEMPLATE
   // ============================================================================
   return (
+    <>
     <div className="app-shell">
       <Sidebar
         role="manager"
@@ -997,8 +1011,10 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                 <FaLock /> Change Password
               </button>
             )}
-            <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
-            <span className="topbar-user-name">{user?.name}</span>
+            <button className="topbar-profile-btn" onClick={() => setProfileOpen(true)}>
+              <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
+              <span className="topbar-user-name">{user?.name}</span>
+            </button>
           </div>
         </div>
         <div className="main-content">
@@ -1300,6 +1316,29 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             margin-bottom: 5px;
         }
       `}</style>
+
+      {/* Birthday Notification Banner */}
+      {!birthdayDismissed && todayBirthdays.length > 0 && (
+        <div className={`birthday-banner ${todayBirthdays.some(b => b.is_self) ? 'birthday-banner-self' : 'birthday-banner-others'}`}>
+          <div className="birthday-banner-icon"><FaGift /></div>
+          <div className="birthday-banner-text">
+            {todayBirthdays.some(b => b.is_self) ? (
+              <>
+                <div className="birthday-banner-title">Happy Birthday, {user?.name?.split(' ')[0]}!</div>
+                <div className="birthday-banner-sub">Wishing you a wonderful day filled with joy and success!</div>
+              </>
+            ) : (
+              <>
+                <div className="birthday-banner-title">
+                  {todayBirthdays.slice(0, 3).map(b => b.name).join(', ')}{todayBirthdays.length > 3 ? ` +${todayBirthdays.length - 3} more` : ''} {todayBirthdays.length === 1 ? 'has' : 'have'} a birthday today!
+                </div>
+                <div className="birthday-banner-sub">Don't forget to wish them a great day!</div>
+              </>
+            )}
+          </div>
+          <button className="birthday-banner-dismiss" onClick={() => setBirthdayDismissed(true)}><FaTimes size={12} /></button>
+        </div>
+      )}
 
       {/* ============================================================================ */}
       {/* 1. PASSWORD RESET MODAL */}
@@ -2696,5 +2735,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       </div>
     </div>
+
+    <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
+    </>
   );
 }
