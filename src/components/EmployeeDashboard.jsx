@@ -178,12 +178,6 @@ function DailyQuote() {
           <span style={{ fontSize: 12, fontWeight: 600, color: "#64748b", letterSpacing: "0.02em" }}>
             {quote.author}
           </span>
-          <span style={{
-            marginLeft: "auto", fontSize: 10.5, fontWeight: 600,
-            color: "#dc2626", opacity: 0.5, letterSpacing: "0.06em", textTransform: "uppercase",
-          }}>
-            Quote of the Day
-          </span>
         </div>
       </div>
     </div>
