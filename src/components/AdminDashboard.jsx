@@ -44,6 +44,7 @@ import {
   FaSitemap
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
+import AdminInsights from "./AdminInsights";
 
 // ============================================================================
 // MAIN EXPORT: ADMIN DASHBOARD
@@ -614,6 +615,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {/* DASHBOARD HOME VIEW (WIDGETS) */}
       {/* ============================================================================ */}
       {view === "dashboard" && (
+        <>
         <div className="dashboard-grid-container">
           
           <div className="card dashboard-widget">
@@ -654,6 +656,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
               </div>
           </div>
         </div>
+
+        <AdminInsights stats={stats} employees={employees} />
+        </>
       )}
 
       {/* ============================================================================ */}
