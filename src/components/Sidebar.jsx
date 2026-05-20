@@ -4,7 +4,7 @@ import {
   FaTachometerAlt, FaUsers, FaCalendarCheck, FaClock, FaUserTie,
   FaChartPie, FaCalendarAlt, FaBullhorn, FaUserShield, FaLaptop,
   FaHistory, FaCalendarPlus, FaEdit, FaChartLine, FaClipboardCheck,
-  FaSignOutAlt, FaBalanceScale
+  FaSignOutAlt, FaBalanceScale, FaBuilding
 } from "react-icons/fa";
 
 const NAV_ITEMS = {
@@ -13,6 +13,7 @@ const NAV_ITEMS = {
     { icon: <FaUsers />, label: "Employees", view: "employees" },
     { icon: <FaCalendarCheck />, label: "Leave Requests", view: "leaves" },
     { icon: <FaClock />, label: "Attendance", view: "attendance" },
+    { icon: <FaBuilding />, label: "Departments", view: "departments" },
     { icon: <FaUserTie />, label: "Managers", view: "manager" },
     { icon: <FaChartPie />, label: "Reports", view: "summary" },
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },

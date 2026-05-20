@@ -37,7 +37,12 @@ import {
   FaUndo,
   FaLaptop,
   FaBars,
-  FaGift
+  FaGift,
+  FaBuilding,
+  FaUserTie as FaManager,
+  FaPlus,
+  FaEye,
+  FaSitemap
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 
@@ -49,6 +54,25 @@ function QuickLaunchItem({ icon, label, onClick, color = "var(--red)" }) {
     <div className="quick-launch-item" onClick={onClick}>
       <div className="quick-launch-icon" style={{color}}>{icon}</div>
       <div className="quick-launch-label">{label}</div>
+    </div>
+  );
+}
+
+function MemberRow({ emp, badge }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid #f8fafc" }}>
+      <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,#334155,#1e293b)", color: "#fff", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        {emp.name?.charAt(0).toUpperCase() || "?"}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: 13.5, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{emp.name}</div>
+        <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 1 }}>{emp.position || emp.email || "—"}</div>
+      </div>
+      {badge && (
+        <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 999, background: badge.bg, color: badge.color, flexShrink: 0 }}>
+          {badge.label}
+        </span>
+      )}
     </div>
   );
 }
@@ -119,9 +143,20 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   });
 
   // ============================================================================
-  // 4. ASSET MANAGEMENT STATES (NEW)
+  // 4. ASSET MANAGEMENT STATES
   // ============================================================================
   const [allAssets, setAllAssets] = useState([]);
+
+  // ============================================================================
+  // 5. DEPARTMENT MANAGEMENT STATES
+  // ============================================================================
+  const [departments, setDepartments] = useState([]);
+  const [deptLoading, setDeptLoading] = useState(false);
+  const [deptModal, setDeptModal] = useState(false);
+  const [deptEditId, setDeptEditId] = useState(null);
+  const [deptForm, setDeptForm] = useState({ name: "", description: "", head_id: "" });
+  const [deptSaving, setDeptSaving] = useState(false);
+  const [deptMembersOpen, setDeptMembersOpen] = useState(null); // dept object for quick-view
 
   // ============================================================================
   // 5. DATA LOADING FUNCTIONS
@@ -207,6 +242,95 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       }
   }
 
+  // ============================================================================
+  // DEPARTMENT FUNCTIONS
+  // ============================================================================
+
+  async function loadDepartments() {
+    setDeptLoading(true);
+    try {
+      const baseUrl = api.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+      const res = await fetch(`${baseUrl}/api/admin/departments`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setDepartments(await res.json());
+      } else {
+        deriveDepartmentsFromEmployees();
+      }
+    } catch {
+      deriveDepartmentsFromEmployees();
+    } finally {
+      setDeptLoading(false);
+    }
+  }
+
+  function deriveDepartmentsFromEmployees() {
+    const map = {};
+    employees.forEach((emp) => {
+      const d = emp.department || "Unassigned";
+      if (!map[d]) map[d] = { _id: d, name: d, description: "", head_id: null };
+    });
+    setDepartments(Object.values(map));
+  }
+
+  async function saveDepartment(e) {
+    e.preventDefault();
+    if (!deptForm.name.trim()) return;
+    setDeptSaving(true);
+    try {
+      const baseUrl = api.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+      const method = deptEditId ? "PUT" : "POST";
+      const url = deptEditId
+        ? `${baseUrl}/api/admin/departments/${deptEditId}`
+        : `${baseUrl}/api/admin/departments`;
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(deptForm),
+      });
+      if (res.ok) {
+        setDeptModal(false);
+        setDeptEditId(null);
+        setDeptForm({ name: "", description: "", head_id: "" });
+        loadDepartments();
+        loadEmployees();
+      } else {
+        const err = await res.json();
+        alert(err.message || "Failed to save department");
+      }
+    } catch {
+      alert("Error saving department");
+    } finally {
+      setDeptSaving(false);
+    }
+  }
+
+  async function deleteDepartment(id, name) {
+    if (!window.confirm(`Delete department "${name}"? Employees will be unassigned from this department.`)) return;
+    try {
+      const baseUrl = api.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+      const res = await fetch(`${baseUrl}/api/admin/departments/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) { loadDepartments(); loadEmployees(); }
+      else { const err = await res.json(); alert(err.message || "Failed to delete department"); }
+    } catch { alert("Error deleting department"); }
+  }
+
+  function openAddDept() {
+    setDeptEditId(null);
+    setDeptForm({ name: "", description: "", head_id: "" });
+    setDeptModal(true);
+  }
+
+  function openEditDept(dept) {
+    setDeptEditId(dept._id);
+    setDeptForm({ name: dept.name, description: dept.description || "", head_id: dept.head_id || "" });
+    setDeptModal(true);
+  }
+
   // Load initial base data on mount
   useEffect(() => {
     loadEmployees();
@@ -218,6 +342,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
     if (view === "announcements") loadAnnouncements();
     if (view === "grant-access") loadAccessGrants();
     if (view === "assets") loadAssets();
+    if (view === "departments") loadDepartments();
   }, [view]);
 
   useEffect(() => {
@@ -545,6 +670,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
               <QuickLaunchItem icon={<FaUserShield />} label="Grant Access" onClick={() => setView("grant-access")} />
               
+              <QuickLaunchItem icon={<FaBuilding />} label="Departments" onClick={() => setView("departments")} color="#7c3aed" />
               {/* NEW: Asset Management Icon for Admin */}
               <QuickLaunchItem icon={<FaLaptop />} label="Manage Assets" onClick={() => setView("assets")} color="#0284c7" />
             </div>
@@ -785,7 +911,298 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       )}
 
       {/* ============================================================================ */}
-      {/* 9. ORGANIZATION ASSET MANAGEMENT (NEW ADMIN FEATURE) */}
+      {/* 9. DEPARTMENTS */}
+      {/* ============================================================================ */}
+      {view === "departments" && (() => {
+        // Derive per-dept employee lists from loaded employees array
+        const deptEmployeeMap = {};
+        employees.forEach(emp => {
+          const key = emp.department || "Unassigned";
+          if (!deptEmployeeMap[key]) deptEmployeeMap[key] = [];
+          deptEmployeeMap[key].push(emp);
+        });
+
+        // Enrich departments with live employee data
+        const enriched = departments.map(d => ({
+          ...d,
+          members: deptEmployeeMap[d.name] || [],
+          manager: employees.find(e => e._id === d.head_id || (e.role === "manager" && e.department === d.name)) || null,
+        }));
+
+        // Summary stats
+        const totalEmployees = employees.length;
+        const noManager = enriched.filter(d => !d.manager).length;
+
+        // Color palette per department
+        const PALETTE = [
+          { bg: "#ede9fe", text: "#7c3aed", border: "#c4b5fd", accent: "#7c3aed" },
+          { bg: "#dbeafe", text: "#1d4ed8", border: "#93c5fd", accent: "#2563eb" },
+          { bg: "#dcfce7", text: "#15803d", border: "#86efac", accent: "#16a34a" },
+          { bg: "#fef9c3", text: "#92400e", border: "#fde68a", accent: "#d97706" },
+          { bg: "#ffedd5", text: "#9a3412", border: "#fdba74", accent: "#ea580c" },
+          { bg: "#e0f2fe", text: "#0369a1", border: "#7dd3fc", accent: "#0284c7" },
+          { bg: "#fce7f3", text: "#9d174d", border: "#f9a8d4", accent: "#db2777" },
+          { bg: "#f0fdf4", text: "#166534", border: "#86efac", accent: "#15803d" },
+        ];
+        const getColor = name => PALETTE[(name || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % PALETTE.length];
+
+        return (
+          <div style={{ marginTop: 16 }}>
+            {/* Page header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <div>
+                <h3 style={{ margin: 0, color: "#0f172a", fontSize: 20, fontWeight: 800, display: "flex", alignItems: "center", gap: 10 }}>
+                  <FaSitemap style={{ color: "var(--red)" }} /> Departments
+                </h3>
+                <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>Manage your organisation's departments, assign heads, and view team composition.</p>
+              </div>
+              <button className="btn" onClick={openAddDept} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px" }}>
+                <FaPlus size={11} /> Add Department
+              </button>
+            </div>
+
+            {/* Stats strip */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
+              {[
+                { label: "Total Departments", value: enriched.length, color: "#6366f1", bg: "#eef2ff" },
+                { label: "Total Employees", value: totalEmployees, color: "#16a34a", bg: "#dcfce7" },
+                { label: "Needs a Manager", value: noManager, color: "#d97706", bg: "#fef9c3" },
+              ].map(s => (
+                <div key={s.label} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 12, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</span>
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Department cards grid */}
+            {deptLoading ? (
+              <div className="loader-container"><div className="loader" /></div>
+            ) : enriched.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 24px", background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0" }}>
+                <FaBuilding size={40} style={{ color: "#cbd5e1", marginBottom: 16 }} />
+                <p style={{ fontSize: 15, fontWeight: 600, color: "#94a3b8", margin: 0 }}>No departments yet</p>
+                <p style={{ fontSize: 13, color: "#cbd5e1", marginTop: 6 }}>Click "Add Department" to create your first one.</p>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: 16 }}>
+                {enriched.map(dept => {
+                  const clr = getColor(dept.name);
+                  return (
+                    <div key={dept._id} style={{ background: "#fff", border: `1px solid ${clr.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", transition: "box-shadow 0.2s, transform 0.2s" }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.05)"; }}>
+
+                      {/* Card color bar */}
+                      <div style={{ height: 5, background: `linear-gradient(90deg, ${clr.accent}, ${clr.accent}88)` }} />
+
+                      <div style={{ padding: "18px 20px" }}>
+                        {/* Header */}
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 14 }}>
+                          <div style={{ width: 48, height: 48, borderRadius: 12, background: clr.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 20, fontWeight: 800, color: clr.text }}>
+                            {dept.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: 15, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dept.name}</div>
+                            {dept.description ? (
+                              <div style={{ fontSize: 12, color: "#64748b", marginTop: 3, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{dept.description}</div>
+                            ) : (
+                              <div style={{ fontSize: 12, color: "#cbd5e1", marginTop: 3, fontStyle: "italic" }}>No description</div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Stats row */}
+                        <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                          <div style={{ flex: 1, background: clr.bg, borderRadius: 9, padding: "8px 12px", textAlign: "center" }}>
+                            <div style={{ fontSize: 18, fontWeight: 800, color: clr.text }}>{dept.members.length}</div>
+                            <div style={{ fontSize: 10, color: clr.text, opacity: 0.75, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.4px" }}>Employees</div>
+                          </div>
+                          <div style={{ flex: 2, background: "#f8fafc", borderRadius: 9, padding: "8px 12px" }}>
+                            <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: 3 }}>Department Head</div>
+                            {dept.manager ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                                <div style={{ width: 22, height: 22, borderRadius: "50%", background: "linear-gradient(135deg,#dc2626,#991b1b)", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  {dept.manager.name.charAt(0).toUpperCase()}
+                                </div>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: "#334155", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dept.manager.name}</span>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: 11, color: "#f59e0b", fontWeight: 600 }}>⚠ Not assigned</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div style={{ display: "flex", gap: 7 }}>
+                          <button
+                            onClick={() => setDeptMembersOpen(dept)}
+                            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 10px", borderRadius: 8, border: `1.5px solid ${clr.border}`, background: clr.bg, color: clr.text, cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s" }}
+                          >
+                            <FaEye size={11} /> View Members
+                          </button>
+                          <button
+                            onClick={() => openEditDept(dept)}
+                            style={{ padding: "7px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}
+                          >
+                            <FaEdit size={11} />
+                          </button>
+                          <button
+                            onClick={() => deleteDepartment(dept._id, dept.name)}
+                            style={{ padding: "7px 12px", borderRadius: 8, border: "1.5px solid #fee2e2", background: "#fff", color: "#dc2626", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}
+                          >
+                            <FaTrash size={11} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── ADD / EDIT DEPARTMENT MODAL ──────────────────────────────── */}
+            {deptModal && (
+              <div className="modal-overlay" style={{ zIndex: 5000 }}>
+                <div className="modal-card" style={{ padding: 0, width: 480 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px 16px", borderBottom: "1px solid #f1f5f9" }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0f172a" }}>
+                        {deptEditId ? "Edit Department" : "Add Department"}
+                      </h3>
+                      <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#64748b" }}>
+                        {deptEditId ? "Update department details." : "Create a new department for your organisation."}
+                      </p>
+                    </div>
+                    <button onClick={() => setDeptModal(false)} style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#64748b", flexShrink: 0 }}>
+                      <FaTimes size={13} />
+                    </button>
+                  </div>
+                  <form onSubmit={saveDepartment} style={{ padding: "20px 24px 24px" }}>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6, display: "block" }}>Department Name *</label>
+                      <input
+                        className="modern-input"
+                        required
+                        placeholder="e.g. Engineering, Marketing, Finance"
+                        value={deptForm.name}
+                        onChange={e => setDeptForm({ ...deptForm, name: e.target.value })}
+                      />
+                    </div>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6, display: "block" }}>Description <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional)</span></label>
+                      <textarea
+                        className="modern-input"
+                        style={{ minHeight: 80, resize: "vertical" }}
+                        placeholder="Brief description of this department's role..."
+                        value={deptForm.description}
+                        onChange={e => setDeptForm({ ...deptForm, description: e.target.value })}
+                      />
+                    </div>
+                    <div style={{ marginBottom: 24 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6, display: "block" }}>Department Head <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional)</span></label>
+                      <select
+                        className="modern-input"
+                        value={deptForm.head_id}
+                        onChange={e => setDeptForm({ ...deptForm, head_id: e.target.value })}
+                      >
+                        <option value="">— Select a manager —</option>
+                        {employees.filter(e => e.role === "manager").map(m => (
+                          <option key={m._id} value={m._id}>{m.name} · {m.department}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <button type="submit" className="btn" style={{ flex: 1 }} disabled={deptSaving}>
+                        {deptSaving ? "Saving..." : deptEditId ? "Save Changes" : "Create Department"}
+                      </button>
+                      <button type="button" className="btn ghost" onClick={() => setDeptModal(false)}>Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* ── MEMBERS QUICK-VIEW DRAWER ─────────────────────────────────── */}
+            {deptMembersOpen && (() => {
+              const d = deptMembersOpen;
+              const clr = getColor(d.name);
+              const managers = d.members.filter(m => m.role === "manager");
+              const regulars = d.members.filter(m => m.role !== "manager");
+              return (
+                <>
+                  <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 6000, backdropFilter: "blur(2px)" }} onClick={() => setDeptMembersOpen(null)} />
+                  <div style={{ position: "fixed", top: 0, right: 0, height: "100%", width: 400, maxWidth: "95vw", background: "#fff", boxShadow: "-8px 0 40px rgba(0,0,0,0.15)", zIndex: 6001, display: "flex", flexDirection: "column", animation: "slideFromRight 0.28s cubic-bezier(0.4,0,0.2,1)" }}>
+                    {/* Drawer header */}
+                    <div style={{ background: `linear-gradient(135deg, #0d1520, #1e293b)`, padding: "20px 20px 18px", flexShrink: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div style={{ width: 44, height: 44, borderRadius: 12, background: clr.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: clr.text, flexShrink: 0 }}>
+                            {d.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>{d.name}</div>
+                            <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                              {d.members.length} {d.members.length === 1 ? "member" : "members"}
+                            </div>
+                          </div>
+                        </div>
+                        <button onClick={() => setDeptMembersOpen(null)} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}>
+                          <FaTimes size={13} />
+                        </button>
+                      </div>
+                      {d.description && <p style={{ margin: 0, fontSize: 12.5, color: "#94a3b8", lineHeight: 1.5 }}>{d.description}</p>}
+                    </div>
+
+                    {/* Members list */}
+                    <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+                      {d.members.length === 0 ? (
+                        <div style={{ textAlign: "center", padding: "48px 16px" }}>
+                          <FaUsers size={36} style={{ color: "#cbd5e1", marginBottom: 12 }} />
+                          <p style={{ color: "#94a3b8", fontSize: 14, fontWeight: 600 }}>No employees in this department</p>
+                        </div>
+                      ) : (
+                        <>
+                          {managers.length > 0 && (
+                            <>
+                              <p style={{ fontSize: 10.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.7px", margin: "0 0 10px" }}>Management</p>
+                              {managers.map(emp => (
+                                <MemberRow key={emp._id} emp={emp} badge={{ label: "Manager", bg: "#fde8e8", color: "#b91c1c" }} />
+                              ))}
+                              {regulars.length > 0 && <div style={{ height: 1, background: "#f1f5f9", margin: "14px 0" }} />}
+                            </>
+                          )}
+                          {regulars.length > 0 && (
+                            <>
+                              <p style={{ fontSize: 10.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.7px", margin: "0 0 10px" }}>Team Members</p>
+                              {regulars.map(emp => (
+                                <MemberRow key={emp._id} emp={emp} />
+                              ))}
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    {/* Drawer footer */}
+                    <div style={{ padding: "14px 20px", borderTop: "1px solid #f1f5f9", display: "flex", gap: 10 }}>
+                      <button className="btn" style={{ flex: 1 }} onClick={() => { openEditDept(d); setDeptMembersOpen(null); }}>
+                        <FaEdit size={12} /> Edit Department
+                      </button>
+                      <button className="btn ghost" onClick={() => setDeptMembersOpen(null)}>Close</button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        );
+      })()}
+
+      {/* ============================================================================ */}
+      {/* 10. ORGANIZATION ASSET MANAGEMENT */}
       {/* ============================================================================ */}
       {view === "assets" && (
           <div className="card" style={{marginTop: 16}}>
