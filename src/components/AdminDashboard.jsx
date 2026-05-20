@@ -698,9 +698,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
               <QuickLaunchItem icon={<FaUserShield />} label="Grant Access" onClick={() => setView("grant-access")} />
               
-              <QuickLaunchItem icon={<FaBuilding />} label="Departments" onClick={() => setView("departments")} color="#7c3aed" />
-              {/* NEW: Asset Management Icon for Admin */}
-              <QuickLaunchItem icon={<FaLaptop />} label="Manage Assets" onClick={() => setView("assets")} color="#0284c7" />
+              <QuickLaunchItem icon={<FaBuilding />} label="Departments" onClick={() => setView("departments")} />
+              <QuickLaunchItem icon={<FaLaptop />} label="Manage Assets" onClick={() => setView("assets")} />
             </div>
           </div>
 
@@ -961,16 +960,16 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         const totalEmployees = employees.length;
         const noManager = enriched.filter(d => !d.manager).length;
 
-        // Color palette per department
+        // Color palette per department — professional, controlled
         const PALETTE = [
-          { bg: "#ede9fe", text: "#7c3aed", border: "#c4b5fd", accent: "#7c3aed" },
-          { bg: "#dbeafe", text: "#1d4ed8", border: "#93c5fd", accent: "#2563eb" },
-          { bg: "#dcfce7", text: "#15803d", border: "#86efac", accent: "#16a34a" },
-          { bg: "#fef9c3", text: "#92400e", border: "#fde68a", accent: "#d97706" },
-          { bg: "#ffedd5", text: "#9a3412", border: "#fdba74", accent: "#ea580c" },
-          { bg: "#e0f2fe", text: "#0369a1", border: "#7dd3fc", accent: "#0284c7" },
-          { bg: "#fce7f3", text: "#9d174d", border: "#f9a8d4", accent: "#db2777" },
-          { bg: "#f0fdf4", text: "#166534", border: "#86efac", accent: "#15803d" },
+          { bg: "#EBF3FB", text: "#1264A3", border: "#D0E8F7", accent: "#1264A3" },
+          { bg: "#E8F5E9", text: "#2E7D32", border: "#C8E6C9", accent: "#388E3C" },
+          { bg: "#FFF3E0", text: "#BF5A00", border: "#FFDDB5", accent: "#F57C00" },
+          { bg: "#F3E5F5", text: "#6A1B9A", border: "#E1BEE7", accent: "#7B1FA2" },
+          { bg: "#E0F2F1", text: "#00695C", border: "#B2DFDB", accent: "#00796B" },
+          { bg: "#FBE9E7", text: "#BF360C", border: "#FFCCBC", accent: "#D84315" },
+          { bg: "#EDE7F6", text: "#4527A0", border: "#D1C4E9", accent: "#512DA8" },
+          { bg: "#ECEFF1", text: "#37474F", border: "#CFD8DC", accent: "#546E7A" },
         ];
         const getColor = name => PALETTE[(name || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % PALETTE.length];
 
