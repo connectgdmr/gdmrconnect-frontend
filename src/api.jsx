@@ -120,6 +120,13 @@ export default {
     return data;
   },
 
+  // Employment Status (extended leaves + resignation)
+  getEmployeeStatus:    (id, token)          => request(`/admin/employees/${id}/status`, "GET", null, token),
+  addExtendedLeave:     (id, payload, token) => request(`/admin/employees/${id}/extended-leave`, "POST", payload, token),
+  removeExtendedLeave:  (id, leaveId, token) => request(`/admin/employees/${id}/extended-leave/${leaveId}`, "DELETE", null, token),
+  setResignation:       (id, payload, token) => request(`/admin/employees/${id}/resignation`, "PUT", payload, token),
+  clearResignation:     (id, token)          => request(`/admin/employees/${id}/resignation`, "DELETE", null, token),
+
   getAttendanceSummary: async (month, token) => {
     const res = await fetch(
       `${API_BASE}/admin/attendance-summary?month=${month}`,

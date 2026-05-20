@@ -1029,9 +1029,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 1. PASSWORD RESET MODAL */}
-      {/* ============================================================================ */}
+      {/* — Password Reset Modal — */}
       {showPasswordModal && (
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
             <div className="modal-card" style={{padding: 0}}>
@@ -1105,9 +1103,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 2. DYNAMIC HEADER LOGIC */}
-      {/* ============================================================================ */}
+      {/* — Header — */}
       {view === "dashboard" ? (
         <div className="dashboard-header-card card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -1141,9 +1137,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
       
-      {/* ============================================================================ */}
-      {/* NETWORK ERROR BANNER */}
-      {/* ============================================================================ */}
+      {/* — Network Error — */}
       {loadError && (
         <div style={{
           background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px',
@@ -1160,48 +1154,27 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 3. DASHBOARD HOME VIEW (Widgets) */}
-      {/* ============================================================================ */}
+      {/* — Dashboard Home — */}
       {view === "dashboard" && (
         <div className="dashboard-grid-container">
           
           <div className="card dashboard-widget">
             <h4 className="widget-title">Quick Actions</h4>
             <div className="quick-launch-grid">
-              <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} color="green" />
-              <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} color="#b91c1c" />
-              <QuickLaunchItem icon={<FaUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} color="var(--red)" badgeCount={notificationCounts?.leaves || 0} />
-              
-              <QuickLaunchItem icon={<FaEdit />} label="PMS Form Builder" onClick={() => setView("pms-builder")} color="#10b981" />
-              <QuickLaunchItem icon={<FaChartLine />} label="PMS Reviews" onClick={() => setView("pms-manager")} color="#6366f1" badgeCount={notificationCounts?.pms || 0} />
-              <QuickLaunchItem icon={<FaUsers />} label="Dept Dashboard" onClick={() => setView("dept-dashboard")} color="#8b5cf6" />
-              
-              <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} color="#f59e0b" badgeCount={notificationCounts?.corrections || 0} />
+              <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} />
+              <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} />
+              <QuickLaunchItem icon={<FaUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} badgeCount={notificationCounts?.leaves || 0} />
+              <QuickLaunchItem icon={<FaEdit />} label="PMS Form Builder" onClick={() => setView("pms-builder")} />
+              <QuickLaunchItem icon={<FaChartLine />} label="PMS Reviews" onClick={() => setView("pms-manager")} badgeCount={notificationCounts?.pms || 0} />
+              <QuickLaunchItem icon={<FaUsers />} label="Dept Dashboard" onClick={() => setView("dept-dashboard")} />
+              <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} badgeCount={notificationCounts?.corrections || 0} />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
-              
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
-              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} color="var(--red)" badgeCount={notificationCounts?.announcements || 0} />
-              
-              {/* NEW: Team Assets Button for Managers */}
-              <QuickLaunchItem 
-                icon={<FaLaptop />} 
-                label="Team Assets" 
-                onClick={() => setView("team-assets")} 
-                color="#0284c7" 
-                badgeCount={notificationCounts?.assets || 0} 
-              />
-              
-              {/* CONSOLIDATED DELEGATED PORTAL BUTTON */}
+              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} badgeCount={notificationCounts?.announcements || 0} />
+              <QuickLaunchItem icon={<FaLaptop />} label="Team Assets" onClick={() => setView("team-assets")} badgeCount={notificationCounts?.assets || 0} />
               {delegatedGrants.length > 0 && (
-                <QuickLaunchItem 
-                    icon={<FaUserShield />} 
-                    label="Admin Portal (Special Access)" 
-                    onClick={() => setView("delegated-admin-portal")} 
-                    color="#4f46e5" 
-                    badgeCount={delegatedGrants.length}
-                />
+                <QuickLaunchItem icon={<FaUserShield />} label="Admin Portal (Special Access)" onClick={() => setView("delegated-admin-portal")} badgeCount={delegatedGrants.length} />
               )}
             </div>
           </div>
@@ -1217,12 +1190,10 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 4. DELEGATED ADMIN PORTAL HUB */}
-      {/* ============================================================================ */}
+      {/* — Delegated Admin Portal — */}
       {view === "delegated-admin-portal" && (
          <div className="card" style={{ marginTop: "16px" }}>
-            <h2 style={{ color: '#4f46e5', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h2 style={{ color: 'var(--red)', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <FaUserShield /> Temporary Admin Portal
             </h2>
             <p style={{ color: '#666', marginBottom: 30 }}>
@@ -1230,18 +1201,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             </p>
 
             <div className="quick-launch-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                <QuickLaunchItem 
-                     icon={<FaClipboardList />} 
-                     label="Manage Leave Approvals" 
-                     onClick={() => setView("delegated-leaves")} 
-                     color="#4f46e5" 
-                />
-                <QuickLaunchItem 
-                     icon={<FaHistory />} 
-                     label="Manage Daily Attendance" 
-                     onClick={() => setView("delegated-attendance")} 
-                     color="#4f46e5" 
-                />
+                <QuickLaunchItem icon={<FaClipboardList />} label="Manage Leave Approvals" onClick={() => setView("delegated-leaves")} />
+                <QuickLaunchItem icon={<FaHistory />} label="Manage Daily Attendance" onClick={() => setView("delegated-attendance")} />
             </div>
          </div>
       )}
@@ -1267,9 +1228,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
          </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 5. ANNOUNCEMENTS (UPGRADED UI - NO EDIT CONTROLS) */}
-      {/* ============================================================================ */}
+      {/* — Announcements — */}
       {view === "announcements" && (
          <div className="card" style={{ marginTop: "16px", background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
             <h3 style={{color: 'var(--red)'}}>Company Announcements</h3>
@@ -1304,9 +1263,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
          </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 6. PMS TEMPLATE BUILDER — WORLD CLASS DESIGN */}
-      {/* ============================================================================ */}
+      {/* — PMS Template Builder — */}
       {view === "pms-builder" && (() => {
         const totalWeight = templateSessions.reduce((sum, s) => sum + (parseInt(s.weight) || 0), 0);
         return (
@@ -1458,9 +1415,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         );
       })()}
 
-      {/* ============================================================================ */}
-      {/* 7. DEPARTMENT PERFORMANCE DASHBOARD */}
-      {/* ============================================================================ */}
+      {/* — Dept Performance Dashboard — */}
       {view === "dept-dashboard" && (
           <div className="card">
               <div style={{display:'flex', justifyContent: 'space-between', alignItems:'center', marginBottom: 20}}>
@@ -1508,9 +1463,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 8. PMS REVIEWS LIST — WORLD CLASS DESIGN */}
-      {/* ============================================================================ */}
+      {/* — PMS Reviews — */}
       {view === "pms-manager" && (
         <div>
           {/* Stats Row */}
@@ -1607,9 +1560,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 8b. PMS TEAM CALIBRATION */}
-      {/* ============================================================================ */}
+      {/* — PMS Calibration — */}
       {view === "pms-calibration" && (
         <div className="card">
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20, flexWrap:'wrap', gap:12}}>
@@ -1672,9 +1623,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 9. CORRECTIONS VIEW */}
-      {/* ============================================================================ */}
+      {/* — Corrections — */}
       {view === "corrections" && (
           <div className="card">
               <h3>Pending Attendance Corrections</h3>
@@ -1711,9 +1660,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 10. TEAM LEAVES VIEW (GUARANTEED NO-SCROLL LAYOUT)                             */}
-      {/* ============================================================================ */}
+      {/* — Team Leaves — */}
       {view === "team-leaves" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Team Leave Requests</h3>
@@ -1826,9 +1773,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 11. TEAM ASSETS VIEW (NEW FEATURE) */}
-      {/* ============================================================================ */}
+      {/* — Team Assets — */}
       {view === "team-assets" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Team Hardware & Asset Requests</h3>
@@ -1920,14 +1865,10 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 12. TEAM DIRECTORY */}
-      {/* ============================================================================ */}
+      {/* — Team Directory — */}
       {view === "team-members" && <TeamMembersList />}
-      
-      {/* ============================================================================ */}
-      {/* 13. APPLY LEAVE MODULE */}
-      {/* ============================================================================ */}
+
+      {/* — Apply Leave — */}
       {view === "apply-leave" && (
         <div className="card">
           <form onSubmit={applyLeave}>
@@ -1992,9 +1933,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 14. MY LEAVES HISTORY */}
-      {/* ============================================================================ */}
+      {/* — My Leaves — */}
       {view === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
@@ -2025,9 +1964,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 15. MY ATTENDANCE LOG */}
-      {/* ============================================================================ */}
+      {/* — Attendance Log — */}
       {view === "attendance-log" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
@@ -2054,9 +1991,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 16. HOLIDAYS & UTILITY MODALS */}
-      {/* ============================================================================ */}
+      {/* — Holidays & Modals — */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
 
       {leaveModalOpen && (
@@ -2373,9 +2308,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         );
       })()}
 
-      {/* ============================================================================ */}
-      {/* 17. CAMERA MODAL FOR CHECK-IN / CHECK-OUT */}
-      {/* ============================================================================ */}
+      {/* — Camera Modal — */}
       {cameraOpen && (
         <div className="modal-overlay" style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:999}}>
           <div className="camera-box" style={{position: 'relative', background:'#fff', padding:20, borderRadius:8, width:400, maxWidth:'90%', textAlign:'center'}}>

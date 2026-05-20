@@ -751,6 +751,7 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 .btn-action:hover  { opacity: 0.82; }
 .btn-action:active { opacity: 0.65; }
 .btn-edit    { background: #f59e0b; color: #fff; }
+.btn-status  { background: #0284c7; color: #fff; }
 .btn-promote { background: #16a34a; color: #fff; }
 .btn-remove  { background: #dc2626; color: #fff; }
 

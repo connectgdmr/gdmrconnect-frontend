@@ -643,9 +643,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 1. PASSWORD RESET MODAL */}
-      {/* ============================================================================ */}
+      {/* — Password Reset Modal — */}
       {showPasswordModal && (
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
             <div className="modal-card" style={{padding: 0}}>
@@ -722,9 +720,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 2. DYNAMIC HEADER LOGIC WITH SPECIAL ACCESS ALERT */}
-      {/* ============================================================================ */}
+      {/* — Header — */}
       {view === "dashboard" ? (
         <div className="dashboard-header-card card">
           <h2 style={{ color: "var(--red)", margin: 0 }}>My Dashboard</h2>
@@ -748,9 +744,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* NETWORK ERROR BANNER */}
-      {/* ============================================================================ */}
+      {/* — Network Error — */}
       {loadError && (
         <div style={{
           background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px',
@@ -767,53 +761,34 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 3. DASHBOARD WIDGETS */}
-      {/* ============================================================================ */}
+      {/* — Dashboard Widgets — */}
       {view === "dashboard" && (
         <div className="dashboard-grid-container">
           <div className="card dashboard-widget">
             <h4 className="widget-title">Quick Actions</h4>
             <div className="quick-launch-grid">
-              <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} color="green" />
-              <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} color="#b91c1c" />
+              <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} />
+              <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
-              <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} color="#6366f1"/>
+              <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
-              
-              {/* NEW: Asset Request Button */}
-              <QuickLaunchItem 
-                icon={<FaLaptop />} 
-                label="Request Asset" 
-                onClick={() => setView("assets")} 
-                color="#8b5cf6" 
-              />
-
-              <QuickLaunchItem 
-                icon={<FaLock />} 
-                label="Change Password" 
+              <QuickLaunchItem icon={<FaLaptop />} label="Request Asset" onClick={() => setView("assets")} />
+              <QuickLaunchItem
+                icon={<FaLock />}
+                label="Change Password"
                 onClick={() => {
-                  setPassError(""); 
+                  setPassError("");
                   setOldPassword("");
-                  setNewPassword(""); 
+                  setNewPassword("");
                   setConfirmPassword("");
                   setShowPasswordModal(true);
-                }} 
-                color="#f59e0b" 
+                }}
               />
-
-              {/* THE CONSOLIDATED DELEGATED PORTAL BUTTON (SPECIAL ACCESS) */}
               {Array.isArray(delegatedGrants) && delegatedGrants.length > 0 && (
-                <QuickLaunchItem 
-                    icon={<FaUserShield />} 
-                    label="Special Access" 
-                    onClick={() => setView("special-access")} 
-                    color="#4f46e5" 
-                    badgeCount={delegatedGrants.length}
-                />
+                <QuickLaunchItem icon={<FaUserShield />} label="Special Access" onClick={() => setView("special-access")} badgeCount={delegatedGrants.length} />
               )}
             </div>
           </div>
@@ -829,9 +804,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 4. ASSETS REQUEST VIEW (NEW FEATURE) */}
-      {/* ============================================================================ */}
+      {/* — Asset Requests — */}
       {view === "assets" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Hardware & Asset Requests</h3>
@@ -865,7 +838,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                       />
                   </div>
                   <div style={{display:'flex', justifyContent:'flex-end'}}>
-                      <button className="btn" type="submit" style={{background: '#8b5cf6'}}>
+                      <button className="btn" type="submit">
                           {loading ? 'Submitting...' : 'Submit Request to Manager'}
                       </button>
                   </div>
@@ -918,12 +891,10 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
           </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 5. DELEGATED ADMIN PORTAL HUB (SPECIAL ACCESS VIEW) */}
-      {/* ============================================================================ */}
+      {/* — Delegated Admin Portal — */}
       {view === "special-access" && (
          <div className="card" style={{ marginTop: "16px" }}>
-            <h2 style={{ color: '#4f46e5', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h2 style={{ color: 'var(--red)', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <FaUserShield /> Temporary Admin Portal
             </h2>
             <p style={{ color: '#666', marginBottom: 30 }}>
@@ -931,18 +902,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
             </p>
 
             <div className="quick-launch-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                <QuickLaunchItem 
-                     icon={<FaClipboardList />} 
-                     label="Manage Leave Approvals" 
-                     onClick={() => setView("delegated-leaves")} 
-                     color="#4f46e5" 
-                />
-                <QuickLaunchItem 
-                     icon={<FaHistory />} 
-                     label="Manage Daily Attendance" 
-                     onClick={() => setView("delegated-attendance")} 
-                     color="#4f46e5" 
-                />
+                <QuickLaunchItem icon={<FaClipboardList />} label="Manage Leave Approvals" onClick={() => setView("delegated-leaves")} />
+                <QuickLaunchItem icon={<FaHistory />} label="Manage Daily Attendance" onClick={() => setView("delegated-attendance")} />
             </div>
          </div>
       )}
@@ -966,9 +927,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
          </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 6. ANNOUNCEMENTS VIEW */}
-      {/* ============================================================================ */}
+      {/* — Announcements — */}
       {view === "announcements" && (
          <div className="card" style={{ marginTop: "16px", background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
             <h3 style={{color: 'var(--red)'}}>Company Announcements</h3>
@@ -996,9 +955,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
          </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 7. PERFORMANCE SELF-EVALUATION — WORLD CLASS DESIGN */}
-      {/* ============================================================================ */}
+      {/* — PMS Self-Evaluation — */}
       {view === "pms" && (() => {
         const totalQuestions = pmsTemplate?.sessions?.reduce((s, sess) => s + (sess.questions?.length || 0), 0) || 0;
         const answeredQuestions = Object.keys(pmsResponses).length;
@@ -1203,9 +1160,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         );
       })()}
 
-      {/* ============================================================================ */}
-      {/* 8. CORRECTION VIEW */}
-      {/* ============================================================================ */}
+      {/* — Correction Request — */}
       {view === "correction" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Request Attendance Correction</h3>
@@ -1243,9 +1198,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
           </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 9. APPLY LEAVE */}
-      {/* ============================================================================ */}
+      {/* — Apply Leave — */}
       {view === "apply-leave" && (
         <div className="card" style={{ marginTop: 16 }}>
           <form onSubmit={applyLeave}>
@@ -1321,9 +1274,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 10. MY LEAVES HISTORY */}
-      {/* ============================================================================ */}
+      {/* — My Leaves — */}
       {view === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
@@ -1354,9 +1305,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 11. MY ATTENDANCE LOG */}
-      {/* ============================================================================ */}
+      {/* — Attendance Log — */}
       {view === "attendance-log" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
            {loading ? <div className="loader-container" style={{padding: 40}}><div className="loader"></div></div> : (
@@ -1380,9 +1329,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {/* ============================================================================ */}
-      {/* 12. HOLIDAYS & UTILITY MODALS */}
-      {/* ============================================================================ */}
+      {/* — Holidays & Modals — */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
 
       {leaveModalOpen && (
