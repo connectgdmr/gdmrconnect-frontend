@@ -657,7 +657,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           </div>
         </div>
 
-        <AdminInsights stats={stats} employees={employees} />
+        <AdminInsights stats={stats} employees={employees} api={api} token={token} />
         </>
       )}
 
