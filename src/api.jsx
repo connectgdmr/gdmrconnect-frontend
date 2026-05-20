@@ -1,5 +1,5 @@
-// attendance-frontend/src/api.jsx
 const API_BASE = import.meta.env.VITE_API_URL || "https://gdmrconnect-backend-production.up.railway.app/api";
+export const BASE_URL = API_BASE.replace(/\/api$/, "");
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -34,6 +34,7 @@ async function request(path, method = "GET", body, token) {
 }
 
 export default {
+  baseUrl: BASE_URL,
   // Authentication
   login: (payload) => request("/login", "POST", payload),
   forgotPassword: (email) => request("/forgot-password", "POST", { email }),

@@ -39,7 +39,6 @@ import {
   FaBars,
   FaGift,
   FaBuilding,
-  FaUserTie as FaManager,
   FaPlus,
   FaEye,
   FaSitemap
@@ -91,9 +90,7 @@ function StatItem({ icon, label, count, colorClass, onClick }) {
 
 export default function AdminDashboard({ token, api, user, onLogout }) {
   
-  // ============================================================================
-  // 1. CORE STATES
-  // ============================================================================
+  // — Core States —
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState("dashboard");
@@ -117,9 +114,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   const [detailList, setDetailList] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  // ============================================================================
-  // 2. ANNOUNCEMENT STATES 
-  // ============================================================================
+  // — Announcement States —
   const [announcements, setAnnouncements] = useState([]);
   const [annTitle, setAnnTitle] = useState("");
   const [annMessage, setAnnMessage] = useState("");
@@ -129,9 +124,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   const [editAnnTitle, setEditAnnTitle] = useState("");
   const [editAnnMessage, setEditAnnMessage] = useState("");
 
-  // ============================================================================
-  // 3. GRANT ACCESS STATES (DELEGATED ADMIN)
-  // ============================================================================
+  // — Grant Access States —
   const [accessGrants, setAccessGrants] = useState([]);
   const [grantData, setGrantData] = useState({
       employeeId: "",
@@ -142,14 +135,10 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       customExpiryTime: ""
   });
 
-  // ============================================================================
-  // 4. ASSET MANAGEMENT STATES
-  // ============================================================================
+  // — Asset States —
   const [allAssets, setAllAssets] = useState([]);
 
-  // ============================================================================
-  // 5. DEPARTMENT MANAGEMENT STATES
-  // ============================================================================
+  // — Department States —
   const [departments, setDepartments] = useState([]);
   const [deptLoading, setDeptLoading] = useState(false);
   const [deptModal, setDeptModal] = useState(false);
@@ -158,13 +147,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   const [deptSaving, setDeptSaving] = useState(false);
   const [deptMembersOpen, setDeptMembersOpen] = useState(null); // dept object for quick-view
 
-  // ============================================================================
-  // 5. DATA LOADING FUNCTIONS
-  // ============================================================================
-  
-  /**
-   * Fetches the complete organizational directory.
-   */
+  // — Data Loaders —
   async function loadEmployees() {
     setLoading(true);
     try {
@@ -172,28 +155,20 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       setEmployees(list);
       // Always sync departments from fresh employee data (keeps EmployeeForm dropdown up-to-date)
       loadDepartments(list);
-    } catch (err) {
-      console.error("Error loading employees:", err);
+    } catch {
+      // silent — UI shows stale data
     } finally {
       setLoading(false);
     }
   }
 
-  /**
-   * Fetches today's holistic attendance breakdown.
-   */
   async function loadTodayStats() {
     try {
       const res = await api.todayStats(token);
       setStats(res);
-    } catch (err) {
-      console.error("Stats load error:", err);
-    }
+    } catch { /* stats silent fail */ }
   }
 
-  /**
-   * Fetches active company announcements.
-   */
   async function loadAnnouncements() {
     try {
       const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
@@ -205,14 +180,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           const sorted = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
           setAnnouncements(sorted);
       }
-    } catch (err) {
-      console.error("Announcements load error:", err);
-    }
+    } catch { /* silent */ }
   }
 
-  /**
-   * Fetches the active temporary delegation grants.
-   */
   async function loadAccessGrants() {
       try {
           const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
@@ -221,14 +191,10 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           });
           if (res.ok) setAccessGrants(await res.json());
       } catch (err) {
-          console.error("Error loading access grants:", err);
+          // silent fail
       }
   }
 
-  /**
-   * NEW: Fetches all asset requests from across the entire organization.
-   * This allows the Admin to see the dual-approval status (Manager -> Admin).
-   */
   async function loadAssets() {
       try {
           const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
@@ -240,13 +206,11 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
               setAllAssets(data);
           }
       } catch (err) {
-          console.error("Error loading organization assets:", err);
+          // silent fail
       }
   }
 
-  // ============================================================================
-  // DEPARTMENT FUNCTIONS
-  // ============================================================================
+  // — Department Functions —
 
   async function loadDepartments(empList) {
     setDeptLoading(true);
@@ -381,9 +345,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       .catch(() => {});
   }, [token, api]);
 
-  // ============================================================================
-  // 6. EMPLOYEE ACTIONS (ADD, PROMOTE, DELETE)
-  // ============================================================================
+  // — Employee Actions —
   
   async function addEmployee(data) {
     await api.addEmployee(data, token);
@@ -416,14 +378,11 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
               alert(errData.message || "Failed to promote employee.");
           }
       } catch (err) {
-          console.error(err);
           alert("Error promoting employee due to network issues.");
       }
   }
 
-  // ============================================================================
-  // 7. ANNOUNCEMENT ACTIONS (CREATE, EDIT, RECALL)
-  // ============================================================================
+  // — Announcement Actions —
   
   async function createAnnouncement() {
     if (!annTitle || !annMessage) return alert("Please fill in both title and message");
@@ -478,9 +437,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       } catch (err) { alert("Error recalling announcement."); }
   }
 
-  // ============================================================================
-  // 8. GRANT ACCESS ACTIONS (DELEGATED ADMIN)
-  // ============================================================================
+  // — Grant Access Actions —
   
   async function handleGrantAccessSubmit(e) {
       e.preventDefault();
@@ -514,17 +471,10 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
               headers: { 'Authorization': `Bearer ${token}` }
           });
           if (res.ok) { alert("Access revoked."); loadAccessGrants(); }
-      } catch (err) { console.error("Error revoking access", err); }
+      } catch { /* silent */ }
   }
 
-  // ============================================================================
-  // 9. ASSET MANAGEMENT ACTIONS (FINAL APPROVAL)
-  // ============================================================================
-  
-  /**
-   * Updates the final Admin status of an asset request.
-   * This is the final step in the dual-approval workflow.
-   */
+  // — Asset Actions —
   async function updateAdminAssetStatus(id, status) {
       if (!window.confirm(`Are you sure you want to mark this request as ${status}?`)) return;
       
@@ -554,9 +504,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       }
   }
 
-  // ============================================================================
-  // 10. DASHBOARD STAT CLICK HANDLER
-  // ============================================================================
+  // — Stat Click Handler —
   
   async function handleStatClick(type, title) {
     setDetailTitle(title);
@@ -583,14 +531,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
     } catch (err) { alert("Could not load details."); } finally { setDetailLoading(false); }
   }
 
-  // Status Badge Helper
   const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
-
-  // QuickLaunchItem and StatItem are defined above the component for performance
-
-  // ============================================================================
-  // MAIN RENDER TEMPLATE
-  // ============================================================================
   return (
     <>
     <div className="app-shell">
@@ -765,11 +706,12 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
             ) : loading ? (
               <div className="card">Loading...</div>
             ) : (
-              <EmployeeList 
-                employees={employees} 
-                onDelete={deleteEmployee} 
-                onRefresh={loadEmployees} 
-                onPromote={promoteToManager} 
+              <EmployeeList
+                employees={employees}
+                departments={departments}
+                onDelete={deleteEmployee}
+                onRefresh={loadEmployees}
+                onPromote={promoteToManager}
               />
             )}
           </div>

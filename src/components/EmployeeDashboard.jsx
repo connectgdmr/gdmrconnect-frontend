@@ -1,14 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import Sidebar from "./Sidebar";
-import HolidayCalendar from "./HolidayCalendar"; 
-
-// ============================================================================
-// DELEGATED ADMIN IMPORTS
-// These are dynamically rendered only if the standard employee
-// has been granted active special permissions from the Admin.
-// ============================================================================
+import HolidayCalendar from "./HolidayCalendar";
 import AdminLeavePage from "./AdminLeavePage";
 import AdminAttendancePage from "./AdminAttendancePage";
+import { RATING_SCALE, getRatingInfo } from "../constants";
 
 import {
   FaCamera,
@@ -37,20 +32,6 @@ import {
   FaGift
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
-
-const RATING_SCALE = [
-  { value: 1, label: "Needs Development", color: "#ef4444" },
-  { value: 2, label: "Developing", color: "#f97316" },
-  { value: 3, label: "Meeting Expectations", color: "#eab308" },
-  { value: 4, label: "Exceeding Expectations", color: "#22c55e" },
-  { value: 5, label: "Outstanding", color: "#6366f1" },
-];
-
-function getRatingInfo(score) {
-  const s = parseInt(score);
-  if (!s || isNaN(s)) return null;
-  return RATING_SCALE.find(r => r.value === s) || null;
-}
 
 function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) {
   return (
@@ -214,7 +195,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       setDelegatedGrants(Array.isArray(grantsData) ? grantsData : []);
 
     } catch (err) {
-      console.error("Error loading employee dashboard data:", err);
+      // silent fail — dashboard shows stale/empty state
       setLoadError(true);
     } finally {
       setLoading(false);

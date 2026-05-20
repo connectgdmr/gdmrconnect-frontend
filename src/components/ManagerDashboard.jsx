@@ -1,18 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import Sidebar from "./Sidebar";
-
-// ============================================================================
-// IMPORTING ADMIN COMPONENTS FOR DELEGATED ACCESS
-// ============================================================================
-// These components are utilized when a Manager is granted special
-// permissions by the Master Admin to view organization-wide data.
-import AdminLeavePage from "./AdminLeavePage"; 
+import AdminLeavePage from "./AdminLeavePage";
 import AdminAttendancePage from "./AdminAttendancePage";
-import HolidayCalendar from "./HolidayCalendar"; 
-
-// ============================================================================
-// ICON IMPORTS FROM REACT-ICONS
-// ============================================================================
+import HolidayCalendar from "./HolidayCalendar";
+import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
 import {
   FaCamera, 
   FaSignOutAlt, 
@@ -49,31 +40,6 @@ import {
   FaGift
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
-
-// ============================================================================
-// MAIN EXPORT: MANAGER DASHBOARD
-// ============================================================================
-const RATING_SCALE = [
-  { value: 1, label: "Needs Development", color: "#ef4444" },
-  { value: 2, label: "Developing", color: "#f97316" },
-  { value: 3, label: "Meeting Expectations", color: "#eab308" },
-  { value: 4, label: "Exceeding Expectations", color: "#22c55e" },
-  { value: 5, label: "Outstanding", color: "#6366f1" },
-];
-
-const OVERALL_RATINGS = [
-  "Exceptional",
-  "Exceeds Expectations",
-  "Meets Expectations",
-  "Needs Improvement",
-  "Unsatisfactory",
-];
-
-function getRatingInfo(score) {
-  const s = parseInt(score);
-  if (!s || isNaN(s)) return null;
-  return RATING_SCALE.find(r => r.value === s) || null;
-}
 
 function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) {
   return (
@@ -349,7 +315,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       }
 
     } catch (err) {
-      console.error("Error loading data", err);
+      // silent fail
       if (!isAction) setLoadError(true);
     }
   }, [token, dashboardMonth, api]);

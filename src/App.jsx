@@ -46,7 +46,6 @@ export default function App(){
           const currentTime = Date.now() / 1000;
           // If token is expired
           if (decoded.exp < currentTime) {
-            console.log("Token expired. Auto logging out.");
             onLogout();
           }
         } else {
