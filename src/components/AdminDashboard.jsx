@@ -170,8 +170,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
     try {
       const list = await api.listEmployees(token);
       setEmployees(list);
-      // If user is already on departments view, sync immediately with fresh data
-      if (view === "departments") loadDepartments(list);
+      // Always sync departments from fresh employee data (keeps EmployeeForm dropdown up-to-date)
+      loadDepartments(list);
     } catch (err) {
       console.error("Error loading employees:", err);
     } finally {
@@ -762,7 +762,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           </div>
           <div style={{ marginTop: "16px" }}>
             {subView === "add" ? (
-              <EmployeeForm onAdd={addEmployee} api={api} token={token} />
+              <EmployeeForm onAdd={addEmployee} api={api} token={token} departments={departments} />
             ) : loading ? (
               <div className="card">Loading...</div>
             ) : (

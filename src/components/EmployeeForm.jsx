@@ -1,20 +1,9 @@
 import React, {useState, useEffect} from "react";
 
-const departments = [
-  "Projects Dept",
-  "Accounts Dept",
-  "Graphic Designing Dept",
-  "HR Dept",
-  "Administration Dept",
-  "BRD Dept",
-  "Engineering Dept",
-  "Digital Marketing Dept"
-];
-
-export default function EmployeeForm({ onAdd, api, token }) {
+export default function EmployeeForm({ onAdd, api, token, departments: deptList = [] }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [department, setDepartment] = useState(departments[0]); 
+  const [department, setDepartment] = useState(deptList[0]?.name || "");
   const [position, setPosition] = useState("");
   const [managerId, setManagerId] = useState("");
   const [managers, setManagers] = useState([]);
@@ -50,7 +39,7 @@ export default function EmployeeForm({ onAdd, api, token }) {
         manager_id: managerId || undefined 
       });
       setMsg("Employee added — credentials sent by email.");
-      setName(""); setEmail(""); setDepartment(departments[0]); setPosition(""); setManagerId("");
+      setName(""); setEmail(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setManagerId("");
     } catch (err) {
       setMsg(err.message || "Error");
     } finally { setSaving(false); }
@@ -74,7 +63,7 @@ export default function EmployeeForm({ onAdd, api, token }) {
           <div style={{ flex: 1 }}>
             <label>Department</label>
             <select className="input" value={department} onChange={e=>setDepartment(e.target.value)} required>
-              {departments.map(d => <option key={d} value={d}>{d}</option>)}
+              {deptList.map(d => <option key={d._id} value={d.name}>{d.name}</option>)}
             </select>
           </div>
           <div style={{ flex: 1 }}>
