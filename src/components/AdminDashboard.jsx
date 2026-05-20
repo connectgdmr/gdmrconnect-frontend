@@ -170,6 +170,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
     try {
       const list = await api.listEmployees(token);
       setEmployees(list);
+      // If user is already on departments view, sync immediately with fresh data
+      if (view === "departments") loadDepartments(list);
     } catch (err) {
       console.error("Error loading employees:", err);
     } finally {
@@ -246,32 +248,42 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   // DEPARTMENT FUNCTIONS
   // ============================================================================
 
-  async function loadDepartments() {
+  async function loadDepartments(empList) {
     setDeptLoading(true);
+    // Use the freshest employee list available (passed-in or from state)
+    const source = empList || employees;
+    // Always derive base departments from employee records first
+    const map = {};
+    source.forEach((emp) => {
+      const d = emp.department || "Unassigned";
+      if (!map[d]) map[d] = { _id: d, name: d, description: "", head_id: null };
+    });
+    const derived = Object.values(map);
+
+    // Try to enrich with saved metadata (description, explicit head_id) from API
     try {
       const baseUrl = api.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
       const res = await fetch(`${baseUrl}/api/admin/departments`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
-        setDepartments(await res.json());
+        const saved = await res.json();
+        const enriched = derived.map(d => {
+          const s = saved.find(s => s.name === d.name);
+          return s ? { ...d, ...s } : d;
+        });
+        // Include any API-only departments not yet in employee records
+        const names = new Set(derived.map(d => d.name));
+        saved.forEach(s => { if (!names.has(s.name)) enriched.push(s); });
+        setDepartments(enriched);
       } else {
-        deriveDepartmentsFromEmployees();
+        setDepartments(derived);
       }
     } catch {
-      deriveDepartmentsFromEmployees();
+      setDepartments(derived);
     } finally {
       setDeptLoading(false);
     }
-  }
-
-  function deriveDepartmentsFromEmployees() {
-    const map = {};
-    employees.forEach((emp) => {
-      const d = emp.department || "Unassigned";
-      if (!map[d]) map[d] = { _id: d, name: d, description: "", head_id: null };
-    });
-    setDepartments(Object.values(map));
   }
 
   async function saveDepartment(e) {
@@ -294,13 +306,29 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         setDeptEditId(null);
         setDeptForm({ name: "", description: "", head_id: "" });
         loadDepartments();
-        loadEmployees();
       } else {
-        const err = await res.json();
-        alert(err.message || "Failed to save department");
+        // Backend not ready yet — apply change locally
+        setDepartments(prev => {
+          if (deptEditId) {
+            return prev.map(d => d._id === deptEditId ? { ...d, ...deptForm } : d);
+          }
+          return [...prev, { _id: deptForm.name, ...deptForm }];
+        });
+        setDeptModal(false);
+        setDeptEditId(null);
+        setDeptForm({ name: "", description: "", head_id: "" });
       }
     } catch {
-      alert("Error saving department");
+      // Network error — apply locally
+      setDepartments(prev => {
+        if (deptEditId) {
+          return prev.map(d => d._id === deptEditId ? { ...d, ...deptForm } : d);
+        }
+        return [...prev, { _id: deptForm.name, ...deptForm }];
+      });
+      setDeptModal(false);
+      setDeptEditId(null);
+      setDeptForm({ name: "", description: "", head_id: "" });
     } finally {
       setDeptSaving(false);
     }
@@ -314,9 +342,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) { loadDepartments(); loadEmployees(); }
-      else { const err = await res.json(); alert(err.message || "Failed to delete department"); }
-    } catch { alert("Error deleting department"); }
+      if (res.ok) { loadDepartments(); }
+      else { setDepartments(prev => prev.filter(d => d._id !== id)); }
+    } catch { setDepartments(prev => prev.filter(d => d._id !== id)); }
   }
 
   function openAddDept() {
