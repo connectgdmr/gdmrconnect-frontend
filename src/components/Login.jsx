@@ -35,8 +35,6 @@ export default function Login({ onLogin, api }) {
     } catch (err) {
       if (err.message?.includes("Network error") || err.message?.includes("timed out")) {
         setErr(err.message);
-      } else if (err.message?.toLowerCase().includes("many") || err.message?.toLowerCase().includes("limit")) {
-        setErr("Too many login attempts. Please wait a minute before trying again.");
       } else {
         setErr(err.message || "Invalid email or password");
       }
@@ -51,12 +49,8 @@ export default function Login({ onLogin, api }) {
     try {
       await api.forgotPassword(forgotEmail);
       setForgotStatus("success");
-    } catch (err) {
-      setForgotStatus(
-        err?.message?.toLowerCase().includes("many") || err?.message?.toLowerCase().includes("limit")
-          ? "ratelimit"
-          : "error"
-      );
+    } catch {
+      setForgotStatus("error");
     }
   }
 
@@ -101,11 +95,6 @@ export default function Login({ onLogin, api }) {
             {forgotStatus === "error" && (
               <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#dc2626", fontSize: 14 }}>
                 Error sending request. Please try again.
-              </div>
-            )}
-            {forgotStatus === "ratelimit" && (
-              <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#c2410c", fontSize: 14 }}>
-                Too many requests. Please wait a few hours before trying again.
               </div>
             )}
             {forgotStatus === "sending" && (

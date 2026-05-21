@@ -41,13 +41,9 @@ import {
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 
-function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0, disabled = false }) {
+function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) {
   return (
-    <div
-      className="quick-launch-item"
-      onClick={disabled ? undefined : onClick}
-      style={{ position: "relative", opacity: disabled ? 0.5 : 1, pointerEvents: disabled ? "none" : "auto" }}
-    >
+    <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
       <div className="quick-launch-icon" style={{ color }}>{icon}</div>
       <div className="quick-launch-label">{label}</div>
       {badgeCount > 0 && <span className="icon-badge">{badgeCount}</span>}
@@ -218,10 +214,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
    * Hardware interaction states for photo-verified check-ins 
    */
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [actionType, setActionType] = useState(null);
+  const [actionType, setActionType] = useState(null); 
   const [previewImage, setPreviewImage] = useState(null);
-  const [submittingPhoto, setSubmittingPhoto] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [submittingPhoto, setSubmittingPhoto] = useState(false); 
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -449,22 +444,22 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
    * Cloudinary storage and database logging.
    */
   async function submitAttendance(imageData) {
-    setSubmittingPhoto(true);
-    setSubmitting(true);
+    setSubmittingPhoto(true); 
     try {
       if (actionType === "checkin") {
-        await api.checkinWithPhoto(token, imageData);
+          await api.checkinWithPhoto(token, imageData);
       } else {
-        await api.checkoutWithPhoto(token, imageData);
+          await api.checkoutWithPhoto(token, imageData);
       }
-      closeCamera();
-      alert("Attendance recorded! Your photo is being processed.");
+      
+      setSubmittingPhoto(false); 
+      closeCamera(); 
+      alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
+      
       await load(true);
     } catch (err) {
       alert("Error submitting attendance: " + (err.message || ""));
-    } finally {
-      setSubmittingPhoto(false);
-      setSubmitting(false);
+      setSubmittingPhoto(false); 
     }
   }
 
@@ -1166,8 +1161,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           <div className="card dashboard-widget">
             <h4 className="widget-title">Quick Actions</h4>
             <div className="quick-launch-grid">
-              <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} disabled={submitting} />
-              <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} disabled={submitting} />
+              <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} />
+              <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} />
               <QuickLaunchItem icon={<FaUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} badgeCount={notificationCounts?.leaves || 0} />
               <QuickLaunchItem icon={<FaEdit />} label="PMS Form Builder" onClick={() => setView("pms-builder")} />
               <QuickLaunchItem icon={<FaChartLine />} label="PMS Reviews" onClick={() => setView("pms-manager")} badgeCount={notificationCounts?.pms || 0} />

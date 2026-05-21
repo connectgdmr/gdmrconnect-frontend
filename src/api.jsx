@@ -19,9 +19,6 @@ async function request(path, method = "GET", body, token) {
     });
     clearTimeout(timeoutId);
     const data = await res.json();
-    if (res.status === 429) {
-      throw { message: data?.message || "Too many requests — please wait a moment and try again." };
-    }
     if (!res.ok) throw data;
     return data;
   } catch (err) {
@@ -76,9 +73,6 @@ export default {
       body: JSON.stringify({ image: imageData }),
     });
     const data = await res.json();
-    if (res.status === 429) {
-      throw { message: data?.message || "Check-in limit reached for today — please try again tomorrow." };
-    }
     if (!res.ok) throw data;
     return data;
   },
@@ -93,9 +87,6 @@ export default {
       body: JSON.stringify({ image: imageData }),
     });
     const data = await res.json();
-    if (res.status === 429) {
-      throw { message: data?.message || "Check-out limit reached for today — please try again tomorrow." };
-    }
     if (!res.ok) throw data;
     return data;
   },
