@@ -360,7 +360,7 @@ function StatusModal({ employee, onClose, onRefresh }) {
   );
 }
 
-export default function EmployeeList({ employees, onDelete, onRefresh, onPromote, departments = [] }) {
+export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, onPromote, departments = [] }) {
   const [searchTerm, setSearchTerm]         = useState("");
   const [roleFilter, setRoleFilter]         = useState("All");
   const [showDeleteModal, setShowDeleteModal]   = useState(false);
@@ -385,6 +385,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPromote
     const token = localStorage.getItem("token");
     try {
       await api.editEmployee(editingEmployee._id, editingEmployee, token);
+      onPatch?.(editingEmployee._id, editingEmployee);
       onRefresh?.();
       setShowEditModal(false);
       setEditingEmployee(null);

@@ -354,6 +354,10 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
     setSubView("list");
   }
 
+  function patchEmployee(id, updates) {
+    setEmployees(prev => prev.map(e => e._id === id ? { ...e, ...updates } : e));
+  }
+
   async function deleteEmployee(id) {
     if(!window.confirm("Are you sure you want to completely remove this employee?")) return;
     await api.deleteEmployee(id, token);
@@ -716,6 +720,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                 departments={departments}
                 onDelete={deleteEmployee}
                 onRefresh={loadEmployees}
+                onPatch={patchEmployee}
                 onPromote={promoteToManager}
               />
             )}
