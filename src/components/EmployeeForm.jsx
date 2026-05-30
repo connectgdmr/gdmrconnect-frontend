@@ -1,11 +1,17 @@
 import React, {useState, useEffect} from "react";
 
+const SHIFTS = [
+  { key: "morning", label: "Morning Shift (9 AM – 6 PM)" },
+  { key: "night",   label: "Night Shift (7 PM – 4 AM)" },
+];
+
 export default function EmployeeForm({ onAdd, api, token, departments: deptList = [] }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState(deptList[0]?.name || "");
   const [position, setPosition] = useState("");
   const [managerId, setManagerId] = useState("");
+  const [shift, setShift] = useState("morning");
   const [managers, setManagers] = useState([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -31,15 +37,16 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
     setSaving(true);
     setMsg("");
     try {
-      await onAdd({ 
-        name, 
-        email, 
-        department, 
-        position, 
-        manager_id: managerId || undefined 
+      await onAdd({
+        name,
+        email,
+        department,
+        position,
+        shift,
+        manager_id: managerId || undefined
       });
       setMsg("Employee added — credentials sent by email.");
-      setName(""); setEmail(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setManagerId("");
+      setName(""); setEmail(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setManagerId(""); setShift("morning");
     } catch (err) {
       setMsg(err.message || "Error");
     } finally { setSaving(false); }
@@ -78,8 +85,14 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
           </div>
         </div>
         
-        {/* Row 3: Manager Assignment (Optional) */}
+        {/* Row 3: Shift and Manager */}
         <div className="form-row">
+          <div style={{ flex: 1 }}>
+            <label>Shift</label>
+            <select className="input" value={shift} onChange={e => setShift(e.target.value)}>
+              {SHIFTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+            </select>
+          </div>
           <div style={{flex: 1}}>
             <label>Assign Manager (Optional)</label>
             <select className="input" value={managerId} onChange={e=>setManagerId(e.target.value)}>

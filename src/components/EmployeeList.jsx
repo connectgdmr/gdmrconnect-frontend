@@ -3,7 +3,27 @@ import api from "../api";
 import {
   FaTrash, FaUserShield, FaSearch, FaFilter, FaUserTie, FaUser,
   FaEdit, FaUserClock, FaTimes, FaPlus, FaExclamationTriangle,
+  FaSun, FaMoon,
 } from "react-icons/fa";
+
+const SHIFTS = [
+  { key: "morning", label: "Morning Shift", hours: "9 AM – 6 PM",  icon: <FaSun  size={11} />, color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+  { key: "night",   label: "Night Shift",   hours: "7 PM – 4 AM",  icon: <FaMoon size={11} />, color: "#6d28d9", bg: "#f5f3ff", border: "#ddd6fe" },
+];
+
+function ShiftBadge({ shift }) {
+  const s = SHIFTS.find((x) => x.key === (shift || "morning")) || SHIFTS[0];
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      fontSize: 11, fontWeight: 600, borderRadius: 4,
+      padding: "2px 7px", lineHeight: "18px", marginTop: 4,
+      background: s.bg, color: s.color, border: `1px solid ${s.border}`,
+    }}>
+      {s.icon} {s.label}
+    </span>
+  );
+}
 
 const EXTENDED_LEAVE_TYPES = [
   "Maternity Leave",
@@ -415,6 +435,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPromote
             <tr>
               <th>Employee Details</th>
               <th>Role &amp; Position</th>
+              <th>Shift</th>
               <th>Manager Auth</th>
               <th>Administrative Action</th>
             </tr>
@@ -422,7 +443,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPromote
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan="4" style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}>
+                <td colSpan="5" style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}>
                   No employees found matching your criteria.
                 </td>
               </tr>
@@ -441,6 +462,12 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPromote
                     <span className={`role-badge ${emp.role === "manager" ? "role-manager" : "role-employee"}`}>
                       {emp.role === "manager" ? <FaUserTie /> : <FaUser />} {emp.role}
                     </span>
+                  </td>
+                  <td>
+                    <ShiftBadge shift={emp.shift} />
+                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>
+                      {(SHIFTS.find(s => s.key === (emp.shift || "morning")) || SHIFTS[0]).hours}
+                    </div>
                   </td>
                   <td>
                     {emp.role === "manager" ? (
@@ -534,6 +561,19 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPromote
                 >
                   {departments.map((d) => (
                     <option key={d._id || d.name} value={d.name}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ textAlign: "left", marginBottom: 14 }}>
+                <label style={{ fontWeight: 600, color: "#334155", fontSize: 13 }}>Shift</label>
+                <select
+                  className="modern-input"
+                  value={editingEmployee.shift || "morning"}
+                  onChange={(e) => setEditingEmployee({ ...editingEmployee, shift: e.target.value })}
+                >
+                  {SHIFTS.map((s) => (
+                    <option key={s.key} value={s.key}>{s.label} ({s.hours})</option>
                   ))}
                 </select>
               </div>
