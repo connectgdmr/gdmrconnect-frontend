@@ -214,6 +214,164 @@ function AttendanceLineChart({ data, today }) {
   );
 }
 
+// ─── Department Leave Chart ───────────────────────────────────────────────────
+const LEAVE_STATUS_COLORS = {
+  approved: "#16a34a",
+  pending:  "#f59e0b",
+  rejected: "#ef4444",
+};
+
+function DeptLeaveChart({ leaves, employees }) {
+  const [filter, setFilter] = useState("all");
+
+  // Build employee-id → department map
+  const empDeptMap = {};
+  employees.forEach((e) => {
+    empDeptMap[e._id] = e.department || "Unassigned";
+    // also match by name as fallback
+    if (e.name) empDeptMap[e.name] = e.department || "Unassigned";
+  });
+
+  const filtered = filter === "all" ? leaves : leaves.filter((l) => {
+    const s = (l.status || "pending").toLowerCase();
+    return s.includes(filter);
+  });
+
+  // Aggregate: dept → { total, approved, pending, rejected }
+  const deptMap = {};
+  filtered.forEach((l) => {
+    const dept = empDeptMap[l.employee_id] || empDeptMap[l.employee_name] || "Unassigned";
+    if (!deptMap[dept]) deptMap[dept] = { total: 0, approved: 0, pending: 0, rejected: 0 };
+    deptMap[dept].total++;
+    const s = (l.status || "pending").toLowerCase();
+    if (s.includes("approved")) deptMap[dept].approved++;
+    else if (s.includes("rejected")) deptMap[dept].rejected++;
+    else deptMap[dept].pending++;
+  });
+
+  const rows = Object.entries(deptMap).sort((a, b) => b[1].total - a[1].total);
+  const maxTotal = rows.length > 0 ? rows[0][1].total : 1;
+
+  const TABS = [
+    { key: "all",      label: "All" },
+    { key: "approved", label: "Approved" },
+    { key: "pending",  label: "Pending" },
+    { key: "rejected", label: "Rejected" },
+  ];
+
+  if (leaves.length === 0) {
+    return (
+      <div style={{ textAlign: "center", color: "#94a3b8", padding: "48px 0", fontSize: 13 }}>
+        No leave applications found.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Filter tabs */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+        {TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setFilter(key)}
+            style={{
+              padding: "5px 14px", borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: "pointer",
+              border: filter === key ? "none" : "1.5px solid #e2e8f0",
+              background: filter === key
+                ? (key === "all" ? "var(--red)" : key === "approved" ? "#16a34a" : key === "pending" ? "#f59e0b" : "#ef4444")
+                : "#fff",
+              color: filter === key ? "#fff" : "#64748b",
+              transition: "all 0.15s",
+            }}
+          >
+            {label}
+            <span style={{ marginLeft: 6, opacity: 0.8 }}>
+              ({key === "all" ? leaves.length : leaves.filter(l => (l.status || "pending").toLowerCase().includes(key)).length})
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {rows.length === 0 ? (
+        <div style={{ textAlign: "center", color: "#94a3b8", padding: "32px 0", fontSize: 13 }}>
+          No leaves in this category.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {rows.map(([dept, counts], i) => {
+            const approvedPct  = (counts.approved / maxTotal) * 100;
+            const pendingPct   = (counts.pending  / maxTotal) * 100;
+            const rejectedPct  = (counts.rejected / maxTotal) * 100;
+            return (
+              <div key={dept}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: DEPT_PALETTE[i % DEPT_PALETTE.length] }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {dept}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0, marginLeft: 10 }}>
+                    {filter === "all" && (
+                      <>
+                        {counts.approved > 0 && <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 700 }}>{counts.approved} ✓</span>}
+                        {counts.pending  > 0 && <span style={{ fontSize: 11, color: "#d97706", fontWeight: 700 }}>{counts.pending} ⏳</span>}
+                        {counts.rejected > 0 && <span style={{ fontSize: 11, color: "#dc2626", fontWeight: 700 }}>{counts.rejected} ✗</span>}
+                      </>
+                    )}
+                    <span style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", minWidth: 20, textAlign: "right" }}>{counts.total}</span>
+                  </div>
+                </div>
+                {/* Stacked bar */}
+                <div style={{ height: 10, background: "#f1f5f9", borderRadius: 99, overflow: "hidden", display: "flex" }}>
+                  {filter === "all" ? (
+                    <>
+                      <StackBar pct={approvedPct} color="#16a34a" />
+                      <StackBar pct={pendingPct}  color="#f59e0b" />
+                      <StackBar pct={rejectedPct} color="#ef4444" />
+                    </>
+                  ) : (
+                    <StackBar pct={(counts.total / maxTotal) * 100} color={
+                      filter === "approved" ? "#16a34a" : filter === "pending" ? "#f59e0b" : "#ef4444"
+                    } />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Legend (only in All view) */}
+      {filter === "all" && rows.length > 0 && (
+        <div style={{ display: "flex", gap: 16, marginTop: 20, paddingTop: 14, borderTop: "1px solid #f1f5f9", flexWrap: "wrap" }}>
+          {Object.entries(LEAVE_STATUS_COLORS).map(([key, color]) => (
+            <span key={key} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#64748b" }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: color, display: "inline-block" }} />
+              {key.charAt(0).toUpperCase() + key.slice(1)}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StackBar({ pct, color }) {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setWidth(pct), 80);
+    return () => clearTimeout(t);
+  }, [pct]);
+  return (
+    <div style={{
+      height: "100%", width: `${width}%`, background: color,
+      transition: "width 0.7s cubic-bezier(.4,0,.2,1)",
+    }} />
+  );
+}
+
 // ─── Animated Bar ─────────────────────────────────────────────────────────────
 function AnimatedBar({ pct, color }) {
   const [width, setWidth] = useState(0);
@@ -234,6 +392,7 @@ function AnimatedBar({ pct, color }) {
 // ─── Main Insights Component ──────────────────────────────────────────────────
 export default function AdminInsights({ stats, employees, api, token }) {
   const [chartData, setChartData] = useState([]);
+  const [leaves, setLeaves]       = useState([]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -254,6 +413,10 @@ export default function AdminInsights({ stats, employees, api, token }) {
           }));
         setChartData(processed);
       })
+      .catch(() => {});
+
+    api.adminLeaves(token)
+      .then((data) => setLeaves(Array.isArray(data) ? data : (data?.leaves || [])))
       .catch(() => {});
   }, [api, token]);
 
@@ -441,6 +604,27 @@ export default function AdminInsights({ stats, employees, api, token }) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── Department Leave Analysis ── */}
+      <div className="card insights-card" style={{ gridColumn: "span 3" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 8 }}>
+          <div>
+            <h4 className="widget-title" style={{ margin: 0 }}>Leave Applications by Department</h4>
+            <p style={{ fontSize: 12, color: "#94a3b8", margin: "4px 0 0", fontWeight: 400 }}>
+              Total leave requests per department — filter by approval status
+            </p>
+          </div>
+          <div style={{
+            background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10,
+            padding: "8px 16px", textAlign: "center",
+          }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "var(--red)", lineHeight: 1 }}>{leaves.length}</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, fontWeight: 500 }}>Total Applications</div>
+          </div>
+        </div>
+
+        <DeptLeaveChart leaves={leaves} employees={employees} />
       </div>
     </div>
   );

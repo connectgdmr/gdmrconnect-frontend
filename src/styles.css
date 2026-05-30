@@ -770,10 +770,12 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 @media (max-width: 1100px) {
   .insights-grid { grid-template-columns: 1fr 1fr; }
   .insights-grid .insights-card[style*="span 2"] { grid-column: span 2; }
+  .insights-grid .insights-card[style*="span 3"] { grid-column: span 2; }
 }
 @media (max-width: 680px) {
   .insights-grid { grid-template-columns: 1fr; }
-  .insights-grid .insights-card[style*="span 2"] { grid-column: span 1; }
+  .insights-grid .insights-card[style*="span 2"],
+  .insights-grid .insights-card[style*="span 3"] { grid-column: span 1; }
 }
 
 /* ── 31. RESPONSIVE ────────────────────────────────── */
