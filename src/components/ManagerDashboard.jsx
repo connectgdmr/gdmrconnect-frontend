@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import Sidebar from "./Sidebar";
+import AnnouncementNotifications from "./AnnouncementNotifications";
 import AdminLeavePage from "./AdminLeavePage";
 import AdminAttendancePage from "./AdminAttendancePage";
 import HolidayCalendar from "./HolidayCalendar";
@@ -1152,6 +1153,11 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             Retry
           </button>
         </div>
+      )}
+
+      {/* — Announcement Notifications — */}
+      {view === "dashboard" && (
+        <AnnouncementNotifications announcements={announcements} userId={user?._id} />
       )}
 
       {/* — Dashboard Home — */}

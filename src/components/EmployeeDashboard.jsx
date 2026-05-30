@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import Sidebar from "./Sidebar";
+import AnnouncementNotifications from "./AnnouncementNotifications";
 import HolidayCalendar from "./HolidayCalendar";
 import AdminLeavePage from "./AdminLeavePage";
 import AdminAttendancePage from "./AdminAttendancePage";
@@ -910,6 +911,11 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
             Retry
           </button>
         </div>
+      )}
+
+      {/* — Announcement Notifications — */}
+      {view === "dashboard" && (
+        <AnnouncementNotifications announcements={announcements} userId={user?._id} />
       )}
 
       {/* — Daily Quote — */}
