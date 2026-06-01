@@ -243,31 +243,35 @@ export default function AdminInsights({ stats, employees, api, token }) {
     api.getAttendanceSummary(monthStr, token)
       .then((summary) => {
         const days = summary?.days || {};
+        const toCount = (v) => Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0);
         const processed = Object.entries(days)
           .sort(([a], [b]) => a.localeCompare(b))
           .slice(-14)
           .map(([date, data]) => ({
             date,
-            present: (data.present || []).length,
-            leave:   (data.leave   || []).length,
-            absent:  (data.absent  || []).length,
+            present: toCount(data.present),
+            leave:   toCount(data.leave),
+            absent:  toCount(data.absent),
           }));
         setChartData(processed);
       })
       .catch(() => {});
   }, [api, token]);
 
+  const sp = stats.present        ?? 0;
+  const sl = stats.leave          ?? 0;
+  const sa = stats.absent         ?? 0;
+  const sn = stats.not_checked_in ?? 0;
+
   // Fall back to today's stats when no history loaded yet
   const displayData = chartData.length > 0 ? chartData : (
-    (stats.present + stats.absent + stats.leave + stats.not_checked_in) > 0
-      ? [{ date: todayStr, present: stats.present, leave: stats.leave, absent: stats.absent }]
+    (sp + sa + sl + sn) > 0
+      ? [{ date: todayStr, present: sp, leave: sl, absent: sa }]
       : []
   );
 
-  const todayStats = chartData.find(d => d.date === todayStr) || {
-    present: stats.present, leave: stats.leave, absent: stats.absent,
-  };
-  const todayTotal = todayStats.present + todayStats.leave + todayStats.absent + (stats.not_checked_in || 0);
+  const todayStats = chartData.find(d => d.date === todayStr) || { present: sp, leave: sl, absent: sa };
+  const todayTotal = todayStats.present + todayStats.leave + todayStats.absent + sn;
   const presentPct = todayTotal > 0 ? Math.round((todayStats.present / todayTotal) * 100) : 0;
 
   // Department headcount
@@ -308,10 +312,10 @@ export default function AdminInsights({ stats, employees, api, token }) {
           paddingTop: 16, borderTop: "1px solid #f1f5f9",
         }}>
           {[
-            { label: "Present",        value: stats.present,        color: "#16a34a", bg: "#f0fdf4" },
-            { label: "On Leave",       value: stats.leave,          color: "#d97706", bg: "#fffbeb" },
-            { label: "Not Checked In", value: stats.not_checked_in, color: "#64748b", bg: "#f8fafc" },
-            { label: "Absent",         value: stats.absent,         color: "#dc2626", bg: "#fef2f2" },
+            { label: "Present",        value: sp, color: "#16a34a", bg: "#f0fdf4" },
+            { label: "On Leave",       value: sl, color: "#d97706", bg: "#fffbeb" },
+            { label: "Not Checked In", value: sn, color: "#64748b", bg: "#f8fafc" },
+            { label: "Absent",         value: sa, color: "#dc2626", bg: "#fef2f2" },
           ].map(({ label, value, color, bg }) => (
             <div key={label} style={{ background: bg, borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
               <div style={{ fontSize: 22, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>

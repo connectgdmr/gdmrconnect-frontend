@@ -82,7 +82,7 @@ function StatItem({ icon, label, count, colorClass, onClick }) {
     <div className="stat-row clickable-stat" onClick={onClick} title="Click to view details">
       <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
       <div className="stat-info">
-        <span className="stat-count">{count}</span>
+        <span className="stat-count">{count ?? 0}</span>
         <span className="stat-label">{label}</span>
       </div>
     </div>
