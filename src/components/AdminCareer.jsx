@@ -126,9 +126,12 @@ export default function AdminCareer({ token, employees = [] }) {
     setNewReq("");
   };
 
-  const filteredJobs = jobs.filter(j => boardFilter === "all" || j.status === boardFilter);
+  const safeJobs      = Array.isArray(jobs)      ? jobs      : [];
+  const safeReferrals = Array.isArray(referrals)  ? referrals : [];
 
-  const filteredReferrals = referrals.filter(r => {
+  const filteredJobs = safeJobs.filter(j => boardFilter === "all" || j.status === boardFilter);
+
+  const filteredReferrals = safeReferrals.filter(r => {
     const matchSearch = !refSearch || r.candidate_name?.toLowerCase().includes(refSearch.toLowerCase()) || r.referred_by_name?.toLowerCase().includes(refSearch.toLowerCase());
     const matchJob    = refJobFilter === "all" || r.job_id === refJobFilter;
     const matchStatus = refStatusFilter === "All" || r.status === refStatusFilter;
@@ -181,9 +184,9 @@ export default function AdminCareer({ token, employees = [] }) {
           {/* Stats strip */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
             {[
-              { label: "Total Postings", value: jobs.length, color: "#334155", bg: "#f8fafc" },
-              { label: "Active",  value: jobs.filter(j => j.status === "active").length,  color: "#16a34a", bg: "#f0fdf4" },
-              { label: "Closed",  value: jobs.filter(j => j.status === "closed").length,  color: "#64748b", bg: "#f8fafc" },
+              { label: "Total Postings", value: safeJobs.length, color: "#334155", bg: "#f8fafc" },
+              { label: "Active",  value: safeJobs.filter(j => j.status === "active").length,  color: "#16a34a", bg: "#f0fdf4" },
+              { label: "Closed",  value: safeJobs.filter(j => j.status === "closed").length,  color: "#64748b", bg: "#f8fafc" },
             ].map(s => (
               <div key={s.label} className="card" style={{ textAlign: "center", padding: "16px", background: s.bg }}>
                 <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</div>
@@ -346,7 +349,7 @@ export default function AdminCareer({ token, employees = [] }) {
               const sc = STATUS_COLORS[s] || {};
               return (
                 <div key={s} className="card" style={{ textAlign: "center", padding: "12px 8px", background: sc.bg }}>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: sc.color }}>{referrals.filter(r => r.status === s).length}</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: sc.color }}>{safeReferrals.filter(r => r.status === s).length}</div>
                   <div style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>{s}</div>
                 </div>
               );
