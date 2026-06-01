@@ -539,8 +539,11 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           return { ...l, department: l.department || emp?.department || "—" };
         });
 
-        // Add extended leave employees not already in the list
-        const extLeaveEmps = employees.filter(e => e.extended_leaves?.length > 0 && !e.resignation?.notice_date);
+        // Add employees on an active extended leave covering today
+        const extLeaveEmps = employees.filter(e =>
+          !e.resignation?.notice_date &&
+          e.extended_leaves?.some(lv => lv.from_date <= todayStr && lv.to_date >= todayStr)
+        );
         const leaveEmpNames = new Set(leaveRows.map(r => r.employee_name));
         extLeaveEmps.forEach(e => {
           if (!leaveEmpNames.has(e.name)) {
@@ -670,8 +673,12 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           <div className="card dashboard-widget">
             <h4 className="widget-title">Today's Attendance</h4>
             {(() => {
+              const todayStr           = new Date().toISOString().slice(0, 10);
               const resignedCount      = employees.filter(e => !!e.resignation?.notice_date).length;
-              const extLeaveCount      = employees.filter(e => (e.extended_leaves?.length > 0) && !e.resignation?.notice_date).length;
+              const extLeaveCount      = employees.filter(e =>
+                !e.resignation?.notice_date &&
+                e.extended_leaves?.some(lv => lv.from_date <= todayStr && lv.to_date >= todayStr)
+              ).length;
               const adjNotCheckedIn    = Math.max(0, (stats.not_checked_in ?? 0) - resignedCount);
               const adjOnLeave         = (stats.leave ?? 0) + extLeaveCount;
               return (
@@ -717,7 +724,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         <AdminInsights
           stats={{
             ...stats,
-            leave:         (stats.leave ?? 0) + employees.filter(e => (e.extended_leaves?.length > 0) && !e.resignation?.notice_date).length,
+            leave:         (stats.leave ?? 0) + employees.filter(e => !e.resignation?.notice_date && e.extended_leaves?.some(lv => { const t = new Date().toISOString().slice(0,10); return lv.from_date <= t && lv.to_date >= t; })).length,
             not_checked_in: Math.max(0, (stats.not_checked_in ?? 0) - employees.filter(e => !!e.resignation?.notice_date).length),
           }}
           employees={employees}
