@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from "react";
 
 const SHIFTS = [
-  { key: "morning", label: "Morning Shift (9 AM – 6 PM)" },
+  { key: "morning", label: "Morning Shift (10 AM – 7 PM)" },
   { key: "night",   label: "Night Shift (7 PM – 4 AM)" },
 ];
 

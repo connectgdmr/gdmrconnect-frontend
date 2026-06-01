@@ -7,7 +7,7 @@ import {
 } from "react-icons/fa";
 
 const SHIFTS = [
-  { key: "morning", label: "Morning Shift", hours: "9 AM – 6 PM",  icon: <FaSun  size={11} />, color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+  { key: "morning", label: "Morning Shift", hours: "10 AM – 7 PM", icon: <FaSun  size={11} />, color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
   { key: "night",   label: "Night Shift",   hours: "7 PM – 4 AM",  icon: <FaMoon size={11} />, color: "#6d28d9", bg: "#f5f3ff", border: "#ddd6fe" },
 ];
 
