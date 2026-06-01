@@ -363,6 +363,7 @@ function StatusModal({ employee, onClose, onRefresh }) {
 export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, onPromote, departments = [] }) {
   const [searchTerm, setSearchTerm]         = useState("");
   const [roleFilter, setRoleFilter]         = useState("All");
+  const [statusFilter, setStatusFilter]     = useState("All");
   const [showDeleteModal, setShowDeleteModal]   = useState(false);
   const [selectedId, setSelectedId]         = useState(null);
   const [showEditModal, setShowEditModal]   = useState(false);
@@ -396,14 +397,21 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
 
   if (!employees) return <div className="loader-container"><div className="loader" /></div>;
 
+  const getEmpStatus = (emp) => {
+    if (emp.resignation?.notice_date)    return "resigned";
+    if (emp.extended_leaves?.length > 0) return "on_leave";
+    return "active";
+  };
+
   const filtered = employees.filter((emp) => {
     const q = searchTerm.toLowerCase();
     const matchesSearch =
       emp.name?.toLowerCase().includes(q) ||
       emp.email?.toLowerCase().includes(q) ||
       emp.department?.toLowerCase().includes(q);
-    const matchesRole = roleFilter === "All" || emp.role === roleFilter;
-    return matchesSearch && matchesRole;
+    const matchesRole   = roleFilter   === "All" || emp.role === roleFilter;
+    const matchesStatus = statusFilter === "All" || getEmpStatus(emp) === statusFilter;
+    return matchesSearch && matchesRole && matchesStatus;
   });
 
   return (
@@ -425,6 +433,14 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
             <option value="All">All Roles</option>
             <option value="employee">Employees Only</option>
             <option value="manager">Managers Only</option>
+          </select>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="All">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="on_leave">On Extended Leave</option>
+            <option value="resigned">Serving Notice</option>
           </select>
         </div>
       </div>
@@ -449,8 +465,10 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                 </td>
               </tr>
             ) : (
-              filtered.map((emp) => (
-                <tr key={emp._id}>
+              filtered.map((emp) => {
+                const isResigned = !!emp.resignation?.notice_date;
+                return (
+                <tr key={emp._id} style={isResigned ? { opacity: 0.45, background: "#f8fafc", filter: "grayscale(30%)" } : {}}>
                   <td>
                     <div className="emp-name">{emp.name}</div>
                     <div className="emp-email">{emp.email}</div>
@@ -498,7 +516,8 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                     </div>
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
