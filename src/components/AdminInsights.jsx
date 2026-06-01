@@ -252,7 +252,8 @@ export default function AdminInsights({ stats, employees, api, token }) {
             present: toCount(data.present),
             leave:   toCount(data.leave),
             absent:  toCount(data.absent),
-          }));
+          }))
+          .filter(d => d.present + d.leave + d.absent > 0);
         setChartData(processed);
       })
       .catch(() => {});
