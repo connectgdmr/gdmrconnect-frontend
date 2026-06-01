@@ -60,11 +60,13 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
   const [msg, setMsg] = useState({ text: "", type: "" });
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3500); };
 
+  const toArr = (d) => Array.isArray(d) ? d : (d?.courses || d?.progress || d?.data || []);
+
   async function loadCourses() {
     setLoading(true);
     try {
       const r = await fetch(`${BASE}/admin/lms/courses`, { headers: { Authorization: `Bearer ${token}` } });
-      setCourses(r.ok ? await r.json() : []);
+      setCourses(r.ok ? toArr(await r.json()) : []);
     } catch { setCourses([]); } finally { setLoading(false); }
   }
 
@@ -72,7 +74,7 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
     setProgLoading(true);
     try {
       const r = await fetch(`${BASE}/admin/lms/progress`, { headers: { Authorization: `Bearer ${token}` } });
-      setProgress(r.ok ? await r.json() : []);
+      setProgress(r.ok ? toArr(await r.json()) : []);
     } catch { setProgress([]); } finally { setProgLoading(false); }
   }
 

@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
 import HolidayCalendar from "./HolidayCalendar";
+import EmployeeLMS from "./EmployeeLMS";
+import EmployeeCareer from "./EmployeeCareer";
 import AdminLeavePage from "./AdminLeavePage";
 import AdminAttendancePage from "./AdminAttendancePage";
 import { RATING_SCALE, getRatingInfo } from "../constants";
@@ -30,7 +32,9 @@ import {
   FaShieldAlt,
   FaLaptop,
   FaBars,
-  FaGift
+  FaGift,
+  FaGraduationCap,
+  FaBriefcase,
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 
@@ -936,6 +940,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
               <QuickLaunchItem icon={<FaLaptop />} label="Request Asset" onClick={() => setView("assets")} />
+              <QuickLaunchItem icon={<FaGraduationCap />} label="My Courses" onClick={() => setView("lms")} />
+              <QuickLaunchItem icon={<FaBriefcase />} label="Career" onClick={() => setView("career")} />
               <QuickLaunchItem
                 icon={<FaLock />}
                 label="Change Password"
@@ -1491,6 +1497,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
 
       {/* — Holidays & Modals — */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
+      {view === "lms"     && <EmployeeLMS token={token} />}
+      {view === "career"  && <EmployeeCareer token={token} user={user} />}
 
       {leaveModalOpen && (
         <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>

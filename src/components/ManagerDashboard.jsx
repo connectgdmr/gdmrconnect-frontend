@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
+import EmployeeLMS from "./EmployeeLMS";
+import EmployeeCareer from "./EmployeeCareer";
 import AdminLeavePage from "./AdminLeavePage";
 import AdminAttendancePage from "./AdminAttendancePage";
 import HolidayCalendar from "./HolidayCalendar";
@@ -1999,6 +2001,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
 
       {/* — Holidays & Modals — */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
+      {view === "lms"     && <EmployeeLMS token={token} />}
+      {view === "career"  && <EmployeeCareer token={token} user={user} />}
 
       {leaveModalOpen && (
         <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>

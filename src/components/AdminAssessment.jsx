@@ -121,12 +121,13 @@ export default function AdminAssessment({ token }) {
 
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3500); };
 
+  const toArr = (d) => Array.isArray(d) ? d : (d?.assessments || d?.candidates || d?.data || []);
+
   async function loadAssessments() {
     setLoading(true);
     try {
       const r = await fetch(`${BASE}/admin/assessments`, { headers: { Authorization: `Bearer ${token}` } });
-      if (r.ok) setAssessments(await r.json());
-      else setAssessments([]);
+      setAssessments(r.ok ? toArr(await r.json()) : []);
     } catch { setAssessments([]); } finally { setLoading(false); }
   }
 
@@ -134,8 +135,7 @@ export default function AdminAssessment({ token }) {
     setCandLoading(true);
     try {
       const r = await fetch(`${BASE}/admin/assessments/candidates`, { headers: { Authorization: `Bearer ${token}` } });
-      if (r.ok) setCandidates(await r.json());
-      else setCandidates([]);
+      setCandidates(r.ok ? toArr(await r.json()) : []);
     } catch { setCandidates([]); } finally { setCandLoading(false); }
   }
 

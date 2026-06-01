@@ -1,0 +1,172 @@
+import React, { useState, useEffect } from "react";
+import {
+  FaGraduationCap, FaBook, FaVideo, FaFileAlt, FaLink,
+  FaCheckCircle, FaChevronDown, FaChevronRight, FaLock,
+} from "react-icons/fa";
+
+const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+
+const TYPE_ICON = { Video: <FaVideo size={12} />, Document: <FaFileAlt size={12} />, Article: <FaLink size={12} /> };
+
+const CAT_COLORS = {
+  Technical:     { color: "#2563eb", bg: "#eff6ff" },
+  "Soft Skills": { color: "#7c3aed", bg: "#f5f3ff" },
+  Compliance:    { color: "#dc2626", bg: "#fef2f2" },
+  Leadership:    { color: "#d97706", bg: "#fffbeb" },
+  Product:       { color: "#0891b2", bg: "#ecfeff" },
+  Other:         { color: "#64748b", bg: "#f8fafc" },
+};
+
+function ProgressBar({ pct }) {
+  const [w, setW] = useState(0);
+  useEffect(() => { const t = setTimeout(() => setW(pct), 100); return () => clearTimeout(t); }, [pct]);
+  return (
+    <div style={{ height: 7, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
+      <div style={{ height: "100%", width: `${w}%`, background: w >= 100 ? "#16a34a" : "#3b82f6", borderRadius: 99, transition: "width 0.7s cubic-bezier(.4,0,.2,1)" }} />
+    </div>
+  );
+}
+
+export default function EmployeeLMS({ token }) {
+  const [courses, setCourses]       = useState([]);
+  const [loading, setLoading]       = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
+  const [completing, setCompleting] = useState(null);
+
+  const toArr = (d) => Array.isArray(d) ? d : (d?.courses || d?.data || []);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const r = await fetch(`${BASE}/my/lms/courses`, { headers: { Authorization: `Bearer ${token}` } });
+      setCourses(r.ok ? toArr(await r.json()) : []);
+    } catch { setCourses([]); } finally { setLoading(false); }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function markComplete(lessonId) {
+    setCompleting(lessonId);
+    try {
+      await fetch(`${BASE}/my/lms/lessons/${lessonId}/complete`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}` },
+      });
+      load();
+    } catch { } finally { setCompleting(null); }
+  }
+
+  if (loading) return <div className="loader-container"><div className="loader" /></div>;
+
+  if (courses.length === 0) {
+    return (
+      <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8", marginTop: 16 }}>
+        <FaGraduationCap size={48} style={{ opacity: 0.15, marginBottom: 16 }} />
+        <h4 style={{ margin: "0 0 8px", color: "#64748b" }}>No courses assigned yet</h4>
+        <p style={{ margin: 0, fontSize: 13 }}>Your admin will assign learning courses to you. Check back soon.</p>
+      </div>
+    );
+  }
+
+  const totalLessons   = courses.reduce((s, c) => s + (c.total_lessons   || 0), 0);
+  const doneLessons    = courses.reduce((s, c) => s + (c.completed_lessons || 0), 0);
+  const completedCourses = courses.filter(c => (c.percent_complete || 0) >= 100).length;
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      {/* Summary strip */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
+        {[
+          { label: "Assigned",  value: courses.length,    color: "#2563eb", bg: "#eff6ff" },
+          { label: "Completed", value: completedCourses,  color: "#16a34a", bg: "#f0fdf4" },
+          { label: "Lessons Done", value: `${doneLessons}/${totalLessons}`, color: "#7c3aed", bg: "#f5f3ff" },
+        ].map(s => (
+          <div key={s.label} className="card" style={{ textAlign: "center", padding: "14px 10px", background: s.bg }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 500, marginTop: 3 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Course list */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {courses.map(course => {
+          const pct = Math.round(course.percent_complete || 0);
+          const cat = CAT_COLORS[course.category] || CAT_COLORS.Other;
+          const isOpen = expandedId === course._id;
+
+          return (
+            <div key={course._id} className="card" style={{ padding: 0, overflow: "hidden" }}>
+              {/* Course header */}
+              <div
+                style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 20px", cursor: "pointer", background: isOpen ? "#fafafa" : "#fff" }}
+                onClick={() => setExpandedId(isOpen ? null : course._id)}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 10, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <FaBook size={18} color={cat.color} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{course.title}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: cat.color, background: cat.bg, padding: "1px 7px", borderRadius: 4 }}>{course.category}</span>
+                    {pct >= 100 && <span style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", padding: "1px 7px", borderRadius: 4, display: "flex", alignItems: "center", gap: 3 }}><FaCheckCircle size={9} /> Done</span>}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <ProgressBar pct={pct} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#334155", flexShrink: 0 }}>{pct}%</span>
+                  </div>
+                </div>
+                {isOpen ? <FaChevronDown size={13} color="#94a3b8" /> : <FaChevronRight size={13} color="#94a3b8" />}
+              </div>
+
+              {/* Expanded modules */}
+              {isOpen && (
+                <div style={{ borderTop: "1px solid #f1f5f9" }}>
+                  {course.modules?.length ? course.modules.map((mod, mi) => (
+                    <div key={mi}>
+                      <div style={{ padding: "10px 20px", background: "#f8fafc", fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        {mod.title || `Module ${mi + 1}`}
+                      </div>
+                      {mod.lessons?.map((ls, li) => {
+                        const done = ls.completed;
+                        return (
+                          <div key={li} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderTop: "1px solid #f8fafc", background: done ? "#fafffe" : "#fff" }}>
+                            <span style={{ color: done ? "#16a34a" : "#94a3b8", flexShrink: 0 }}>
+                              {done ? <FaCheckCircle size={15} /> : <FaLock size={13} />}
+                            </span>
+                            <span style={{ color: TYPE_ICON[ls.type] ? "#64748b" : "#94a3b8", flexShrink: 0 }}>
+                              {TYPE_ICON[ls.type] || <FaFileAlt size={12} />}
+                            </span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: done ? 500 : 600, color: done ? "#94a3b8" : "#334155", textDecoration: done ? "line-through" : "none" }}>{ls.title}</div>
+                              {ls.url && (
+                                <a href={ls.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#3b82f6" }} onClick={e => e.stopPropagation()}>
+                                  Open resource ↗
+                                </a>
+                              )}
+                            </div>
+                            {!done && (
+                              <button
+                                className="btn ghost"
+                                style={{ fontSize: 11, padding: "4px 10px", flexShrink: 0 }}
+                                disabled={completing === ls._id}
+                                onClick={e => { e.stopPropagation(); markComplete(ls._id); }}
+                              >
+                                {completing === ls._id ? "…" : "Mark Done"}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )) : (
+                    <div style={{ padding: "20px", color: "#94a3b8", fontSize: 13, textAlign: "center" }}>No lessons in this course yet.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

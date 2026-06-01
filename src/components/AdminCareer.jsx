@@ -51,11 +51,13 @@ export default function AdminCareer({ token, employees = [] }) {
   const [msg, setMsg] = useState({ text: "", type: "" });
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3500); };
 
+  const toArr = (d) => Array.isArray(d) ? d : (d?.jobs || d?.referrals || d?.data || []);
+
   async function loadJobs() {
     setJobsLoading(true);
     try {
       const r = await fetch(`${BASE}/admin/career/jobs`, { headers: { Authorization: `Bearer ${token}` } });
-      setJobs(r.ok ? await r.json() : []);
+      setJobs(r.ok ? toArr(await r.json()) : []);
     } catch { setJobs([]); } finally { setJobsLoading(false); }
   }
 
@@ -63,7 +65,7 @@ export default function AdminCareer({ token, employees = [] }) {
     setRefLoading(true);
     try {
       const r = await fetch(`${BASE}/admin/career/referrals`, { headers: { Authorization: `Bearer ${token}` } });
-      setReferrals(r.ok ? await r.json() : []);
+      setReferrals(r.ok ? toArr(await r.json()) : []);
     } catch { setReferrals([]); } finally { setRefLoading(false); }
   }
 

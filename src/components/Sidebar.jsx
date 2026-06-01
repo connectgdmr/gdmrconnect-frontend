@@ -38,6 +38,8 @@ const NAV_ITEMS = {
     { icon: <FaBullhorn />, label: "Announcements", view: "announcements" },
     { icon: <FaLaptop />, label: "Team Assets", view: "team-assets" },
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },
+    { icon: <FaGraduationCap />, label: "My Courses", view: "lms" },
+    { icon: <FaBriefcase />, label: "Career", view: "career" },
     { icon: <FaUserShield />, label: "Special Access", view: "special-access" },
   ],
   employee: [
@@ -49,6 +51,8 @@ const NAV_ITEMS = {
     { icon: <FaBullhorn />, label: "Announcements", view: "announcements" },
     { icon: <FaLaptop />, label: "Request Asset", view: "assets" },
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },
+    { icon: <FaGraduationCap />, label: "My Courses", view: "lms" },
+    { icon: <FaBriefcase />, label: "Career", view: "career" },
     { icon: <FaUserShield />, label: "Special Access", view: "special-access" },
   ],
 };
