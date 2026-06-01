@@ -51,7 +51,11 @@ export default function AdminCareer({ token, employees = [] }) {
   const [msg, setMsg] = useState({ text: "", type: "" });
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3500); };
 
-  const toArr = (d) => Array.isArray(d) ? d : (d?.jobs || d?.referrals || d?.data || []);
+  const toArr = (d) => {
+    if (Array.isArray(d)) return d;
+    const c = d?.jobs || d?.referrals || d?.data || d?.results || [];
+    return Array.isArray(c) ? c : [];
+  };
 
   async function loadJobs() {
     setJobsLoading(true);
@@ -364,7 +368,7 @@ export default function AdminCareer({ token, employees = [] }) {
             </div>
             <select className="modern-input" value={refJobFilter} onChange={e => setRefJobFilter(e.target.value)} style={{ margin: 0, flex: 1, minWidth: 160 }}>
               <option value="all">All Jobs</option>
-              {jobs.map(j => <option key={j._id} value={j._id}>{j.title}</option>)}
+              {safeJobs.map(j => <option key={j._id} value={j._id}>{j.title}</option>)}
             </select>
             <select className="modern-input" value={refStatusFilter} onChange={e => setRefStatusFilter(e.target.value)} style={{ margin: 0, flex: 1, minWidth: 130 }}>
               <option value="All">All Statuses</option>

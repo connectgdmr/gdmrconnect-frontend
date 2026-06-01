@@ -28,7 +28,11 @@ export default function EmployeeCareer({ token, user }) {
   const [myRefs, setMyRefs]       = useState([]);
   const [refsLoading, setRefsLoading] = useState(false);
 
-  const toArr = (d) => Array.isArray(d) ? d : (d?.jobs || d?.referrals || d?.data || []);
+  const toArr = (d) => {
+    if (Array.isArray(d)) return d;
+    const c = d?.jobs || d?.referrals || d?.data || d?.results || [];
+    return Array.isArray(c) ? c : [];
+  };
 
   async function loadJobs() {
     setLoading(true);
@@ -69,6 +73,9 @@ export default function EmployeeCareer({ token, user }) {
     } catch { setRefMsg("Network error. Please try again."); } finally { setRefSaving(false); }
   }
 
+  const safeJobs   = Array.isArray(jobs)   ? jobs   : [];
+  const safeMyRefs = Array.isArray(myRefs) ? myRefs : [];
+
   const TABS = [
     { key: "board",        label: "Job Board" },
     { key: "refer",        label: "Refer Someone" },
@@ -97,7 +104,7 @@ export default function EmployeeCareer({ token, user }) {
       {/* ── Job Board ── */}
       {tab === "board" && (
         loading ? <div className="loader-container"><div className="loader" /></div>
-        : jobs.length === 0 ? (
+        : safeJobs.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
             <FaBriefcase size={40} style={{ opacity: 0.15, marginBottom: 12 }} />
             <h4 style={{ margin: "0 0 8px", color: "#64748b" }}>No open positions right now</h4>
@@ -105,7 +112,7 @@ export default function EmployeeCareer({ token, user }) {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {jobs.map(j => {
+            {safeJobs.map(j => {
               const tc = TYPE_COLORS[j.employment_type] || TYPE_COLORS["Full-time"];
               return (
                 <div key={j._id} className="card" style={{ borderLeft: `4px solid ${tc.color}` }}>
@@ -164,7 +171,7 @@ export default function EmployeeCareer({ token, user }) {
               <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Job Position *</label>
               <select className="modern-input" value={refJobId} onChange={e => setRefJobId(e.target.value)} required>
                 <option value="">-- Select Job --</option>
-                {jobs.map(j => <option key={j._id} value={j._id}>{j.title} {j.department ? `· ${j.department}` : ""}</option>)}
+                {safeJobs.map(j => <option key={j._id} value={j._id}>{j.title} {j.department ? `· ${j.department}` : ""}</option>)}
               </select>
             </div>
 
@@ -199,14 +206,14 @@ export default function EmployeeCareer({ token, user }) {
       {/* ── My Referrals ── */}
       {tab === "my-referrals" && (
         refsLoading ? <div className="loader-container"><div className="loader" /></div>
-        : myRefs.length === 0 ? (
+        : safeMyRefs.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "48px 20px", color: "#94a3b8" }}>
             <FaStar size={36} style={{ opacity: 0.15, marginBottom: 12 }} />
             <p style={{ margin: 0 }}>You haven't referred anyone yet.</p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {myRefs.map(r => {
+            {safeMyRefs.map(r => {
               const sc = { New: "#2563eb", Shortlisted: "#7c3aed", Interview: "#d97706", Hired: "#16a34a", Rejected: "#dc2626" }[r.status] || "#64748b";
               return (
                 <div key={r._id} className="card" style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
