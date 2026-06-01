@@ -529,8 +529,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       if (todayData && todayData[type]) {
         const listData = todayData[type];
         enrichedList = listData.map(item => {
-          const id = typeof item === 'object' ? item._id : item;
-          return employees.find(e => e._id === id) || (typeof item === 'object' ? item : { name: "Unknown", _id: id });
+          const id = String(typeof item === 'object' ? (item._id || item) : item);
+          return employees.find(e => String(e._id) === id) || (typeof item === 'object' ? item : { name: "Unknown", _id: id });
         });
       }
 
@@ -539,9 +539,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         const extLeaveEmps = employees.filter(
           e => e.extended_leaves?.length > 0 && !e.resignation?.notice_date
         );
-        // Merge without duplicates
-        const existingIds = new Set(enrichedList.map(e => e._id));
-        extLeaveEmps.forEach(e => { if (!existingIds.has(e._id)) enrichedList.push(e); });
+        const existingIds = new Set(enrichedList.map(e => String(e._id)));
+        extLeaveEmps.forEach(e => { if (!existingIds.has(String(e._id))) enrichedList.push(e); });
       }
 
       // For "not_checked_in": remove resigned employees
