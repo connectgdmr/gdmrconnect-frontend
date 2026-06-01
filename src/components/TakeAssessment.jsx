@@ -142,20 +142,15 @@ export default function TakeAssessment({ assessmentToken }) {
 
   if (phase === "submitted") return (
     <Shell>
-      <div style={{ background: "#fff", borderRadius: 16, padding: "40px 36px", textAlign: "center", maxWidth: 440, boxShadow: "0 4px 24px rgba(0,0,0,0.07)" }}>
-        <FaCheckCircle size={48} color="#16a34a" style={{ marginBottom: 16 }} />
-        <h2 style={{ margin: "0 0 10px", color: "#0f172a" }}>Assessment Submitted</h2>
-        {result?.score !== undefined ? (
-          <>
-            <div style={{ fontSize: 48, fontWeight: 900, color: result.passed ? "#16a34a" : "#dc2626", margin: "16px 0 6px" }}>{result.score}%</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: result.passed ? "#16a34a" : "#dc2626", marginBottom: 16 }}>
-              {result.passed ? "Congratulations — You Passed!" : "Unfortunately you did not meet the passing score."}
-            </div>
-            <p style={{ color: "#64748b", fontSize: 13, margin: 0 }}>The GDMR Connect team will be in touch with you shortly.</p>
-          </>
-        ) : (
-          <p style={{ color: "#64748b", fontSize: 14, margin: "10px 0 0" }}>{result?.message || "Your responses have been recorded. Thank you!"}</p>
-        )}
+      <div style={{ background: "#fff", borderRadius: 16, padding: "48px 40px", textAlign: "center", maxWidth: 440, boxShadow: "0 4px 24px rgba(0,0,0,0.07)" }}>
+        <FaCheckCircle size={52} color="#16a34a" style={{ marginBottom: 18 }} />
+        <h2 style={{ margin: "0 0 12px", color: "#0f172a", fontSize: 22 }}>Assessment Submitted</h2>
+        <p style={{ color: "#64748b", fontSize: 15, margin: "0 0 6px", lineHeight: 1.6 }}>
+          Thank you for completing the assessment.
+        </p>
+        <p style={{ color: "#94a3b8", fontSize: 13, margin: 0 }}>
+          The GDMR Connect team will review your responses and be in touch with you shortly.
+        </p>
       </div>
     </Shell>
   );

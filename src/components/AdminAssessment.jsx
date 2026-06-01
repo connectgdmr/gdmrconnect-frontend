@@ -438,18 +438,30 @@ export default function AdminAssessment({ token }) {
             {selectedResult.answers?.length > 0 && (
               <div className="card">
                 <h4 style={{ margin: "0 0 14px" }}>Answer Review</h4>
-                {selectedResult.answers.map((a, i) => (
+                {selectedResult.answers.map((a, i) => {
+                  const questionText  = a.question       || a.question_text || a.question_title || `Question ${(a.question_index ?? i) + 1}`;
+                  const givenAnswer   = a.given_answer   || a.answer        || a.candidate_answer || "—";
+                  const correctAnswer = a.correct_answer || a.expected_answer;
+                  const isCorrect     = a.correct        != null ? a.correct : undefined;
+                  return (
                   <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                      {a.correct ? <FaCheckCircle color="#16a34a" style={{ marginTop: 2, flexShrink: 0 }} /> : <FaTimesCircle color="#ef4444" style={{ marginTop: 2, flexShrink: 0 }} />}
+                      {isCorrect === true  && <FaCheckCircle color="#16a34a" style={{ marginTop: 2, flexShrink: 0 }} />}
+                      {isCorrect === false && <FaTimesCircle color="#ef4444" style={{ marginTop: 2, flexShrink: 0 }} />}
+                      {isCorrect == null   && <span style={{ width: 14, height: 14, marginTop: 2, flexShrink: 0, borderRadius: "50%", background: "#e2e8f0", display: "inline-block" }} />}
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: "#0f172a" }}>Q{i + 1}: {a.question}</div>
-                        <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>Answer: <span style={{ fontWeight: 600 }}>{a.given_answer}</span></div>
-                        {!a.correct && a.correct_answer && <div style={{ fontSize: 12, color: "#16a34a" }}>Correct: {a.correct_answer}</div>}
+                        <div style={{ fontWeight: 600, fontSize: 13, color: "#0f172a" }}>Q{(a.question_index ?? i) + 1}: {questionText}</div>
+                        <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>
+                          Answer: <span style={{ fontWeight: 600, color: "#0f172a" }}>{givenAnswer}</span>
+                        </div>
+                        {isCorrect === false && correctAnswer && (
+                          <div style={{ fontSize: 12, color: "#16a34a", marginTop: 2 }}>Correct answer: {correctAnswer}</div>
+                        )}
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
