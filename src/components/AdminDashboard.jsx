@@ -624,12 +624,20 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           
           <div className="card dashboard-widget">
             <h4 className="widget-title">Today's Attendance</h4>
-            <div className="stats-list">
-              <StatItem icon={<FaCheckCircle />} label="Present" count={stats.present} colorClass="text-green" onClick={() => handleStatClick('present', 'Present Today')} />
-              <StatItem icon={<FaTimesCircle />} label="Absent" count={stats.absent} colorClass="text-red" onClick={() => handleStatClick('absent', 'Absent Today')} />
-              <StatItem icon={<FaUserClock />} label="On Leave" count={stats.leave} colorClass="text-dark-red" onClick={() => handleStatClick('leave', 'On Leave Today')} />
-              <StatItem icon={<FaUserSlash />} label="Not Checked In" count={stats.not_checked_in} colorClass="text-orange" onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
-            </div>
+            {(() => {
+              const resignedCount      = employees.filter(e => !!e.resignation?.notice_date).length;
+              const extLeaveCount      = employees.filter(e => (e.extended_leaves?.length > 0) && !e.resignation?.notice_date).length;
+              const adjNotCheckedIn    = Math.max(0, (stats.not_checked_in ?? 0) - resignedCount);
+              const adjOnLeave         = (stats.leave ?? 0) + extLeaveCount;
+              return (
+                <div className="stats-list">
+                  <StatItem icon={<FaCheckCircle />} label="Present"       count={stats.present ?? 0}  colorClass="text-green"    onClick={() => handleStatClick('present',        'Present Today')} />
+                  <StatItem icon={<FaTimesCircle />} label="Absent"        count={stats.absent ?? 0}   colorClass="text-red"      onClick={() => handleStatClick('absent',         'Absent Today')} />
+                  <StatItem icon={<FaUserClock />}   label="On Leave"      count={adjOnLeave}           colorClass="text-dark-red" onClick={() => handleStatClick('leave',          'On Leave Today')} />
+                  <StatItem icon={<FaUserSlash />}   label="Not Checked In" count={adjNotCheckedIn}     colorClass="text-orange"   onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
+                </div>
+              );
+            })()}
           </div>
 
           <div className="card dashboard-widget">
@@ -661,7 +669,16 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           </div>
         </div>
 
-        <AdminInsights stats={stats} employees={employees} api={api} token={token} />
+        <AdminInsights
+          stats={{
+            ...stats,
+            leave:         (stats.leave ?? 0) + employees.filter(e => (e.extended_leaves?.length > 0) && !e.resignation?.notice_date).length,
+            not_checked_in: Math.max(0, (stats.not_checked_in ?? 0) - employees.filter(e => !!e.resignation?.notice_date).length),
+          }}
+          employees={employees}
+          api={api}
+          token={token}
+        />
         </>
       )}
 
