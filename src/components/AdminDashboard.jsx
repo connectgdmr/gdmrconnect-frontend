@@ -45,6 +45,9 @@ import {
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 import AdminInsights from "./AdminInsights";
+import AdminAssessment from "./AdminAssessment";
+import AdminLMS from "./AdminLMS";
+import AdminCareer from "./AdminCareer";
 
 // ============================================================================
 // MAIN EXPORT: ADMIN DASHBOARD
@@ -865,6 +868,15 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
       {/* 5. SUMMARY REPORTS */}
       {view === "summary" && <div style={{ marginTop: "16px" }}><AdminAttendanceSummary token={token} api={api} /></div>}
+
+      {/* 6. ASSESSMENT */}
+      {view === "assessment" && <AdminAssessment token={token} />}
+
+      {/* 7. LMS */}
+      {view === "lms" && <AdminLMS token={token} employees={employees} departments={departments} />}
+
+      {/* 8. CAREER */}
+      {view === "career" && <AdminCareer token={token} employees={employees} />}
 
       {/* 6. HOLIDAYS */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
