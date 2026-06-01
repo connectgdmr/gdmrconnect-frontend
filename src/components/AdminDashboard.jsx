@@ -683,10 +683,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
               const adjOnLeave         = (stats.leave ?? 0) + extLeaveCount;
               return (
                 <div className="stats-list">
-                  <StatItem icon={<FaCheckCircle />} label="Present"       count={stats.present ?? 0}  colorClass="text-green"    onClick={() => handleStatClick('present',        'Present Today')} />
-                  <StatItem icon={<FaTimesCircle />} label="Absent"        count={stats.absent ?? 0}   colorClass="text-red"      onClick={() => handleStatClick('absent',         'Absent Today')} />
-                  <StatItem icon={<FaUserClock />}   label="On Leave"      count={adjOnLeave}           colorClass="text-dark-red" onClick={() => handleStatClick('leave',          'On Leave Today')} />
-                  <StatItem icon={<FaUserSlash />}   label="Not Checked In" count={adjNotCheckedIn}     colorClass="text-orange"   onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
+                  <StatItem icon={<FaCheckCircle />} label="Present"        count={stats.present ?? 0}  colorClass="text-green"    onClick={() => handleStatClick('present',        'Present Today')} />
+                  <StatItem icon={<FaUserClock />}   label="On Leave"       count={adjOnLeave}           colorClass="text-dark-red" onClick={() => handleStatClick('leave',          'On Leave Today')} />
+                  <StatItem icon={<FaUserSlash />}   label="Not Checked In" count={adjNotCheckedIn}      colorClass="text-orange"   onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
                 </div>
               );
             })()}
