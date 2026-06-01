@@ -519,20 +519,37 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
     try {
       const now = new Date();
-      const monthStr = now.toISOString().slice(0, 7); 
+      const monthStr = now.toISOString().slice(0, 7);
       const summaryData = await api.getAttendanceSummary(monthStr, token);
-      const todayStr = now.toISOString().slice(0, 10); 
+      const todayStr = now.toISOString().slice(0, 10);
       const todayData = summaryData.days && summaryData.days[todayStr];
+
+      let enrichedList = [];
 
       if (todayData && todayData[type]) {
         const listData = todayData[type];
-        const enrichedList = listData.map(item => {
-            const id = typeof item === 'object' ? item._id : item;
-            const empDef = employees.find(e => e._id === id);
-            return empDef || (typeof item === 'object' ? item : { name: "Unknown", _id: id });
+        enrichedList = listData.map(item => {
+          const id = typeof item === 'object' ? item._id : item;
+          return employees.find(e => e._id === id) || (typeof item === 'object' ? item : { name: "Unknown", _id: id });
         });
-        setDetailList(enrichedList);
-      } else { setDetailList([]); }
+      }
+
+      // For "leave": also include employees on active extended leave
+      if (type === 'leave') {
+        const extLeaveEmps = employees.filter(
+          e => e.extended_leaves?.length > 0 && !e.resignation?.notice_date
+        );
+        // Merge without duplicates
+        const existingIds = new Set(enrichedList.map(e => e._id));
+        extLeaveEmps.forEach(e => { if (!existingIds.has(e._id)) enrichedList.push(e); });
+      }
+
+      // For "not_checked_in": remove resigned employees
+      if (type === 'not_checked_in') {
+        enrichedList = enrichedList.filter(e => !e.resignation?.notice_date);
+      }
+
+      setDetailList(enrichedList);
     } catch (err) { alert("Could not load details."); } finally { setDetailLoading(false); }
   }
 
@@ -700,15 +717,23 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
               ) : detailList.length === 0 ? (
                 <p style={{ textAlign: 'center', padding: '20px', color: '#999' }}>No employees found in this category.</p>
               ) : (
-                detailList.map((emp, idx) => (
+                detailList.map((emp, idx) => {
+                  const extLeave = emp.extended_leaves?.length > 0 ? emp.extended_leaves[emp.extended_leaves.length - 1] : null;
+                  return (
                   <div key={emp._id || idx} className="detail-item">
                     <div className="detail-avatar">{emp.name ? emp.name.charAt(0).toUpperCase() : "?"}</div>
                     <div>
                       <div style={{ fontWeight: 600 }}>{emp.name || "Unknown"}</div>
-                      <div className="small">{emp.email || emp.position || "Employee"}</div>
+                      <div className="small">{emp.department || emp.position || emp.email || "Employee"}</div>
+                      {extLeave && (
+                        <span style={{ fontSize: 11, fontWeight: 600, color: "#c2410c", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 4, padding: "1px 6px", marginTop: 3, display: "inline-block" }}>
+                          {extLeave.type}
+                        </span>
+                      )}
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
