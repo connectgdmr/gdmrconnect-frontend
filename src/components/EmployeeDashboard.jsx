@@ -1712,7 +1712,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                 <FaTimes />
             </button>
             {submittingPhoto ? (
-                <div style={{ padding: "40px 20px" }}>
+                <div style={{ padding: "40px 20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                     <div className="loader"></div>
                     <p style={{ marginTop: 15, fontWeight: 500, color: "#555" }}>Submitting attendance...</p>
                     <p style={{ fontSize: "12px", color: "#888" }}>Please wait</p>

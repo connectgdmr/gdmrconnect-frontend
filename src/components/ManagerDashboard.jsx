@@ -2328,9 +2328,10 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             </button>
 
             {submittingPhoto ? (
-                <div style={{ padding: "40px 20px" }}>
-                    <p style={{ marginTop: 15, fontWeight:500, color:'#555', fontSize: '18px' }}>Submitting attendance...</p>
-                    <p style={{ fontSize:14, color:'#888' }}>Please wait...</p>
+                <div style={{ padding: "40px 20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <div className="loader"></div>
+                    <p style={{ marginTop: 15, fontWeight: 500, color: "#555", fontSize: "18px" }}>Submitting attendance...</p>
+                    <p style={{ fontSize: 14, color: "#888" }}>Please wait...</p>
                 </div>
             ) : (
                 <>
