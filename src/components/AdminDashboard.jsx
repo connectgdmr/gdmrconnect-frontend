@@ -143,6 +143,10 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
   // — Asset States —
   const [allAssets, setAllAssets] = useState([]);
+  const [assignAsset, setAssignAsset]     = useState(null);   // asset being assigned
+  const [assignEmails, setAssignEmails]   = useState("");      // comma-sep email input
+  const [assignSending, setAssignSending] = useState(false);
+  const [assignMsg, setAssignMsg]         = useState("");
 
   // — Department States —
   const [departments, setDepartments] = useState([]);
@@ -512,6 +516,37 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       } finally {
           setLoading(false);
       }
+  }
+
+  async function sendAssetAssignment(e) {
+    e.preventDefault();
+    const emails = assignEmails.split(/[,\s]+/).map(e => e.trim()).filter(e => e.includes("@"));
+    if (emails.length === 0) return setAssignMsg("Enter at least one valid email address.");
+    setAssignSending(true); setAssignMsg("");
+    try {
+      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      const res = await fetch(`${baseUrl}/api/admin/assets/${assignAsset._id}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          emails,
+          asset: {
+            employee_name: assignAsset.employee_name,
+            department:    assignAsset.department,
+            asset_name:    assignAsset.asset_name,
+            reason:        assignAsset.reason,
+          },
+        }),
+      });
+      if (res.ok) {
+        setAssignMsg("Email sent successfully!");
+        setTimeout(() => { setAssignAsset(null); setAssignEmails(""); setAssignMsg(""); }, 1500);
+      } else {
+        const d = await res.json();
+        setAssignMsg(d.message || "Failed to send email.");
+      }
+    } catch { setAssignMsg("Network error. Please try again."); }
+    finally { setAssignSending(false); }
   }
 
   // — Stat Click Handler —
@@ -1369,19 +1404,33 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                                     </span>
                                 </td>
                                 <td>
-                                    <div className="action-btn-group">
-                                        <button 
-                                            className="action-btn btn-approve" 
+                                    <div className="action-btn-group" style={{ flexWrap: "wrap", gap: 6 }}>
+                                        <button
+                                            className="action-btn btn-approve"
                                             onClick={() => updateAdminAssetStatus(asset._id, "Approved")}
                                         >
                                             <FaCheckCircle /> Approve
                                         </button>
-                                        <button 
-                                            className="action-btn btn-reject" 
+                                        <button
+                                            className="action-btn btn-reject"
                                             onClick={() => updateAdminAssetStatus(asset._id, "Rejected")}
                                         >
                                             <FaTimesCircle /> Reject
                                         </button>
+                                        {(asset.admin_status || "").toLowerCase() === "approved" && (
+                                            <button
+                                                onClick={() => { setAssignAsset(asset); setAssignEmails(""); setAssignMsg(""); }}
+                                                style={{
+                                                    display: "flex", alignItems: "center", gap: 5,
+                                                    padding: "5px 10px", borderRadius: 6, border: "none",
+                                                    background: "#0284c7", color: "#fff",
+                                                    fontSize: 12, fontWeight: 600, cursor: "pointer",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                <FaSave size={10} /> Assign to Office Admin
+                                            </button>
+                                        )}
                                     </div>
                                 </td>
                             </tr>
@@ -1390,6 +1439,76 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                 </table>
               </div>
           </div>
+      )}
+
+      {/* ── Assign to Office Admin Modal ── */}
+      {assignAsset && (
+        <div className="modal-overlay" onClick={() => setAssignAsset(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+              <div>
+                <h3 style={{ margin: 0, color: "#0284c7", fontSize: 16 }}>Assign to Office Admin</h3>
+                <p style={{ margin: "5px 0 0", fontSize: 12, color: "#64748b" }}>
+                  An email with the request details will be sent to the entered addresses.
+                </p>
+              </div>
+              <button onClick={() => setAssignAsset(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}>
+                <FaTimes />
+              </button>
+            </div>
+
+            {/* Asset summary */}
+            <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10, padding: "12px 16px", marginBottom: 18, fontSize: 13 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[
+                  { label: "Employee",   value: assignAsset.employee_name },
+                  { label: "Department", value: assignAsset.department || "—" },
+                  { label: "Asset",      value: assignAsset.asset_name },
+                  { label: "Reason",     value: assignAsset.reason },
+                ].map(({ label, value }) => (
+                  <div key={label}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+                    <div style={{ fontWeight: 600, color: "#0c4a6e", marginTop: 2 }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {assignMsg && (
+              <div style={{
+                marginBottom: 14, padding: "9px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+                background: assignMsg.includes("success") ? "#f0fdf4" : "#fef2f2",
+                color:      assignMsg.includes("success") ? "#16a34a"  : "#b91c1c",
+                border: `1px solid ${assignMsg.includes("success") ? "#bbf7d0" : "#fecaca"}`,
+              }}>
+                {assignMsg}
+              </div>
+            )}
+
+            <form onSubmit={sendAssetAssignment}>
+              <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 6 }}>
+                Office Admin Email(s)
+                <span style={{ fontWeight: 400, color: "#94a3b8", marginLeft: 6 }}>separate multiple with comma</span>
+              </label>
+              <textarea
+                className="modern-input"
+                rows={3}
+                placeholder="admin@company.com, procure@company.com"
+                value={assignEmails}
+                onChange={e => setAssignEmails(e.target.value)}
+                required
+                style={{ resize: "none" }}
+              />
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
+                <button className="btn" type="submit" disabled={assignSending}
+                  style={{ background: "#0284c7", display: "flex", alignItems: "center", gap: 6 }}>
+                  <FaSave size={11} /> {assignSending ? "Sending…" : "Send Email"}
+                </button>
+                <button className="btn ghost" type="button" onClick={() => setAssignAsset(null)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
         </div>
