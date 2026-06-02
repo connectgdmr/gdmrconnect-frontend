@@ -639,7 +639,7 @@ export default function AdminAttendancePage({ token, api }) {
 
              <div style={{ overflowY: 'auto', padding: '20px', flex: 1 }}>
                 {loadingDetails ? (
-                   <div className="loader-container" style={{ padding: 50 }}><div className="loader"></div></div>
+                   <div style={{ display: "flex", justifyContent: "center", padding: 50 }}><div className="loader"></div></div>
                 ) : attendance.length === 0 ? (
                    <div style={{ textAlign:'center', color:'#999', padding: 40, border: '1px dashed #ccc', borderRadius: 8 }}>
                        No historical attendance records found for this employee.

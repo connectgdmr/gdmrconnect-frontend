@@ -121,7 +121,7 @@ export default function RegisterManager({ token, api }) {
         .icon-btn.delete:hover { background: #fee2e2; }
       `}</style>
 
-      <h3 style={{ color: "#b91c1c" }}>Register Manager</h3>
+      <h3 style={{ color: "var(--brand)" }}>Register Manager</h3>
 
       <form onSubmit={submit}>
         <div className="form-row">
@@ -177,7 +177,7 @@ export default function RegisterManager({ token, api }) {
                 top: "53%",
                 transform: "translateY(-50%)",
                 cursor: "pointer",
-                color: "#b91c1c",
+                color: "var(--brand)",
               }}
             >
               {showPassword ? "visibility_off" : "visibility"}
@@ -205,7 +205,7 @@ export default function RegisterManager({ token, api }) {
                 top: "53%",
                 transform: "translateY(-50%)",
                 cursor: "pointer",
-                color: "#b91c1c",
+                color: "var(--brand)",
               }}
             >
               {showConfirmPassword ? "visibility_off" : "visibility"}

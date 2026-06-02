@@ -77,7 +77,7 @@ export default function ProfilePanel({ user, token, api, isOpen, onClose }) {
         <div className="profile-panel-info-row">
           {user?.email && (
             <div className="profile-info-item">
-              <FaEnvelope size={11} style={{ color: "#6366f1", flexShrink: 0 }} />
+              <FaEnvelope size={11} style={{ color: "var(--brand)", flexShrink: 0 }} />
               <span>{user.email}</span>
             </div>
           )}
@@ -118,7 +118,7 @@ export default function ProfilePanel({ user, token, api, isOpen, onClose }) {
 
             <div className="profile-field">
               <label className="profile-label">
-                <FaPhone size={12} style={{ color: "#6366f1", marginRight: 6 }} />
+                <FaPhone size={12} style={{ color: "var(--brand)", marginRight: 6 }} />
                 Phone Number
               </label>
               <input

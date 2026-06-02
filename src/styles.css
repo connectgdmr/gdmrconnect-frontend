@@ -597,10 +597,29 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 .announcement-actions { display: flex; gap: 6px; margin-top: 12px; }
 
 /* ── 19. LOADER ────────────────────────────────────── */
-.loader-container { display: flex; justify-content: center; align-items: center; padding: 48px; width: 100%; }
+.loader-container {
+  display: flex; flex-direction: column; gap: 14px;
+  justify-content: center; align-items: center; padding: 48px; width: 100%;
+  min-height: 60vh;
+}
+/* Modern dual-arc circle loader */
 .loader {
-  border: 3px solid var(--slate-100); border-top: 3px solid var(--brand);
-  border-radius: 50%; width: 36px; height: 36px; animation: spin 0.75s linear infinite;
+  width: 46px; height: 46px; border-radius: 50%;
+  border: 4px solid var(--brand-light);
+  border-top-color: var(--brand);
+  border-right-color: var(--brand);
+  animation: spin 0.7s cubic-bezier(0.5, 0.15, 0.5, 0.85) infinite;
+  position: relative;
+}
+.loader::after {
+  content: ""; position: absolute; inset: -4px;
+  border-radius: 50%; border: 4px solid transparent;
+  border-top-color: rgba(52,160,106,0.35);
+  animation: spin 1.4s linear infinite;
+}
+.loader-container::after {
+  content: "Loading…"; font-size: 13px; font-weight: 600; color: var(--slate-400);
+  letter-spacing: 0.3px;
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 

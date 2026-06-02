@@ -54,7 +54,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
 
   return (
     <div className="card">
-      <h3 style={{color:"#b91c1c"}}>Add Employee</h3>
+      <h3 style={{color:"var(--brand)"}}>Add Employee</h3>
       {msg && <div className="small" style={{color: msg.startsWith("Employee added") ? "green" : "red", fontWeight: 500}}>{msg}</div>}
       <br />
       <form onSubmit={handle}>

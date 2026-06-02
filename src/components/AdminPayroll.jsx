@@ -395,8 +395,8 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
       .map(i => `<tr><td style="padding:6px 0;color:#475569">${i.label}</td><td style="text-align:right;font-weight:600">${inr(obj[i.key])}</td></tr>`).join("");
     w.document.write(`
       <html><head><title>Payslip - ${slip.employee_name}</title>
-      <style>body{font-family:Arial,sans-serif;padding:40px;color:#0f172a}h1{color:#b91c1c;margin:0}table{width:100%;border-collapse:collapse}
-      .hdr{display:flex;justify-content:space-between;border-bottom:2px solid #b91c1c;padding-bottom:16px;margin-bottom:20px}
+      <style>body{font-family:Arial,sans-serif;padding:40px;color:#0f172a}h1{color:#34a06a;margin:0}table{width:100%;border-collapse:collapse}
+      .hdr{display:flex;justify-content:space-between;border-bottom:2px solid #34a06a;padding-bottom:16px;margin-bottom:20px}
       .cols{display:flex;gap:40px}.col{flex:1}.tot{border-top:2px solid #e2e8f0;margin-top:12px;padding-top:12px}
       .net{background:#f0fdf4;padding:16px;border-radius:8px;margin-top:20px;display:flex;justify-content:space-between;font-size:18px;font-weight:800}</style>
       </head><body>

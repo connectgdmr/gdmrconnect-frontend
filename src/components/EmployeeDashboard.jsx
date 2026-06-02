@@ -783,7 +783,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         ========================================================================
       */}
       <style>{`
-        .qa-box { margin-bottom: 12px; background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #e2e8f0; border-left: 4px solid #b91c1c; transition: background 0.15s; }
+        .qa-box { margin-bottom: 12px; background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #e2e8f0; border-left: 4px solid var(--brand); transition: background 0.15s; }
         .qa-box:hover { background: #fff; }
         .password-input-wrapper { position: relative; display: flex; align-items: center; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -897,7 +897,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
           
           {/* Highlight special permissions prominently on the dashboard header */}
           {Array.isArray(delegatedGrants) && delegatedGrants.length > 0 && (
-             <div style={{ marginTop: 10, display: 'inline-block', background: '#e0e7ff', color: '#4f46e5', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold' }}>
+             <div style={{ marginTop: 10, display: 'inline-block', background: 'var(--brand-light)', color: 'var(--brand)', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold' }}>
                 <FaShieldAlt style={{marginRight: 6, marginBottom: -2}}/> You have Special Admin Privileges active.
              </div>
           )}

@@ -24,7 +24,7 @@ export default function HolidayCalendar() {
   return (
     <div className="card" style={{ padding: 0, border: "none", boxShadow: "none" }}>
       <div style={{ padding: "20px", borderBottom: "1px solid #f0f0f0" }}>
-        <h3 style={{ color: "#b91c1c", margin: 0 }}>Holiday Calendar 2026</h3>
+        <h3 style={{ color: "var(--brand)", margin: 0 }}>Holiday Calendar 2026</h3>
       </div>
       
       <div style={{ overflowX: "auto" }}>
@@ -43,7 +43,7 @@ export default function HolidayCalendar() {
                 <td style={{ textAlign: "center", width: "80px" }}>{h.id}</td>
                 <td style={{ fontWeight: 500 }}>{h.date}</td>
                 <td>{h.day}</td>
-                <td style={{ color: "#b91c1c", fontWeight: 600 }}>{h.name}</td>
+                <td style={{ color: "var(--brand)", fontWeight: 600 }}>{h.name}</td>
               </tr>
             ))}
           </tbody>

@@ -1002,9 +1002,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       */}
       <style>{`
         .employee-chip { display: flex; align-items: center; gap: 8px; background: #f8fafc; padding: 8px 14px; border: 1.5px solid #e2e8f0; border-radius: 9999px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s; color: #475569; }
-        .employee-chip:hover { border-color: #b91c1c; background: #fff; color: #b91c1c; }
-        .employee-chip.selected { background: #b91c1c; color: white; border-color: #b91c1c; box-shadow: 0 2px 8px rgba(185,28,28,0.25); }
-        .qa-box { margin-bottom: 12px; background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #e2e8f0; border-left: 4px solid #b91c1c; transition: background 0.15s; }
+        .employee-chip:hover { border-color: var(--brand); background: #fff; color: var(--brand); }
+        .employee-chip.selected { background: var(--brand); color: white; border-color: var(--brand); box-shadow: 0 2px 8px rgba(52,160,106,0.25); }
+        .qa-box { margin-bottom: 12px; background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #e2e8f0; border-left: 4px solid var(--brand); transition: background 0.15s; }
         .qa-box:hover { background: #fff; }
         .inline-loader { display: flex; justify-content: center; align-items: center; padding: 40px; color: #64748b; font-weight: 500; gap: 10px; flex-direction: column; }
         .password-input-wrapper { position: relative; display: flex; align-items: center; margin-bottom: 15px; }
@@ -1119,7 +1119,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             <h2 style={{ color: "var(--red)", margin: 0 }}>Manager Dashboard</h2>
             <p className="small">Manage your team and your own attendance</p>
             {delegatedGrants.length > 0 && (
-               <div style={{ marginTop: 10, display: 'inline-block', background: '#e0e7ff', color: '#4f46e5', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
+               <div style={{ marginTop: 10, display: 'inline-block', background: 'var(--brand-light)', color: 'var(--brand)', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
                 You have special Admin privileges active.
                </div>
             )}
@@ -1285,7 +1285,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             {/* Header */}
             <div className="card" style={{marginBottom: 16}}>
               <div style={{display:'flex', alignItems:'center', gap:14, marginBottom:20}}>
-                <div style={{width:46, height:46, borderRadius:12, background:'linear-gradient(135deg, #6366f1, #818cf8)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
+                <div style={{width:46, height:46, borderRadius:12, background:'linear-gradient(135deg, var(--brand), var(--teal-800))', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
                   <FaEdit color="#fff" size={20} />
                 </div>
                 <div>
@@ -1485,7 +1485,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             {[
               { count: pendingPMS.filter(p => p.status === 'Pending Review').length, label: 'Awaiting Review', color: '#f59e0b', bg: '#fffbeb' },
               { count: pendingPMS.filter(p => p.status === 'Manager Review Completed').length, label: 'Completed', color: '#22c55e', bg: '#f0fdf4' },
-              { count: pendingPMS.length, label: 'Total Submissions', color: '#6366f1', bg: '#f5f3ff' },
+              { count: pendingPMS.length, label: 'Total Submissions', color: 'var(--brand)', bg: 'var(--brand-light)' },
             ].map((s, i) => (
               <div key={i} className="card" style={{textAlign:'center', padding:'18px 16px', background: s.bg, border:`1px solid ${s.color}22`}}>
                 <div style={{fontSize:30, fontWeight:700, color: s.color}}>{s.count}</div>
@@ -1515,7 +1515,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                         </div>
                       </div>
                     </div>
-                    <button className="btn" style={{background:'#6366f1', padding:'9px 20px', fontSize:13, display:'flex', alignItems:'center', gap:6, flexShrink:0}} onClick={() => handleViewPMS(p)}>
+                    <button className="btn" style={{padding:'9px 20px', fontSize:13, display:'flex', alignItems:'center', gap:6, flexShrink:0}} onClick={() => handleViewPMS(p)}>
                       <FaChartLine /> Review Now
                     </button>
                   </div>
@@ -2290,7 +2290,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                       />
                     </div>
 
-                    <button className="btn" style={{width:'100%', fontSize:16, padding:16, background:'linear-gradient(135deg, #6366f1, #4f46e5)', border:'none', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', gap:8}}
+                    <button className="btn" style={{width:'100%', fontSize:16, padding:16, background:'linear-gradient(135deg, var(--brand), var(--brand-dark))', border:'none', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', gap:8}}
                       onClick={() => finalizePMS(selectedPMS._id)}>
                       <FaCheckCircle /> Submit Scores & Finalize Review
                     </button>

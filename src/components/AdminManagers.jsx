@@ -35,7 +35,7 @@ export default function AdminManagers({ token, api }) {
 
   return (
     <div className="card">
-      <h2 style={{ color: "#b91c1c" }}>Managers List</h2>
+      <h2 style={{ color: "var(--brand)" }}>Managers List</h2>
 
       {error && <p className="alert">{error}</p>}
       

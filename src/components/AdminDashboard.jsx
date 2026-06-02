@@ -1150,7 +1150,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
             {/* Stats strip */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
               {[
-                { label: "Total Departments", value: enriched.length, color: "#6366f1", bg: "#eef2ff" },
+                { label: "Total Departments", value: enriched.length, color: "var(--brand)", bg: "var(--brand-light)" },
                 { label: "Total Employees", value: totalEmployees, color: "#16a34a", bg: "#dcfce7" },
                 { label: "Needs a Manager", value: noManager, color: "#d97706", bg: "#fef9c3" },
               ].map(s => (
@@ -1210,7 +1210,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                             <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: 3 }}>Department Head</div>
                             {dept.manager ? (
                               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                                <div style={{ width: 22, height: 22, borderRadius: "50%", background: "linear-gradient(135deg,#dc2626,#991b1b)", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <div style={{ width: 22, height: 22, borderRadius: "50%", background: "linear-gradient(135deg,var(--brand),var(--brand-dark))", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                   {dept.manager.name.charAt(0).toUpperCase()}
                                 </div>
                                 <span style={{ fontSize: 12, fontWeight: 600, color: "#334155", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dept.manager.name}</span>
@@ -1355,7 +1355,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                             <>
                               <p style={{ fontSize: 10.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.7px", margin: "0 0 10px" }}>Management</p>
                               {managers.map(emp => (
-                                <MemberRow key={emp._id} emp={emp} badge={{ label: "Manager", bg: "#fde8e8", color: "#b91c1c" }} />
+                                <MemberRow key={emp._id} emp={emp} badge={{ label: "Manager", bg: "var(--brand-light)", color: "var(--brand)" }} />
                               ))}
                               {regulars.length > 0 && <div style={{ height: 1, background: "#f1f5f9", margin: "14px 0" }} />}
                             </>

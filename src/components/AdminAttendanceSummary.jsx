@@ -93,7 +93,7 @@ export default function AdminAttendanceSummary({ token, api }) {
   return (
     <>
       <div className="card">
-        <h3 style={{ color: "#b91c1c" }}>Monthly Attendance Summary</h3>
+        <h3 style={{ color: "var(--brand)" }}>Monthly Attendance Summary</h3>
 
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: 10}}>
              {/* Month Selector */}
