@@ -13,12 +13,12 @@ const LESSON_TYPES = ["Video", "Document", "Article"];
 const LESSON_ICON = { Video: <FaVideo />, Document: <FaFileAlt />, Article: <FaLink /> };
 
 const CAT_COLORS = {
-  Technical:   { color: "#2563eb", bg: "#eff6ff" },
-  "Soft Skills": { color: "#7c3aed", bg: "#f5f3ff" },
-  Compliance:  { color: "#dc2626", bg: "#fef2f2" },
-  Leadership:  { color: "#d97706", bg: "#fffbeb" },
-  Product:     { color: "#0891b2", bg: "#ecfeff" },
-  Other:       { color: "#64748b", bg: "#f8fafc" },
+  Technical:     { color: "#34a06a", bg: "#f0fdf4" },
+  "Soft Skills": { color: "#0f766e", bg: "#effdf8" },
+  Compliance:    { color: "#15803d", bg: "#ecfdf5" },
+  Leadership:    { color: "#4d7c5f", bg: "#f3f8f4" },
+  Product:       { color: "#059669", bg: "#ecfdf5" },
+  Other:         { color: "#64748b", bg: "#f8fafc" },
 };
 
 function ProgressBar({ pct }) {
