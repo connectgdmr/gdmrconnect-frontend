@@ -70,14 +70,31 @@ export default function EmployeeLMS({ token }) {
 
   useEffect(() => { load(); }, []);
 
-  async function markComplete(lessonId) {
-    setCompleting(lessonId);
-    try {
-      await fetch(`${BASE}/my/lms/lessons/${lessonId}/complete`, {
-        method: "POST", headers: { Authorization: `Bearer ${token}` },
+  async function markComplete(courseId, moduleIdx, lessonIdx, lessonId) {
+    const key = `${courseId}_${moduleIdx}_${lessonIdx}`;
+    setCompleting(key);
+
+    // Optimistic update — reflect immediately in the UI
+    setCourses(prev => prev.map(c => {
+      if (c._id !== courseId) return c;
+      const modules = c.modules.map((m, mi) => {
+        if (mi !== moduleIdx) return m;
+        return { ...m, lessons: m.lessons.map((l, li) => li === lessonIdx ? { ...l, completed: true } : l) };
       });
+      const total = modules.reduce((s, m) => s + m.lessons.length, 0);
+      const done  = modules.reduce((s, m) => s + m.lessons.filter(l => l.completed).length, 0);
+      return { ...c, modules, completed_lessons: done, percent_complete: total ? Math.round(done / total * 100) : 0 };
+    }));
+
+    try {
+      await fetch(`${BASE}/my/lms/lessons/${lessonId || "by-index"}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ course_id: courseId, module_index: moduleIdx, lesson_index: lessonIdx, lesson_id: lessonId }),
+      });
+      // Re-sync from server (keeps optimistic state if server agrees)
       load();
-    } catch { } finally { setCompleting(null); }
+    } catch { /* optimistic state already applied */ } finally { setCompleting(null); }
   }
 
   if (loading) return <div className="loader-container"><div className="loader" /></div>;
@@ -153,6 +170,7 @@ export default function EmployeeLMS({ token }) {
                       </div>
                       {mod.lessons?.map((ls, li) => {
                         const done = ls.completed;
+                        const key  = `${course._id}_${mi}_${li}`;
                         return (
                           <div key={li} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderTop: "1px solid #f8fafc", background: done ? "#fafffe" : "#fff" }}>
                             <span style={{ color: done ? "#16a34a" : "#94a3b8", flexShrink: 0 }}>
@@ -169,14 +187,16 @@ export default function EmployeeLMS({ token }) {
                                 </a>
                               )}
                             </div>
-                            {!done && (
+                            {done ? (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", flexShrink: 0 }}>Completed</span>
+                            ) : (
                               <button
                                 className="btn ghost"
                                 style={{ fontSize: 11, padding: "4px 10px", flexShrink: 0 }}
-                                disabled={completing === ls._id}
-                                onClick={e => { e.stopPropagation(); markComplete(ls._id); }}
+                                disabled={completing === key}
+                                onClick={e => { e.stopPropagation(); markComplete(course._id, mi, li, ls._id); }}
                               >
-                                {completing === ls._id ? "…" : "Mark Done"}
+                                {completing === key ? "…" : "Mark Done"}
                               </button>
                             )}
                           </div>
