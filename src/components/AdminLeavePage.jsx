@@ -168,9 +168,9 @@ export default function AdminLeavePage({ token, api }) {
           min-width: 70px; 
           text-align: center; 
         }
-        .status-badge.approved { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
-        .status-badge.rejected { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
-        .status-badge.pending { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+        .status-badge.approved { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+        .status-badge.rejected { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .status-badge.pending { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
         
         /* Action Buttons - Stacked Vertically */
         .action-btn-group {
@@ -196,7 +196,7 @@ export default function AdminLeavePage({ token, api }) {
         }
         .action-btn:active { transform: scale(0.95); }
         .action-btn:hover { opacity: 0.9; }
-        .btn-approve { background: #10b981; }
+        .btn-approve { background: var(--brand); }
         .btn-reject { background: #ef4444; }
         
         /* Table Layout - Tighter paddings and dynamic width */
