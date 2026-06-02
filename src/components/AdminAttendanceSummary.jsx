@@ -2,20 +2,26 @@ import React, { useEffect, useState } from "react";
 import { FaFileCsv, FaFilePdf } from "react-icons/fa";
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
 
-// Helper function to convert data to CSV format (UPDATED for Phase 2)
-function convertToCSV(summary) {
-    // Header updated to reflect that Names are now included for Leaves
-    let csv = 'Date,Present,Absent,On Leave (Names),Not Checked-in\n';
-    
-    Object.entries(summary.days).forEach(([date, d]) => {
-        // --- PHASE 2: Export Names Logic ---
-        // Check if leave_names exists (from backend update) and join them
-        const leaveNames = d.leave_names && d.leave_names.length > 0 
-            ? d.leave_names.join(" | ") // Join with pipe separator to keep it in one CSV cell
-            : "None";
+// Count helper — backend may return arrays of IDs or plain numbers
+const cnt = (v) => Array.isArray(v) ? v.length : (Number(v) || 0);
 
-        // Wrap leaveNames in quotes to handle any potential spaces or commas in names
-        csv += `${date},${d.present.length},${d.absent.length},"${leaveNames}",${d.not_checked_in.length}\n`;
+// Only include days up to and including today — future dates haven't happened,
+// so showing everyone as "not checked in" for them is misleading.
+function visibleDayEntries(summary) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  return Object.entries(summary?.days || {})
+    .filter(([date]) => date <= todayStr)
+    .sort(([a], [b]) => a.localeCompare(b));
+}
+
+// Helper function to convert data to CSV format
+function convertToCSV(summary) {
+    let csv = 'Date,Present,Absent,On Leave (Names),Not Checked-in\n';
+    visibleDayEntries(summary).forEach(([date, d]) => {
+        const leaveNames = d.leave_names && d.leave_names.length > 0
+            ? d.leave_names.join(" | ")
+            : "None";
+        csv += `${date},${cnt(d.present)},${cnt(d.absent)},"${leaveNames}",${cnt(d.not_checked_in)}\n`;
     });
     return csv;
 }
@@ -27,9 +33,8 @@ function convertToPDFText(summary, month) {
   text += '----------------------------------------------------------\n';
   text += 'Date       | Present | Absent | On Leave | Not Checked-in\n';
   text += '----------------------------------------------------------\n';
-  Object.entries(summary.days).forEach(([date, d]) => {
-      // PDF view keeps counts to maintain alignment
-      text += `${date} | ${String(d.present.length).padEnd(7)} | ${String(d.absent.length).padEnd(6)} | ${String(d.leave.length).padEnd(8)} | ${d.not_checked_in.length}\n`;
+  visibleDayEntries(summary).forEach(([date, d]) => {
+      text += `${date} | ${String(cnt(d.present)).padEnd(7)} | ${String(cnt(d.absent)).padEnd(6)} | ${String(cnt(d.leave)).padEnd(8)} | ${cnt(d.not_checked_in)}\n`;
   });
   text += '----------------------------------------------------------\n';
   return text;
@@ -138,14 +143,16 @@ export default function AdminAttendanceSummary({ token, api }) {
               </tr>
             </thead>
             <tbody>
-              {Object.entries(summary.days).map(([date, d]) => (
+              {visibleDayEntries(summary).length === 0 ? (
+                <tr><td colSpan="5" style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>No attendance data for this month yet.</td></tr>
+              ) : visibleDayEntries(summary).map(([date, d]) => (
                 <tr key={date}>
                   <td>{date}</td>
-                  <td>{d.present.length}</td>
-                  <td>{d.absent.length}</td>
+                  <td>{cnt(d.present)}</td>
+                  <td>{cnt(d.absent)}</td>
                   {/* Table displays count to keep UI clean; names are in CSV export */}
-                  <td>{d.leave.length}</td>
-                  <td>{d.not_checked_in.length}</td>
+                  <td>{cnt(d.leave)}</td>
+                  <td>{cnt(d.not_checked_in)}</td>
                 </tr>
               ))}
             </tbody>
