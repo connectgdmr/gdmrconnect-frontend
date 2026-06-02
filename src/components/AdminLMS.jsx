@@ -62,6 +62,22 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
 
   const toArr = (d) => Array.isArray(d) ? d : (d?.courses || d?.progress || d?.data || []);
 
+  // Normalize whatever shape the backend returns into the builder's expected structure
+  const normalizeModules = (raw) => {
+    const mods = Array.isArray(raw) ? raw : [];
+    if (mods.length === 0) return [blankModule()];
+    return mods.map(m => ({
+      title: m.title || m.name || m.module_title || "",
+      lessons: (Array.isArray(m.lessons) ? m.lessons : (m.module_lessons || [])).map(l => ({
+        title:   l.title || l.name || l.lesson_title || "",
+        type:    l.type || l.lesson_type || "Video",
+        url:     l.url || l.resource_url || l.link || "",
+        content: l.content || l.text || "",
+        _id:     l._id || l.id,
+      })),
+    })).map(m => m.lessons.length ? m : { ...m, lessons: [blankLesson()] });
+  };
+
   async function loadCourses() {
     setLoading(true);
     try {
@@ -89,8 +105,14 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
 
   function startEdit(c) {
     setBuilderMode("edit"); setEditCourseId(c._id);
-    setCourseForm({ title: c.title, description: c.description || "", category: c.category || "Technical", thumbnailUrl: c.thumbnail_url || "" });
-    setModules(c.modules?.length ? c.modules : [blankModule()]); setExpandedMod(0);
+    setCourseForm({
+      title: c.title || "",
+      description: c.description || "",
+      category: c.category || "Technical",
+      thumbnailUrl: c.thumbnail_url || c.thumbnailUrl || "",
+    });
+    setModules(normalizeModules(c.modules || c.course_modules));
+    setExpandedMod(0);
     setTab("builder");
   }
 
@@ -98,7 +120,29 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
     e.preventDefault();
     if (!courseForm.title) return flash("Course title required.", "error");
     setSaving(true);
-    const payload = { ...courseForm, thumbnail_url: courseForm.thumbnailUrl, modules };
+
+    // Build a clean modules array — drop blank lessons, keep explicit field names
+    const cleanModules = modules
+      .map(m => ({
+        title: (m.title || "").trim(),
+        lessons: (m.lessons || [])
+          .filter(l => (l.title || "").trim() || (l.url || "").trim())
+          .map(l => ({
+            title:   (l.title || "").trim(),
+            type:    l.type || "Video",
+            url:     (l.url || "").trim(),
+            content: (l.content || "").trim(),
+          })),
+      }))
+      .filter(m => m.title || m.lessons.length);
+
+    const payload = {
+      title: courseForm.title.trim(),
+      description: courseForm.description || "",
+      category: courseForm.category || "Technical",
+      thumbnail_url: courseForm.thumbnailUrl || "",
+      modules: cleanModules,
+    };
     try {
       const r = await fetch(
         `${BASE}/admin/lms/courses${editCourseId ? `/${editCourseId}` : ""}`,

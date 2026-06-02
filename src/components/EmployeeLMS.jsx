@@ -35,11 +35,36 @@ export default function EmployeeLMS({ token }) {
 
   const toArr = (d) => Array.isArray(d) ? d : (d?.courses || d?.data || []);
 
+  // Normalize each course's modules/lessons regardless of backend field naming
+  const normalizeCourse = (c) => {
+    const rawMods = c.modules || c.course_modules || [];
+    const modules = (Array.isArray(rawMods) ? rawMods : []).map(m => ({
+      title: m.title || m.name || m.module_title || "",
+      lessons: (Array.isArray(m.lessons) ? m.lessons : (m.module_lessons || [])).map(l => ({
+        _id:       l._id || l.id || l.lesson_id,
+        title:     l.title || l.name || l.lesson_title || "",
+        type:      l.type || l.lesson_type || "Video",
+        url:       l.url || l.resource_url || l.link || "",
+        completed: l.completed ?? l.is_completed ?? false,
+      })),
+    }));
+    const totalLessons = modules.reduce((s, m) => s + m.lessons.length, 0);
+    const doneLessons  = modules.reduce((s, m) => s + m.lessons.filter(l => l.completed).length, 0);
+    return {
+      ...c,
+      modules,
+      total_lessons:     c.total_lessons     ?? totalLessons,
+      completed_lessons: c.completed_lessons ?? doneLessons,
+      percent_complete:  c.percent_complete  ?? (totalLessons ? Math.round(doneLessons / totalLessons * 100) : 0),
+    };
+  };
+
   async function load() {
     setLoading(true);
     try {
       const r = await fetch(`${BASE}/my/lms/courses`, { headers: { Authorization: `Bearer ${token}` } });
-      setCourses(r.ok ? toArr(await r.json()) : []);
+      const data = r.ok ? toArr(await r.json()) : [];
+      setCourses(data.map(normalizeCourse));
     } catch { setCourses([]); } finally { setLoading(false); }
   }
 
