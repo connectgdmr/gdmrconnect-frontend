@@ -1,16 +1,17 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from "react";
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
-import HolidayCalendar from "./HolidayCalendar";
-import EmployeeLMS from "./EmployeeLMS";
-import EmployeeCareer from "./EmployeeCareer";
-import EmployeePayroll from "./EmployeePayroll";
-import AdminPayroll from "./AdminPayroll";
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
-import AdminLeavePage from "./AdminLeavePage";
-import AdminAttendancePage from "./AdminAttendancePage";
 import { RATING_SCALE, getRatingInfo } from "../constants";
+
+const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
+const EmployeeLMS         = lazy(() => import("./EmployeeLMS"));
+const EmployeeCareer      = lazy(() => import("./EmployeeCareer"));
+const EmployeePayroll     = lazy(() => import("./EmployeePayroll"));
+const AdminPayroll        = lazy(() => import("./AdminPayroll"));
+const AdminLeavePage      = lazy(() => import("./AdminLeavePage"));
+const AdminAttendancePage = lazy(() => import("./AdminAttendancePage"));
 
 import {
   FaCamera,
@@ -774,6 +775,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
           </div>
         </div>
         <div className="main-content">
+      <Suspense fallback={<div style={{ marginTop: 16 }}><SkeletonTable rows={6} cols={3} /></div>}>
       {/*
         ========================================================================
         EXPANDED CSS STYLING
@@ -1765,6 +1767,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
           </div>
         </div>
       )}
+      </Suspense>
         </div>
       </div>
     </div>

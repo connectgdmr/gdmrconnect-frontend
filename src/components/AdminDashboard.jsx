@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, lazy, Suspense } from "react";
 import Sidebar from "./Sidebar";
 
 // ============================================================================
-// COMPONENT IMPORTS
+// COMPONENT IMPORTS — view-specific pages are lazy-loaded on demand
 // ============================================================================
-import EmployeeForm from "./EmployeeForm";
-import EmployeeList from "./EmployeeList";
-import AdminLeavePage from "./AdminLeavePage";
-import AdminAttendancePage from "./AdminAttendancePage";
-import RegisterManager from "./RegisterManager";
-import AdminAttendanceSummary from "./AdminAttendanceSummary";
-import HolidayCalendar from "./HolidayCalendar"; 
+const EmployeeForm           = lazy(() => import("./EmployeeForm"));
+const EmployeeList           = lazy(() => import("./EmployeeList"));
+const AdminLeavePage         = lazy(() => import("./AdminLeavePage"));
+const AdminAttendancePage    = lazy(() => import("./AdminAttendancePage"));
+const RegisterManager        = lazy(() => import("./RegisterManager"));
+const AdminAttendanceSummary = lazy(() => import("./AdminAttendanceSummary"));
+const HolidayCalendar        = lazy(() => import("./HolidayCalendar"));
 
 // ============================================================================
 // ICON IMPORTS
@@ -45,12 +45,13 @@ import {
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 import AdminInsights from "./AdminInsights";
-import AdminAssessment from "./AdminAssessment";
-import AdminLMS from "./AdminLMS";
-import AdminCareer from "./AdminCareer";
-import AdminPayroll from "./AdminPayroll";
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable, SkeletonCards } from "./Skeleton";
+
+const AdminAssessment = lazy(() => import("./AdminAssessment"));
+const AdminLMS        = lazy(() => import("./AdminLMS"));
+const AdminCareer     = lazy(() => import("./AdminCareer"));
+const AdminPayroll    = lazy(() => import("./AdminPayroll"));
 
 // ============================================================================
 // MAIN EXPORT: ADMIN DASHBOARD
@@ -696,6 +697,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           </div>
         </div>
         <div className="main-content">
+      <Suspense fallback={<div style={{ marginTop: 16 }}><SkeletonTable rows={6} cols={4} /></div>}>
       <style>{`
         .styled-table-global { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; table-layout: auto !important; border-radius: 14px; overflow: hidden; border: 1px solid #e2e8f0; background: #fff; }
         .styled-table-global th { background: #f8fafc; color: #64748b; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; text-align: left; padding: 11px 16px !important; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
@@ -1542,6 +1544,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         </div>
       )}
 
+      </Suspense>
         </div>
       </div>
     </div>
