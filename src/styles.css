@@ -819,7 +819,9 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
   display: flex;
   flex-direction: column;
   height: 100%;
+  padding: 18px !important;
 }
+.insights-card .widget-title { margin-bottom: 12px; padding-bottom: 10px; }
 @media (max-width: 1100px) {
   .insights-grid { grid-template-columns: 1fr 1fr; }
 }

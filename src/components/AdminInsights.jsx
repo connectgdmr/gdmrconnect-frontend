@@ -33,8 +33,8 @@ function areaPath(pts, bottomY) {
 // ─── SVG Line Chart ──────────────────────────────────────────────────────────
 function AttendanceLineChart({ data, today }) {
   const W   = 480;
-  const H   = 200;
-  const PAD = { top: 18, right: 16, bottom: 36, left: 34 };
+  const H   = 150;
+  const PAD = { top: 14, right: 16, bottom: 28, left: 30 };
   const chartW = W - PAD.left - PAD.right;
   const chartH = H - PAD.top  - PAD.bottom;
 
@@ -310,35 +310,35 @@ export default function AdminInsights({ stats, employees, api, token }) {
 
         {/* Today's summary strip */}
         <div style={{
-          display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginTop: 16,
-          paddingTop: 16, borderTop: "1px solid #f1f5f9",
+          display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 12,
+          paddingTop: 12, borderTop: "1px solid #f1f5f9",
         }}>
           {[
             { label: "Present",        value: sp, color: "#16a34a", bg: "#f0fdf4" },
             { label: "On Leave",       value: sl, color: "#d97706", bg: "#fffbeb" },
-            { label: "Not Checked In", value: sn, color: "#64748b", bg: "#f8fafc" },
+            { label: "Not In", value: sn, color: "#64748b", bg: "#f8fafc" },
             { label: "Absent",         value: sa, color: "#dc2626", bg: "#fef2f2" },
           ].map(({ label, value, color, bg }) => (
-            <div key={label} style={{ background: bg, borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 4, fontWeight: 500 }}>{label}</div>
+            <div key={label} style={{ background: bg, borderRadius: 9, padding: "7px 6px", textAlign: "center" }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+              <div style={{ fontSize: 9.5, color: "#64748b", marginTop: 3, fontWeight: 500 }}>{label}</div>
             </div>
           ))}
         </div>
 
         {todayTotal > 0 && (
           <div style={{
-            marginTop: 12, padding: "10px 16px", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            marginTop: 10, padding: "7px 14px", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             background: presentPct >= 75 ? "#f0fdf4" : presentPct >= 50 ? "#fffbeb" : "#fef2f2",
             border: `1px solid ${presentPct >= 75 ? "#bbf7d0" : presentPct >= 50 ? "#fde68a" : "#fecaca"}`,
           }}>
             <span style={{
-              fontSize: 20, fontWeight: 800,
+              fontSize: 16, fontWeight: 800,
               color: presentPct >= 75 ? "#16a34a" : presentPct >= 50 ? "#d97706" : "#dc2626",
             }}>
               {presentPct}%
             </span>
-            <span style={{ fontSize: 13, color: "#64748b" }}>attendance rate today</span>
+            <span style={{ fontSize: 12, color: "#64748b" }}>attendance rate today</span>
           </div>
         )}
       </div>
@@ -352,7 +352,7 @@ export default function AdminInsights({ stats, employees, api, token }) {
             No employee data yet.
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 6 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 4 }}>
             {deptData.map(([name, count], i) => {
               const pct = Math.round((count / totalStaff) * 100);
               return (
@@ -381,13 +381,13 @@ export default function AdminInsights({ stats, employees, api, token }) {
       <div className="card insights-card">
         <h4 className="widget-title">Workforce Composition</h4>
 
-        <div style={{ textAlign: "center", padding: "16px 0 22px" }}>
-          <div style={{ fontSize: 56, fontWeight: 900, color: "var(--red)", lineHeight: 1 }}>{totalStaff}</div>
-          <div style={{ fontSize: 13, color: "#64748b", marginTop: 6, fontWeight: 500 }}>Active Staff Members</div>
+        <div style={{ textAlign: "center", padding: "8px 0 14px" }}>
+          <div style={{ fontSize: 40, fontWeight: 900, color: "var(--red)", lineHeight: 1 }}>{totalStaff}</div>
+          <div style={{ fontSize: 12, color: "#64748b", marginTop: 5, fontWeight: 500 }}>Active Staff Members</div>
         </div>
 
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: "flex", height: 14, borderRadius: 99, overflow: "hidden", background: "#f1f5f9" }}>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", height: 12, borderRadius: 99, overflow: "hidden", background: "#f1f5f9" }}>
             {totalStaff > 0 && (
               <>
                 <div style={{
@@ -410,18 +410,18 @@ export default function AdminInsights({ stats, employees, api, token }) {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "16px 12px", textAlign: "center", border: "1px solid #bbf7d0" }}>
-            <div style={{ fontSize: 32, fontWeight: 800, color: "#226e48", lineHeight: 1 }}>{employeeCount}</div>
-            <div style={{ fontSize: 12, color: "#34a06a", fontWeight: 600, marginTop: 5 }}>Employees</div>
-            <div style={{ fontSize: 11, color: "#86c8a6", marginTop: 2 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ background: "#f0fdf4", borderRadius: 10, padding: "10px 10px", textAlign: "center", border: "1px solid #bbf7d0" }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: "#226e48", lineHeight: 1 }}>{employeeCount}</div>
+            <div style={{ fontSize: 11.5, color: "#34a06a", fontWeight: 600, marginTop: 4 }}>Employees</div>
+            <div style={{ fontSize: 10, color: "#86c8a6", marginTop: 2 }}>
               {totalStaff > 0 ? Math.round((employeeCount / totalStaff) * 100) : 0}% of workforce
             </div>
           </div>
-          <div style={{ background: "#eefaf6", borderRadius: 12, padding: "16px 12px", textAlign: "center", border: "1px solid #c5e8dc" }}>
-            <div style={{ fontSize: 32, fontWeight: 800, color: "#143f39", lineHeight: 1 }}>{managerCount}</div>
-            <div style={{ fontSize: 12, color: "#1c5249", fontWeight: 600, marginTop: 5 }}>Managers</div>
-            <div style={{ fontSize: 11, color: "#7fa699", marginTop: 2 }}>
+          <div style={{ background: "#eefaf6", borderRadius: 10, padding: "10px 10px", textAlign: "center", border: "1px solid #c5e8dc" }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: "#143f39", lineHeight: 1 }}>{managerCount}</div>
+            <div style={{ fontSize: 11.5, color: "#1c5249", fontWeight: 600, marginTop: 4 }}>Managers</div>
+            <div style={{ fontSize: 10, color: "#7fa699", marginTop: 2 }}>
               {totalStaff > 0 ? Math.round((managerCount / totalStaff) * 100) : 0}% of workforce
             </div>
           </div>
