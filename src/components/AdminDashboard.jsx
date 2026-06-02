@@ -163,6 +163,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       customExpiryTime: ""
   });
 
+  // — Notification badge counts —
+  const [notifCounts, setNotifCounts] = useState({ leaves: 0, assets: 0, announcements: 0 });
+
   // — Asset States —
   const [allAssets, setAllAssets] = useState([]);
   const [assignAsset, setAssignAsset]     = useState(null);   // asset being assigned
@@ -376,6 +379,20 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       .then(data => { if (Array.isArray(data) && data.length > 0) setTodayBirthdays(data); })
       .catch(() => {});
   }, [token, api]);
+
+  // — Notification badge counts (poll every 60s so new activity blinks live) —
+  useEffect(() => {
+    const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+    const loadCounts = () => {
+      fetch(`${baseUrl}/api/notifications/counts`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setNotifCounts(d); })
+        .catch(() => {});
+    };
+    loadCounts();
+    const id = setInterval(loadCounts, 60000);
+    return () => clearInterval(id);
+  }, [token, api, view]);
 
   // — Employee Actions —
   
@@ -654,6 +671,11 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         view={view}
         setView={(v) => { setView(v); if (v === "employees") setSubView("list"); }}
         onLogout={onLogout}
+        navBadges={{
+          leaves: notifCounts?.leaves || 0,
+          assets: notifCounts?.assets || 0,
+          announcements: notifCounts?.announcements || 0,
+        }}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

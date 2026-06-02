@@ -733,6 +733,12 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // ============================================================================
   // MAIN RENDER METHOD
   // ============================================================================
+  const dismissedAnn = (() => {
+    try { return new Set(JSON.parse(localStorage.getItem(`dismissed_ann_${user?._id || "guest"}`) || "[]")); }
+    catch { return new Set(); }
+  })();
+  const hasNewAnnouncements = Array.isArray(announcements) && announcements.some(a => !dismissedAnn.has(a._id));
+
   return (
     <>
     <div className="app-shell">
@@ -742,6 +748,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         view={view}
         setView={setView}
         onLogout={onLogout}
+        navDots={{ announcements: hasNewAnnouncements }}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

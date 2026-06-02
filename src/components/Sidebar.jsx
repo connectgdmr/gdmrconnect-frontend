@@ -65,7 +65,7 @@ function getActiveItem(view) {
   return view;
 }
 
-export default function Sidebar({ role, user, view, setView, onLogout, navBadges = {}, isOpen, onClose }) {
+export default function Sidebar({ role, user, view, setView, onLogout, navBadges = {}, navDots = {}, isOpen, onClose }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const navItems = NAV_ITEMS[role] || NAV_ITEMS.employee;
   const activeItem = getActiveItem(view);
@@ -89,6 +89,7 @@ export default function Sidebar({ role, user, view, setView, onLogout, navBadges
         <nav className="sidebar-nav">
           {navItems.map((item) => {
             const badge = navBadges[item.view] || 0;
+            const dot   = !badge && navDots[item.view];
             return (
               <button
                 key={item.view}
@@ -98,6 +99,7 @@ export default function Sidebar({ role, user, view, setView, onLogout, navBadges
                 <span className="sidebar-nav-icon">{item.icon}</span>
                 <span className="sidebar-nav-label">{item.label}</span>
                 {badge > 0 && <span className="sidebar-nav-badge">{badge}</span>}
+                {dot && <span className="sidebar-nav-dot" title="New activity" />}
               </button>
             );
           })}
