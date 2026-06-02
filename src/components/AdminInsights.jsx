@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 
+// Green-family palette to match the dashboard theme
 const DEPT_PALETTE = [
-  "#3b82f6", "#16a34a", "#f59e0b", "#8b5cf6",
-  "#06b6d4", "#f97316", "#ec4899", "#6366f1",
+  "#34a06a", "#1c5249", "#5cb88a", "#2b885a",
+  "#7cc4a4", "#226e48", "#9bd0b8", "#143f39",
 ];
 
 const SERIES = [
@@ -391,7 +392,7 @@ export default function AdminInsights({ stats, employees, api, token }) {
               <>
                 <div style={{
                   width: `${(employeeCount / totalStaff) * 100}%`,
-                  background: "#3b82f6",
+                  background: "#34a06a",
                   transition: "width 0.7s cubic-bezier(.4,0,.2,1)",
                   display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
                 }}>
@@ -399,7 +400,7 @@ export default function AdminInsights({ stats, employees, api, token }) {
                     <span style={{ fontSize: 9, fontWeight: 700, color: "#fff" }}>{employeeCount}</span>
                   )}
                 </div>
-                <div style={{ flex: 1, background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ flex: 1, background: "#1c5249", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {managerCount / totalStaff > 0.12 && (
                     <span style={{ fontSize: 9, fontWeight: 700, color: "#fff" }}>{managerCount}</span>
                   )}
@@ -410,17 +411,17 @@ export default function AdminInsights({ stats, employees, api, token }) {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div style={{ background: "#eff6ff", borderRadius: 12, padding: "16px 12px", textAlign: "center", border: "1px solid #dbeafe" }}>
-            <div style={{ fontSize: 32, fontWeight: 800, color: "#1d4ed8", lineHeight: 1 }}>{employeeCount}</div>
-            <div style={{ fontSize: 12, color: "#3b82f6", fontWeight: 600, marginTop: 5 }}>Employees</div>
-            <div style={{ fontSize: 11, color: "#93c5fd", marginTop: 2 }}>
+          <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "16px 12px", textAlign: "center", border: "1px solid #bbf7d0" }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: "#226e48", lineHeight: 1 }}>{employeeCount}</div>
+            <div style={{ fontSize: 12, color: "#34a06a", fontWeight: 600, marginTop: 5 }}>Employees</div>
+            <div style={{ fontSize: 11, color: "#86c8a6", marginTop: 2 }}>
               {totalStaff > 0 ? Math.round((employeeCount / totalStaff) * 100) : 0}% of workforce
             </div>
           </div>
-          <div style={{ background: "#fffbeb", borderRadius: 12, padding: "16px 12px", textAlign: "center", border: "1px solid #fde68a" }}>
-            <div style={{ fontSize: 32, fontWeight: 800, color: "#d97706", lineHeight: 1 }}>{managerCount}</div>
-            <div style={{ fontSize: 12, color: "#f59e0b", fontWeight: 600, marginTop: 5 }}>Managers</div>
-            <div style={{ fontSize: 11, color: "#fcd34d", marginTop: 2 }}>
+          <div style={{ background: "#eefaf6", borderRadius: 12, padding: "16px 12px", textAlign: "center", border: "1px solid #c5e8dc" }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: "#143f39", lineHeight: 1 }}>{managerCount}</div>
+            <div style={{ fontSize: 12, color: "#1c5249", fontWeight: 600, marginTop: 5 }}>Managers</div>
+            <div style={{ fontSize: 11, color: "#7fa699", marginTop: 2 }}>
               {totalStaff > 0 ? Math.round((managerCount / totalStaff) * 100) : 0}% of workforce
             </div>
           </div>

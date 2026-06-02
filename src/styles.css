@@ -801,11 +801,12 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-top: 16px;
-  align-items: start;
+  align-items: stretch;
 }
 .insights-card {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 @media (max-width: 1100px) {
   .insights-grid { grid-template-columns: 1fr 1fr; }
