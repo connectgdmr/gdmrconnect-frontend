@@ -58,7 +58,7 @@ function EmploymentStatusBadge({ emp }) {
 
   let label, style;
   if (resignedLeft) {
-    label = "Resigned";
+    label = "Off-boarded";
     style = { bg: "#f1f5f9", color: "#475569", border: "#cbd5e1" };
   } else if (hasResignation) {
     label = "Serving Notice";
@@ -459,7 +459,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
             <option value="active">Active</option>
             <option value="on_leave">On Extended Leave</option>
             <option value="notice">Serving Notice</option>
-            <option value="resigned">Resigned</option>
+            <option value="resigned">Off-boarded</option>
           </select>
         </div>
       </div>
