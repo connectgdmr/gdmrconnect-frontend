@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   FaBriefcase, FaMapMarkerAlt, FaClock, FaUsers,
-  FaPlus, FaTimes, FaCheckCircle, FaStar,
+  FaPlus, FaTimes, FaCheckCircle, FaStar, FaFileUpload, FaFilePdf,
 } from "react-icons/fa";
 
 const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
@@ -22,8 +22,10 @@ export default function EmployeeCareer({ token, user }) {
 
   const [refJobId, setRefJobId]   = useState("");
   const [refForm, setRefForm]     = useState(blankRef());
+  const [resumeFile, setResumeFile] = useState(null);
   const [refSaving, setRefSaving] = useState(false);
   const [refMsg, setRefMsg]       = useState("");
+  const fileInputRef = useRef(null);
 
   const [myRefs, setMyRefs]       = useState([]);
   const [refsLoading, setRefsLoading] = useState(false);
@@ -56,18 +58,26 @@ export default function EmployeeCareer({ token, user }) {
   async function submitReferral(e) {
     e.preventDefault();
     if (!refJobId) return setRefMsg("Please select a job.");
+    if (resumeFile && resumeFile.size > 5 * 1024 * 1024) return setRefMsg("Resume must be under 5 MB.");
     setRefSaving(true); setRefMsg("");
     try {
+      // Send as multipart so the optional resume file can ride along.
+      const fd = new FormData();
+      fd.append("job_id", refJobId);
+      Object.entries(refForm).forEach(([k, v]) => fd.append(k, v ?? ""));
+      if (resumeFile) fd.append("resume", resumeFile);
+
       const r = await fetch(`${BASE}/career/referrals`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...refForm, job_id: refJobId }),
+        headers: { Authorization: `Bearer ${token}` }, // no Content-Type — browser sets multipart boundary
+        body: fd,
       });
       if (r.ok) {
         setRefMsg("Referral submitted! Thank you for referring.");
-        setRefForm(blankRef()); setRefJobId("");
+        setRefForm(blankRef()); setRefJobId(""); setResumeFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
       } else {
-        const d = await r.json();
+        const d = await r.json().catch(() => ({}));
         setRefMsg(d.message || "Failed to submit referral.");
       }
     } catch { setRefMsg("Network error. Please try again."); } finally { setRefSaving(false); }
@@ -182,7 +192,7 @@ export default function EmployeeCareer({ token, user }) {
               { label: "Candidate Full Name *",  key: "candidate_name",  type: "text",  req: true  },
               { label: "Candidate Email *",       key: "candidate_email", type: "email", req: true  },
               { label: "Candidate Phone",         key: "candidate_phone", type: "tel",   req: false },
-              { label: "Resume / LinkedIn URL",   key: "resume_url",      type: "url",   req: false },
+              { label: "LinkedIn / Portfolio URL (optional)", key: "resume_url", type: "url", req: false },
             ].map(({ label, key, type, req }) => (
               <div key={key} style={{ marginBottom: 14 }}>
                 <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>{label}</label>
@@ -190,6 +200,40 @@ export default function EmployeeCareer({ token, user }) {
                   onChange={e => setRefForm(f => ({ ...f, [key]: e.target.value }))} />
               </div>
             ))}
+
+            {/* Resume file upload (optional) */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>
+                Upload Resume <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional · PDF/DOC, max 5 MB)</span>
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={e => setResumeFile(e.target.files?.[0] || null)}
+                style={{ display: "none" }}
+                id="resume-upload-input"
+              />
+              {resumeFile ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8 }}>
+                  <FaFilePdf color="#dc2626" />
+                  <span style={{ flex: 1, fontSize: 13, color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{resumeFile.name}</span>
+                  <span style={{ fontSize: 11, color: "#94a3b8" }}>{(resumeFile.size / 1024).toFixed(0)} KB</span>
+                  <button type="button" onClick={() => { setResumeFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}>
+                    <FaTimes size={13} />
+                  </button>
+                </div>
+              ) : (
+                <label htmlFor="resume-upload-input" style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  padding: "12px", border: "1.5px dashed #cbd5e1", borderRadius: 8, cursor: "pointer",
+                  color: "#64748b", fontSize: 13, fontWeight: 500, transition: "border-color 0.15s",
+                }}>
+                  <FaFileUpload /> Click to upload resume file
+                </label>
+              )}
+            </div>
 
             <div style={{ marginBottom: 20 }}>
               <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>

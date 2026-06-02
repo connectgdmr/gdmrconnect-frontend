@@ -421,10 +421,19 @@ export default function AdminCareer({ token, employees = [] }) {
                           </td>
                           <td style={{ fontSize: 13 }}>{r.job_title || "—"}</td>
                           <td>
-                            {r.resume_url ? (
-                              <a href={r.resume_url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
-                                <FaLink size={10} /> View
-                              </a>
+                            {(r.resume_file_url || r.resume_url) ? (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                {r.resume_file_url && (
+                                  <a href={r.resume_file_url} target="_blank" rel="noreferrer" style={{ color: "#dc2626", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                                    <FaLink size={10} /> Resume File
+                                  </a>
+                                )}
+                                {r.resume_url && (
+                                  <a href={r.resume_url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                                    <FaLink size={10} /> Link
+                                  </a>
+                                )}
+                              </div>
                             ) : <span style={{ color: "#94a3b8", fontSize: 12 }}>—</span>}
                           </td>
                           <td style={{ fontSize: 12, color: "#64748b", maxWidth: 150 }}>
