@@ -71,7 +71,7 @@ export default function Login({ onLogin, api }) {
         <div className="login-features">
           {FEATURES.map((f) => (
             <div key={f} className="login-feature-item">
-              <FaCheckCircle style={{ color: "#b91c1c", flexShrink: 0, fontSize: 15 }} />
+              <FaCheckCircle style={{ color: "#34a06a", flexShrink: 0, fontSize: 15 }} />
               <span>{f}</span>
             </div>
           ))}
