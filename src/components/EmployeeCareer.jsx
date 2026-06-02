@@ -114,6 +114,9 @@ export default function EmployeeCareer({ token, user }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {safeJobs.map(j => {
               const tc = TYPE_COLORS[j.employment_type] || TYPE_COLORS["Full-time"];
+              const reqs = Array.isArray(j.requirements)
+                ? j.requirements
+                : (typeof j.requirements === "string" && j.requirements ? j.requirements.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : []);
               return (
                 <div key={j._id} className="card" style={{ borderLeft: `4px solid ${tc.color}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
@@ -128,9 +131,9 @@ export default function EmployeeCareer({ token, user }) {
                         {(j.salary_min || j.salary_max) && <span>₹{j.salary_min || "—"} – ₹{j.salary_max || "—"}/mo</span>}
                       </div>
                       {j.description && <p style={{ margin: "0 0 8px", fontSize: 13, color: "#475569", lineHeight: 1.5 }}>{j.description.slice(0, 120)}{j.description.length > 120 ? "…" : ""}</p>}
-                      {j.requirements?.length > 0 && (
+                      {reqs.length > 0 && (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                          {j.requirements.slice(0, 5).map((r, i) => (
+                          {reqs.slice(0, 5).map((r, i) => (
                             <span key={i} style={{ fontSize: 11, padding: "2px 8px", background: "#f1f5f9", borderRadius: 4, color: "#475569" }}>{r}</span>
                           ))}
                         </div>

@@ -48,6 +48,7 @@ import AdminInsights from "./AdminInsights";
 import AdminAssessment from "./AdminAssessment";
 import AdminLMS from "./AdminLMS";
 import AdminCareer from "./AdminCareer";
+import ErrorBoundary from "./ErrorBoundary";
 
 // ============================================================================
 // MAIN EXPORT: ADMIN DASHBOARD
@@ -905,13 +906,13 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {view === "summary" && <div style={{ marginTop: "16px" }}><AdminAttendanceSummary token={token} api={api} /></div>}
 
       {/* 6. ASSESSMENT */}
-      {view === "assessment" && <AdminAssessment token={token} />}
+      {view === "assessment" && <ErrorBoundary label="Assessments" resetKey={view}><AdminAssessment token={token} /></ErrorBoundary>}
 
       {/* 7. LMS */}
-      {view === "lms" && <AdminLMS token={token} employees={employees} departments={departments} />}
+      {view === "lms" && <ErrorBoundary label="LMS" resetKey={view}><AdminLMS token={token} employees={employees} departments={departments} /></ErrorBoundary>}
 
       {/* 8. CAREER */}
-      {view === "career" && <AdminCareer token={token} employees={employees} />}
+      {view === "career" && <ErrorBoundary label="Career" resetKey={view}><AdminCareer token={token} employees={employees} /></ErrorBoundary>}
 
       {/* 6. HOLIDAYS */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}

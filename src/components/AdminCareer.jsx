@@ -82,8 +82,11 @@ export default function AdminCareer({ token, employees = [] }) {
 
   function startEdit(j) {
     setPostMode("edit"); setEditJobId(j._id);
+    const reqs = Array.isArray(j.requirements)
+      ? j.requirements
+      : (typeof j.requirements === "string" && j.requirements ? j.requirements.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : []);
     setJobForm({ title: j.title, department: j.department || "", location: j.location || "", employment_type: j.employment_type || "Full-time",
-      description: j.description || "", requirements: j.requirements || [], salary_min: j.salary_min || "", salary_max: j.salary_max || "", status: j.status || "active" });
+      description: j.description || "", requirements: reqs, salary_min: j.salary_min || "", salary_max: j.salary_max || "", status: j.status || "active" });
     setNewReq(""); setTab("post");
   }
 
@@ -221,6 +224,9 @@ export default function AdminCareer({ token, employees = [] }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {filteredJobs.map(j => {
                 const tc = TYPE_COLORS[j.employment_type] || TYPE_COLORS["Full-time"];
+                const reqs = Array.isArray(j.requirements)
+                  ? j.requirements
+                  : (typeof j.requirements === "string" && j.requirements ? j.requirements.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : []);
                 return (
                   <div key={j._id} className="card" style={{ borderLeft: `4px solid ${tc.color}` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
@@ -239,12 +245,12 @@ export default function AdminCareer({ token, employees = [] }) {
                           {(j.salary_min || j.salary_max) && <span style={{ display: "flex", alignItems: "center", gap: 4 }}>₹{j.salary_min || "—"} – ₹{j.salary_max || "—"}/mo</span>}
                           {j.created_at && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><FaClock size={10} />Posted {new Date(j.created_at).toLocaleDateString("en-GB")}</span>}
                         </div>
-                        {j.requirements?.length > 0 && (
+                        {reqs.length > 0 && (
                           <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 5 }}>
-                            {j.requirements.slice(0, 4).map((r, i) => (
+                            {reqs.slice(0, 4).map((r, i) => (
                               <span key={i} style={{ fontSize: 11, padding: "2px 8px", background: "#f1f5f9", borderRadius: 4, color: "#475569" }}>{r}</span>
                             ))}
-                            {j.requirements.length > 4 && <span style={{ fontSize: 11, color: "#94a3b8" }}>+{j.requirements.length - 4} more</span>}
+                            {reqs.length > 4 && <span style={{ fontSize: 11, color: "#94a3b8" }}>+{reqs.length - 4} more</span>}
                           </div>
                         )}
                       </div>

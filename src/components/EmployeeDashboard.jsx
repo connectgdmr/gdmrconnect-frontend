@@ -4,6 +4,7 @@ import AnnouncementNotifications from "./AnnouncementNotifications";
 import HolidayCalendar from "./HolidayCalendar";
 import EmployeeLMS from "./EmployeeLMS";
 import EmployeeCareer from "./EmployeeCareer";
+import ErrorBoundary from "./ErrorBoundary";
 import AdminLeavePage from "./AdminLeavePage";
 import AdminAttendancePage from "./AdminAttendancePage";
 import { RATING_SCALE, getRatingInfo } from "../constants";
@@ -1497,8 +1498,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
 
       {/* — Holidays & Modals — */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
-      {view === "lms"     && <EmployeeLMS token={token} />}
-      {view === "career"  && <EmployeeCareer token={token} user={user} />}
+      {view === "lms"     && <ErrorBoundary label="My Courses" resetKey={view}><EmployeeLMS token={token} /></ErrorBoundary>}
+      {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
 
       {leaveModalOpen && (
         <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>
