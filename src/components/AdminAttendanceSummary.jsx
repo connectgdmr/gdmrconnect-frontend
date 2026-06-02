@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { FaFileCsv, FaFilePdf } from "react-icons/fa";
+import { SkeletonStats, SkeletonTable } from "./Skeleton";
 
 // Helper function to convert data to CSV format (UPDATED for Phase 2)
 function convertToCSV(summary) {
@@ -82,8 +83,9 @@ export default function AdminAttendanceSummary({ token, api }) {
 
   if (loading || !summary) {
       return (
-          <div className="card loader-container">
-              <div className="loader"></div>
+          <div style={{ marginTop: 16 }}>
+              <SkeletonStats count={4} />
+              <div style={{ marginTop: 14 }}><SkeletonTable rows={6} cols={5} /></div>
           </div>
       );
   }

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { 
-  FaSearch, 
-  FaFilter, 
-  FaTimes, 
-  FaList, 
+import { SkeletonCards, SkeletonTable } from "./Skeleton";
+import {
+  FaSearch,
+  FaFilter,
+  FaTimes,
+  FaList,
   FaThLarge, 
   FaCalendarAlt,
   FaCheckCircle,
@@ -494,9 +495,7 @@ export default function AdminAttendancePage({ token, api }) {
       {viewMode === "grid" && (
           <>
               {loading ? (
-                <div className="loader-container">
-                    <div className="loader"></div>
-                </div>
+                <div style={{ marginTop: 20 }}><SkeletonCards count={8} minWidth={200} /></div>
               ) : filteredEmployees.length === 0 ? (
                 <div className="card" style={{textAlign:'center', color:'#888', marginTop: 20, padding: 40}}>
                     No employees found matching your filter criteria.
@@ -524,7 +523,7 @@ export default function AdminAttendancePage({ token, api }) {
       {viewMode === "logs" && (
           <div className="card" style={{ marginTop: 20, padding: 0, overflow: 'hidden' }}>
               {loadingLogs ? (
-                 <div className="loader-container" style={{ padding: 40 }}><div className="loader"></div></div>
+                 <SkeletonTable rows={6} cols={5} />
               ) : filteredLogs.length === 0 ? (
                  <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
                      No attendance logs found matching the selected criteria. Try adjusting the date filter.

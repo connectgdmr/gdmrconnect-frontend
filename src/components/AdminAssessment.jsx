@@ -4,6 +4,7 @@ import {
   FaCheckCircle, FaTimesCircle, FaClipboardList, FaUserGraduate,
   FaClock, FaChartBar, FaSearch,
 } from "react-icons/fa";
+import { SkeletonCards, SkeletonTable } from "./Skeleton";
 
 const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
 
@@ -246,7 +247,7 @@ export default function AdminAssessment({ token }) {
 
       {/* ── Assessments list ── */}
       {tab === "assessments" && (
-        loading ? <div className="loader-container"><div className="loader" /></div>
+        loading ? <SkeletonCards count={6} />
         : assessments.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
             <FaClipboardList size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
@@ -368,7 +369,7 @@ export default function AdminAssessment({ token }) {
             <input style={{ border: "none", outline: "none", flex: 1, fontSize: 14, background: "transparent" }}
               placeholder="Search candidate name or email…" value={candSearch} onChange={e => setCandSearch(e.target.value)} />
           </div>
-          {candLoading ? <div className="loader-container"><div className="loader" /></div>
+          {candLoading ? <SkeletonTable rows={6} cols={5} />
           : candidates.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px", color: "#94a3b8" }}>
               <FaUserGraduate size={36} style={{ opacity: 0.2, marginBottom: 10 }} />
@@ -403,7 +404,7 @@ export default function AdminAssessment({ token }) {
 
       {/* ── Results ── */}
       {tab === "results" && (
-        resultLoading ? <div className="loader-container"><div className="loader" /></div>
+        resultLoading ? <SkeletonTable rows={5} cols={1} />
         : !selectedResult ? (
           <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
             <FaChartBar size={36} style={{ opacity: 0.2, marginBottom: 12 }} />

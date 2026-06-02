@@ -3,6 +3,7 @@ import {
   FaBriefcase, FaMapMarkerAlt, FaClock, FaUsers,
   FaPlus, FaTimes, FaCheckCircle, FaStar, FaFileUpload, FaFilePdf,
 } from "react-icons/fa";
+import { SkeletonList } from "./Skeleton";
 
 const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
 
@@ -134,7 +135,7 @@ export default function EmployeeCareer({ token, user }) {
 
       {/* ── Job Board ── */}
       {tab === "board" && (
-        loading ? <div className="loader-container"><div className="loader" /></div>
+        loading ? <SkeletonList count={4} />
         : safeJobs.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
             <FaBriefcase size={40} style={{ opacity: 0.15, marginBottom: 12 }} />
@@ -273,7 +274,7 @@ export default function EmployeeCareer({ token, user }) {
 
       {/* ── My Referrals ── */}
       {tab === "my-referrals" && (
-        refsLoading ? <div className="loader-container"><div className="loader" /></div>
+        refsLoading ? <SkeletonList count={3} />
         : safeMyRefs.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "48px 20px", color: "#94a3b8" }}>
             <FaStar size={36} style={{ opacity: 0.15, marginBottom: 12 }} />

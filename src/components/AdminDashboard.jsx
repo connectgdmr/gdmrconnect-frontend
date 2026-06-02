@@ -49,6 +49,7 @@ import AdminAssessment from "./AdminAssessment";
 import AdminLMS from "./AdminLMS";
 import AdminCareer from "./AdminCareer";
 import ErrorBoundary from "./ErrorBoundary";
+import { SkeletonTable, SkeletonCards } from "./Skeleton";
 
 // ============================================================================
 // MAIN EXPORT: ADMIN DASHBOARD
@@ -878,7 +879,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
             {subView === "add" ? (
               <EmployeeForm onAdd={addEmployee} api={api} token={token} departments={departments} />
             ) : loading ? (
-              <div className="card">Loading...</div>
+              <SkeletonTable rows={8} cols={5} />
             ) : (
               <EmployeeList
                 employees={employees}
@@ -1132,7 +1133,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
             {/* Department cards grid */}
             {deptLoading ? (
-              <div className="loader-container"><div className="loader" /></div>
+              <SkeletonCards count={6} />
             ) : enriched.length === 0 ? (
               <div style={{ textAlign: "center", padding: "60px 24px", background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0" }}>
                 <FaBuilding size={40} style={{ color: "#cbd5e1", marginBottom: 16 }} />

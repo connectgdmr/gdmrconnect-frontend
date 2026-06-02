@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FaEdit, FaTrash } from "react-icons/fa";
+import { SkeletonTable } from "./Skeleton";
 
 export default function AdminManagers({ token, api }) {
   const [managers, setManagers] = useState([]);
@@ -39,7 +40,7 @@ export default function AdminManagers({ token, api }) {
       {error && <p className="alert">{error}</p>}
       
       {/* Change #4: Loader */}
-      {loading && <div className="loader-container"><div className="loader"></div></div>}
+      {loading && <SkeletonTable rows={5} cols={4} />}
 
       {!loading && managers.length === 0 && (
         <p>No Managers Added Yet.</p>

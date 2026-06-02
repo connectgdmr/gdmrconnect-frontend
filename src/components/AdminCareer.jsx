@@ -4,6 +4,7 @@ import {
   FaClock, FaUsers, FaLink, FaSearch, FaCheckCircle,
   FaTimesCircle, FaRegClock, FaStar,
 } from "react-icons/fa";
+import { SkeletonList, SkeletonTable } from "./Skeleton";
 
 const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
 
@@ -234,7 +235,7 @@ export default function AdminCareer({ token, employees = [] }) {
             ))}
           </div>
 
-          {jobsLoading ? <div className="loader-container"><div className="loader" /></div>
+          {jobsLoading ? <SkeletonList count={4} />
           : filteredJobs.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
               <FaBriefcase size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
@@ -402,7 +403,7 @@ export default function AdminCareer({ token, employees = [] }) {
             </select>
           </div>
 
-          {refLoading ? <div className="loader-container"><div className="loader" /></div>
+          {refLoading ? <SkeletonTable rows={6} cols={7} />
           : filteredReferrals.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
               <FaUsers size={36} style={{ opacity: 0.2, marginBottom: 12 }} />

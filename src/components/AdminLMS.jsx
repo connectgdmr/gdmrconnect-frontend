@@ -4,6 +4,7 @@ import {
   FaBook, FaVideo, FaFileAlt, FaLink, FaUsers,
   FaChevronDown, FaChevronRight, FaCheckCircle, FaSearch,
 } from "react-icons/fa";
+import { SkeletonCards, SkeletonTable } from "./Skeleton";
 
 const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
 
@@ -233,7 +234,7 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
 
       {/* ── Courses list ── */}
       {tab === "courses" && (
-        loading ? <div className="loader-container"><div className="loader" /></div>
+        loading ? <SkeletonCards count={6} />
         : courses.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
             <FaGraduationCap size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
@@ -449,7 +450,7 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
             </select>
           </div>
 
-          {progLoading ? <div className="loader-container"><div className="loader" /></div>
+          {progLoading ? <SkeletonTable rows={6} cols={6} />
           : filteredProgress.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
               <FaGraduationCap size={36} style={{ opacity: 0.2, marginBottom: 12 }} />

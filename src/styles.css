@@ -570,6 +570,24 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+/* ── 19b. SKELETON LOADING ─────────────────────────── */
+.skeleton-box {
+  position: relative;
+  background: #e9eef4;
+  overflow: hidden;
+}
+.skeleton-box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  animation: skeleton-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+
 /* ── 20. LEAVE CARDS (MOBILE) ──────────────────────── */
 .leave-cards { display: none; flex-direction: column; gap: 10px; margin-top: 10px; }
 .leave-card { background: #fff; border: 1px solid var(--slate-200); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-xs); }

@@ -5,6 +5,7 @@ import {
   FaEdit, FaUserClock, FaTimes, FaPlus, FaExclamationTriangle,
   FaSun, FaMoon,
 } from "react-icons/fa";
+import { SkeletonTable } from "./Skeleton";
 
 const SHIFTS = [
   { key: "morning", label: "Morning Shift", hours: "10 AM – 7 PM", icon: <FaSun  size={11} />, color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
@@ -395,7 +396,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
     }
   };
 
-  if (!employees) return <div className="loader-container"><div className="loader" /></div>;
+  if (!employees) return <SkeletonTable rows={8} cols={5} />;
 
   const getEmpStatus = (emp) => {
     if (emp.resignation?.notice_date)    return "resigned";

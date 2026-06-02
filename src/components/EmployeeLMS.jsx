@@ -3,6 +3,7 @@ import {
   FaGraduationCap, FaBook, FaVideo, FaFileAlt, FaLink,
   FaCheckCircle, FaChevronDown, FaChevronRight, FaLock,
 } from "react-icons/fa";
+import { SkeletonStats, SkeletonList } from "./Skeleton";
 
 const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
 
@@ -97,7 +98,7 @@ export default function EmployeeLMS({ token }) {
     } catch { /* optimistic state already applied */ } finally { setCompleting(null); }
   }
 
-  if (loading) return <div className="loader-container"><div className="loader" /></div>;
+  if (loading) return <div style={{ marginTop: 16 }}><SkeletonStats count={3} /><div style={{ marginTop: 14 }}><SkeletonList count={3} /></div></div>;
 
   if (courses.length === 0) {
     return (

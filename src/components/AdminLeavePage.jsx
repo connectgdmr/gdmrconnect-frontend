@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { 
-  FaSearch, 
-  FaFilter, 
+import { SkeletonTable } from "./Skeleton";
+import {
+  FaSearch,
+  FaFilter,
   FaCheckCircle, 
   FaTimesCircle, 
   FaFileDownload,
@@ -272,10 +273,7 @@ export default function AdminLeavePage({ token, api }) {
       
       {/* ---------------- DATA TABLE ---------------- */}
       {loading ? (
-          <div className="loader-container" style={{ padding: '60px 0', background: '#fff' }}>
-              <div className="loader"></div>
-              <p style={{textAlign: 'center', color: '#64748b', marginTop: 15}}>Fetching leave requests securely...</p>
-          </div>
+          <SkeletonTable rows={7} cols={6} />
       ) : (
           <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '0 0 12px 12px' }}>
              {filteredLeaves.length === 0 && !error ? (

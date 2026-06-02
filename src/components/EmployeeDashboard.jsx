@@ -5,6 +5,7 @@ import HolidayCalendar from "./HolidayCalendar";
 import EmployeeLMS from "./EmployeeLMS";
 import EmployeeCareer from "./EmployeeCareer";
 import ErrorBoundary from "./ErrorBoundary";
+import { SkeletonTable } from "./Skeleton";
 import AdminLeavePage from "./AdminLeavePage";
 import AdminAttendancePage from "./AdminAttendancePage";
 import { RATING_SCALE, getRatingInfo } from "../constants";
@@ -1475,7 +1476,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       {/* — Attendance Log — */}
       {view === "attendance-log" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
-           {loading ? <div className="loader-container" style={{padding: 40}}><div className="loader"></div></div> : (
+           {loading ? <SkeletonTable rows={6} cols={3} /> : (
             <table className="styled-table">
               <thead><tr><th>Type</th><th>Date / Time</th><th>Photo</th></tr></thead>
               <tbody>
