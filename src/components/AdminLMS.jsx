@@ -464,7 +464,13 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
                   </thead>
                   <tbody>
                     {filteredProgress.map((row, i) => {
-                      const pct = Math.round(row.percent_complete || 0);
+                      const rawPct = row.percent_complete ?? row.percentComplete ?? row.progress ?? row.completion ?? row.percent;
+                      const total  = row.total_lessons ?? row.totalLessons;
+                      const done   = row.completed_lessons ?? row.completedLessons ?? (Array.isArray(row.completed_lessons) ? row.completed_lessons.length : undefined);
+                      const pct = Math.round(
+                        rawPct != null ? rawPct
+                        : (total ? (done || 0) / total * 100 : 0)
+                      );
                       const statusLabel = pct >= 100 ? "Completed" : pct > 0 ? "In Progress" : "Not Started";
                       const statusColor = pct >= 100 ? "#16a34a" : pct > 0 ? "#2563eb" : "#94a3b8";
                       return (
