@@ -48,6 +48,7 @@ import AdminInsights from "./AdminInsights";
 import AdminAssessment from "./AdminAssessment";
 import AdminLMS from "./AdminLMS";
 import AdminCareer from "./AdminCareer";
+import AdminPayroll from "./AdminPayroll";
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable, SkeletonCards } from "./Skeleton";
 
@@ -914,6 +915,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
       {/* 8. CAREER */}
       {view === "career" && <ErrorBoundary label="Career" resetKey={view}><AdminCareer token={token} employees={employees} /></ErrorBoundary>}
+
+      {/* 9. PAYROLL */}
+      {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}><AdminPayroll token={token} employees={employees} /></ErrorBoundary>}
 
       {/* 6. HOLIDAYS */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}

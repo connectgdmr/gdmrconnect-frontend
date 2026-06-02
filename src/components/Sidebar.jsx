@@ -4,7 +4,7 @@ import {
   FaTachometerAlt, FaUsers, FaCalendarCheck, FaClock, FaUserTie,
   FaChartPie, FaCalendarAlt, FaBullhorn, FaUserShield, FaLaptop,
   FaHistory, FaCalendarPlus, FaEdit, FaChartLine, FaClipboardCheck,
-  FaSignOutAlt, FaBalanceScale, FaBuilding, FaClipboardList, FaGraduationCap, FaBriefcase
+  FaSignOutAlt, FaBalanceScale, FaBuilding, FaClipboardList, FaGraduationCap, FaBriefcase, FaMoneyBillWave
 } from "react-icons/fa";
 
 const NAV_ITEMS = {
@@ -23,6 +23,7 @@ const NAV_ITEMS = {
     { icon: <FaClipboardList />, label: "Assessments", view: "assessment" },
     { icon: <FaGraduationCap />, label: "LMS", view: "lms" },
     { icon: <FaBriefcase />, label: "Career", view: "career" },
+    { icon: <FaMoneyBillWave />, label: "Payroll", view: "payroll" },
   ],
   manager: [
     { icon: <FaTachometerAlt />, label: "Dashboard", view: "dashboard" },
@@ -40,6 +41,7 @@ const NAV_ITEMS = {
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },
     { icon: <FaGraduationCap />, label: "My Courses", view: "lms" },
     { icon: <FaBriefcase />, label: "Career", view: "career" },
+    { icon: <FaMoneyBillWave />, label: "Payroll", view: "payroll" },
     { icon: <FaUserShield />, label: "Special Access", view: "special-access" },
   ],
   employee: [
@@ -53,6 +55,7 @@ const NAV_ITEMS = {
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },
     { icon: <FaGraduationCap />, label: "My Courses", view: "lms" },
     { icon: <FaBriefcase />, label: "Career", view: "career" },
+    { icon: <FaMoneyBillWave />, label: "Payroll", view: "payroll" },
     { icon: <FaUserShield />, label: "Special Access", view: "special-access" },
   ],
 };

@@ -3,6 +3,8 @@ import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
 import EmployeeLMS from "./EmployeeLMS";
 import EmployeeCareer from "./EmployeeCareer";
+import EmployeePayroll from "./EmployeePayroll";
+import AdminPayroll from "./AdminPayroll";
 import ErrorBoundary from "./ErrorBoundary";
 import AdminLeavePage from "./AdminLeavePage";
 import AdminAttendancePage from "./AdminAttendancePage";
@@ -2004,6 +2006,11 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
       {view === "lms"     && <ErrorBoundary label="My Courses" resetKey={view}><EmployeeLMS token={token} /></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
+      {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}>
+        {user?.department?.toLowerCase().includes("account")
+          ? <AdminPayroll token={token} />
+          : <EmployeePayroll token={token} />}
+      </ErrorBoundary>}
 
       {leaveModalOpen && (
         <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>
