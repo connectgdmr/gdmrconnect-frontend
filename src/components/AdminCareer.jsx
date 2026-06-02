@@ -30,6 +30,15 @@ const blankJob = () => ({
   description: "", requirements: [], salary_min: "", salary_max: "", status: "active",
 });
 
+// Force a Cloudinary file URL to download as an attachment (proper .pdf)
+const downloadUrl = (url) => {
+  if (!url) return url;
+  if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
+    return url.replace("/upload/", "/upload/fl_attachment/");
+  }
+  return url;
+};
+
 export default function AdminCareer({ token, employees = [] }) {
   const [tab, setTab]       = useState("board");
   const [jobs, setJobs]     = useState([]);
@@ -424,8 +433,8 @@ export default function AdminCareer({ token, employees = [] }) {
                             {(r.resume_file_url || r.resume_url) ? (
                               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                                 {r.resume_file_url && (
-                                  <a href={r.resume_file_url} target="_blank" rel="noreferrer" style={{ color: "#dc2626", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
-                                    <FaLink size={10} /> Resume File
+                                  <a href={downloadUrl(r.resume_file_url)} download target="_blank" rel="noreferrer" style={{ color: "#dc2626", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                                    <FaLink size={10} /> Download PDF
                                   </a>
                                 )}
                                 {r.resume_url && (

@@ -55,6 +55,27 @@ export default function EmployeeCareer({ token, user }) {
   useEffect(() => { loadJobs(); }, []);
   useEffect(() => { if (tab === "my-referrals") loadMyRefs(); }, [tab]);
 
+  // Strict PDF-only validation (extension + MIME + magic bytes)
+  async function handleResumeSelect(file) {
+    setRefMsg("");
+    if (!file) { setResumeFile(null); return; }
+    const clear = () => { if (fileInputRef.current) fileInputRef.current.value = ""; setResumeFile(null); };
+
+    if (!file.name.toLowerCase().endsWith(".pdf") || (file.type && file.type !== "application/pdf")) {
+      clear(); return setRefMsg("Only PDF files are allowed.");
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      clear(); return setRefMsg("Resume must be under 5 MB.");
+    }
+    // Verify the real content is a PDF — genuine PDFs begin with "%PDF-"
+    try {
+      const header = await file.slice(0, 5).text();
+      if (!header.startsWith("%PDF-")) { clear(); return setRefMsg("This file is not a valid PDF."); }
+    } catch { clear(); return setRefMsg("Could not read the file. Please try again."); }
+
+    setResumeFile(file);
+  }
+
   async function submitReferral(e) {
     e.preventDefault();
     if (!refJobId) return setRefMsg("Please select a job.");
@@ -204,13 +225,13 @@ export default function EmployeeCareer({ token, user }) {
             {/* Resume file upload (optional) */}
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>
-                Upload Resume <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional · PDF/DOC, max 5 MB)</span>
+                Upload Resume <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional · PDF only, max 5 MB)</span>
               </label>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                onChange={e => setResumeFile(e.target.files?.[0] || null)}
+                accept="application/pdf,.pdf"
+                onChange={e => handleResumeSelect(e.target.files?.[0] || null)}
                 style={{ display: "none" }}
                 id="resume-upload-input"
               />
@@ -230,7 +251,7 @@ export default function EmployeeCareer({ token, user }) {
                   padding: "12px", border: "1.5px dashed #cbd5e1", borderRadius: 8, cursor: "pointer",
                   color: "#64748b", fontSize: 13, fontWeight: 500, transition: "border-color 0.15s",
                 }}>
-                  <FaFileUpload /> Click to upload resume file
+                  <FaFileUpload /> Click to upload PDF resume
                 </label>
               )}
             </div>
