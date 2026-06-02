@@ -812,19 +812,23 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
   padding: 4px 10px; border-radius: var(--radius-full);
   font-size: 11px; font-weight: 700; text-transform: uppercase; margin-top: 5px;
 }
-.role-manager  { background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; }
+.role-manager  { background: #effdf8; color: #0f766e; border: 1px solid #b6e6d6; }
 .role-employee { background: var(--slate-100); color: var(--slate-600); border: 1px solid var(--slate-200); }
 .btn-action {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px; border-radius: 7px; font-size: 14px;
-  border: none; cursor: pointer; transition: opacity var(--transition);
+  width: 34px; height: 34px; border-radius: 9px; font-size: 14px;
+  border: 1px solid transparent; cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
-.btn-action:hover  { opacity: 0.82; }
-.btn-action:active { opacity: 0.65; }
-.btn-edit    { background: #f59e0b; color: #fff; }
-.btn-status  { background: #0284c7; color: #fff; }
-.btn-promote { background: #16a34a; color: #fff; }
-.btn-remove  { background: #dc2626; color: #fff; }
+/* Soft tinted icon buttons — on-theme green/teal family, red only for delete */
+.btn-edit    { background: var(--brand-light); color: var(--brand); }
+.btn-edit:hover    { background: var(--brand); color: #fff; }
+.btn-status  { background: #effdf8; color: #0f766e; }
+.btn-status:hover  { background: #0f766e; color: #fff; }
+.btn-promote { background: #ecfdf3; color: #15803d; }
+.btn-promote:hover { background: #15803d; color: #fff; }
+.btn-remove  { background: #fef2f2; color: #dc2626; }
+.btn-remove:hover  { background: #dc2626; color: #fff; }
 
 /* ── 30. INSIGHTS GRID ──────────────────────────────── */
 .insights-grid {

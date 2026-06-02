@@ -220,7 +220,7 @@ export default function RegisterManager({ token, api }) {
         </div>
       </form>
 
-      <h3 style={{ color: "#b91c1c", marginTop: "20px" }}>Manager List</h3>
+      <h3 style={{ color: "var(--brand)", marginTop: "20px" }}>Manager List</h3>
 
       {loading && <p>Loading managers...</p>}
       {!loading && managers.length === 0 && <p>No managers found.</p>}
@@ -276,7 +276,7 @@ export default function RegisterManager({ token, api }) {
       {editModalOpen && editingManager && (
         <div className="modal-overlay" onClick={() => setEditModalOpen(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{width: 400}}>
-            <h3 style={{color: "#b91c1c"}}>Edit Manager</h3>
+            <h3 style={{color: "var(--brand)"}}>Edit Manager</h3>
             <form onSubmit={handleEditSave}>
                <div style={{textAlign: "left", marginBottom: 10}}>
                   <label>Name</label>

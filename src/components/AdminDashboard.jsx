@@ -983,11 +983,11 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                         <div key={ann._id}>
                             {editingAnnId === ann._id ? (
                                 <div className="edit-mode-card">
-                                    <h4 style={{marginTop: 0, color: '#3b82f6'}}>Editing Announcement</h4>
+                                    <h4 style={{marginTop: 0, color: 'var(--brand)'}}>Editing Announcement</h4>
                                     <input className="modern-input" style={{marginBottom: 10}} value={editAnnTitle} onChange={(e) => setEditAnnTitle(e.target.value)} />
                                     <textarea className="modern-input" style={{ minHeight: 100, resize:'vertical', marginBottom: 15 }} value={editAnnMessage} onChange={(e) => setEditAnnMessage(e.target.value)} />
                                     <div style={{display: 'flex', gap: 10}}>
-                                        <button className="btn" style={{background: '#3b82f6', display: 'flex', alignItems: 'center', gap: 5}} onClick={() => updateAnnouncement(ann._id)}><FaSave /> Save Changes</button>
+                                        <button className="btn" style={{display: 'flex', alignItems: 'center', gap: 5}} onClick={() => updateAnnouncement(ann._id)}><FaSave /> Save Changes</button>
                                         <button className="btn ghost" onClick={cancelEditAnnouncement}>Cancel</button>
                                     </div>
                                 </div>
@@ -1119,16 +1119,16 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         const totalEmployees = employees.length;
         const noManager = enriched.filter(d => !d.manager).length;
 
-        // Color palette per department — professional, controlled
+        // Color palette per department — green-family, on theme
         const PALETTE = [
-          { bg: "#EBF3FB", text: "#1264A3", border: "#D0E8F7", accent: "#1264A3" },
-          { bg: "#E8F5E9", text: "#2E7D32", border: "#C8E6C9", accent: "#388E3C" },
-          { bg: "#FFF3E0", text: "#BF5A00", border: "#FFDDB5", accent: "#F57C00" },
-          { bg: "#F3E5F5", text: "#6A1B9A", border: "#E1BEE7", accent: "#7B1FA2" },
-          { bg: "#E0F2F1", text: "#00695C", border: "#B2DFDB", accent: "#00796B" },
-          { bg: "#FBE9E7", text: "#BF360C", border: "#FFCCBC", accent: "#D84315" },
-          { bg: "#EDE7F6", text: "#4527A0", border: "#D1C4E9", accent: "#512DA8" },
-          { bg: "#ECEFF1", text: "#37474F", border: "#CFD8DC", accent: "#546E7A" },
+          { bg: "#f0fdf4", text: "#226e48", border: "#bbf7d0", accent: "#34a06a" },
+          { bg: "#effdf8", text: "#0f766e", border: "#b6e6d6", accent: "#0f766e" },
+          { bg: "#ecfdf5", text: "#047857", border: "#a7f3d0", accent: "#059669" },
+          { bg: "#e7f6f1", text: "#1c5249", border: "#c5e8dc", accent: "#1c5249" },
+          { bg: "#eef7f0", text: "#2f6b4f", border: "#cfe8d8", accent: "#2b885a" },
+          { bg: "#e9f5ee", text: "#14532d", border: "#bbf0cd", accent: "#15803d" },
+          { bg: "#f3f8f4", text: "#3f6b52", border: "#d6e7db", accent: "#4d7c5f" },
+          { bg: "#effcf6", text: "#0f5132", border: "#b8ead0", accent: "#198754" },
         ];
         const getColor = name => PALETTE[(name || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % PALETTE.length];
 
@@ -1392,7 +1392,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {/* ============================================================================ */}
       {view === "assets" && (
           <div className="card" style={{marginTop: 16}}>
-              <h3>Manage Organization Assets</h3>
+              <h3 style={{ color: "var(--brand)" }}>Manage Organization Assets</h3>
               <p className="small" style={{marginBottom: 20}}>Review and provide final authorization for all hardware and equipment requests across the company. Requests must be approved by the Department Manager before final Admin processing.</p>
               
               <div style={{overflowX: 'auto'}}>
@@ -1457,7 +1457,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                                                 style={{
                                                     display: "flex", alignItems: "center", gap: 5,
                                                     padding: "5px 10px", borderRadius: 6, border: "none",
-                                                    background: "#0284c7", color: "#fff",
+                                                    background: "#0f766e", color: "#fff",
                                                     fontSize: 12, fontWeight: 600, cursor: "pointer",
                                                     whiteSpace: "nowrap",
                                                 }}
@@ -1481,7 +1481,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
               <div>
-                <h3 style={{ margin: 0, color: "#0284c7", fontSize: 16 }}>Assign to Office Admin</h3>
+                <h3 style={{ margin: 0, color: "#0f766e", fontSize: 16 }}>Assign to Office Admin</h3>
                 <p style={{ margin: "5px 0 0", fontSize: 12, color: "#64748b" }}>
                   An email with the request details will be sent to the entered addresses.
                 </p>
@@ -1535,7 +1535,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
               />
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
                 <button className="btn" type="submit" disabled={assignSending}
-                  style={{ background: "#0284c7", display: "flex", alignItems: "center", gap: 6 }}>
+                  style={{ background: "#0f766e", display: "flex", alignItems: "center", gap: 6 }}>
                   <FaSave size={11} /> {assignSending ? "Sending…" : "Send Email"}
                 </button>
                 <button className="btn ghost" type="button" onClick={() => setAssignAsset(null)}>Cancel</button>
