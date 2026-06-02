@@ -69,6 +69,7 @@ function KpiTile({ icon, label, value, tone = "brand", onClick }) {
   const tones = {
     brand: { color: "var(--brand)", bg: "var(--brand-light)" },
     green: { color: "#16a34a", bg: "#f0fdf4" },
+    teal:  { color: "#0f766e", bg: "#effdf8" },
     amber: { color: "#d97706", bg: "#fffbeb" },
     slate: { color: "#475569", bg: "#f1f5f9" },
   };
@@ -765,7 +766,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         <div className="kpi-row">
           <KpiTile icon={<FaUsers />}        label="Total Workforce" value={employees.length}   tone="brand" />
           <KpiTile icon={<FaCheckCircle />}  label="Present Today"    value={stats.present ?? 0} tone="green" onClick={() => handleStatClick('present', 'Present Today')} />
-          <KpiTile icon={<FaUserClock />}    label="On Leave"         value={adjOnLeave}          tone="amber" onClick={() => handleStatClick('leave', 'On Leave Today')} />
+          <KpiTile icon={<FaUserClock />}    label="On Leave"         value={adjOnLeave}          tone="teal" onClick={() => handleStatClick('leave', 'On Leave Today')} />
           <KpiTile icon={<FaUserSlash />}    label="Not Checked In"   value={adjNotCheckedIn}     tone="slate" onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
         </div>
 
