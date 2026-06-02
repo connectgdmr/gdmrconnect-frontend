@@ -352,10 +352,10 @@ export default function AdminAttendancePage({ token, api }) {
           align-items: center;
           font-size: 20px;
         }
-        .text-green { background: #dcfce7; color: #16a34a; }
-        .text-red { background: #fee2e2; color: #dc2626; }
-        .text-dark-red { background: #fce8e8; color: #991b1b; }
-        .text-orange { background: #fef3c7; color: #d97706; }
+        .text-green { background: #f0fdf4; color: #16a34a; }
+        .text-red { background: #fef2f2; color: #dc2626; }
+        .text-dark-red { background: #effdf8; color: #0f766e; }
+        .text-orange { background: #f1f5f9; color: #475569; }
         .stat-info { display: flex; flex-direction: column; }
         .stat-count { font-size: 24px; font-weight: bold; color: #333; line-height: 1; }
         .stat-label { font-size: 13px; color: #666; margin-top: 4px; }

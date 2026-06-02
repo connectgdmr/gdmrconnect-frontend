@@ -513,7 +513,7 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 .stat-label { font-size: 12px; color: var(--slate-500); margin-top: 3px; font-weight: 500; }
 .text-green { color: var(--success); background: var(--success-bg) !important; }
 .text-red { color: var(--error); background: var(--error-bg) !important; }
-.text-dark-red { color: var(--brand); background: #fde8e8 !important; }
+.text-dark-red { color: #0f766e; background: #effdf8 !important; }
 .text-orange { color: var(--warning); background: var(--warning-bg) !important; }
 
 /* ── 16. EMPLOYEE CARDS ────────────────────────────── */
