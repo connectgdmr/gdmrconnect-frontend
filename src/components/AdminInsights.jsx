@@ -292,7 +292,7 @@ export default function AdminInsights({ stats, employees, api, token }) {
     <div className="insights-grid">
 
       {/* ── Attendance Line Chart ── */}
-      <div className="card insights-card" style={{ gridColumn: "span 2" }}>
+      <div className="card insights-card">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <h4 className="widget-title" style={{ margin: 0 }}>Attendance Trend — Last 14 Days</h4>
           <div style={{ display: "flex", gap: 14 }}>
@@ -309,7 +309,7 @@ export default function AdminInsights({ stats, employees, api, token }) {
 
         {/* Today's summary strip */}
         <div style={{
-          display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 16,
+          display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginTop: 16,
           paddingTop: 16, borderTop: "1px solid #f1f5f9",
         }}>
           {[
