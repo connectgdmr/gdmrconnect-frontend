@@ -8,10 +8,10 @@ import { SkeletonList } from "./Skeleton";
 const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
 
 const TYPE_COLORS = {
-  "Full-time":  { color: "#2563eb", bg: "#eff6ff" },
-  "Part-time":  { color: "#7c3aed", bg: "#f5f3ff" },
-  "Contract":   { color: "#d97706", bg: "#fffbeb" },
-  "Internship": { color: "#16a34a", bg: "#f0fdf4" },
+  "Full-time":  { color: "#34a06a", bg: "#f0fdf4" },
+  "Part-time":  { color: "#0f766e", bg: "#effdf8" },
+  "Contract":   { color: "#15803d", bg: "#ecfdf5" },
+  "Internship": { color: "#4d7c5f", bg: "#f3f8f4" },
 };
 
 const blankRef = () => ({ candidate_name: "", candidate_email: "", candidate_phone: "", resume_url: "", notes: "" });
