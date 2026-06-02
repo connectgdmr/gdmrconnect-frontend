@@ -64,6 +64,25 @@ function QuickLaunchItem({ icon, label, onClick, color = "var(--red)" }) {
   );
 }
 
+function KpiTile({ icon, label, value, tone = "brand", onClick }) {
+  const tones = {
+    brand: { color: "var(--brand)", bg: "var(--brand-light)" },
+    green: { color: "#16a34a", bg: "#f0fdf4" },
+    amber: { color: "#d97706", bg: "#fffbeb" },
+    slate: { color: "#475569", bg: "#f1f5f9" },
+  };
+  const t = tones[tone] || tones.brand;
+  return (
+    <div className={`kpi-tile${onClick ? " kpi-clickable" : ""}`} onClick={onClick}>
+      <div className="kpi-icon" style={{ color: t.color, background: t.bg }}>{icon}</div>
+      <div className="kpi-meta">
+        <span className="kpi-value">{value ?? 0}</span>
+        <span className="kpi-label">{label}</span>
+      </div>
+    </div>
+  );
+}
+
 function MemberRow({ emp, badge }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid #f8fafc" }}>
@@ -707,57 +726,40 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {/* ============================================================================ */}
       {/* DASHBOARD HOME VIEW (WIDGETS) */}
       {/* ============================================================================ */}
-      {view === "dashboard" && (
+      {view === "dashboard" && (() => {
+        const todayStr        = new Date().toISOString().slice(0, 10);
+        const resignedCount   = employees.filter(e => !!e.resignation?.notice_date).length;
+        const extLeaveCount   = employees.filter(e =>
+          !e.resignation?.notice_date &&
+          e.extended_leaves?.some(lv => lv.from_date <= todayStr && lv.to_date >= todayStr)
+        ).length;
+        const adjNotCheckedIn = Math.max(0, (stats.not_checked_in ?? 0) - resignedCount);
+        const adjOnLeave      = (stats.leave ?? 0) + extLeaveCount;
+        return (
         <>
-        <div className="dashboard-grid-container">
-          
-          <div className="card dashboard-widget">
-            <h4 className="widget-title">Today's Attendance</h4>
-            {(() => {
-              const todayStr           = new Date().toISOString().slice(0, 10);
-              const resignedCount      = employees.filter(e => !!e.resignation?.notice_date).length;
-              const extLeaveCount      = employees.filter(e =>
-                !e.resignation?.notice_date &&
-                e.extended_leaves?.some(lv => lv.from_date <= todayStr && lv.to_date >= todayStr)
-              ).length;
-              const adjNotCheckedIn    = Math.max(0, (stats.not_checked_in ?? 0) - resignedCount);
-              const adjOnLeave         = (stats.leave ?? 0) + extLeaveCount;
-              return (
-                <div className="stats-list">
-                  <StatItem icon={<FaCheckCircle />} label="Present"        count={stats.present ?? 0}  colorClass="text-green"    onClick={() => handleStatClick('present',        'Present Today')} />
-                  <StatItem icon={<FaUserClock />}   label="On Leave"       count={adjOnLeave}           colorClass="text-dark-red" onClick={() => handleStatClick('leave',          'On Leave Today')} />
-                  <StatItem icon={<FaUserSlash />}   label="Not Checked In" count={adjNotCheckedIn}      colorClass="text-orange"   onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
-                </div>
-              );
-            })()}
-          </div>
+        {/* KPI Row */}
+        <div className="kpi-row">
+          <KpiTile icon={<FaUsers />}        label="Total Workforce" value={employees.length}   tone="brand" />
+          <KpiTile icon={<FaCheckCircle />}  label="Present Today"    value={stats.present ?? 0} tone="green" onClick={() => handleStatClick('present', 'Present Today')} />
+          <KpiTile icon={<FaUserClock />}    label="On Leave"         value={adjOnLeave}          tone="amber" onClick={() => handleStatClick('leave', 'On Leave Today')} />
+          <KpiTile icon={<FaUserSlash />}    label="Not Checked In"   value={adjNotCheckedIn}     tone="slate" onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
+        </div>
 
-          <div className="card dashboard-widget">
-            <h4 className="widget-title">Quick Launch</h4>
-            <div className="quick-launch-grid">
-              <QuickLaunchItem icon={<FaUserPlus />} label="Add Employee" onClick={() => { setView("employees"); setSubView("add"); }} />
-              <QuickLaunchItem icon={<FaUsers />} label="Employee List" onClick={() => { setView("employees"); setSubView("list"); }} />
-              <QuickLaunchItem icon={<FaCalendarCheck />} label="Leave Requests" onClick={() => setView("leaves")} />
-              <QuickLaunchItem icon={<FaClock />} label="Attendance Logs" onClick={() => setView("attendance")} />
-              <QuickLaunchItem icon={<FaUserTie />} label="Managers" onClick={() => setView("manager")} />
-              <QuickLaunchItem icon={<FaChartPie />} label="Reports" onClick={() => setView("summary")} />
-              <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
-              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
-              <QuickLaunchItem icon={<FaUserShield />} label="Grant Access" onClick={() => setView("grant-access")} />
-              
-              <QuickLaunchItem icon={<FaBuilding />} label="Departments" onClick={() => setView("departments")} />
-              <QuickLaunchItem icon={<FaLaptop />} label="Manage Assets" onClick={() => setView("assets")} />
-            </div>
-          </div>
-
-          <div className="card dashboard-widget">
-              <h4 className="widget-title">Total Workforce</h4>
-              <div style={{display:'flex', justifyContent:'center', alignItems:'center', height:'100%', flexDirection:'column'}}>
-                <div style={{fontSize:'48px', fontWeight:'bold', color:'var(--red)'}}>
-                  {employees.length}
-                </div>
-                <div className="small">Active Employees</div>
-              </div>
+        {/* Quick Launch */}
+        <div className="card" style={{ marginTop: 16 }}>
+          <h4 className="widget-title">Quick Launch</h4>
+          <div className="quick-launch-grid">
+            <QuickLaunchItem icon={<FaUserPlus />} label="Add Employee" onClick={() => { setView("employees"); setSubView("add"); }} />
+            <QuickLaunchItem icon={<FaUsers />} label="Employee List" onClick={() => { setView("employees"); setSubView("list"); }} />
+            <QuickLaunchItem icon={<FaCalendarCheck />} label="Leave Requests" onClick={() => setView("leaves")} />
+            <QuickLaunchItem icon={<FaClock />} label="Attendance Logs" onClick={() => setView("attendance")} />
+            <QuickLaunchItem icon={<FaUserTie />} label="Managers" onClick={() => setView("manager")} />
+            <QuickLaunchItem icon={<FaChartPie />} label="Reports" onClick={() => setView("summary")} />
+            <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
+            <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
+            <QuickLaunchItem icon={<FaUserShield />} label="Grant Access" onClick={() => setView("grant-access")} />
+            <QuickLaunchItem icon={<FaBuilding />} label="Departments" onClick={() => setView("departments")} />
+            <QuickLaunchItem icon={<FaLaptop />} label="Manage Assets" onClick={() => setView("assets")} />
           </div>
         </div>
 
@@ -772,7 +774,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           token={token}
         />
         </>
-      )}
+        );
+      })()}
 
       {/* ============================================================================ */}
       {/* DETAILS MODAL FOR DASHBOARD STATS */}
