@@ -30,14 +30,25 @@ const blankJob = () => ({
   description: "", requirements: [], salary_min: "", salary_max: "", status: "active",
 });
 
-// Force a Cloudinary file URL to download as an attachment (proper .pdf)
-const downloadUrl = (url) => {
-  if (!url) return url;
-  if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
-    return url.replace("/upload/", "/upload/fl_attachment/");
+// Fetch the file and save it as a real .pdf download (works cross-origin,
+// no reliance on Cloudinary transformations which break for raw resources)
+async function downloadResume(url, filename = "resume.pdf") {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error();
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob.type === "application/pdf" ? blob : new Blob([blob], { type: "application/pdf" }));
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = filename.toLowerCase().endsWith(".pdf") ? filename : `${filename}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+  } catch {
+    window.open(url, "_blank"); // fallback: open directly
   }
-  return url;
-};
+}
 
 export default function AdminCareer({ token, employees = [] }) {
   const [tab, setTab]       = useState("board");
@@ -433,9 +444,13 @@ export default function AdminCareer({ token, employees = [] }) {
                             {(r.resume_file_url || r.resume_url) ? (
                               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                                 {r.resume_file_url && (
-                                  <a href={downloadUrl(r.resume_file_url)} download target="_blank" rel="noreferrer" style={{ color: "#dc2626", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => downloadResume(r.resume_file_url, `${(r.candidate_name || "resume").replace(/\s+/g, "_")}.pdf`)}
+                                    style={{ color: "#dc2626", fontSize: 12, display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                                  >
                                     <FaLink size={10} /> Download PDF
-                                  </a>
+                                  </button>
                                 )}
                                 {r.resume_url && (
                                   <a href={r.resume_url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
