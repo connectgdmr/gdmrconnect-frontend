@@ -41,15 +41,32 @@ function fmt(d) {
   return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+// Has the employee's last working day already passed?
+function hasResignedLeft(emp) {
+  const lwd = emp.resignation?.last_working_day;
+  if (!lwd) return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return new Date(lwd) < today;
+}
+
 function EmploymentStatusBadge({ emp }) {
   const hasResignation   = !!emp.resignation?.notice_date;
   const hasExtendedLeave = emp.extended_leaves?.length > 0;
   if (!hasResignation && !hasExtendedLeave) return null;
 
-  const label = hasResignation ? "Serving Notice" : "On Extended Leave";
-  const style = hasResignation
-    ? { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" }
-    : { bg: "#fff7ed", color: "#c2410c", border: "#fed7aa" };
+  const resignedLeft = hasResignation && hasResignedLeft(emp);
+
+  let label, style;
+  if (resignedLeft) {
+    label = "Resigned";
+    style = { bg: "#f1f5f9", color: "#475569", border: "#cbd5e1" };
+  } else if (hasResignation) {
+    label = "Serving Notice";
+    style = { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" };
+  } else {
+    label = "On Extended Leave";
+    style = { bg: "#fff7ed", color: "#c2410c", border: "#fed7aa" };
+  }
 
   return (
     <span style={{
@@ -399,7 +416,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
   if (!employees) return <SkeletonTable rows={8} cols={5} />;
 
   const getEmpStatus = (emp) => {
-    if (emp.resignation?.notice_date)    return "resigned";
+    if (emp.resignation?.notice_date)    return hasResignedLeft(emp) ? "resigned" : "notice";
     if (emp.extended_leaves?.length > 0) return "on_leave";
     return "active";
   };
@@ -441,7 +458,8 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
             <option value="All">All Statuses</option>
             <option value="active">Active</option>
             <option value="on_leave">On Extended Leave</option>
-            <option value="resigned">Serving Notice</option>
+            <option value="notice">Serving Notice</option>
+            <option value="resigned">Resigned</option>
           </select>
         </div>
       </div>
