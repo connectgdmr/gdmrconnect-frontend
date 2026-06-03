@@ -853,33 +853,78 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 }
 
 /* ── 31. RESPONSIVE ────────────────────────────────── */
+
+/* Prevent any accidental horizontal page scroll */
+html, body { max-width: 100%; overflow-x: hidden; }
+
 @media (max-width: 900px) {
-  .sidebar { position: fixed; left: 0; top: 0; height: 100vh; transform: translateX(-100%); z-index: 200; }
+  .sidebar { position: fixed; left: 0; top: 0; height: 100vh; transform: translateX(-100%); z-index: 300; }
   .sidebar.sidebar-open { transform: translateX(0); box-shadow: 8px 0 32px rgba(0,0,0,0.3); }
   .topbar-hamburger { display: flex; }
   .main-content { padding: 16px; }
-  .main-topbar { padding: 0 16px; }
+  .main-topbar { padding: 0 14px; }
+  /* KPI + insights collapse */
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .insights-grid { grid-template-columns: 1fr; }
 }
+
 @media (max-width: 768px) {
   body { font-size: 13px; }
   .login-panel-left { display: none; }
   .login-panel-right { padding: 40px 24px; }
   .login-root { overflow-y: auto; min-height: 100vh; }
   .columns { flex-direction: column; }
-  .form-row { flex-direction: column; }
+  .form-row { flex-direction: column; gap: 12px; }
   .admin-buttons { flex-direction: column; align-items: stretch; }
   .leave-table-wrapper { display: none; }
   .leave-cards { display: flex; }
+
+  /* Topbar tightening */
+  .topbar-title { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .topbar-user-name { display: none; }
+  .topbar-right { gap: 6px; }
+  .main-topbar { height: 54px; gap: 8px; }
+
+  /* Cards lose some padding to reclaim width */
+  .card { padding: 16px; border-radius: var(--radius-md); }
+  .insights-card { padding: 14px !important; }
+
+  /* All data tables become their own horizontal scroll area (works even
+     inside cards with overflow:hidden) so columns never crush */
+  .table-container { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .styled-table-global, .styled-table {
+    display: block !important; width: 100%; overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch; white-space: nowrap;
+  }
+  .styled-table-global th, .styled-table-global td,
+  .styled-table th, .styled-table td { padding: 10px 12px !important; font-size: 12.5px; }
+
+  /* Employee-list header stacks */
+  .list-header { flex-direction: column; align-items: stretch; }
+  .search-bar { min-width: 0; }
+  .filter-select { width: 100%; }
+  .export-buttons { width: 100%; }
+  .export-buttons .btn, .export-buttons .btn.ghost { flex: 1; justify-content: center; }
 }
+
 @media (min-width: 769px) {
   .leave-table-wrapper { display: block; }
   .leave-cards { display: none; }
 }
+
 @media (max-width: 600px) {
   .dashboard-grid-container { grid-template-columns: 1fr; }
-  .quick-launch-grid { grid-template-columns: repeat(2, 1fr); }
+  .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .kpi-tile { padding: 16px; gap: 12px; }
+  .kpi-icon { width: 42px; height: 42px; font-size: 17px; }
+  .kpi-value { font-size: 23px; }
+  .quick-launch-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .overview-grid { grid-template-columns: repeat(2, 1fr); }
+  /* Modals near full-width */
+  .modal-box, .modal-card, .detail-modal-card { width: 94% !important; max-width: 94% !important; }
+  .main-content { padding: 12px; }
 }
+
 @media (max-width: 480px) {
   .leave-card { padding: 12px; }
   .leave-card-row { font-size: 12.5px; flex-direction: column; gap: 3px; }
@@ -889,4 +934,11 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
   .leave-card-btn { width: 100%; }
   .overview-card { padding: 14px; }
   .overview-count { font-size: 26px; }
+  .kpi-row { grid-template-columns: 1fr; }
+  .quick-launch-grid { grid-template-columns: repeat(2, 1fr); }
+  .quick-launch-icon { width: 44px; height: 44px; font-size: 17px; }
+  .quick-launch-label { font-size: 11px; }
+  .widget-title { font-size: 14px; }
+  /* Tab bars on feature pages scroll horizontally instead of wrapping tall */
+  .feature-tabs { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
