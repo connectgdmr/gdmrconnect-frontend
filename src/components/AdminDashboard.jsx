@@ -46,6 +46,7 @@ import {
 import ProfilePanel from "./ProfilePanel";
 import AdminInsights from "./AdminInsights";
 import ErrorBoundary from "./ErrorBoundary";
+import ChatBot from "./ChatBot";
 import { SkeletonTable, SkeletonCards } from "./Skeleton";
 
 const AdminAssessment = lazy(() => import("./AdminAssessment"));
@@ -1551,6 +1552,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
     </div>
 
     <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
+    <ChatBot token={token} user={user} role="admin" onNavigate={setView} />
     </>
   );
 }

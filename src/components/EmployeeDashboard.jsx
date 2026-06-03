@@ -43,6 +43,7 @@ import {
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 import DailyQuote from "./DailyQuote";
+import ChatBot from "./ChatBot";
 
 // ─── Daily Motivational Quote (unused — kept for reference) ───────────────────
 const _UNUSED_QUOTES = [
@@ -1779,6 +1780,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
     </div>
 
     <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
+    <ChatBot token={token} user={user} role="employee" onNavigate={setView} />
     </>
   );
 }

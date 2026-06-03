@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from 
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
 import DailyQuote from "./DailyQuote";
+import ChatBot from "./ChatBot";
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
@@ -2382,6 +2383,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
     </div>
 
     <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
+    <ChatBot token={token} user={user} role="manager" onNavigate={setView} />
     </>
   );
 }
