@@ -1521,16 +1521,21 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       {leaveModalOpen && (
         <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>
           <div className="modal-card" onClick={e => e.stopPropagation()}>
-            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15}}>
-              <h3 style={{ margin: 0, color: 'var(--red)' }}>{modalTitle}</h3>
-              <button className="btn ghost" onClick={() => setLeaveModalOpen(false)}><FaTimes /></button>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:15, borderBottom:'1px solid #f1f5f9', paddingBottom:12}}>
+              <h3 style={{ margin: 0, color: 'var(--brand)' }}>{modalTitle}</h3>
+              <button
+                onClick={() => setLeaveModalOpen(false)}
+                style={{ background:'#f1f5f9', border:'none', cursor:'pointer', color:'#64748b', width:30, height:30, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}
+              ><FaTimes size={13} /></button>
             </div>
             <div style={{overflowY:'auto', flex:1}}>
-               {modalList.map((l) => (
-                  <div key={l._id} style={{padding:12, borderBottom:'1px solid #f9f9f9'}}>
-                    <div style={{fontWeight:600}}>{l.date || l.from_date}</div>
-                    <div style={{fontSize:13, color:'#666'}}>"{l.reason || "No reason"}"</div>
-                    <span className={`status-badge ${getStatusClass(l.status)}`} style={{marginTop:5}}>{l.status || 'Pending'}</span>
+               {modalList.length === 0 ? (
+                  <div style={{textAlign:'center', padding:'30px 0', color:'#94a3b8', fontSize:13}}>No records found.</div>
+               ) : modalList.map((l) => (
+                  <div key={l._id} style={{padding:'12px 4px', borderBottom:'1px solid #f4f6f8'}}>
+                    <div style={{fontWeight:600, color:'#0f172a'}}>{l.date || l.from_date}</div>
+                    <div style={{fontSize:13, color:'#64748b', margin:'3px 0 6px'}}>"{l.reason || "No reason"}"</div>
+                    <span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span>
                   </div>
               ))}
             </div>
