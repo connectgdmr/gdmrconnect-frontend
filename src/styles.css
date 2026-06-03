@@ -14,9 +14,9 @@
   /* deep teal accent (dark surfaces in the reference) */
   --teal-900: #143f39; --teal-800: #1c5249;
 
-  --success: #16a34a; --success-bg: #dcfce7; --success-border: #bbf7d0;
-  --warning: #d97706; --warning-bg: #fef9c3; --warning-border: #fde68a;
-  --error: #dc2626;   --error-bg: #fee2e2;   --error-border: #fecaca;
+  --success: #16a34a; --success-bg: #f0fdf4; --success-border: #bbf7d0;
+  --warning: #d97706; --warning-bg: #fffbeb; --warning-border: #fde68a;
+  --error: #dc2626;   --error-bg: #fef2f2;   --error-border: #fecaca;
   --info: #2563eb;    --info-bg: #eff6ff;    --info-border: #bfdbfe;
 
   --slate-900: #0f172a; --slate-800: #1e293b; --slate-700: #334155;
