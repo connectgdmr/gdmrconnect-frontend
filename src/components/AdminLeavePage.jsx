@@ -172,27 +172,27 @@ export default function AdminLeavePage({ token, api }) {
         .status-badge.rejected { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
         .status-badge.pending { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
         
-        /* Action Buttons - Stacked Vertically */
+        /* Action Buttons - side by side, compact */
         .action-btn-group {
           display: flex;
-          flex-direction: column; /* Stacks buttons top to bottom */
-          gap: 6px;
-          min-width: 90px; /* Much smaller footprint than row layout */
+          flex-direction: row;
+          gap: 8px;
+          align-items: center;
         }
         .action-btn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
           gap: 5px;
-          padding: 6px 10px;
+          padding: 7px 14px;
           border: none;
-          border-radius: 6px;
-          font-size: 12px;
+          border-radius: 8px;
+          font-size: 12.5px;
           font-weight: 600;
           cursor: pointer;
           transition: opacity 0.2s, transform 0.1s;
           color: white;
-          width: 100%;
+          white-space: nowrap;
         }
         .action-btn:active { transform: scale(0.95); }
         .action-btn:hover { opacity: 0.9; }
