@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from "react";
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
+import DailyQuote from "./DailyQuote";
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
@@ -1167,6 +1168,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {view === "dashboard" && (
         <AnnouncementNotifications announcements={announcements} userId={user?._id} />
       )}
+
+      {/* — Daily Quote — */}
+      {view === "dashboard" && <DailyQuote />}
 
       {/* — Dashboard Home — */}
       {view === "dashboard" && (

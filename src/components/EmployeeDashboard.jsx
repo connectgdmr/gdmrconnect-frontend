@@ -42,9 +42,10 @@ import {
   FaBriefcase,
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
+import DailyQuote from "./DailyQuote";
 
-// ─── Daily Motivational Quote ─────────────────────────────────────────────────
-const QUOTES = [
+// ─── Daily Motivational Quote (unused — kept for reference) ───────────────────
+const _UNUSED_QUOTES = [
   { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
   { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
   { text: "In the middle of every difficulty lies opportunity.", author: "Albert Einstein" },
@@ -144,11 +145,11 @@ const QUOTES = [
   { text: "What's money? A man is a success if he gets up in the morning and goes to bed at night and in between does what he wants to do.", author: "Bob Dylan" },
 ];
 
-function DailyQuote() {
+function _UnusedDailyQuote() {
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
   );
-  const quote = QUOTES[dayOfYear % QUOTES.length];
+  const quote = _UNUSED_QUOTES[dayOfYear % _UNUSED_QUOTES.length];
 
   return (
     <div style={{
