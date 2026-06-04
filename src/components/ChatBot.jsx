@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FaTimes, FaPaperPlane, FaMagic, FaRegLightbulb } from "react-icons/fa";
+import { FaTimes, FaPaperPlane, FaCube, FaRegLightbulb } from "react-icons/fa";
 
 // ════════════════════════════════════════════════════════════════════════════
-//  GENIE — the GDMR Connect in-app assistant.
+//  MIRA — the GDMR Connect in-app assistant.
 //  100% client-side. No API keys, no backend, no cost. Answers from a curated
 //  HR knowledge base with smart keyword matching + one-tap navigation.
 // ════════════════════════════════════════════════════════════════════════════
 
-const BOT_NAME = "Genie";
+const BOT_NAME = "Mira";
 
 const KB = [
   { k: ["apply leave", "take leave", "request leave", "leave application", "how to leave", "book leave", "want leave"],
@@ -68,9 +68,9 @@ const KB = [
   { k: ["profile", "update profile", "my details", "edit profile"],
     a: "Open your profile from the avatar at the top-right of the screen to view and update your details." },
   { k: ["who are you", "what are you", "your name", "about you"],
-    a: `I'm **${BOT_NAME}** 🪄 — your GDMR Connect assistant. I can guide you around the platform and answer your HR questions, instantly.` },
+    a: `I'm **${BOT_NAME}** — your GDMR Connect assistant. I can guide you around the platform and answer your HR questions, instantly.` },
   { k: ["hello", "hi ", "hey", "good morning", "good evening", "good afternoon", "namaste", "hii"],
-    a: "Hey there! 👋 I'm Genie. What can I help you with today — leaves, attendance, payslips, courses, careers…?" },
+    a: `Hey there! 👋 I'm ${BOT_NAME}. What can I help you with today — leaves, attendance, payslips, courses, careers…?` },
   { k: ["thank", "thanks", "great", "awesome", "perfect", "cool", "nice"],
     a: "Anytime! 😊 Need anything else?" },
   { k: ["bye", "goodbye", "see you", "later"],
@@ -114,7 +114,7 @@ export default function ChatBot({ user, role = "employee", onNavigate }) {
 
   useEffect(() => {
     if (open && messages.length === 0) {
-      setMessages([{ from: "bot", text: `Hi ${firstName}! 🪄 I'm **Genie**, your GDMR Connect assistant. Ask me anything about leaves, attendance, payslips, courses or careers — or tap a suggestion below.` }]);
+      setMessages([{ from: "bot", text: `Hi ${firstName}! 👋 I'm **${BOT_NAME}**, your GDMR Connect assistant. Ask me anything about leaves, attendance, payslips, courses or careers — or tap a suggestion below.` }]);
     }
   }, [open]);
 
@@ -151,12 +151,11 @@ export default function ChatBot({ user, role = "employee", onNavigate }) {
 
   return (
     <>
-      {/* Launcher — glowing orb */}
+      {/* Launcher — compact glowing orb */}
       {!open && (
-        <button onClick={() => setOpen(true)} title="Ask Genie" className="genie-launcher">
+        <button onClick={() => setOpen(true)} title={`Ask ${BOT_NAME}`} className="genie-launcher">
           <span className="genie-launcher-glow" />
-          <FaMagic size={22} />
-          <span className="genie-launcher-badge">Ask Genie</span>
+          <FaCube size={18} />
         </button>
       )}
 
@@ -165,7 +164,7 @@ export default function ChatBot({ user, role = "employee", onNavigate }) {
         <div className="genie-panel">
           {/* Header */}
           <div className="genie-header">
-            <div className="genie-avatar"><FaMagic size={17} /></div>
+            <div className="genie-avatar"><FaCube size={16} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: 0.2 }}>{BOT_NAME}</div>
               <div style={{ fontSize: 10.5, opacity: 0.9, display: "flex", alignItems: "center", gap: 5 }}>
@@ -181,7 +180,7 @@ export default function ChatBot({ user, role = "employee", onNavigate }) {
               <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.from === "user" ? "flex-end" : "flex-start" }}>
                 {m.from === "bot" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0 4px 4px" }}>
-                    <span className="genie-mini"><FaMagic size={8} /></span>
+                    <span className="genie-mini"><FaCube size={8} /></span>
                     <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0f766e" }}>{BOT_NAME}</span>
                   </div>
                 )}
@@ -224,17 +223,16 @@ export default function ChatBot({ user, role = "employee", onNavigate }) {
       <style>{`
         .genie-launcher {
           position: fixed; bottom: 22px; right: 22px; z-index: 4000;
-          height: 56px; padding: 0 20px 0 16px; border: none; cursor: pointer;
-          border-radius: 999px; display: flex; align-items: center; gap: 10px;
+          width: 50px; height: 50px; padding: 0; border: none; cursor: pointer;
+          border-radius: 16px; display: flex; align-items: center; justify-content: center;
           background: linear-gradient(135deg, var(--brand), var(--teal-800));
-          color: #fff; font-weight: 700; font-size: 14px; font-family: var(--font);
-          box-shadow: 0 10px 30px rgba(52,160,106,0.45);
+          color: #fff; font-family: var(--font);
+          box-shadow: 0 8px 22px rgba(52,160,106,0.42);
           transition: transform 0.2s; overflow: visible;
         }
-        .genie-launcher:hover { transform: translateY(-2px); }
-        .genie-launcher-badge { white-space: nowrap; }
+        .genie-launcher:hover { transform: translateY(-2px) rotate(-6deg); }
         .genie-launcher-glow {
-          position: absolute; inset: 0; border-radius: 999px;
+          position: absolute; inset: 0; border-radius: 16px;
           box-shadow: 0 0 0 0 rgba(52,160,106,0.5);
           animation: genieGlow 2.4s ease-out infinite; pointer-events: none;
         }
@@ -304,8 +302,7 @@ export default function ChatBot({ user, role = "employee", onNavigate }) {
         .genie-send { width: 44px; height: 44px; border-radius: 50%; border: none; color: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; }
 
         @media (max-width: 520px) {
-          .genie-launcher-badge { display: none; }
-          .genie-launcher { width: 56px; padding: 0; justify-content: center; }
+          .genie-launcher { bottom: 16px; right: 16px; }
           .genie-panel { right: 12px; left: 12px; bottom: 12px; width: auto; max-width: none; height: calc(100vh - 80px); }
         }
       `}</style>
