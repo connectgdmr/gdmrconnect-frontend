@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FaTimes, FaPaperPlane, FaCube, FaRegLightbulb } from "react-icons/fa";
+import { FaTimes, FaPaperPlane, FaRegLightbulb } from "react-icons/fa";
+import { GiLion } from "react-icons/gi";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  MIRA — the GDMR Connect in-app assistant.
@@ -155,7 +156,7 @@ export default function ChatBot({ user, role = "employee", onNavigate }) {
       {!open && (
         <button onClick={() => setOpen(true)} title={`Ask ${BOT_NAME}`} className="genie-launcher">
           <span className="genie-launcher-glow" />
-          <FaCube size={18} />
+          <GiLion size={24} />
         </button>
       )}
 
@@ -164,7 +165,7 @@ export default function ChatBot({ user, role = "employee", onNavigate }) {
         <div className="genie-panel">
           {/* Header */}
           <div className="genie-header">
-            <div className="genie-avatar"><FaCube size={16} /></div>
+            <div className="genie-avatar"><GiLion size={22} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: 0.2 }}>{BOT_NAME}</div>
               <div style={{ fontSize: 10.5, opacity: 0.9, display: "flex", alignItems: "center", gap: 5 }}>
@@ -180,7 +181,7 @@ export default function ChatBot({ user, role = "employee", onNavigate }) {
               <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.from === "user" ? "flex-end" : "flex-start" }}>
                 {m.from === "bot" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0 4px 4px" }}>
-                    <span className="genie-mini"><FaCube size={8} /></span>
+                    <span className="genie-mini"><GiLion size={11} /></span>
                     <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0f766e" }}>{BOT_NAME}</span>
                   </div>
                 )}
