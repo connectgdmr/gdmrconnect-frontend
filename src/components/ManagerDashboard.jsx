@@ -2,7 +2,11 @@ import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from 
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
 import DailyQuote from "./DailyQuote";
+import DailyWorkPlan from "./DailyWorkPlan";
 import ChatBot from "./ChatBot";
+
+const WorkAnalytics  = lazy(() => import("./WorkAnalytics"));
+const AdminWorkByTeam = lazy(() => import("./AdminWorkByTeam"));
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
@@ -1173,6 +1177,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {/* — Daily Quote — */}
       {view === "dashboard" && <DailyQuote />}
 
+      {/* — Daily Work Plan — */}
+      {view === "dashboard" && <DailyWorkPlan token={token} user={user} />}
+
       {/* — Dashboard Home — */}
       {view === "dashboard" && (
         <div className="dashboard-grid-container">
@@ -2014,6 +2021,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
       {view === "lms"     && <ErrorBoundary label="My Courses" resetKey={view}><EmployeeLMS token={token} /></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
+      {view === "work-analytics" && <ErrorBoundary label="My Work Analytics" resetKey={view}><WorkAnalytics token={token} /></ErrorBoundary>}
+      {view === "work-by-team"   && <ErrorBoundary label="Work by Team" resetKey={view}><AdminWorkByTeam token={token} role="manager" /></ErrorBoundary>}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}>
         {user?.department?.toLowerCase().includes("account")
           ? <AdminPayroll token={token} />

@@ -41,7 +41,8 @@ import {
   FaBuilding,
   FaPlus,
   FaEye,
-  FaSitemap
+  FaSitemap,
+  FaTasks
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 import AdminInsights from "./AdminInsights";
@@ -53,6 +54,7 @@ const AdminAssessment = lazy(() => import("./AdminAssessment"));
 const AdminLMS        = lazy(() => import("./AdminLMS"));
 const AdminCareer     = lazy(() => import("./AdminCareer"));
 const AdminPayroll    = lazy(() => import("./AdminPayroll"));
+const AdminWorkByTeam = lazy(() => import("./AdminWorkByTeam"));
 
 // ============================================================================
 // MAIN EXPORT: ADMIN DASHBOARD
@@ -785,6 +787,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
             <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
             <QuickLaunchItem icon={<FaUserShield />} label="Grant Access" onClick={() => setView("grant-access")} />
             <QuickLaunchItem icon={<FaBuilding />} label="Departments" onClick={() => setView("departments")} />
+            <QuickLaunchItem icon={<FaTasks />} label="Work by Team" onClick={() => setView("work-by-team")} />
             <QuickLaunchItem icon={<FaLaptop />} label="Manage Assets" onClick={() => setView("assets")} />
           </div>
         </div>
@@ -947,6 +950,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
       {/* 9. PAYROLL */}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}><AdminPayroll token={token} employees={employees} /></ErrorBoundary>}
+
+      {/* 10. WORK BY TEAM */}
+      {view === "work-by-team" && <ErrorBoundary label="Work by Team" resetKey={view}><AdminWorkByTeam token={token} role="admin" /></ErrorBoundary>}
 
       {/* 6. HOLIDAYS */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}

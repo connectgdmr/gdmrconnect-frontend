@@ -43,7 +43,10 @@ import {
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 import DailyQuote from "./DailyQuote";
+import DailyWorkPlan from "./DailyWorkPlan";
 import ChatBot from "./ChatBot";
+
+const WorkAnalytics = lazy(() => import("./WorkAnalytics"));
 
 // ─── Daily Motivational Quote (unused — kept for reference) ───────────────────
 const _UNUSED_QUOTES = [
@@ -940,6 +943,9 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       {/* — Daily Quote — */}
       {view === "dashboard" && <DailyQuote />}
 
+      {/* — Daily Work Plan — */}
+      {view === "dashboard" && <DailyWorkPlan token={token} user={user} />}
+
       {/* — Dashboard Widgets — */}
       {view === "dashboard" && (
         <div className="dashboard-grid-container">
@@ -1514,6 +1520,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
       {view === "lms"     && <ErrorBoundary label="My Courses" resetKey={view}><EmployeeLMS token={token} /></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
+      {view === "work-analytics" && <ErrorBoundary label="My Work Analytics" resetKey={view}><WorkAnalytics token={token} /></ErrorBoundary>}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}>
         {user?.department?.toLowerCase().includes("account")
           ? <AdminPayroll token={token} />

@@ -4,7 +4,8 @@ import {
   FaTachometerAlt, FaUsers, FaCalendarCheck, FaClock, FaUserTie,
   FaChartPie, FaCalendarAlt, FaBullhorn, FaUserShield, FaLaptop,
   FaHistory, FaCalendarPlus, FaEdit, FaChartLine, FaClipboardCheck,
-  FaSignOutAlt, FaBalanceScale, FaBuilding, FaClipboardList, FaGraduationCap, FaBriefcase, FaMoneyBillWave
+  FaSignOutAlt, FaBalanceScale, FaBuilding, FaClipboardList, FaGraduationCap, FaBriefcase, FaMoneyBillWave,
+  FaTasks, FaChartArea
 } from "react-icons/fa";
 
 const NAV_ITEMS = {
@@ -20,6 +21,7 @@ const NAV_ITEMS = {
     { icon: <FaBullhorn />, label: "Announcements", view: "announcements" },
     { icon: <FaUserShield />, label: "Grant Access", view: "grant-access" },
     { icon: <FaLaptop />, label: "Manage Assets", view: "assets" },
+    { icon: <FaTasks />, label: "Work by Team", view: "work-by-team" },
     { icon: <FaClipboardList />, label: "Assessments", view: "assessment" },
     { icon: <FaGraduationCap />, label: "LMS", view: "lms" },
     { icon: <FaBriefcase />, label: "Career", view: "career" },
@@ -37,6 +39,8 @@ const NAV_ITEMS = {
     { icon: <FaChartLine />, label: "PMS Reviews", view: "pms-manager" },
     { icon: <FaBalanceScale />, label: "Calibration", view: "pms-calibration" },
     { icon: <FaBullhorn />, label: "Announcements", view: "announcements" },
+    { icon: <FaTasks />, label: "Work by Team", view: "work-by-team" },
+    { icon: <FaChartArea />, label: "My Work Analytics", view: "work-analytics" },
     { icon: <FaLaptop />, label: "Team Assets", view: "team-assets" },
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },
     { icon: <FaGraduationCap />, label: "My Courses", view: "lms" },
@@ -50,6 +54,7 @@ const NAV_ITEMS = {
     { icon: <FaCalendarCheck />, label: "My Leaves", view: "my-leaves" },
     { icon: <FaCalendarPlus />, label: "Apply Leave", view: "apply-leave" },
     { icon: <FaChartLine />, label: "Performance", view: "pms" },
+    { icon: <FaChartArea />, label: "My Work Analytics", view: "work-analytics" },
     { icon: <FaBullhorn />, label: "Announcements", view: "announcements" },
     { icon: <FaLaptop />, label: "Request Asset", view: "assets" },
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },

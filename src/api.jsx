@@ -136,4 +136,14 @@ export default {
     if (!res.ok) throw data;
     return data;
   },
+
+  // ── Daily Work Planning Module ──────────────────────────────────────────
+  getMyWorkPlan:     (date, token)        => request(`/my/work-plan?date=${date}`, "GET", null, token),
+  saveWorkPlan:      (payload, token)     => request("/my/work-plan", "POST", payload, token),
+  updateTaskStatus:  (planId, taskId, status, token) => request(`/my/work-plan/${planId}/task/${taskId}`, "PUT", { status }, token),
+  getMyWorkAnalytics:(range, token)       => request(`/my/work-analytics?range=${range}`, "GET", null, token),
+
+  getTeamWorkPlans:  (query, token)       => request(`/admin/work-plans?${query}`, "GET", null, token),
+  getTeamWorkAnalytics:(range, token)     => request(`/admin/work-analytics?range=${range}`, "GET", null, token),
+  addPlanComment:    (planId, comment, token) => request(`/admin/work-plans/${planId}/comment`, "POST", { comment }, token),
 };
