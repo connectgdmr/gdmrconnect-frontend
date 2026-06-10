@@ -3,11 +3,12 @@ import api from "../api";
 import {
   FaTrash, FaUserShield, FaSearch, FaFilter, FaUserTie, FaUser,
   FaEdit, FaUserClock, FaTimes, FaPlus, FaExclamationTriangle,
-  FaSun, FaMoon,
+  FaSun, FaMoon, FaRegClock,
 } from "react-icons/fa";
 import { SkeletonTable } from "./Skeleton";
 
 const SHIFTS = [
+  { key: "general", label: "General Shift", hours: "9 AM – 6 PM",  icon: <FaRegClock size={11} />, color: "#0f766e", bg: "#effdf8", border: "#b6e6d6" },
   { key: "morning", label: "Morning Shift", hours: "10 AM – 7 PM", icon: <FaSun  size={11} />, color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
   { key: "night",   label: "Night Shift",   hours: "7 PM – 4 AM",  icon: <FaMoon size={11} />, color: "#6d28d9", bg: "#f5f3ff", border: "#ddd6fe" },
 ];

@@ -52,7 +52,7 @@ const KB = [
     a: "Review and approve your team's leave under **Team Leaves**. Items awaiting you are badged in the sidebar.",
     action: { label: "Team Leaves", view: "team-leaves", roles: ["manager"] } },
   { k: ["shift", "timing", "working hours", "my shift", "office time", "duty time"],
-    a: "Shifts are Morning (10 AM–7 PM) or Night (7 PM–4 AM), set by Admin. You can check in/out within ±1 hour of your shift window." },
+    a: "Shifts are General (9 AM–6 PM), Morning (10 AM–7 PM) or Night (7 PM–4 AM), set by Admin. You can check in/out within ±1 hour of your shift window." },
   { k: ["who is my manager", "my manager", "reporting", "report to"],
     a: "Your assigned manager appears on your profile. HR/Admin manages the reporting structure under Employees." },
   { k: ["contact hr", "hr help", "talk to hr", "reach hr", "hr support", "email hr", "complaint", "grievance"],
