@@ -47,8 +47,9 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
 
   const [assignCourseId, setAssignCourseId]   = useState("");
   const [assignTarget, setAssignTarget]       = useState("department");
-  const [assignDept, setAssignDept]           = useState("");
+  const [assignDepts, setAssignDepts]         = useState([]);
   const [assignEmpIds, setAssignEmpIds]       = useState([]);
+  const [assignSchedule, setAssignSchedule]   = useState("");
   const [assignSaving, setAssignSaving]       = useState(false);
   const [assignMsg, setAssignMsg]             = useState("");
 
@@ -163,15 +164,20 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
   async function assignCourse(e) {
     e.preventDefault();
     if (!assignCourseId) return setAssignMsg("Select a course.");
+    if (assignTarget === "department" && assignDepts.length === 0) return setAssignMsg("Select at least one department.");
+    if (assignTarget === "employees" && assignEmpIds.length === 0) return setAssignMsg("Select at least one employee.");
     setAssignSaving(true); setAssignMsg("");
-    const body = assignTarget === "department"
-      ? { department: assignDept }
-      : { employee_ids: assignEmpIds };
+    const body = {
+      ...(assignTarget === "department"
+        ? { departments: assignDepts, department: assignDepts[0] }   // departments[] (+ legacy single)
+        : { employee_ids: assignEmpIds }),
+      ...(assignSchedule ? { scheduled_at: assignSchedule } : {}),
+    };
     try {
       const r = await fetch(`${BASE}/admin/lms/courses/${assignCourseId}/assign`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
       });
-      if (r.ok) { setAssignMsg("Course assigned successfully!"); setAssignCourseId(""); setAssignEmpIds([]); }
+      if (r.ok) { setAssignMsg("Course assigned successfully!"); setAssignCourseId(""); setAssignEmpIds([]); setAssignDepts([]); setAssignSchedule(""); }
       else { const d = await r.json(); setAssignMsg(d.message || "Assignment failed."); }
     } catch { setAssignMsg("Network error."); } finally { setAssignSaving(false); }
   }
@@ -402,31 +408,62 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
               </div>
             </div>
 
-            {assignTarget === "department" ? (
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Department</label>
-                <select className="modern-input" value={assignDept} onChange={e => setAssignDept(e.target.value)} required>
-                  <option value="">-- Select Department --</option>
-                  {[...new Set(employees.map(e => e.department).filter(Boolean))].map(d => <option key={d}>{d}</option>)}
-                </select>
+            {assignTarget === "department" ? (() => {
+              const allDepts = [...new Set(employees.map(e => e.department).filter(Boolean))];
+              const allSel = allDepts.length > 0 && allDepts.every(d => assignDepts.includes(d));
+              return (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <label style={{ fontWeight: 600, fontSize: 13, color: "#334155" }}>Departments <span style={{ color: "#94a3b8", fontWeight: 400 }}>({assignDepts.length} selected)</span></label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--brand)", fontWeight: 600, cursor: "pointer" }}>
+                    <input type="checkbox" checked={allSel} onChange={e => setAssignDepts(e.target.checked ? allDepts : [])} /> Select All
+                  </label>
+                </div>
+                <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8, padding: 8 }}>
+                  {allDepts.length === 0 ? <div style={{ padding: 10, color: "#94a3b8", fontSize: 13 }}>No departments found.</div> :
+                   allDepts.map(d => (
+                    <label key={d} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 4px", cursor: "pointer", borderRadius: 6 }}>
+                      <input type="checkbox" checked={assignDepts.includes(d)} onChange={e => setAssignDepts(e.target.checked ? [...assignDepts, d] : assignDepts.filter(x => x !== d))} />
+                      <span style={{ fontSize: 13, fontWeight: 500 }}>{d}</span>
+                      <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: "auto" }}>{employees.filter(e => e.department === d).length} staff</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            ) : (
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Employees</label>
+              );
+            })() : (() => {
+              const allSel = employees.length > 0 && employees.every(e => assignEmpIds.includes(e._id));
+              return (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <label style={{ fontWeight: 600, fontSize: 13, color: "#334155" }}>Employees <span style={{ color: "#94a3b8", fontWeight: 400 }}>({assignEmpIds.length} selected)</span></label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--brand)", fontWeight: 600, cursor: "pointer" }}>
+                    <input type="checkbox" checked={allSel} onChange={e => setAssignEmpIds(e.target.checked ? employees.map(x => x._id) : [])} /> Select All
+                  </label>
+                </div>
                 <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8, padding: 8 }}>
                   {employees.map(emp => (
                     <label key={emp._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 4px", cursor: "pointer" }}>
                       <input type="checkbox" checked={assignEmpIds.includes(emp._id)} onChange={e => setAssignEmpIds(e.target.checked ? [...assignEmpIds, emp._id] : assignEmpIds.filter(id => id !== emp._id))} />
                       <span style={{ fontSize: 13 }}>{emp.name}</span>
-                      <span style={{ fontSize: 11, color: "#94a3b8" }}>{emp.department}</span>
+                      <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: "auto" }}>{emp.department}</span>
                     </label>
                   ))}
                 </div>
               </div>
-            )}
+              );
+            })()}
+
+            {/* Optional schedule */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>
+                Schedule <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional — leave blank to assign now)</span>
+              </label>
+              <input type="datetime-local" className="modern-input" value={assignSchedule} onChange={e => setAssignSchedule(e.target.value)} style={{ margin: 0 }} />
+            </div>
 
             <button className="btn" type="submit" disabled={assignSaving} style={{ width: "100%" }}>
-              {assignSaving ? "Assigning…" : "Assign Course"}
+              {assignSaving ? "Assigning…" : assignSchedule ? "Schedule Assignment" : "Assign Course"}
             </button>
           </form>
         </div>
