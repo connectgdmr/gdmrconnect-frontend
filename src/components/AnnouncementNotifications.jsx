@@ -12,7 +12,17 @@ export default function AnnouncementNotifications({ announcements, userId }) {
     }
   });
 
-  const visible = (announcements || []).filter((a) => !dismissed.has(a._id));
+  // Only surface announcements from the last 7 days on the dashboard.
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const isRecent = (a) => {
+    const ts = a.created_at || a.date || a.createdAt;
+    if (!ts) return true; // no date → assume recent so it isn't hidden by mistake
+    const t = new Date(ts).getTime();
+    return isNaN(t) ? true : (now - t) <= WEEK_MS;
+  };
+
+  const visible = (announcements || []).filter((a) => isRecent(a) && !dismissed.has(a._id));
 
   if (visible.length === 0) return null;
 
