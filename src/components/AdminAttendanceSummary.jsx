@@ -26,12 +26,18 @@ function visibleDayEntries(summary) {
     .sort(([a], [b]) => a.localeCompare(b));
 }
 
-// CSV — counts + names for On Leave, Absent and Not Checked-in
+// CSV — counts + names for every category
 function convertToCSV(summary) {
-    let csv = 'Date,Present,Absent,Absent (Names),On Leave,On Leave (Names),Not Checked-in,Not Checked-in (Names)\n';
+    let csv = 'Date,Present,Present (Names),Absent,Absent (Names),On Leave,On Leave (Names),Not Checked-in,Not Checked-in (Names)\n';
     visibleDayEntries(summary).forEach(([date, d]) => {
         const q = (s) => `"${String(s).replace(/"/g, '""')}"`;
-        csv += [date, cnt(d.present), cnt(d.absent), q(nameList(d, "absent")), cnt(d.leave), q(nameList(d, "leave")), cnt(d.not_checked_in), q(nameList(d, "not_checked_in"))].join(",") + "\n";
+        csv += [
+            date,
+            cnt(d.present),        q(nameList(d, "present")),
+            cnt(d.absent),         q(nameList(d, "absent")),
+            cnt(d.leave),          q(nameList(d, "leave")),
+            cnt(d.not_checked_in), q(nameList(d, "not_checked_in")),
+        ].join(",") + "\n";
     });
     return csv;
 }
@@ -44,7 +50,7 @@ function buildPDFHtml(summary, month) {
         <div style="font-size:10px;color:#64748b;line-height:1.5;margin-top:2px">${getNames(d, key).join("<br>") || "—"}</div></td>`;
     return `<tr>
       <td style="padding:8px 10px;border-bottom:1px solid #eef1f5;font-weight:600;white-space:nowrap;vertical-align:top">${date}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #eef1f5;font-weight:700;color:#16a34a;vertical-align:top">${cnt(d.present)}</td>
+      ${cell(cnt(d.present), "present", "#16a34a")}
       ${cell(cnt(d.absent), "absent", "#dc2626")}
       ${cell(cnt(d.leave), "leave", "#d97706")}
       ${cell(cnt(d.not_checked_in), "not_checked_in", "#64748b")}
