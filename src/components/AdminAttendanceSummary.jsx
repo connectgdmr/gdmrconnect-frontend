@@ -5,8 +5,20 @@ import { SkeletonStats, SkeletonTable } from "./Skeleton";
 // Count helper — backend may return arrays of IDs or plain numbers
 const cnt = (v) => Array.isArray(v) ? v.length : (Number(v) || 0);
 
-// Only include days up to and including today — future dates haven't happened,
-// so showing everyone as "not checked in" for them is misleading.
+// Extract employee names for a category. Prefers an explicit "<key>_names"
+// array from the backend; otherwise pulls .name from object arrays.
+function getNames(d, key) {
+  const named = d[`${key}_names`];
+  if (Array.isArray(named) && named.length) return named.filter(Boolean);
+  const arr = d[key];
+  if (Array.isArray(arr)) {
+    return arr.map(x => (x && typeof x === "object" ? (x.name || x.employee_name || x.full_name || "") : "")).filter(Boolean);
+  }
+  return [];
+}
+const nameList = (d, key) => { const n = getNames(d, key); return n.length ? n.join(" | ") : "—"; };
+
+// Only include days up to and including today — future dates haven't happened.
 function visibleDayEntries(summary) {
   const todayStr = new Date().toISOString().slice(0, 10);
   return Object.entries(summary?.days || {})
@@ -14,30 +26,39 @@ function visibleDayEntries(summary) {
     .sort(([a], [b]) => a.localeCompare(b));
 }
 
-// Helper function to convert data to CSV format
+// CSV — counts + names for On Leave, Absent and Not Checked-in
 function convertToCSV(summary) {
-    let csv = 'Date,Present,Absent,On Leave (Names),Not Checked-in\n';
+    let csv = 'Date,Present,Absent,Absent (Names),On Leave,On Leave (Names),Not Checked-in,Not Checked-in (Names)\n';
     visibleDayEntries(summary).forEach(([date, d]) => {
-        const leaveNames = d.leave_names && d.leave_names.length > 0
-            ? d.leave_names.join(" | ")
-            : "None";
-        csv += `${date},${cnt(d.present)},${cnt(d.absent)},"${leaveNames}",${cnt(d.not_checked_in)}\n`;
+        const q = (s) => `"${String(s).replace(/"/g, '""')}"`;
+        csv += [date, cnt(d.present), cnt(d.absent), q(nameList(d, "absent")), cnt(d.leave), q(nameList(d, "leave")), cnt(d.not_checked_in), q(nameList(d, "not_checked_in"))].join(",") + "\n";
     });
     return csv;
 }
 
-// Helper function to convert data to PDF text
-function convertToPDFText(summary, month) {
-  let text = `Monthly Attendance Summary: ${month}\n`;
-  text += `Total Employees: ${summary.total_employees}\n\n`;
-  text += '----------------------------------------------------------\n';
-  text += 'Date       | Present | Absent | On Leave | Not Checked-in\n';
-  text += '----------------------------------------------------------\n';
-  visibleDayEntries(summary).forEach(([date, d]) => {
-      text += `${date} | ${String(cnt(d.present)).padEnd(7)} | ${String(cnt(d.absent)).padEnd(6)} | ${String(cnt(d.leave)).padEnd(8)} | ${cnt(d.not_checked_in)}\n`;
-  });
-  text += '----------------------------------------------------------\n';
-  return text;
+// PDF — clean HTML table with name lists per category
+function buildPDFHtml(summary, month) {
+  const rows = visibleDayEntries(summary).map(([date, d]) => {
+    const cell = (count, key, color) => `<td style="padding:8px 10px;border-bottom:1px solid #eef1f5;vertical-align:top">
+        <div style="font-weight:700;color:${color}">${count}</div>
+        <div style="font-size:10px;color:#64748b;line-height:1.5;margin-top:2px">${getNames(d, key).join("<br>") || "—"}</div></td>`;
+    return `<tr>
+      <td style="padding:8px 10px;border-bottom:1px solid #eef1f5;font-weight:600;white-space:nowrap;vertical-align:top">${date}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #eef1f5;font-weight:700;color:#16a34a;vertical-align:top">${cnt(d.present)}</td>
+      ${cell(cnt(d.absent), "absent", "#dc2626")}
+      ${cell(cnt(d.leave), "leave", "#d97706")}
+      ${cell(cnt(d.not_checked_in), "not_checked_in", "#64748b")}
+    </tr>`;
+  }).join("");
+  return `<html><head><title>Attendance Summary ${month}</title></head>
+    <body style="font-family:Arial,sans-serif;padding:32px;color:#0f172a">
+      <h2 style="color:#34a06a;margin:0">GDMR Connect — Monthly Attendance Summary</h2>
+      <div style="color:#64748b;margin:4px 0 18px">${month} · Total Employees: ${summary.total_employees ?? "—"}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr>${["Date","Present","Absent","On Leave","Not Checked-in"].map(h => `<th style="text-align:left;padding:8px 10px;border-bottom:2px solid #34a06a;font-size:11px;text-transform:uppercase;color:#475569">${h}</th>`).join("")}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </body></html>`;
 }
 
 export default function AdminAttendanceSummary({ token, api }) {
@@ -75,14 +96,12 @@ export default function AdminAttendanceSummary({ token, api }) {
         link.click();
         document.body.removeChild(link);
     } else if (format === 'pdf') {
-        const pdfText = convertToPDFText(summary, month);
-        const printWindow = window.open('', '', 'height=600,width=800');
-        printWindow.document.write('<pre>');
-        printWindow.document.write(pdfText);
-        printWindow.document.write('</pre>');
+        const printWindow = window.open('', '', 'height=700,width=900');
+        if (!printWindow) return;
+        printWindow.document.write(buildPDFHtml(summary, month));
         printWindow.document.close();
         printWindow.focus();
-        printWindow.print();
+        setTimeout(() => printWindow.print(), 300);
     }
   }
 
