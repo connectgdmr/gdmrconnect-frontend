@@ -5,18 +5,23 @@ import { SkeletonStats, SkeletonTable } from "./Skeleton";
 // Count helper — backend may return arrays of IDs or plain numbers
 const cnt = (v) => Array.isArray(v) ? v.length : (Number(v) || 0);
 
-// Extract employee names for a category. Prefers an explicit "<key>_names"
-// array from the backend; otherwise pulls .name from object arrays.
-function getNames(d, key) {
+// Extract employee names for a category. Resolves, in order:
+//  1) an explicit "<key>_names" array from the backend
+//  2) objects in the array that already carry a name
+//  3) plain employee-ID strings mapped via idMap (id -> name)
+function getNames(d, key, idMap = {}) {
   const named = d[`${key}_names`];
   if (Array.isArray(named) && named.length) return named.filter(Boolean);
   const arr = d[key];
   if (Array.isArray(arr)) {
-    return arr.map(x => (x && typeof x === "object" ? (x.name || x.employee_name || x.full_name || "") : "")).filter(Boolean);
+    return arr.map(x => {
+      if (x && typeof x === "object") return x.name || x.employee_name || x.full_name || idMap[String(x._id || x.id)] || "";
+      return idMap[String(x)] || "";
+    }).filter(Boolean);
   }
   return [];
 }
-const nameList = (d, key) => { const n = getNames(d, key); return n.length ? n.join(" | ") : "—"; };
+const nameList = (d, key, idMap) => { const n = getNames(d, key, idMap); return n.length ? n.join(" | ") : "—"; };
 
 // Only include days up to and including today — future dates haven't happened.
 function visibleDayEntries(summary) {
@@ -27,23 +32,23 @@ function visibleDayEntries(summary) {
 }
 
 // CSV — counts + names for every category
-function convertToCSV(summary) {
+function convertToCSV(summary, idMap) {
     let csv = 'Date,Present,Present (Names),Absent,Absent (Names),On Leave,On Leave (Names),Not Checked-in,Not Checked-in (Names)\n';
     visibleDayEntries(summary).forEach(([date, d]) => {
         const q = (s) => `"${String(s).replace(/"/g, '""')}"`;
         csv += [
             date,
-            cnt(d.present),        q(nameList(d, "present")),
-            cnt(d.absent),         q(nameList(d, "absent")),
-            cnt(d.leave),          q(nameList(d, "leave")),
-            cnt(d.not_checked_in), q(nameList(d, "not_checked_in")),
+            cnt(d.present),        q(nameList(d, "present", idMap)),
+            cnt(d.absent),         q(nameList(d, "absent", idMap)),
+            cnt(d.leave),          q(nameList(d, "leave", idMap)),
+            cnt(d.not_checked_in), q(nameList(d, "not_checked_in", idMap)),
         ].join(",") + "\n";
     });
     return csv;
 }
 
 // PDF — detailed, multi-page report with full names per category per day
-function buildPDFHtml(summary, month) {
+function buildPDFHtml(summary, month, idMap = {}) {
   const days = visibleDayEntries(summary);
   const fmtDate = (iso) => { try { return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }); } catch { return iso; } };
 
@@ -64,7 +69,7 @@ function buildPDFHtml(summary, month) {
 
   // A category block listing every name (numbered)
   const catBlock = (d, key, title, color, bg) => {
-    const names = getNames(d, key);
+    const names = getNames(d, key, idMap);
     const list = names.length
       ? `<ol style="margin:0;padding-left:20px;font-size:12px;color:#334155;line-height:1.8">${names.map(n => `<li>${n}</li>`).join("")}</ol>`
       : `<div style="font-size:12px;color:#94a3b8;font-style:italic">No one in this category.</div>`;
@@ -136,11 +141,11 @@ export default function AdminAttendanceSummary({ token, api }) {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [idMap, setIdMap] = useState({});   // employee _id -> name
 
   async function loadSummary() {
     setLoading(true);
     try {
-        // This calls the updated backend endpoint which now returns 'leave_names'
         const data = await api.getAttendanceSummary(month, token);
         setSummary(data);
     } catch (error) {
@@ -153,11 +158,22 @@ export default function AdminAttendanceSummary({ token, api }) {
   useEffect(() => {
     loadSummary();
   }, [month]);
+
+  // Load the employee roster once so we can resolve category ID arrays to names
+  useEffect(() => {
+    api.listEmployees(token)
+      .then(list => {
+        const m = {};
+        (Array.isArray(list) ? list : list?.employees || []).forEach(e => { if (e?._id) m[String(e._id)] = e.name; });
+        setIdMap(m);
+      })
+      .catch(() => {});
+  }, [token]);
   
   function handleExport(format) {
     if (!summary) return;
     if (format === 'csv') {
-        const csvData = convertToCSV(summary);
+        const csvData = convertToCSV(summary, idMap);
         const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -169,7 +185,7 @@ export default function AdminAttendanceSummary({ token, api }) {
     } else if (format === 'pdf') {
         const printWindow = window.open('', '', 'height=700,width=900');
         if (!printWindow) return;
-        printWindow.document.write(buildPDFHtml(summary, month));
+        printWindow.document.write(buildPDFHtml(summary, month, idMap));
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => printWindow.print(), 300);
