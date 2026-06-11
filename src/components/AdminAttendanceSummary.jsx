@@ -42,28 +42,93 @@ function convertToCSV(summary) {
     return csv;
 }
 
-// PDF — clean HTML table with name lists per category
+// PDF — detailed, multi-page report with full names per category per day
 function buildPDFHtml(summary, month) {
-  const rows = visibleDayEntries(summary).map(([date, d]) => {
-    const cell = (count, key, color) => `<td style="padding:8px 10px;border-bottom:1px solid #eef1f5;vertical-align:top">
-        <div style="font-weight:700;color:${color}">${count}</div>
-        <div style="font-size:10px;color:#64748b;line-height:1.5;margin-top:2px">${getNames(d, key).join("<br>") || "—"}</div></td>`;
-    return `<tr>
-      <td style="padding:8px 10px;border-bottom:1px solid #eef1f5;font-weight:600;white-space:nowrap;vertical-align:top">${date}</td>
-      ${cell(cnt(d.present), "present", "#16a34a")}
-      ${cell(cnt(d.absent), "absent", "#dc2626")}
-      ${cell(cnt(d.leave), "leave", "#d97706")}
-      ${cell(cnt(d.not_checked_in), "not_checked_in", "#64748b")}
-    </tr>`;
-  }).join("");
-  return `<html><head><title>Attendance Summary ${month}</title></head>
-    <body style="font-family:Arial,sans-serif;padding:32px;color:#0f172a">
-      <h2 style="color:#34a06a;margin:0">GDMR Connect — Monthly Attendance Summary</h2>
-      <div style="color:#64748b;margin:4px 0 18px">${month} · Total Employees: ${summary.total_employees ?? "—"}</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead><tr>${["Date","Present","Absent","On Leave","Not Checked-in"].map(h => `<th style="text-align:left;padding:8px 10px;border-bottom:2px solid #34a06a;font-size:11px;text-transform:uppercase;color:#475569">${h}</th>`).join("")}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+  const days = visibleDayEntries(summary);
+  const fmtDate = (iso) => { try { return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }); } catch { return iso; } };
+
+  // Month-wide totals for the cover summary
+  const totals = days.reduce((a, [, d]) => ({
+    present: a.present + cnt(d.present), absent: a.absent + cnt(d.absent),
+    leave: a.leave + cnt(d.leave), nci: a.nci + cnt(d.not_checked_in),
+  }), { present: 0, absent: 0, leave: 0, nci: 0 });
+
+  // Overview table (counts per day)
+  const overviewRows = days.map(([date, d]) => `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid #eef1f5;font-weight:600">${date}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #eef1f5;color:#16a34a;font-weight:700">${cnt(d.present)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #eef1f5;color:#dc2626;font-weight:700">${cnt(d.absent)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #eef1f5;color:#d97706;font-weight:700">${cnt(d.leave)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #eef1f5;color:#64748b;font-weight:700">${cnt(d.not_checked_in)}</td>
+    </tr>`).join("");
+
+  // A category block listing every name (numbered)
+  const catBlock = (d, key, title, color, bg) => {
+    const names = getNames(d, key);
+    const list = names.length
+      ? `<ol style="margin:0;padding-left:20px;font-size:12px;color:#334155;line-height:1.8">${names.map(n => `<li>${n}</li>`).join("")}</ol>`
+      : `<div style="font-size:12px;color:#94a3b8;font-style:italic">No one in this category.</div>`;
+    return `<div style="flex:1;min-width:200px;border:1px solid #eef1f5;border-radius:8px;overflow:hidden">
+        <div style="background:${bg};padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eef1f5">
+          <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${color}">${title}</span>
+          <span style="font-size:14px;font-weight:800;color:${color}">${cnt(d[key])}</span>
+        </div>
+        <div style="padding:10px 12px">${list}</div>
+      </div>`;
+  };
+
+  // Detailed per-day pages
+  const detailPages = days.map(([date, d]) => `
+    <div style="page-break-inside:avoid;margin-bottom:26px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:6px;height:22px;background:#34a06a;border-radius:3px"></div>
+        <h3 style="margin:0;font-size:15px;color:#0f172a">${fmtDate(date)}</h3>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px">
+        ${catBlock(d, "present", "Present", "#16a34a", "#f0fdf4")}
+        ${catBlock(d, "leave", "On Leave", "#d97706", "#fffbeb")}
+        ${catBlock(d, "absent", "Absent", "#dc2626", "#fef2f2")}
+        ${catBlock(d, "not_checked_in", "Not Checked-in", "#64748b", "#f1f5f9")}
+      </div>
+    </div>`).join("");
+
+  const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+  return `<html><head><title>Attendance Report ${month}</title>
+    <style>@media print { @page { margin: 14mm; } } body{font-family:Arial,sans-serif;color:#0f172a;margin:0}</style></head>
+    <body>
+      <!-- Cover / summary -->
+      <div style="padding:40px 48px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #34a06a;padding-bottom:16px;margin-bottom:22px">
+          <div>
+            <h1 style="color:#34a06a;margin:0;font-size:24px">GDMR Connect</h1>
+            <div style="font-size:15px;font-weight:700;margin-top:4px">Monthly Attendance Report</div>
+          </div>
+          <div style="text-align:right;font-size:12px;color:#64748b">
+            <div><b>Period:</b> ${month}</div>
+            <div><b>Total Employees:</b> ${summary.total_employees ?? "—"}</div>
+            <div><b>Generated:</b> ${today}</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-bottom:24px">
+          ${[["Total Present", totals.present, "#16a34a", "#f0fdf4"], ["Total On Leave", totals.leave, "#d97706", "#fffbeb"], ["Total Absent", totals.absent, "#dc2626", "#fef2f2"], ["Not Checked-in", totals.nci, "#64748b", "#f1f5f9"]]
+            .map(([l, v, c, b]) => `<div style="flex:1;background:${b};border-radius:10px;padding:14px 16px;text-align:center"><div style="font-size:24px;font-weight:800;color:${c}">${v}</div><div style="font-size:11px;color:#64748b;margin-top:3px">${l}</div></div>`).join("")}
+        </div>
+
+        <h3 style="margin:0 0 10px;font-size:14px;color:#334155">Daily Overview</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px">
+          <thead><tr>${["Date","Present","Absent","On Leave","Not Checked-in"].map(h => `<th style="text-align:left;padding:8px 10px;border-bottom:2px solid #34a06a;font-size:10.5px;text-transform:uppercase;color:#475569">${h}</th>`).join("")}</tr></thead>
+          <tbody>${overviewRows}</tbody>
+        </table>
+      </div>
+
+      <!-- Detailed breakdown (new page) -->
+      <div style="padding:40px 48px;page-break-before:always">
+        <h2 style="color:#34a06a;margin:0 0 4px;font-size:18px">Detailed Daily Breakdown</h2>
+        <div style="color:#64748b;font-size:12px;margin-bottom:20px">Every employee grouped by their status, day by day.</div>
+        ${detailPages}
+      </div>
     </body></html>`;
 }
 
