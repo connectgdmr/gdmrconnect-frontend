@@ -7,6 +7,14 @@ const PRIORITIES = [
   { v: "Medium", color: "#d97706", bg: "#fffbeb" },
   { v: "Low",    color: "#16a34a", bg: "#f0fdf4" },
 ];
+// ClickUp-style task statuses
+export const TASK_STATUSES = [
+  { v: "Pending",     color: "#64748b", bg: "#f1f5f9" },
+  { v: "Started",     color: "#2563eb", bg: "#eff6ff" },
+  { v: "In Progress", color: "#d97706", bg: "#fffbeb" },
+  { v: "Completed",   color: "#16a34a", bg: "#f0fdf4" },
+];
+const STATUS_META = (s) => TASK_STATUSES.find(x => x.v === s) || TASK_STATUSES[0];
 const blankTask = () => ({ id: Date.now() + Math.random(), title: "", priority: "Medium", est_time: "", project: "", status: "Pending" });
 
 export default function DailyWorkPlan({ token, user, departments = [] }) {
@@ -97,20 +105,32 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
           const pr = PRIORITIES.find(p => p.v === t.priority) || PRIORITIES[1];
           if (!editing) {
             if (!t.title.trim()) return null;
+            const done = t.status === "Completed";
+            const sm = STATUS_META(t.status);
+            const changeStatus = (ns) => {
+              updateTask(t.id, { status: ns });
+              fetch(`${BASE}/my/work-plan/${planId}/task/${t.id}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: ns }) }).catch(() => {});
+            };
             return (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#f8fafc", borderRadius: 10, border: "1px solid #f1f5f9" }}>
-                <button onClick={() => { const ns = t.status === "Completed" ? "Pending" : "Completed"; updateTask(t.id, { status: ns }); fetch(`${BASE}/my/work-plan/${planId}/task/${t.id}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: ns }) }).catch(()=>{}); }}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: t.status === "Completed" ? "#16a34a" : "#cbd5e1", flexShrink: 0 }} title="Toggle complete">
-                  <FaCheckCircle size={18} />
-                </button>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: sm.color, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 500, color: t.status === "Completed" ? "#94a3b8" : "#334155", textDecoration: t.status === "Completed" ? "line-through" : "none" }}>{t.title}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 500, color: done ? "#94a3b8" : "#334155", textDecoration: done ? "line-through" : "none" }}>{t.title}</div>
                   <div style={{ display: "flex", gap: 10, marginTop: 3, flexWrap: "wrap" }}>
                     {t.project && <span style={{ fontSize: 11, color: "#64748b" }}>📁 {t.project}</span>}
                     {t.est_time && <span style={{ fontSize: 11, color: "#64748b" }}><FaRegClock size={9} /> {t.est_time}</span>}
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: pr.color }}>● {t.priority}</span>
                   </div>
                 </div>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: pr.color, background: pr.bg, padding: "2px 8px", borderRadius: 4, flexShrink: 0 }}>{t.priority}</span>
+                {/* Status selector — change as you work */}
+                <select
+                  value={t.status || "Pending"}
+                  onChange={e => changeStatus(e.target.value)}
+                  title="Change status"
+                  style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, color: sm.color, background: sm.bg, border: `1px solid ${sm.color}33`, borderRadius: 99, padding: "5px 10px", cursor: "pointer", appearance: "none", textAlign: "center" }}
+                >
+                  {TASK_STATUSES.map(s => <option key={s.v} value={s.v} style={{ color: "#334155", background: "#fff" }}>{s.v}</option>)}
+                </select>
               </div>
             );
           }
