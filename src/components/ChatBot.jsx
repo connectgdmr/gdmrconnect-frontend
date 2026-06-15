@@ -3,12 +3,12 @@ import { FaTimes, FaPaperPlane, FaRegLightbulb } from "react-icons/fa";
 import { GiLion } from "react-icons/gi";
 
 // ════════════════════════════════════════════════════════════════════════════
-//  MIRA — the GDMR Connect in-app assistant.
+//  REXOR — the GDMR Connect in-app assistant.
 //  100% client-side. No API keys, no backend, no cost. Answers from a curated
 //  HR knowledge base with smart keyword matching + one-tap navigation.
 // ════════════════════════════════════════════════════════════════════════════
 
-const BOT_NAME = "Mira";
+const BOT_NAME = "Rexor";
 
 const KB = [
   { k: ["apply leave", "take leave", "request leave", "leave application", "how to leave", "book leave", "want leave"],
