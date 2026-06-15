@@ -213,7 +213,7 @@ export default function ChatBot({ user, role = "employee", onNavigate }) {
 
           {/* Input */}
           <form onSubmit={(e) => { e.preventDefault(); send(); }} className="genie-input-row">
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask Genie anything…" className="genie-input" />
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={`Ask ${BOT_NAME} anything…`} className="genie-input" />
             <button type="submit" disabled={!input.trim()} className="genie-send" style={{ background: input.trim() ? "var(--brand)" : "#cbd5e1" }}>
               <FaPaperPlane size={13} />
             </button>
