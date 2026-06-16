@@ -33,10 +33,22 @@ const blankCourse  = () => ({ title: "", description: "", category: "Technical",
 const blankModule  = () => ({ title: "", lessons: [blankLesson()] });
 const blankLesson  = () => ({ title: "", type: "Video", url: "", content: "" });
 
-export default function AdminLMS({ token, employees = [], departments = [] }) {
+export default function AdminLMS({ token, employees: employeesProp = [], departments = [] }) {
   const [tab, setTab]           = useState("courses");
   const [courses, setCourses]   = useState([]);
   const [loading, setLoading]   = useState(false);
+
+  // Use the passed roster, or fetch it ourselves (e.g. when a delegated-access
+  // grantee opens LMS without the admin's employees prop) so assignment works.
+  const [fetchedEmps, setFetchedEmps] = useState([]);
+  const employees = employeesProp.length ? employeesProp : fetchedEmps;
+  useEffect(() => {
+    if (employeesProp.length) return;
+    fetch(`${BASE}/admin/employees`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setFetchedEmps(Array.isArray(d) ? d : (d?.employees || [])))
+      .catch(() => {});
+  }, [token, employeesProp.length]);
 
   const [builderMode, setBuilderMode] = useState("create");
   const [editCourseId, setEditCourseId] = useState(null);

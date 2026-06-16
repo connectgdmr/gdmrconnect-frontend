@@ -161,10 +161,11 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   const [accessGrants, setAccessGrants] = useState([]);
   const [grantData, setGrantData] = useState({
       employeeId: "",
-      accessLevel: "view_only", 
-      scope: "today",           
+      module: "attendance",
+      accessLevel: "view_only",
+      scope: "today",
       customDate: "",
-      expiry: "end_of_day",     
+      expiry: "end_of_day",
       customExpiryTime: ""
   });
 
@@ -512,7 +513,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           });
           if (res.ok) {
               alert("Temporary Access Granted Successfully!");
-              setGrantData({ employeeId: "", accessLevel: "view_only", scope: "today", customDate: "", expiry: "end_of_day", customExpiryTime: "" });
+              setGrantData({ employeeId: "", module: "attendance", accessLevel: "view_only", scope: "today", customDate: "", expiry: "end_of_day", customExpiryTime: "" });
               loadAccessGrants(); 
           } else {
               const errData = await res.json(); alert(`Failed to grant access: ${errData.message}`);
@@ -1035,6 +1036,13 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                             {employees.map(emp => <option key={emp._id} value={emp._id}>{emp.name} ({emp.department})</option>)}
                         </select>
                     </div>
+                    <div className="grant-form-col">
+                        <label style={{fontWeight: 600, fontSize: '14px', color: '#333'}}>Access Module</label>
+                        <select className="modern-input" style={{marginTop: 8}} value={grantData.module} onChange={(e) => setGrantData({...grantData, module: e.target.value})}>
+                            <option value="attendance">Attendance &amp; Leaves</option>
+                            <option value="lms">LMS — Courses</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div className="grant-form-row">
@@ -1077,6 +1085,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                     <thead>
                         <tr>
                             <th>Employee</th>
+                            <th>Module</th>
                             <th>Permission</th>
                             <th>Scope</th>
                             <th>Expires At</th>
@@ -1085,11 +1094,12 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                     </thead>
                     <tbody>
                         {accessGrants.length === 0 ? (
-                            <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>No active access grants.</td></tr>
+                            <tr><td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>No active access grants.</td></tr>
                         ) : (
                             accessGrants.map(grant => (
                                 <tr key={grant._id}>
                                     <td style={{ fontWeight: 'bold' }}>{grant.employee_name}</td>
+                                    <td>{(grant.module || "attendance") === "lms" ? "LMS — Courses" : "Attendance & Leaves"}</td>
                                     <td><span style={{ backgroundColor: grant.access_level === 'view_edit' ? '#dcfce7' : '#e0e7ff', color: grant.access_level === 'view_edit' ? '#16a34a' : '#4f46e5', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>{grant.access_level === 'view_edit' ? 'View & Edit' : 'View Only'}</span></td>
                                     <td>{grant.scope === 'today' ? 'Today' : grant.custom_date}</td>
                                     <td style={{ color: '#666' }}>{grant.expiry === 'end_of_day' ? 'End of Day' : new Date(grant.custom_expiry_time).toLocaleString()}</td>

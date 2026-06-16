@@ -48,6 +48,7 @@ import ChatBot from "./ChatBot";
 
 const WorkAnalytics = lazy(() => import("./WorkAnalytics"));
 const WorkHistory   = lazy(() => import("./WorkHistory"));
+const AdminLMS      = lazy(() => import("./AdminLMS"));
 
 // ─── Daily Motivational Quote (unused — kept for reference) ───────────────────
 const _UNUSED_QUOTES = [
@@ -726,12 +727,15 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
    * Safely navigates backwards depending on current view state.
    */
   const handleBackNavigation = () => {
-      if (view === "delegated-leaves" || view === "delegated-attendance") {
+      if (view === "delegated-leaves" || view === "delegated-attendance" || view === "delegated-lms") {
           setView("special-access");
       } else {
           setView("dashboard");
       }
   };
+
+  // Which modules has this employee been granted? (legacy grants default to attendance)
+  const grantedModule = (mod) => Array.isArray(delegatedGrants) && delegatedGrants.some(g => (g.module || "attendance") === mod);
 
   const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
 
@@ -1090,8 +1094,9 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
             </p>
 
             <div className="quick-launch-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                <QuickLaunchItem icon={<FaClipboardList />} label="Manage Leave Approvals" onClick={() => setView("delegated-leaves")} />
-                <QuickLaunchItem icon={<FaHistory />} label="Manage Daily Attendance" onClick={() => setView("delegated-attendance")} />
+                {grantedModule("attendance") && <QuickLaunchItem icon={<FaClipboardList />} label="Manage Leave Approvals" onClick={() => setView("delegated-leaves")} />}
+                {grantedModule("attendance") && <QuickLaunchItem icon={<FaHistory />} label="Manage Daily Attendance" onClick={() => setView("delegated-attendance")} />}
+                {grantedModule("lms") && <QuickLaunchItem icon={<FaGraduationCap />} label="Manage LMS Courses" onClick={() => setView("delegated-lms")} />}
             </div>
          </div>
       )}
@@ -1109,9 +1114,20 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       {view === "delegated-attendance" && (
          <div style={{ marginTop: "16px" }}>
             <div className="delegation-alert">
-               🛡️ You are viewing the Daily Attendance Logs using temporary Delegated Access. 
+               🛡️ You are viewing the Daily Attendance Logs using temporary Delegated Access.
             </div>
             <AdminAttendancePage token={token} api={api} />
+         </div>
+      )}
+
+      {view === "delegated-lms" && (
+         <div style={{ marginTop: "16px" }}>
+            <div className="delegation-alert">
+               🛡️ You are managing LMS Courses using temporary Delegated Access — you can create courses and assign them.
+            </div>
+            <ErrorBoundary label="LMS" resetKey={view}>
+              <AdminLMS token={token} employees={[]} departments={[]} />
+            </ErrorBoundary>
          </div>
       )}
 
