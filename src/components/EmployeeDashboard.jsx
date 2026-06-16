@@ -1408,6 +1408,16 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       )}
 
       {/* — Apply Leave — */}
+      {submittingLeave && (
+        <div className="modal-overlay" style={{ zIndex: 5000 }}>
+          <div className="modal-box" style={{ maxWidth: 320, textAlign: "center", padding: "32px 28px" }}>
+            <div className="loader" style={{ margin: "0 auto 16px" }} />
+            <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 15 }}>Submitting your leave request…</div>
+            <div style={{ fontSize: 13, color: "#64748b", marginTop: 5 }}>Please wait a moment.</div>
+          </div>
+        </div>
+      )}
+
       {view === "apply-leave" && (
         <div className="card" style={{ marginTop: 16 }}>
           <form onSubmit={applyLeave}>
