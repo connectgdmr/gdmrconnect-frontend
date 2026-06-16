@@ -597,6 +597,13 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 .announcement-body { font-size: 13.5px; color: var(--slate-600); line-height: 1.65; }
 .announcement-actions { display: flex; gap: 6px; margin-top: 12px; }
 
+/* Small inline spinner for buttons in a submitting state */
+.btn-spinner {
+  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.45); border-top-color: #fff;
+  animation: spin 0.6s linear infinite; display: inline-block;
+}
+
 /* ── 19. LOADER ────────────────────────────────────── */
 .loader-container {
   display: flex; flex-direction: column; gap: 14px;

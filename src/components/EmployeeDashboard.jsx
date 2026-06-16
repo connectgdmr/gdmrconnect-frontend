@@ -283,8 +283,9 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [type, setType] = useState("full");
-  const [period, setPeriod] = useState("First Half"); 
+  const [period, setPeriod] = useState("First Half");
   const [file, setFile] = useState(null);
+  const [submittingLeave, setSubmittingLeave] = useState(false);
   const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
 
   // ============================================================================
@@ -667,9 +668,11 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // ============================================================================
   async function applyLeave(e) {
     e.preventDefault();
+    if (submittingLeave) return;
+    setSubmittingLeave(true);
     try {
       let payload = {
-         type, 
+         type,
          reason,
          period: type === 'half' ? period : null,
          from_date: startDate,
@@ -677,17 +680,19 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       };
 
       await api.applyLeaveWithFile(payload, file, token);
-      
+
       setStartDate("");
       setEndDate("");
       setReason("");
       setFile(null);
-      
-      await load();
+
       alert("Leave applied successfully!");
-      setView("my-leaves"); 
+      setView("my-leaves");
+      load(); // refresh in the background — don't block the success feedback
     } catch (err) {
       alert("Error applying leave: " + (err.message || "An unknown error occurred."));
+    } finally {
+      setSubmittingLeave(false);
     }
   }
 
@@ -1472,7 +1477,10 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
             </div>
 
             <div style={{ marginTop: 25, display:'flex', justifyContent:'flex-end' }}>
-              <button className="btn" type="submit" style={{padding: "10px 24px"}}>Submit Request</button>
+              <button className="btn" type="submit" disabled={submittingLeave} style={{padding: "10px 24px", display:'flex', alignItems:'center', gap:8}}>
+                {submittingLeave && <span className="btn-spinner" />}
+                {submittingLeave ? "Submitting…" : "Submit Request"}
+              </button>
             </div>
           </form>
         </div>
