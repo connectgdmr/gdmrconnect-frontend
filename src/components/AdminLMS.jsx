@@ -29,7 +29,7 @@ function ProgressBar({ pct }) {
   );
 }
 
-const blankCourse  = () => ({ title: "", description: "", category: "Technical", thumbnailUrl: "" });
+const blankCourse  = () => ({ title: "", description: "", category: "Technical", thumbnailUrl: "", expiryDate: "" });
 const blankModule  = () => ({ title: "", lessons: [blankLesson()] });
 const blankLesson  = () => ({ title: "", type: "Video", url: "", content: "" });
 
@@ -112,6 +112,7 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
       description: c.description || "",
       category: c.category || "Technical",
       thumbnailUrl: c.thumbnail_url || c.thumbnailUrl || "",
+      expiryDate: (c.expiry_date || c.expiryDate || "").slice(0, 10),
     });
     setModules(normalizeModules(c.modules || c.course_modules));
     setExpandedMod(0);
@@ -143,6 +144,7 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
       description: courseForm.description || "",
       category: courseForm.category || "Technical",
       thumbnail_url: courseForm.thumbnailUrl || "",
+      expiry_date: courseForm.expiryDate || null,
       modules: cleanModules,
     };
     try {
@@ -270,6 +272,12 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
                     <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>{c.title}</div>
                     {c.description && <p style={{ margin: "0 0 8px", fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{c.description.slice(0, 70)}{c.description.length > 70 ? "…" : ""}</p>}
                     <div style={{ fontSize: 12, color: "#94a3b8" }}>{c.modules?.length || 0} modules · {c.modules?.reduce((s, m) => s + (m.lessons?.length || 0), 0) || 0} lessons</div>
+                    {(c.expiry_date || c.expiryDate) && (() => {
+                      const exp = new Date((c.expiry_date || c.expiryDate)); const expired = exp < new Date();
+                      return <div style={{ fontSize: 11, fontWeight: 600, marginTop: 5, color: expired ? "#dc2626" : "#0f766e" }}>
+                        {expired ? "⛔ Expired " : "⏳ Expires "}{exp.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                      </div>;
+                    })()}
                     <button className="btn ghost" style={{ marginTop: 10, fontSize: 12, width: "100%" }} onClick={() => { setAssignCourseId(c._id); setTab("assign"); }}>
                       <FaUsers size={11} /> Assign to Employees
                     </button>
@@ -302,9 +310,13 @@ export default function AdminLMS({ token, employees = [], departments = [] }) {
                   {CATEGORIES.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
-              <div style={{ marginBottom: 20 }}>
+              <div style={{ marginBottom: 13 }}>
                 <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Thumbnail URL <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional)</span></label>
                 <input className="modern-input" type="url" value={courseForm.thumbnailUrl} onChange={e => setCourseForm({ ...courseForm, thumbnailUrl: e.target.value })} placeholder="https://…" />
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Expiry Date <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional — course hidden after this date)</span></label>
+                <input className="modern-input" type="date" value={courseForm.expiryDate} onChange={e => setCourseForm({ ...courseForm, expiryDate: e.target.value })} />
               </div>
               <button className="btn" type="submit" disabled={saving} style={{ width: "100%" }}>
                 {saving ? "Saving…" : builderMode === "edit" ? "Save Changes" : "Create Course"}
