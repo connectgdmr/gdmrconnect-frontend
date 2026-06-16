@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { FaHistory, FaSearch, FaRegClock, FaCheckCircle } from "react-icons/fa";
-import { TASK_STATUSES } from "./DailyWorkPlan";
+import { FaHistory, FaSearch, FaRegClock, FaCheckCircle, FaRedo } from "react-icons/fa";
+import { TASK_STATUSES, carryKey } from "./DailyWorkPlan";
 import { SkeletonList } from "./Skeleton";
 
 const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
@@ -13,14 +13,33 @@ const RANGES = [
   { k: "all",   label: "All Time" },
 ];
 
-export default function WorkHistory({ token }) {
+export default function WorkHistory({ token, user }) {
   const [range, setRange]   = useState("month");
   const [plans, setPlans]   = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusF, setStatusF] = useState("all");
+  const [toast, setToast]   = useState("");
 
   const toArr = (d) => Array.isArray(d) ? d : (d?.plans || d?.data || []);
+
+  // Change a past task's status (persists + optimistic update)
+  const changeStatus = (planId, taskId, ns) => {
+    setPlans(ps => ps.map(p => p._id === planId ? { ...p, tasks: p.tasks.map(t => (t.id === taskId || t._id === taskId) ? { ...t, status: ns } : t) } : p));
+    fetch(`${BASE}/my/work-plan/${planId}/task/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: ns }) }).catch(() => {});
+  };
+
+  // Queue an unfinished task to continue in today's plan
+  const continueTask = (t) => {
+    try {
+      const k = carryKey(user?._id);
+      const q = JSON.parse(localStorage.getItem(k) || "[]");
+      q.push({ title: t.title, priority: t.priority || "Medium", est_time: t.est_time || "", project: t.project || "", client: t.client || "" });
+      localStorage.setItem(k, JSON.stringify(q));
+      setToast(`"${t.title}" added to today's plan — open your Dashboard to review & submit.`);
+      setTimeout(() => setToast(""), 4000);
+    } catch {}
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -64,6 +83,12 @@ export default function WorkHistory({ token }) {
           ))}
         </div>
       </div>
+
+      {toast && (
+        <div style={{ marginBottom: 14, padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" }}>
+          ✓ {toast}
+        </div>
+      )}
 
       {/* Summary tiles */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 16 }}>
@@ -114,14 +139,24 @@ export default function WorkHistory({ token }) {
                 <div style={{ padding: "8px 18px 12px" }}>
                   {p.tasks.map((t, i) => {
                     const sm = SM(t.status);
+                    const tid = t.id || t._id;
                     return (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: i < p.tasks.length - 1 ? "1px solid #f8fafc" : "none" }}>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: i < p.tasks.length - 1 ? "1px solid #f8fafc" : "none", flexWrap: "wrap" }}>
                         <span style={{ width: 8, height: 8, borderRadius: "50%", background: PRI[t.priority] || "#94a3b8", flexShrink: 0 }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ flex: 1, minWidth: 140 }}>
                           <div style={{ fontSize: 13, color: t.status === "Completed" ? "#94a3b8" : "#334155", textDecoration: t.status === "Completed" ? "line-through" : "none" }}>{t.title}</div>
-                          {(t.project || t.est_time) && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{t.project} {t.est_time && `· ${t.est_time}`}</div>}
+                          {(t.client || t.project || t.est_time) && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{t.client && <span style={{ color: "#0f766e", fontWeight: 600 }}>🏢 {t.client} · </span>}{t.project} {t.est_time && `· ${t.est_time}`}</div>}
                         </div>
-                        <span style={{ fontSize: 10.5, fontWeight: 700, color: sm.color, background: sm.bg, padding: "2px 9px", borderRadius: 99, flexShrink: 0 }}>{t.status || "Pending"}</span>
+                        {t.status !== "Completed" && (
+                          <button onClick={() => continueTask(t)} title="Continue this in today's plan"
+                            style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--brand)", background: "var(--brand-light)", border: "1px solid #bbf7d0", borderRadius: 7, padding: "4px 9px", cursor: "pointer", flexShrink: 0 }}>
+                            <FaRedo size={9} /> Continue
+                          </button>
+                        )}
+                        <select value={t.status || "Pending"} onChange={e => changeStatus(p._id, tid, e.target.value)} title="Change status"
+                          style={{ fontSize: 10.5, fontWeight: 700, color: sm.color, background: sm.bg, border: `1px solid ${sm.color}33`, borderRadius: 99, padding: "4px 9px", cursor: "pointer", flexShrink: 0, appearance: "none", textAlign: "center" }}>
+                          {TASK_STATUSES.map(s => <option key={s.v} value={s.v} style={{ color: "#334155", background: "#fff" }}>{s.v}</option>)}
+                        </select>
                       </div>
                     );
                   })}

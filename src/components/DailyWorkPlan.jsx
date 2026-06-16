@@ -15,7 +15,8 @@ export const TASK_STATUSES = [
   { v: "Completed",   color: "#16a34a", bg: "#f0fdf4" },
 ];
 const STATUS_META = (s) => TASK_STATUSES.find(x => x.v === s) || TASK_STATUSES[0];
-const blankTask = () => ({ id: Date.now() + Math.random(), title: "", priority: "Medium", est_time: "", project: "", status: "Pending" });
+const blankTask = () => ({ id: Date.now() + Math.random(), title: "", priority: "Medium", est_time: "", project: "", client: "", status: "Pending" });
+export const carryKey = (uid) => `gdmr_carryforward_${uid || "guest"}`;
 
 export default function DailyWorkPlan({ token, user, departments = [] }) {
   const today = new Date().toISOString().slice(0, 10);
@@ -26,18 +27,40 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
   const [saving, setSaving]     = useState(false);
   const [editing, setEditing]   = useState(true);
   const [msg, setMsg]           = useState("");
+  const [clients, setClients]   = useState([]);
 
   const deptNames = departments.map(d => d.name || d).filter(Boolean);
 
+  // Pull any "continue previous work" tasks queued from Work History
+  const drainCarryForward = () => {
+    try {
+      const k = carryKey(user?._id);
+      const q = JSON.parse(localStorage.getItem(k) || "[]");
+      if (Array.isArray(q) && q.length) { localStorage.removeItem(k); return q; }
+    } catch {}
+    return [];
+  };
+
   useEffect(() => {
+    // Clients for the dropdown
+    fetch(`${BASE}/clients`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : []).then(d => setClients(Array.isArray(d) ? d : (d?.clients || []))).catch(() => {});
+
     fetch(`${BASE}/my/work-plan?date=${today}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
+        const carried = drainCarryForward().map(t => ({ ...blankTask(), ...t, id: Date.now() + Math.random(), status: "Pending" }));
         if (d && d.tasks?.length) {
-          setTasks(d.tasks.map(t => ({ ...blankTask(), ...t })));
+          const existing = d.tasks.map(t => ({ ...blankTask(), ...t }));
+          setTasks(carried.length ? [...existing, ...carried] : existing);
           setStatus(d.status || "draft");
           setPlanId(d._id || null);
-          setEditing(d.status !== "submitted");
+          setEditing(d.status !== "submitted" || carried.length > 0);
+          if (carried.length) setMsg(`${carried.length} task(s) carried forward — review and submit.`);
+        } else if (carried.length) {
+          setTasks(carried);
+          setEditing(true);
+          setMsg(`${carried.length} task(s) carried forward — review and submit.`);
         }
       })
       .catch(() => {})
@@ -117,6 +140,7 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 500, color: done ? "#94a3b8" : "#334155", textDecoration: done ? "line-through" : "none" }}>{t.title}</div>
                   <div style={{ display: "flex", gap: 10, marginTop: 3, flexWrap: "wrap" }}>
+                    {t.client && <span style={{ fontSize: 11, color: "#0f766e", fontWeight: 600 }}>🏢 {t.client}</span>}
                     {t.project && <span style={{ fontSize: 11, color: "#64748b" }}>📁 {t.project}</span>}
                     {t.est_time && <span style={{ fontSize: 11, color: "#64748b" }}><FaRegClock size={9} /> {t.est_time}</span>}
                     <span style={{ fontSize: 10.5, fontWeight: 700, color: pr.color }}>● {t.priority}</span>
@@ -146,6 +170,12 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
                   {PRIORITIES.map(p => <option key={p.v} value={p.v}>{p.v} Priority</option>)}
                 </select>
                 <input className="modern-input" style={{ margin: 0, fontSize: 12.5 }} placeholder="Est. time (e.g. 2h)" value={t.est_time} onChange={e => updateTask(t.id, { est_time: e.target.value })} />
+                {clients.length > 0 ? (
+                  <select className="modern-input" style={{ margin: 0, fontSize: 12.5 }} value={t.client} onChange={e => updateTask(t.id, { client: e.target.value })}>
+                    <option value="">Client</option>
+                    {clients.map(c => <option key={c._id || c.name} value={c.name}>{c.name}</option>)}
+                  </select>
+                ) : null}
                 {deptNames.length > 0 ? (
                   <select className="modern-input" style={{ margin: 0, fontSize: 12.5 }} value={t.project} onChange={e => updateTask(t.id, { project: e.target.value })}>
                     <option value="">Project / Dept</option>

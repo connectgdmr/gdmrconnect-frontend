@@ -55,6 +55,7 @@ const AdminLMS        = lazy(() => import("./AdminLMS"));
 const AdminCareer     = lazy(() => import("./AdminCareer"));
 const AdminPayroll    = lazy(() => import("./AdminPayroll"));
 const AdminWorkByTeam = lazy(() => import("./AdminWorkByTeam"));
+const AdminClients    = lazy(() => import("./AdminClients"));
 
 // ============================================================================
 // MAIN EXPORT: ADMIN DASHBOARD
@@ -954,6 +955,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
       {/* 10. WORK BY TEAM */}
       {view === "work-by-team" && <ErrorBoundary label="Work by Team" resetKey={view}><AdminWorkByTeam token={token} role="admin" /></ErrorBoundary>}
+
+      {/* 11. CLIENTS */}
+      {view === "clients" && <ErrorBoundary label="Clients" resetKey={view}><AdminClients token={token} /></ErrorBoundary>}
 
       {/* 6. HOLIDAYS */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}

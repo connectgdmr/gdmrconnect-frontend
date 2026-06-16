@@ -1546,7 +1546,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       {view === "lms"     && <ErrorBoundary label="My Courses" resetKey={view}><EmployeeLMS token={token} /></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
       {view === "work-analytics" && <ErrorBoundary label="My Work Analytics" resetKey={view}><WorkAnalytics token={token} /></ErrorBoundary>}
-      {view === "work-history"   && <ErrorBoundary label="Work History" resetKey={view}><WorkHistory token={token} /></ErrorBoundary>}
+      {view === "work-history"   && <ErrorBoundary label="Work History" resetKey={view}><WorkHistory token={token} user={user} /></ErrorBoundary>}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}>
         {user?.department?.toLowerCase().includes("account")
           ? <AdminPayroll token={token} />

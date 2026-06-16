@@ -8,6 +8,7 @@ import ChatBot from "./ChatBot";
 const WorkAnalytics  = lazy(() => import("./WorkAnalytics"));
 const WorkHistory     = lazy(() => import("./WorkHistory"));
 const AdminWorkByTeam = lazy(() => import("./AdminWorkByTeam"));
+const AdminClients    = lazy(() => import("./AdminClients"));
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
@@ -2023,8 +2024,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {view === "lms"     && <ErrorBoundary label="My Courses" resetKey={view}><EmployeeLMS token={token} /></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
       {view === "work-analytics" && <ErrorBoundary label="My Work Analytics" resetKey={view}><WorkAnalytics token={token} /></ErrorBoundary>}
-      {view === "work-history"   && <ErrorBoundary label="Work History" resetKey={view}><WorkHistory token={token} /></ErrorBoundary>}
+      {view === "work-history"   && <ErrorBoundary label="Work History" resetKey={view}><WorkHistory token={token} user={user} /></ErrorBoundary>}
       {view === "work-by-team"   && <ErrorBoundary label="Work by Team" resetKey={view}><AdminWorkByTeam token={token} role="manager" /></ErrorBoundary>}
+      {view === "clients"        && <ErrorBoundary label="Clients" resetKey={view}><AdminClients token={token} /></ErrorBoundary>}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}>
         {user?.department?.toLowerCase().includes("account")
           ? <AdminPayroll token={token} />
