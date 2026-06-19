@@ -5,7 +5,7 @@ import {
   FaChartPie, FaCalendarAlt, FaBullhorn, FaUserShield, FaLaptop,
   FaHistory, FaCalendarPlus, FaEdit, FaChartLine, FaClipboardCheck,
   FaSignOutAlt, FaBalanceScale, FaBuilding, FaClipboardList, FaGraduationCap, FaBriefcase, FaMoneyBillWave,
-  FaTasks, FaChartArea, FaFolderOpen
+  FaTasks, FaChartArea, FaFolderOpen, FaUserTag
 } from "react-icons/fa";
 
 const NAV_ITEMS = {
@@ -26,6 +26,7 @@ const NAV_ITEMS = {
     { icon: <FaClipboardList />, label: "Assessments", view: "assessment" },
     { icon: <FaGraduationCap />, label: "LMS", view: "lms" },
     { icon: <FaBriefcase />, label: "Jobs", view: "career" },
+    { icon: <FaUserTag />, label: "Recruitment", view: "ats" },
     { icon: <FaMoneyBillWave />, label: "Payroll", view: "payroll" },
   ],
   manager: [
@@ -42,6 +43,7 @@ const NAV_ITEMS = {
     { icon: <FaBullhorn />, label: "Announcements", view: "announcements" },
     { icon: <FaTasks />, label: "Work by Team", view: "work-by-team" },
     { icon: <FaFolderOpen />, label: "Clients", view: "clients" },
+    { icon: <FaUserTag />, label: "Recruitment", view: "ats" },
     { icon: <FaChartArea />, label: "My Work Analytics", view: "work-analytics" },
     { icon: <FaHistory />, label: "Work History", view: "work-history" },
     { icon: <FaLaptop />, label: "Team Assets", view: "team-assets" },
