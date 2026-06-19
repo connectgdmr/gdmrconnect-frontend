@@ -3,14 +3,16 @@ import React, { useState, useEffect, lazy, Suspense } from "react";
 import Login from "./components/Login";
 import SplashScreen from "./components/SplashScreen";
 import TakeAssessment from "./components/TakeAssessment";
+import CandidateDocuments from "./components/CandidateDocuments";
 import api from "./api";
 
 const AdminDashboard    = lazy(() => import("./components/AdminDashboard"));
 const EmployeeDashboard = lazy(() => import("./components/EmployeeDashboard"));
 const ManagerDashboard  = lazy(() => import("./components/ManagerDashboard"));
 
-// Detect /assessment/:token in the URL — render public assessment page
+// Public, token-based routes (no login required)
 const assessmentMatch = window.location.pathname.match(/^\/assessment\/([^/]+)/);
+const documentsMatch  = window.location.pathname.match(/^\/documents\/([^/]+)/);
 
 // Helper to decode JWT simply to check expiration
 function parseJwt (token) {
@@ -25,6 +27,11 @@ export default function App() {
   // Public assessment-taking page — no login required
   if (assessmentMatch) {
     return <TakeAssessment assessmentToken={assessmentMatch[1]} />;
+  }
+
+  // Public candidate document-upload portal — no login required
+  if (documentsMatch) {
+    return <CandidateDocuments docToken={documentsMatch[1]} />;
   }
 
   const [token, setToken] = useState(localStorage.getItem("token"));
