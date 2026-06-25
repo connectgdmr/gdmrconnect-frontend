@@ -92,7 +92,11 @@ async function jreq(api, token, path, method, body) {
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const d = await safeJson(r);
-  if (!r.ok) throw new Error(d?.message || `Request failed (${r.status})`);
+  if (!r.ok) {
+    const err = new Error(d?.message || `Request failed (${r.status})`);
+    err.status = r.status;
+    throw err;
+  }
   return d;
 }
 const jpost = (api, token, path, body) => jreq(api, token, path, "POST", body || {});
@@ -123,6 +127,9 @@ export default function Chat({ token, api, user }) {
   const [editText, setEditText]         = useState("");
   const [headerMenu, setHeaderMenu]     = useState(false);   // thread header kebab menu
   const [confirm, setConfirm]           = useState(null);    // { title, message, danger, onConfirm }
+  const [toast, setToast]               = useState("");      // transient toast message
+
+  const showToast = (m) => { setToast(m); setTimeout(() => setToast(""), 3000); };
 
   const isAdmin = (user?.role || (typeof localStorage !== "undefined" && localStorage.getItem("role"))) === "admin";
 
@@ -298,27 +305,42 @@ export default function Chat({ token, api, user }) {
     const body = editText.trim();
     if (!body) return;
     if (body === m.text) return cancelEdit();
+    const cid = active.id;
     setMessages(ms => ms.map(x => x._id === m._id ? { ...x, text: body, edited: true } : x));
     cancelEdit();
     try {
-      await jput(api, token, `/chat/conversations/${active.id}/messages/${m._id}`, { text: body });
+      const d = await jput(api, token, `/chat/conversations/${cid}/messages/${m._id}`, { text: body });
+      if (d && d._id) setMessages(ms => ms.map(x => x._id === m._id ? { ...x, ...d } : x)); // apply edited_at etc.
       loadList();
-    } catch (e) { setError(e.message || "Could not edit message."); loadMessages(active.id, false); }
+    } catch (e) {
+      if (e.status === 404) { setMessages(ms => ms.filter(x => x._id !== m._id)); return; } // already gone
+      if (e.status === 403) showToast("Not allowed"); else showToast(e.message || "Could not edit message.");
+      loadMessages(cid, false); // restore from server
+    }
   }
   async function deleteMessage(m) {
-    setMessages(ms => ms.filter(x => x._id !== m._id));
+    const cid = active.id;
+    setMessages(ms => ms.filter(x => x._id !== m._id)); // optimistic
     try {
-      await jdel(api, token, `/chat/conversations/${active.id}/messages/${m._id}`);
+      await jdel(api, token, `/chat/conversations/${cid}/messages/${m._id}`);
       loadList();
-    } catch (e) { setError(e.message || "Could not delete message."); loadMessages(active.id, false); }
+    } catch (e) {
+      if (e.status === 404) return;                  // already gone — keep removed, silent
+      if (e.status === 403) showToast("Not allowed"); else showToast(e.message || "Could not delete message.");
+      loadMessages(cid, false);                      // restore on other failures
+    }
   }
 
   // ── conversation-level actions (admin) ────────────────────────
   async function clearChat() {
     const id = active?.id; if (!id) return;
-    setMessages([]);
-    try { await jdel(api, token, `/chat/conversations/${id}/messages`); loadList(); }
-    catch (e) { setError(e.message || "Could not clear chat."); loadMessages(id, false); }
+    try {
+      await jdel(api, token, `/chat/conversations/${id}/messages`);
+      setMessages([]);
+      loadList();
+    } catch (e) {
+      if (e.status === 403) showToast("Not allowed"); else showToast(e.message || "Could not clear chat.");
+    }
   }
   async function deleteChannel() {
     const id = active?.id; if (!id) return;
@@ -327,7 +349,12 @@ export default function Chat({ token, api, user }) {
       setConvos(cs => cs.filter(c => c._id !== id));
       setActive(null); setMobilePane("list");
       loadList();
-    } catch (e) { setError(e.message || "Could not delete channel."); }
+    } catch (e) {
+      if (e.status === 403) showToast("Not allowed");
+      else if (e.status === 400) showToast("Direct messages can't be deleted.");
+      else if (e.status === 404) { setConvos(cs => cs.filter(c => c._id !== id)); setActive(null); setMobilePane("list"); }
+      else showToast(e.message || "Could not delete channel.");
+    }
   }
   const canModify = (m) => (m.sender_id || m.sender?._id) === myId || isAdmin;
   const canEdit   = (m) => (m.sender_id || m.sender?._id) === myId; // only own text
@@ -537,6 +564,9 @@ export default function Chat({ token, api, user }) {
         />
       )}
 
+      {/* ── Toast ── */}
+      {toast && <div className="gchat-toast">{toast}</div>}
+
       {/* ── Confirm modal (clear chat / delete) ── */}
       {confirm && (
         <div className="modal-overlay" onClick={() => setConfirm(null)}>
@@ -703,6 +733,12 @@ function ChatStyles() {
       .gchat-menu button:hover { background:#f1f5f4; }
       .gchat-menu button.danger { color:#dc2626; }
       .gchat-menu button.danger:hover { background:#fef2f2; }
+
+      /* toast */
+      .gchat-toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:1000;
+        background:#0f172a; color:#fff; font-size:13px; font-weight:600; padding:11px 20px; border-radius:10px;
+        box-shadow:0 8px 28px rgba(0,0,0,.25); animation:gchatToast .2s ease; }
+      @keyframes gchatToast { from { opacity:0; transform:translate(-50%,8px); } to { opacity:1; transform:translate(-50%,0); } }
 
       .gchat-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:#94a3b8; font-size:13px; }
       .gchat-empty.small { padding:30px 0; }
