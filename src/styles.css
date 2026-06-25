@@ -865,10 +865,18 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 /* Prevent any accidental horizontal page scroll */
 html, body { max-width: 100%; overflow-x: hidden; }
 
-@media (max-width: 900px) {
+/* Tablet & standard / display-scaled laptops: the fixed 256px sidebar cramps
+   content, so switch to an off-canvas drawer and give the content full width.
+   1100px covers 1366px laptops running at 125% display scaling (~1093px CSS). */
+@media (max-width: 1100px) {
   .sidebar { position: fixed; left: 0; top: 0; height: 100vh; transform: translateX(-100%); z-index: 300; }
   .sidebar.sidebar-open { transform: translateX(0); box-shadow: 8px 0 32px rgba(0,0,0,0.3); }
   .topbar-hamburger { display: flex; }
+  .main-content { padding: 18px; }
+  .main-topbar { padding: 0 16px; }
+}
+
+@media (max-width: 900px) {
   .main-content { padding: 16px; }
   .main-topbar { padding: 0 14px; }
   /* KPI + insights collapse */
