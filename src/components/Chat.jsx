@@ -61,10 +61,15 @@ function fmtListTime(ts) {
 }
 
 // ── fetch helpers ─────────────────────────────────────────────
+// Tolerant JSON parse — a 200/201 with an empty or non-JSON body is a success,
+// not an error (this previously made successfully-sent messages look failed).
+async function safeJson(r) { try { return await r.json(); } catch { return {}; } }
+
 async function jget(api, token, path) {
   const r = await fetch(`${BASE(api)}/api${path}`, { headers: { Authorization: `Bearer ${token}` } });
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || `Request failed (${r.status})`);
-  return r.json();
+  const d = await safeJson(r);
+  if (!r.ok) throw new Error(d?.message || `Request failed (${r.status})`);
+  return d;
 }
 async function jpost(api, token, path, body) {
   const r = await fetch(`${BASE(api)}/api${path}`, {
@@ -72,8 +77,9 @@ async function jpost(api, token, path, body) {
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(body || {}),
   });
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || `Request failed (${r.status})`);
-  return r.json();
+  const d = await safeJson(r);
+  if (!r.ok) throw new Error(d?.message || `Request failed (${r.status})`);
+  return d;
 }
 const arr = (d, ...keys) => {
   if (Array.isArray(d)) return d;
@@ -108,8 +114,8 @@ export default function Chat({ token, api, user }) {
         jget(api, token, "/chat/users"),
         jget(api, token, "/chat/conversations"),
       ]);
-      setPeople(arr(u, "users").filter(p => (p._id || p.id) !== myId));
-      setConvos(arr(c, "conversations"));
+      setPeople(arr(u, "users", "data", "employees", "members").filter(p => (p._id || p.id) !== myId));
+      setConvos(arr(c, "conversations", "data"));
       setError("");
     } catch (e) {
       setError(e.message || "Could not load chats.");
@@ -153,13 +159,24 @@ export default function Chat({ token, api, user }) {
   }, [messages, active?.id]);
 
   // ── derive channel + dm lists ─────────────────────────────────
+  const ts = (v) => (v ? new Date(v).getTime() || 0 : 0);
   const channels = conversations.filter(c => c.type === "channel");
   const dmConvos = conversations.filter(c => c.type === "dm");
   const dmFor = (uid) => dmConvos.find(c => (c.members || c.participants || []).some(m => (m._id || m.id || m) === uid));
 
   const q = search.trim().toLowerCase();
-  const filteredPeople = people.filter(p => !q || (p.name || "").toLowerCase().includes(q) || (p.department || "").toLowerCase().includes(q));
-  const filteredChannels = channels.filter(c => !q || (c.name || "").toLowerCase().includes(q));
+  // Sort so the most recent / unread conversations bubble to the top.
+  const filteredChannels = channels
+    .filter(c => !q || (c.name || "").toLowerCase().includes(q))
+    .sort((a, b) => ts(b.last_at) - ts(a.last_at));
+  const filteredPeople = people
+    .filter(p => !q || (p.name || "").toLowerCase().includes(q) || (p.department || "").toLowerCase().includes(q))
+    .sort((a, b) => {
+      const ca = dmFor(a._id || a.id), cb = dmFor(b._id || b.id);
+      const d = ts(cb?.last_at) - ts(ca?.last_at);
+      if (d !== 0) return d;                       // recent chats first
+      return (a.name || "").localeCompare(b.name || ""); // then alphabetical
+    });
 
   // ── open a DM (create if needed) / channel ────────────────────
   async function openPerson(p) {
@@ -453,13 +470,13 @@ function ChatStyles() {
     <style>{`
       .gchat { display:grid; grid-template-columns: 320px 1fr; height: calc(100vh - 140px); min-height: 520px;
         background:#fff; border:1px solid #e6eaef; border-radius:16px; overflow:hidden; box-shadow:0 4px 24px rgba(16,40,30,0.05); }
-      .gchat-rail { border-right:1px solid #eef1f4; display:flex; flex-direction:column; background:#fafbfc; min-width:0; }
+      .gchat-rail { border-right:1px solid #eef1f4; display:flex; flex-direction:column; background:#fafbfc; min-width:0; min-height:0; overflow:hidden; }
       .gchat-rail-head { display:flex; align-items:center; justify-content:space-between; padding:16px 16px 10px; }
       .gchat-rail-head h3 { margin:0; font-size:18px; color:#0f172a; }
       .gchat-new-btn { width:30px; height:30px; border-radius:8px; border:none; background:var(--brand); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; }
       .gchat-search { display:flex; align-items:center; gap:8px; margin:0 14px 10px; padding:8px 12px; background:#fff; border:1px solid #e6eaef; border-radius:10px; color:#94a3b8; }
       .gchat-search input { border:none; outline:none; flex:1; font-size:13px; background:transparent; color:#0f172a; }
-      .gchat-rail-scroll { flex:1; overflow-y:auto; padding-bottom:12px; }
+      .gchat-rail-scroll { flex:1; min-height:0; overflow-y:auto; padding-bottom:12px; }
       .gchat-section-label { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#94a3b8; padding:14px 16px 6px; }
       .gchat-rail-hint { font-size:12px; color:#b6c0cc; padding:4px 16px 8px; }
       .gchat-item { width:100%; display:flex; align-items:center; gap:11px; padding:9px 14px; background:none; border:none; cursor:pointer; text-align:left; transition:background .12s; }
@@ -472,7 +489,7 @@ function ChatStyles() {
       .gchat-item-sub { font-size:12px; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
       .gchat-unread { background:var(--brand); color:#fff; font-size:11px; font-weight:700; min-width:19px; height:19px; border-radius:10px; display:flex; align-items:center; justify-content:center; padding:0 5px; flex-shrink:0; }
 
-      .gchat-thread { display:flex; flex-direction:column; min-width:0; background:#fff; }
+      .gchat-thread { display:flex; flex-direction:column; min-width:0; min-height:0; overflow:hidden; background:#fff; }
       .gchat-placeholder { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:#94a3b8; text-align:center; padding:24px; }
       .gchat-placeholder h3 { margin:8px 0 0; color:#475569; }
       .gchat-placeholder p { margin:0; font-size:13px; }
@@ -481,7 +498,7 @@ function ChatStyles() {
       .gchat-thread-sub { font-size:11.5px; color:#94a3b8; display:flex; align-items:center; gap:5px; margin-top:1px; }
       .gchat-back { display:none; background:none; border:none; cursor:pointer; color:#475569; font-size:16px; }
 
-      .gchat-messages { flex:1; overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:3px; background:linear-gradient(#fcfdfc,#fafbfc); }
+      .gchat-messages { flex:1; min-height:0; overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:3px; background:linear-gradient(#fcfdfc,#fafbfc); }
       .gchat-day { text-align:center; margin:14px 0 8px; }
       .gchat-day span { font-size:11px; font-weight:600; color:#94a3b8; background:#eef2f1; padding:3px 12px; border-radius:20px; }
       .gchat-row { display:flex; gap:8px; align-items:flex-end; max-width:78%; }
