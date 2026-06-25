@@ -41,20 +41,34 @@ function Avatar({ name, size = 38, isChannel = false }) {
 }
 
 // ── time helpers ──────────────────────────────────────────────
+// The backend stores timestamps in UTC but often returns them without a
+// timezone marker (e.g. "2026-06-25 09:58:00"). new Date() would then read
+// them as local time, showing the wrong hour. Parse such strings as UTC so
+// they display correctly in the viewer's local timezone.
+function toDate(ts) {
+  if (ts == null) return new Date(NaN);
+  if (typeof ts === "string") {
+    const s = ts.trim();
+    const hasTz = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s);
+    const iso = s.includes("T") ? s : s.replace(" ", "T");
+    return new Date(hasTz ? iso : iso + "Z");
+  }
+  return new Date(ts);
+}
 function fmtTime(ts) {
-  const d = new Date(ts);
+  const d = toDate(ts);
   if (isNaN(d)) return "";
   return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 function fmtDay(ts) {
-  const d = new Date(ts); if (isNaN(d)) return "";
+  const d = toDate(ts); if (isNaN(d)) return "";
   const today = new Date(); const y = new Date(); y.setDate(today.getDate() - 1);
   if (d.toDateString() === today.toDateString()) return "Today";
   if (d.toDateString() === y.toDateString()) return "Yesterday";
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 function fmtListTime(ts) {
-  const d = new Date(ts); if (isNaN(d)) return "";
+  const d = toDate(ts); if (isNaN(d)) return "";
   const today = new Date();
   if (d.toDateString() === today.toDateString()) return fmtTime(ts);
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
@@ -159,7 +173,7 @@ export default function Chat({ token, api, user }) {
   }, [messages, active?.id]);
 
   // ── derive channel + dm lists ─────────────────────────────────
-  const ts = (v) => (v ? new Date(v).getTime() || 0 : 0);
+  const ts = (v) => (v ? toDate(v).getTime() || 0 : 0);
   const channels = conversations.filter(c => c.type === "channel");
   const dmConvos = conversations.filter(c => c.type === "dm");
   const peopleById = new Map(people.map(p => [(p._id || p.id), p]));
@@ -283,7 +297,7 @@ export default function Chat({ token, api, user }) {
       const mine = sid === myId;
       const day = fmtDay(m.created_at);
       const showDay = day !== lastDay; lastDay = day;
-      const ts = new Date(m.created_at).getTime();
+      const ts = toDate(m.created_at).getTime();
       const grouped = !showDay && sid === lastSender && (ts - lastTs) < 5 * 60 * 1000;
       lastSender = sid; lastTs = ts;
       return (
