@@ -18,8 +18,15 @@ async function request(path, method = "GET", body, token) {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
-    const data = await res.json();
-    if (!res.ok) throw data;
+    const data = await res.json().catch(() => ({}));
+    // Rate limiting (429) and account lockout (423) — surface a clear message
+    if (res.status === 429) {
+      throw { status: 429, message: data?.message || "Too many attempts. Please wait a moment and try again." };
+    }
+    if (res.status === 423) {
+      throw { status: 423, message: data?.message || "Account temporarily locked due to multiple failed attempts. Please try again later." };
+    }
+    if (!res.ok) throw { status: res.status, ...data };
     return data;
   } catch (err) {
     clearTimeout(timeoutId);

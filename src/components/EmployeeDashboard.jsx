@@ -5,6 +5,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, getRatingInfo } from "../constants";
 import useChatUnread from "./useChatUnread";
+import PasswordStrengthMeter from "./PasswordStrengthMeter";
 
 const Chat                = lazy(() => import("./Chat"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
@@ -881,7 +882,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                         <span className="password-toggle-icon" onClick={() => setShowNewPass(!showNewPass)}>
                             {showNewPass ? <FaEyeSlash /> : <FaEye />}
                         </span>
-                        <small style={{display: 'block', marginTop: 5, color: '#666'}}>Must be at least 8 characters long.</small>
+                        <PasswordStrengthMeter password={newPassword} />
                     </div>
 
                     {/* CONFIRM PASSWORD */}

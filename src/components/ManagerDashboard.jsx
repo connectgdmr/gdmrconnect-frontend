@@ -15,6 +15,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
 import useChatUnread from "./useChatUnread";
+import PasswordStrengthMeter from "./PasswordStrengthMeter";
 
 const EmployeeLMS         = lazy(() => import("./EmployeeLMS"));
 const EmployeeCareer      = lazy(() => import("./EmployeeCareer"));
@@ -1146,7 +1147,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                         <span className="password-toggle-icon" onClick={() => setShowNewPass(!showNewPass)}>
                             {showNewPass ? <FaEyeSlash /> : <FaEye />}
                         </span>
-                        <small style={{display: 'block', marginTop: 5, color: '#666'}}>Must be at least 8 characters long.</small>
+                        <PasswordStrengthMeter password={newPassword} />
                     </div>
 
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
