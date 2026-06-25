@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   FaSearch, FaPaperPlane, FaHashtag, FaArrowLeft, FaPlus, FaTimes,
-  FaUsers, FaCommentDots, FaCheck, FaCircle
+  FaUsers, FaCommentDots, FaCheck, FaCircle, FaPen, FaTrash, FaEllipsisV
 } from "react-icons/fa";
 
 /**
@@ -85,16 +85,19 @@ async function jget(api, token, path) {
   if (!r.ok) throw new Error(d?.message || `Request failed (${r.status})`);
   return d;
 }
-async function jpost(api, token, path, body) {
+async function jreq(api, token, path, method, body) {
   const r = await fetch(`${BASE(api)}/api${path}`, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body || {}),
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const d = await safeJson(r);
   if (!r.ok) throw new Error(d?.message || `Request failed (${r.status})`);
   return d;
 }
+const jpost = (api, token, path, body) => jreq(api, token, path, "POST", body || {});
+const jput  = (api, token, path, body) => jreq(api, token, path, "PUT", body || {});
+const jdel  = (api, token, path) => jreq(api, token, path, "DELETE");
 const arr = (d, ...keys) => {
   if (Array.isArray(d)) return d;
   for (const k of keys) if (Array.isArray(d?.[k])) return d[k];
@@ -116,6 +119,12 @@ export default function Chat({ token, api, user }) {
   const [mobilePane, setMobilePane]     = useState("list"); // list | thread (mobile only)
   const [showNewChannel, setShowNewChannel] = useState(false);
   const [error, setError]               = useState("");
+  const [editingId, setEditingId]       = useState(null);   // message being edited
+  const [editText, setEditText]         = useState("");
+  const [headerMenu, setHeaderMenu]     = useState(false);   // thread header kebab menu
+  const [confirm, setConfirm]           = useState(null);    // { title, message, danger, onConfirm }
+
+  const isAdmin = (user?.role || (typeof localStorage !== "undefined" && localStorage.getItem("role"))) === "admin";
 
   const scrollRef = useRef(null);
   const activeRef = useRef(active);
@@ -282,6 +291,47 @@ export default function Chat({ token, api, user }) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   }
 
+  // ── message edit / delete ─────────────────────────────────────
+  function startEdit(m) { setEditingId(m._id); setEditText(m.text || ""); }
+  function cancelEdit() { setEditingId(null); setEditText(""); }
+  async function saveEdit(m) {
+    const body = editText.trim();
+    if (!body) return;
+    if (body === m.text) return cancelEdit();
+    setMessages(ms => ms.map(x => x._id === m._id ? { ...x, text: body, edited: true } : x));
+    cancelEdit();
+    try {
+      await jput(api, token, `/chat/conversations/${active.id}/messages/${m._id}`, { text: body });
+      loadList();
+    } catch (e) { setError(e.message || "Could not edit message."); loadMessages(active.id, false); }
+  }
+  async function deleteMessage(m) {
+    setMessages(ms => ms.filter(x => x._id !== m._id));
+    try {
+      await jdel(api, token, `/chat/conversations/${active.id}/messages/${m._id}`);
+      loadList();
+    } catch (e) { setError(e.message || "Could not delete message."); loadMessages(active.id, false); }
+  }
+
+  // ── conversation-level actions (admin) ────────────────────────
+  async function clearChat() {
+    const id = active?.id; if (!id) return;
+    setMessages([]);
+    try { await jdel(api, token, `/chat/conversations/${id}/messages`); loadList(); }
+    catch (e) { setError(e.message || "Could not clear chat."); loadMessages(id, false); }
+  }
+  async function deleteChannel() {
+    const id = active?.id; if (!id) return;
+    try {
+      await jdel(api, token, `/chat/conversations/${id}`);
+      setConvos(cs => cs.filter(c => c._id !== id));
+      setActive(null); setMobilePane("list");
+      loadList();
+    } catch (e) { setError(e.message || "Could not delete channel."); }
+  }
+  const canModify = (m) => (m.sender_id || m.sender?._id) === myId || isAdmin;
+  const canEdit   = (m) => (m.sender_id || m.sender?._id) === myId; // only own text
+
   // ── render: group messages with date dividers ─────────────────
   function renderMessages() {
     if (loadingMsgs) return <div className="gchat-empty"><div className="loader" /></div>;
@@ -309,13 +359,36 @@ export default function Chat({ token, api, user }) {
               : <Avatar name={m.sender_name || "?"} size={32} />)}
             <div className="gchat-bubble-wrap">
               {!mine && !grouped && <div className="gchat-sender">{m.sender_name || "Member"}</div>}
-              <div className={`gchat-bubble ${mine ? "mine" : ""} ${m.failed ? "failed" : ""}`}>
-                {m.text}
-                <span className="gchat-bubble-time">
-                  {fmtTime(m.created_at)}
-                  {mine && (m.pending ? " · sending…" : m.failed ? " · failed" : <FaCheck size={9} style={{ marginLeft: 4, opacity: 0.7 }} />)}
-                </span>
-              </div>
+              {editingId === m._id ? (
+                <div className="gchat-edit">
+                  <textarea
+                    rows={2}
+                    value={editText}
+                    onChange={e => setEditText(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveEdit(m); } if (e.key === "Escape") cancelEdit(); }}
+                    autoFocus
+                  />
+                  <div className="gchat-edit-actions">
+                    <button type="button" className="gchat-edit-save" onClick={() => saveEdit(m)}>Save</button>
+                    <button type="button" className="gchat-edit-cancel" onClick={cancelEdit}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className={`gchat-bubble ${mine ? "mine" : ""} ${m.failed ? "failed" : ""}`}>
+                  {m.text}
+                  <span className="gchat-bubble-time">
+                    {m.edited && <span style={{ marginRight: 4, fontStyle: "italic", opacity: 0.7 }}>edited</span>}
+                    {fmtTime(m.created_at)}
+                    {mine && (m.pending ? " · sending…" : m.failed ? " · failed" : <FaCheck size={9} style={{ marginLeft: 4, opacity: 0.7 }} />)}
+                  </span>
+                  {!m.pending && !m.failed && canModify(m) && (
+                    <div className="gchat-msg-actions">
+                      {canEdit(m) && <button title="Edit" onClick={() => startEdit(m)}><FaPen size={10} /></button>}
+                      <button title="Delete" className="del" onClick={() => setConfirm({ title: "Delete message", message: "Delete this message? This cannot be undone.", danger: true, onConfirm: () => deleteMessage(m) })}><FaTrash size={10} /></button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </React.Fragment>
@@ -398,12 +471,34 @@ export default function Chat({ token, api, user }) {
                 <FaArrowLeft />
               </button>
               <Avatar name={active.title} size={36} isChannel={active.type === "channel"} />
-              <div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="gchat-thread-title">{active.type === "channel" ? `#${active.title}` : active.title}</div>
                 <div className="gchat-thread-sub">
                   {active.type === "channel" ? "Channel" : <><FaCircle size={7} color="#34a06a" /> Direct message</>}
                 </div>
               </div>
+              {isAdmin && (
+                <div className="gchat-menu-wrap">
+                  <button className="gchat-menu-btn" title="Conversation options" onClick={() => setHeaderMenu(v => !v)}>
+                    <FaEllipsisV size={15} />
+                  </button>
+                  {headerMenu && (
+                    <>
+                      <div className="gchat-menu-backdrop" onClick={() => setHeaderMenu(false)} />
+                      <div className="gchat-menu">
+                        <button onClick={() => { setHeaderMenu(false); setConfirm({ title: "Clear chat", message: "Delete all messages in this conversation for everyone? This cannot be undone.", danger: true, onConfirm: clearChat }); }}>
+                          <FaTrash size={11} /> Clear chat
+                        </button>
+                        {active.type === "channel" && (
+                          <button className="danger" onClick={() => { setHeaderMenu(false); setConfirm({ title: "Delete channel", message: `Delete the channel "#${active.title}" and all its messages for everyone? This cannot be undone.`, danger: true, onConfirm: deleteChannel }); }}>
+                            <FaTimes size={12} /> Delete channel
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </header>
 
             <div className="gchat-messages" ref={scrollRef}>
@@ -440,6 +535,28 @@ export default function Chat({ token, api, user }) {
             setMobilePane("thread");
           }}
         />
+      )}
+
+      {/* ── Confirm modal (clear chat / delete) ── */}
+      {confirm && (
+        <div className="modal-overlay" onClick={() => setConfirm(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: "#fef2f2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><FaTrash size={15} /></div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: "0 0 6px", fontSize: 16, color: "#0f172a" }}>{confirm.title}</h3>
+                <p style={{ margin: 0, fontSize: 13.5, color: "#64748b", lineHeight: 1.5 }}>{confirm.message}</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
+              <button className="btn ghost" type="button" onClick={() => setConfirm(null)}>Cancel</button>
+              <button type="button" onClick={() => { const fn = confirm.onConfirm; setConfirm(null); fn?.(); }}
+                style={{ background: "#dc2626", color: "#fff", border: "none", borderRadius: 8, padding: "9px 18px", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                <FaTrash size={11} /> Confirm
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -559,6 +676,33 @@ function ChatStyles() {
       .gchat-bubble.mine { background:var(--brand); color:#fff; border-top-left-radius:14px; border-top-right-radius:4px; }
       .gchat-bubble.failed { background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; }
       .gchat-bubble-time { display:inline-block; font-size:9.5px; opacity:.65; margin-left:8px; white-space:nowrap; vertical-align:baseline; }
+
+      /* per-message hover actions */
+      .gchat-msg-actions { position:absolute; top:50%; display:none; gap:3px; }
+      .gchat-row:hover .gchat-msg-actions { display:flex; }
+      .gchat-bubble.mine .gchat-msg-actions { left:-6px; transform:translate(-100%,-50%); }
+      .gchat-bubble:not(.mine) .gchat-msg-actions { right:-6px; transform:translate(100%,-50%); }
+      .gchat-msg-actions button { width:24px; height:24px; border-radius:6px; border:1px solid #e6eaef; background:#fff; color:#64748b; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+      .gchat-msg-actions button:hover { color:#0f172a; }
+      .gchat-msg-actions button.del:hover { color:#dc2626; border-color:#fecaca; background:#fef2f2; }
+
+      /* inline edit */
+      .gchat-edit { display:flex; flex-direction:column; gap:6px; }
+      .gchat-edit textarea { resize:none; border:1px solid var(--brand); border-radius:10px; padding:8px 10px; font-size:13.5px; font-family:inherit; outline:none; min-width:230px; line-height:1.4; }
+      .gchat-edit-actions { display:flex; gap:8px; }
+      .gchat-edit-save { background:var(--brand); color:#fff; border:none; border-radius:6px; padding:5px 14px; font-size:12px; font-weight:600; cursor:pointer; }
+      .gchat-edit-cancel { background:#f1f5f9; color:#475569; border:none; border-radius:6px; padding:5px 14px; font-size:12px; font-weight:600; cursor:pointer; }
+
+      /* thread header kebab menu */
+      .gchat-menu-wrap { position:relative; flex-shrink:0; }
+      .gchat-menu-btn { background:none; border:none; cursor:pointer; color:#94a3b8; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; }
+      .gchat-menu-btn:hover { background:#f1f5f4; color:#475569; }
+      .gchat-menu-backdrop { position:fixed; inset:0; z-index:40; }
+      .gchat-menu { position:absolute; right:0; top:40px; z-index:41; background:#fff; border:1px solid #e6eaef; border-radius:10px; box-shadow:0 8px 24px rgba(16,40,30,.14); padding:6px; min-width:170px; }
+      .gchat-menu button { width:100%; display:flex; align-items:center; gap:10px; padding:9px 10px; background:none; border:none; border-radius:7px; cursor:pointer; font-size:13px; color:#334155; text-align:left; }
+      .gchat-menu button:hover { background:#f1f5f4; }
+      .gchat-menu button.danger { color:#dc2626; }
+      .gchat-menu button.danger:hover { background:#fef2f2; }
 
       .gchat-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:#94a3b8; font-size:13px; }
       .gchat-empty.small { padding:30px 0; }
