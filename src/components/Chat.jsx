@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   FaSearch, FaPaperPlane, FaHashtag, FaArrowLeft, FaPlus, FaTimes,
-  FaUsers, FaCommentDots, FaCheck, FaCircle, FaPen, FaTrash, FaEllipsisV
+  FaUsers, FaCommentDots, FaCheck, FaCircle, FaPen, FaTrash, FaEllipsisV, FaSignOutAlt
 } from "react-icons/fa";
 
 /**
@@ -27,15 +27,24 @@ function initials(name = "?") {
   return ((p[0]?.[0] || "") + (p[1]?.[0] || "")).toUpperCase() || "?";
 }
 
-function Avatar({ name, size = 38, isChannel = false }) {
+function Avatar({ name, size = 38, isChannel = false, online = false }) {
   const bg = isChannel ? "#1c5249" : colorFor(name);
   return (
-    <div style={{
-      width: size, height: size, borderRadius: isChannel ? 10 : "50%", background: bg,
-      color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-      fontWeight: 700, fontSize: size * 0.38, flexShrink: 0,
-    }}>
-      {isChannel ? <FaHashtag size={size * 0.42} /> : initials(name)}
+    <div style={{ position: "relative", flexShrink: 0, width: size, height: size }}>
+      <div style={{
+        width: size, height: size, borderRadius: isChannel ? 10 : "50%", background: bg,
+        color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+        fontWeight: 700, fontSize: size * 0.38,
+      }}>
+        {isChannel ? <FaHashtag size={size * 0.42} /> : initials(name)}
+      </div>
+      {online && !isChannel && (
+        <span style={{
+          position: "absolute", bottom: 0, right: 0, width: Math.max(9, size * 0.28),
+          height: Math.max(9, size * 0.28), borderRadius: "50%", background: "#22c55e",
+          border: "2px solid #fff", boxSizing: "border-box",
+        }} />
+      )}
     </div>
   );
 }
@@ -128,6 +137,9 @@ export default function Chat({ token, api, user }) {
   const [headerMenu, setHeaderMenu]     = useState(false);   // thread header kebab menu
   const [confirm, setConfirm]           = useState(null);    // { title, message, danger, onConfirm }
   const [toast, setToast]               = useState("");      // transient toast message
+  const [msgMenu, setMsgMenu]           = useState(null);    // message id whose action menu is open
+  const [onlineIds, setOnlineIds]       = useState(() => new Set()); // online user ids (presence)
+  const [typingNames, setTypingNames]   = useState([]);      // peers typing in the active convo
 
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(""), 3000); };
 
@@ -136,6 +148,34 @@ export default function Chat({ token, api, user }) {
   const scrollRef = useRef(null);
   const activeRef = useRef(active);
   activeRef.current = active;
+  const lastTypingSent = useRef(0);
+
+  // ── presence: heartbeat + poll who's online ───────────────────
+  useEffect(() => {
+    if (!token) return;
+    let alive = true;
+    const beat = () => jpost(api, token, "/chat/heartbeat").catch(() => {});
+    const poll = async () => {
+      try {
+        const d = await jget(api, token, "/chat/online");
+        const ids = arr(d, "online", "users", "data").map(x => x._id || x.id || x);
+        if (alive) setOnlineIds(new Set(ids));
+      } catch { /* presence endpoint not available — degrade silently */ }
+    };
+    beat(); poll();
+    const b = setInterval(beat, 25000);
+    const p = setInterval(poll, 15000);
+    return () => { alive = false; clearInterval(b); clearInterval(p); };
+  }, [token, api]);
+  const isOnline = (uid) => !!uid && onlineIds.has(uid);
+
+  // Tell the server I'm typing (throttled to once / 2.5s)
+  function notifyTyping() {
+    const now = Date.now();
+    if (!active?.id || now - lastTypingSent.current < 2500) return;
+    lastTypingSent.current = now;
+    jpost(api, token, `/chat/conversations/${active.id}/typing`).catch(() => {});
+  }
 
   // ── load people + conversation list ───────────────────────────
   const loadList = useCallback(async () => {
@@ -174,13 +214,26 @@ export default function Chat({ token, api, user }) {
 
   useEffect(() => {
     if (!active?.id) return;
-    loadMessages(active.id, true);
+    const cid = active.id;
+    loadMessages(cid, true);
     // mark read + refresh unread badges
-    jpost(api, token, `/chat/conversations/${active.id}/read`).catch(() => {});
-    setConvos(cs => cs.map(c => c._id === active.id ? { ...c, unread: 0 } : c));
-    const id = setInterval(() => loadMessages(active.id, false), 4000);
-    return () => clearInterval(id);
-  }, [active?.id, loadMessages, api, token]);
+    jpost(api, token, `/chat/conversations/${cid}/read`).catch(() => {});
+    setConvos(cs => cs.map(c => c._id === cid ? { ...c, unread: 0 } : c));
+    setTypingNames([]);
+    const pollTyping = async () => {
+      try {
+        const d = await jget(api, token, `/chat/conversations/${cid}/typing`);
+        const names = arr(d, "typing", "users", "data")
+          .filter(u => (u._id || u.id || u) !== myId)
+          .map(u => u.name || u.sender_name || "");
+        if (activeRef.current?.id === cid) setTypingNames(names);
+      } catch { /* typing endpoint not available — degrade silently */ }
+    };
+    pollTyping();
+    const idM = setInterval(() => loadMessages(cid, false), 4000);
+    const idT = setInterval(pollTyping, 3000);
+    return () => { clearInterval(idM); clearInterval(idT); };
+  }, [active?.id, loadMessages, api, token, myId]);
 
   // autoscroll to newest
   useEffect(() => {
@@ -318,7 +371,8 @@ export default function Chat({ token, api, user }) {
       loadMessages(cid, false); // restore from server
     }
   }
-  async function deleteMessage(m) {
+  // Delete a message for everyone (own message, or any message for admins)
+  async function deleteForEveryone(m) {
     const cid = active.id;
     setMessages(ms => ms.filter(x => x._id !== m._id)); // optimistic
     try {
@@ -330,16 +384,44 @@ export default function Chat({ token, api, user }) {
       loadMessages(cid, false);                      // restore on other failures
     }
   }
+  // Hide a message only for me (anyone, any message)
+  async function deleteForMe(m) {
+    const cid = active.id;
+    setMessages(ms => ms.filter(x => x._id !== m._id)); // optimistic
+    try {
+      await jpost(api, token, `/chat/conversations/${cid}/messages/${m._id}/hide`);
+    } catch (e) {
+      if (e.status === 404) return;                  // already gone — silent
+      showToast(e.message || "Could not remove message.");
+      loadMessages(cid, false);
+    }
+  }
 
-  // ── conversation-level actions (admin) ────────────────────────
-  async function clearChat() {
+  // ── conversation-level actions ────────────────────────────────
+  async function clearForEveryone() {
     const id = active?.id; if (!id) return;
     try {
       await jdel(api, token, `/chat/conversations/${id}/messages`);
-      setMessages([]);
-      loadList();
+      setMessages([]); loadList();
     } catch (e) {
       if (e.status === 403) showToast("Not allowed"); else showToast(e.message || "Could not clear chat.");
+    }
+  }
+  async function clearForMe() {
+    const id = active?.id; if (!id) return;
+    try {
+      await jpost(api, token, `/chat/conversations/${id}/clear`);
+      setMessages([]); loadList();
+    } catch (e) { showToast(e.message || "Could not clear chat."); }
+  }
+  async function leaveChannel() {
+    const id = active?.id; if (!id) return;
+    try {
+      await jpost(api, token, `/chat/conversations/${id}/leave`);
+      setConvos(cs => cs.filter(c => c._id !== id));
+      setActive(null); setMobilePane("list"); loadList();
+    } catch (e) {
+      if (e.status === 403) showToast("Not allowed"); else showToast(e.message || "Could not leave channel.");
     }
   }
   async function deleteChannel() {
@@ -347,8 +429,7 @@ export default function Chat({ token, api, user }) {
     try {
       await jdel(api, token, `/chat/conversations/${id}`);
       setConvos(cs => cs.filter(c => c._id !== id));
-      setActive(null); setMobilePane("list");
-      loadList();
+      setActive(null); setMobilePane("list"); loadList();
     } catch (e) {
       if (e.status === 403) showToast("Not allowed");
       else if (e.status === 400) showToast("Direct messages can't be deleted.");
@@ -356,8 +437,15 @@ export default function Chat({ token, api, user }) {
       else showToast(e.message || "Could not delete channel.");
     }
   }
-  const canModify = (m) => (m.sender_id || m.sender?._id) === myId || isAdmin;
+  const canModify = (m) => (m.sender_id || m.sender?._id) === myId || isAdmin; // delete for everyone
   const canEdit   = (m) => (m.sender_id || m.sender?._id) === myId; // only own text
+
+  // conversation-level permissions
+  const activeConv     = conversations.find(c => c._id === active?.id);
+  const activeOwnerId  = activeConv && (activeConv.created_by?._id || activeConv.created_by);
+  const isOwner        = !!activeOwnerId && activeOwnerId === myId;
+  const canDeleteChan  = active?.type === "channel" && (isAdmin || isOwner);
+  const canClearAll    = active?.type === "dm" || isAdmin || isOwner;
 
   // ── render: group messages with date dividers ─────────────────
   function renderMessages() {
@@ -408,10 +496,19 @@ export default function Chat({ token, api, user }) {
                     {fmtTime(m.created_at)}
                     {mine && (m.pending ? " · sending…" : m.failed ? " · failed" : <FaCheck size={9} style={{ marginLeft: 4, opacity: 0.7 }} />)}
                   </span>
-                  {!m.pending && !m.failed && canModify(m) && (
+                  {!m.pending && !m.failed && (
                     <div className="gchat-msg-actions">
-                      {canEdit(m) && <button title="Edit" onClick={() => startEdit(m)}><FaPen size={10} /></button>}
-                      <button title="Delete" className="del" onClick={() => setConfirm({ title: "Delete message", message: "Delete this message? This cannot be undone.", danger: true, onConfirm: () => deleteMessage(m) })}><FaTrash size={10} /></button>
+                      <button title="Message options" onClick={() => setMsgMenu(msgMenu === m._id ? null : m._id)}><FaEllipsisV size={11} /></button>
+                      {msgMenu === m._id && (
+                        <>
+                          <div className="gchat-menu-backdrop" onClick={() => setMsgMenu(null)} />
+                          <div className={`gchat-msg-menu ${mine ? "mine" : ""}`}>
+                            {canEdit(m) && <button onClick={() => { setMsgMenu(null); startEdit(m); }}><FaPen size={10} /> Edit</button>}
+                            <button onClick={() => { setMsgMenu(null); deleteForMe(m); }}><FaTrash size={10} /> Delete for me</button>
+                            {canModify(m) && <button className="danger" onClick={() => { setMsgMenu(null); setConfirm({ title: "Delete message", message: "Delete this message for everyone? This cannot be undone.", danger: true, onConfirm: () => deleteForEveryone(m) }); }}><FaTrash size={10} /> Delete for everyone</button>}
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -467,7 +564,7 @@ export default function Chat({ token, api, user }) {
               {filteredDms.length === 0 && <div className="gchat-rail-hint">No people found</div>}
               {filteredDms.map(e => (
                 <button key={e.key} className={`gchat-item ${active?.peerId === e.id || active?.id === e.conv?._id ? "active" : ""}`} onClick={() => openDmEntry(e)}>
-                  <Avatar name={e.name} size={38} />
+                  <Avatar name={e.name} size={38} online={isOnline(e.id)} />
                   <div className="gchat-item-body">
                     <div className="gchat-item-top">
                       <span className="gchat-item-name">{e.name}</span>
@@ -497,35 +594,53 @@ export default function Chat({ token, api, user }) {
               <button className="gchat-back" onClick={() => { setActive(null); setMobilePane("list"); }}>
                 <FaArrowLeft />
               </button>
-              <Avatar name={active.title} size={36} isChannel={active.type === "channel"} />
+              <Avatar name={active.title} size={36} isChannel={active.type === "channel"} online={active.type === "dm" && isOnline(active.peerId)} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="gchat-thread-title">{active.type === "channel" ? `#${active.title}` : active.title}</div>
                 <div className="gchat-thread-sub">
-                  {active.type === "channel" ? "Channel" : <><FaCircle size={7} color="#34a06a" /> Direct message</>}
-                </div>
-              </div>
-              {isAdmin && (
-                <div className="gchat-menu-wrap">
-                  <button className="gchat-menu-btn" title="Conversation options" onClick={() => setHeaderMenu(v => !v)}>
-                    <FaEllipsisV size={15} />
-                  </button>
-                  {headerMenu && (
-                    <>
-                      <div className="gchat-menu-backdrop" onClick={() => setHeaderMenu(false)} />
-                      <div className="gchat-menu">
-                        <button onClick={() => { setHeaderMenu(false); setConfirm({ title: "Clear chat", message: "Delete all messages in this conversation for everyone? This cannot be undone.", danger: true, onConfirm: clearChat }); }}>
-                          <FaTrash size={11} /> Clear chat
-                        </button>
-                        {active.type === "channel" && (
-                          <button className="danger" onClick={() => { setHeaderMenu(false); setConfirm({ title: "Delete channel", message: `Delete the channel "#${active.title}" and all its messages for everyone? This cannot be undone.`, danger: true, onConfirm: deleteChannel }); }}>
-                            <FaTimes size={12} /> Delete channel
-                          </button>
-                        )}
-                      </div>
-                    </>
+                  {typingNames.length > 0 ? (
+                    <span style={{ color: "var(--brand)", fontWeight: 600 }}>
+                      {active.type === "channel" && typingNames[0] ? `${typingNames[0]} is typing…` : "typing…"}
+                    </span>
+                  ) : active.type === "channel" ? (
+                    "Channel"
+                  ) : isOnline(active.peerId) ? (
+                    <><FaCircle size={7} color="#22c55e" /> Online</>
+                  ) : (
+                    <><FaCircle size={7} color="#cbd5e1" /> Offline</>
                   )}
                 </div>
-              )}
+              </div>
+              <div className="gchat-menu-wrap">
+                <button className="gchat-menu-btn" title="Conversation options" onClick={() => setHeaderMenu(v => !v)}>
+                  <FaEllipsisV size={15} />
+                </button>
+                {headerMenu && (
+                  <>
+                    <div className="gchat-menu-backdrop" onClick={() => setHeaderMenu(false)} />
+                    <div className="gchat-menu">
+                      <button onClick={() => { setHeaderMenu(false); setConfirm({ title: "Clear chat for me", message: "Hide all messages in this conversation for you only? The other person keeps their copy.", onConfirm: clearForMe }); }}>
+                        <FaTrash size={11} /> Clear chat for me
+                      </button>
+                      {canClearAll && (
+                        <button className="danger" onClick={() => { setHeaderMenu(false); setConfirm({ title: "Clear chat for everyone", message: "Delete all messages in this conversation for everyone? This cannot be undone.", danger: true, onConfirm: clearForEveryone }); }}>
+                          <FaTrash size={11} /> Clear chat for everyone
+                        </button>
+                      )}
+                      {active.type === "channel" && (
+                        <button onClick={() => { setHeaderMenu(false); setConfirm({ title: "Leave channel", message: `Leave "#${active.title}"? You'll stop receiving its messages.`, onConfirm: leaveChannel }); }}>
+                          <FaSignOutAlt size={12} /> Leave channel
+                        </button>
+                      )}
+                      {canDeleteChan && (
+                        <button className="danger" onClick={() => { setHeaderMenu(false); setConfirm({ title: "Delete channel", message: `Delete the channel "#${active.title}" and all its messages for everyone? This cannot be undone.`, danger: true, onConfirm: deleteChannel }); }}>
+                          <FaTimes size={12} /> Delete channel
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </header>
 
             <div className="gchat-messages" ref={scrollRef}>
@@ -539,7 +654,7 @@ export default function Chat({ token, api, user }) {
                 rows={1}
                 placeholder={`Message ${active.type === "channel" ? "#" + active.title : active.title}`}
                 value={text}
-                onChange={e => setText(e.target.value)}
+                onChange={e => { setText(e.target.value); if (e.target.value.trim()) notifyTyping(); }}
                 onKeyDown={onComposerKey}
               />
               <button type="submit" className="gchat-send" disabled={!text.trim() || sending}>
@@ -707,14 +822,20 @@ function ChatStyles() {
       .gchat-bubble.failed { background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; }
       .gchat-bubble-time { display:inline-block; font-size:9.5px; opacity:.65; margin-left:8px; white-space:nowrap; vertical-align:baseline; }
 
-      /* per-message hover actions */
-      .gchat-msg-actions { position:absolute; top:50%; display:none; gap:3px; }
-      .gchat-row:hover .gchat-msg-actions { display:flex; }
+      /* per-message hover action (kebab + dropdown) */
+      .gchat-msg-actions { position:absolute; top:50%; opacity:0; pointer-events:none; transition:opacity .12s; }
+      .gchat-row:hover .gchat-msg-actions, .gchat-msg-actions:has(.gchat-msg-menu) { opacity:1; pointer-events:auto; }
       .gchat-bubble.mine .gchat-msg-actions { left:-6px; transform:translate(-100%,-50%); }
       .gchat-bubble:not(.mine) .gchat-msg-actions { right:-6px; transform:translate(100%,-50%); }
-      .gchat-msg-actions button { width:24px; height:24px; border-radius:6px; border:1px solid #e6eaef; background:#fff; color:#64748b; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.08); }
-      .gchat-msg-actions button:hover { color:#0f172a; }
-      .gchat-msg-actions button.del:hover { color:#dc2626; border-color:#fecaca; background:#fef2f2; }
+      .gchat-msg-actions > button { width:24px; height:24px; border-radius:6px; border:1px solid #e6eaef; background:#fff; color:#64748b; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+      .gchat-msg-actions > button:hover { color:#0f172a; }
+      .gchat-msg-menu { position:absolute; top:0; z-index:50; background:#fff; border:1px solid #e6eaef; border-radius:9px; box-shadow:0 8px 24px rgba(16,40,30,.16); padding:5px; min-width:150px; }
+      .gchat-msg-menu.mine { right:28px; }
+      .gchat-msg-menu:not(.mine) { left:28px; }
+      .gchat-msg-menu button { width:100%; display:flex; align-items:center; gap:8px; padding:7px 9px; background:none; border:none; border-radius:6px; cursor:pointer; font-size:12.5px; color:#334155; text-align:left; white-space:nowrap; }
+      .gchat-msg-menu button:hover { background:#f1f5f4; }
+      .gchat-msg-menu button.danger { color:#dc2626; }
+      .gchat-msg-menu button.danger:hover { background:#fef2f2; }
 
       /* inline edit */
       .gchat-edit { display:flex; flex-direction:column; gap:6px; }
