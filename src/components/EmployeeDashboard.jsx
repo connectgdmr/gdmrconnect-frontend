@@ -4,7 +4,9 @@ import AnnouncementNotifications from "./AnnouncementNotifications";
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, getRatingInfo } from "../constants";
+import useChatUnread from "./useChatUnread";
 
+const Chat                = lazy(() => import("./Chat"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
 const EmployeeLMS         = lazy(() => import("./EmployeeLMS"));
 const EmployeeCareer      = lazy(() => import("./EmployeeCareer"));
@@ -227,6 +229,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // ============================================================================
   // 1. CORE DATA STATES
   // ============================================================================
+  const chatUnread = useChatUnread(token, api);
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [pmsHistory, setPmsHistory] = useState([]);
@@ -764,6 +767,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         view={view}
         setView={setView}
         onLogout={onLogout}
+        navBadges={{ chat: chatUnread }}
         navDots={{ announcements: hasNewAnnouncements }}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -1552,6 +1556,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       )}
 
       {/* — Holidays & Modals — */}
+      {view === "chat"    && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
       {view === "lms"     && <ErrorBoundary label="My Courses" resetKey={view}><EmployeeLMS token={token} /></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}

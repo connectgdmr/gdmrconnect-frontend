@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   FaUserPlus, FaSearch, FaTimes, FaUsers, FaCheckCircle, FaHandshake, FaPercent,
   FaFilePdf, FaLink, FaVideo, FaFolderOpen, FaPaperPlane, FaTrash, FaPlus, FaHistory,
-  FaBriefcase, FaEnvelopeOpenText, FaIdBadge,
+  FaBriefcase, FaEnvelopeOpenText, FaIdBadge, FaEye,
 } from "react-icons/fa";
 import { BarChart, DonutChart } from "./Charts";
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
@@ -46,6 +46,8 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
   const [form, setForm] = useState(blankCandidate());
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState(null); // selected candidate
+  const [pendingDelete, setPendingDelete] = useState(null); // candidate awaiting delete confirmation
+  const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState({ text: "", type: "" });
 
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3500); };
@@ -96,6 +98,41 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
       if (r.ok) { flash("Candidate added."); setShowAdd(false); setForm(blankCandidate()); loadCandidates(); loadStats(); }
       else { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to add.", "error"); }
     } catch { flash("Network error.", "error"); } finally { setSaving(false); }
+  }
+
+  async function sendDocRequest(c) {
+    try {
+      const r = await fetch(`${BASE}/admin/ats/candidates/${c._id}/doc-request`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      if (r.ok) flash(`Document request link sent to ${c.name || "candidate"}.`);
+      else { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to send document link.", "error"); }
+    } catch { flash("Network error.", "error"); }
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const { _id: id, name } = pendingDelete;
+    setDeleting(true);
+    try {
+      const r = await fetch(`${BASE}/admin/ats/candidates/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) {
+        setCandidates(prev => (Array.isArray(prev) ? prev : []).filter(c => c._id !== id));
+        setDetail(d => (d && d._id === id ? null : d));
+        setPendingDelete(null);
+        flash(`${name || "Candidate"} deleted.`);
+        loadStats();
+      } else if (r.status === 404) {
+        // Already gone — reconcile local state and inform the user.
+        setCandidates(prev => (Array.isArray(prev) ? prev : []).filter(c => c._id !== id));
+        setDetail(d => (d && d._id === id ? null : d));
+        setPendingDelete(null);
+        flash("Candidate not found.", "error");
+      } else {
+        const d = await r.json().catch(() => ({}));
+        flash(d.message || "Failed to delete candidate.", "error");
+      }
+    } catch { flash("Network error.", "error"); } finally { setDeleting(false); }
   }
 
   const tabBtn = (k, l) => <button key={k} onClick={() => setTab(k)} style={{ padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13, background: tab === k ? "var(--brand)" : "transparent", color: tab === k ? "#fff" : "#64748b" }}>{l}</button>;
@@ -175,7 +212,7 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
               <div style={{ overflowX: "auto" }}>
                 <table className="styled-table-global">
-                  <thead><tr><th>Candidate</th><th>Role / Skills</th><th>Experience</th><th>Location</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Candidate</th><th>Role / Skills</th><th>Experience</th><th>Location</th><th>Status</th><th style={{ textAlign: "center" }}>Actions</th></tr></thead>
                   <tbody>
                     {filtered.map(c => {
                       const sc = STATUS_COLOR(c.status);
@@ -186,6 +223,22 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
                           <td style={{ fontSize: 13 }}>{c.experience ? `${c.experience} yrs` : "—"}</td>
                           <td style={{ fontSize: 13 }}>{c.current_location || "—"}</td>
                           <td><span style={{ fontSize: 11, fontWeight: 700, color: sc.c, background: sc.b, padding: "3px 9px", borderRadius: 99 }}>{c.status || "New Application"}</span></td>
+                          <td style={{ textAlign: "center" }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: "inline-flex", gap: 6 }}>
+                              <button title="View profile" onClick={() => setDetail(c)}
+                                style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#2563eb", width: 30, height: 30, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                                <FaEye size={12} />
+                              </button>
+                              <button title="Send document request link" onClick={() => sendDocRequest(c)}
+                                style={{ background: "var(--brand-light)", border: "1px solid #bbf7d0", color: "var(--brand)", width: 30, height: 30, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                                <FaPaperPlane size={11} />
+                              </button>
+                              <button title="Delete candidate" onClick={() => setPendingDelete(c)}
+                                style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", width: 30, height: 30, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                                <FaTrash size={12} />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -235,13 +288,37 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
       )}
 
       {/* ── CANDIDATE DETAIL DRAWER ── */}
-      {detail && <CandidateDetail candidate={detail} token={token} onClose={() => setDetail(null)} onChanged={() => { loadCandidates(); loadStats(); }} />}
+      {detail && <CandidateDetail candidate={detail} token={token} onClose={() => setDetail(null)} onChanged={() => { loadCandidates(); loadStats(); }} onDelete={() => setPendingDelete(detail)} />}
+
+      {/* ── DELETE CONFIRMATION MODAL ── */}
+      {pendingDelete && (
+        <div className="modal-overlay" onClick={() => !deleting && setPendingDelete(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: "#fef2f2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><FaTrash size={16} /></div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: "0 0 6px", fontSize: 16, color: "#0f172a" }}>Delete candidate?</h3>
+                <p style={{ margin: 0, fontSize: 13.5, color: "#64748b", lineHeight: 1.5 }}>
+                  This will permanently delete all data for <b style={{ color: "#0f172a" }}>{pendingDelete.name || "this candidate"}</b> — profile, status history and documents. Continue?
+                </p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
+              <button className="btn ghost" type="button" onClick={() => setPendingDelete(null)} disabled={deleting}>Cancel</button>
+              <button type="button" onClick={confirmDelete} disabled={deleting}
+                style={{ background: "#dc2626", color: "#fff", border: "none", borderRadius: 8, padding: "9px 18px", fontWeight: 600, fontSize: 13, cursor: deleting ? "default" : "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                <FaTrash size={11} /> {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-function CandidateDetail({ candidate, token, onClose, onChanged }) {
+function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
   const [c, setC] = useState(candidate);
   const [recType, setRecType] = useState(RECORDING_TYPES[0]);
   const [recUrl, setRecUrl] = useState("");
@@ -288,7 +365,10 @@ function CandidateDetail({ candidate, token, onClose, onChanged }) {
               <div style={{ fontSize: 13, color: "#64748b" }}>{c.job_role || "—"} {c.department && `· ${c.department}`}</div>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#64748b", flexShrink: 0 }}><FaTimes size={14} /></button>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button onClick={onDelete} title="Delete candidate" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#dc2626" }}><FaTrash size={13} /></button>
+            <button onClick={onClose} style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#64748b" }}><FaTimes size={14} /></button>
+          </div>
         </div>
 
         {/* Status pipeline */}

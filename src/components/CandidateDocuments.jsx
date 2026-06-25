@@ -28,30 +28,36 @@ export default function CandidateDocuments({ docToken }) {
 
   async function upload(docName, file) {
     if (!file) return;
-    // Allow PDFs and images (certificates / photos)
-    const okType = file.type === "application/pdf" || file.type.startsWith("image/");
-    if (!okType) return flash("Only PDF or image files are allowed.", "error");
-    if (file.size > 8 * 1024 * 1024) return flash("File must be under 8 MB.", "error");
+    // Allow PDFs and images. Many mobile browsers / file managers report an
+    // empty file.type, so fall back to checking the file extension before rejecting.
+    const ext = (file.name || "").toLowerCase().match(/\.(pdf|png|jpe?g|webp|heic|heif)$/);
+    const okType = file.type === "application/pdf" || file.type.startsWith("image/") || !!ext;
+    if (!okType) return flash("Please upload a PDF or image file (PDF, JPG, PNG).", "error");
+    if (file.size > 15 * 1024 * 1024) return flash("File is too large — please keep it under 15 MB.", "error");
 
     setUploading(docName);
     try {
       const fd = new FormData();
-      fd.append("document", file);
-      fd.append("doc_name", docName);
+      fd.append("document", file);     // the file
+      fd.append("doc_name", docName);  // which required document this satisfies
       const r = await fetch(`${BASE}/ats/documents/${docToken}`, { method: "POST", body: fd });
+      const d = await r.json().catch(() => ({}));
       if (r.ok) {
-        const d = await r.json().catch(() => ({}));
         setSubmitted(d.documents || d.submitted || [...submitted.filter(s => s.name !== docName), { name: docName, url: d.url, status: "Pending" }]);
         flash(`${docName} uploaded successfully.`);
       } else {
-        const d = await r.json().catch(() => ({}));
-        flash(d.message || "Upload failed. Please try again.", "error");
+        flash(d.message || `Upload failed (error ${r.status}). Please try again.`, "error");
       }
-    } catch { flash("Network error. Please try again.", "error"); } finally { setUploading(""); }
+    } catch {
+      flash("Upload failed — please check your connection and try again.", "error");
+    } finally { setUploading(""); }
   }
 
   const requiredList = (data?.required && data.required.length ? data.required : DEFAULT_DOCS);
   const subFor = (name) => submitted.find(s => s.name === name);
+  // A doc only counts as actually uploaded when a file URL exists — the backend
+  // may pre-seed the required docs as "Pending" placeholders with no file yet.
+  const isUploaded = (sub) => !!(sub && sub.url);
 
   const Shell = ({ children }) => (
     <div style={{ minHeight: "100vh", background: "#f4f8f6", display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 16px" }}>
@@ -72,7 +78,7 @@ export default function CandidateDocuments({ docToken }) {
     </Shell>
   );
 
-  const allDone = requiredList.every(d => subFor(d));
+  const allDone = requiredList.every(d => { const s = subFor(d); return isUploaded(s) && s.status !== "Rejected"; });
 
   return (
     <Shell>
@@ -98,37 +104,41 @@ export default function CandidateDocuments({ docToken }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {requiredList.map((docName) => {
             const sub = subFor(docName);
-            const st = sub?.status || (sub ? "Pending" : null);
+            const uploaded = isUploaded(sub);
+            const st = uploaded ? (sub.status || "Pending") : null;   // no status until a file exists
             const stColor = st === "Approved" ? "#16a34a" : st === "Rejected" ? "#dc2626" : "#d97706";
             const needsReupload = st === "Rejected";
+            const showUpload = !uploaded || needsReupload;
             return (
               <div key={docName} style={{ border: "1px solid #e6eaef", borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: 160 }}>
                   <div style={{ fontWeight: 600, fontSize: 13.5, color: "#0f172a" }}>{docName}</div>
-                  {sub && (
+                  {uploaded ? (
                     <div style={{ fontSize: 11.5, marginTop: 3, display: "flex", alignItems: "center", gap: 6 }}>
                       {st === "Approved" ? <FaCheckCircle size={11} color="#16a34a" /> : st === "Rejected" ? <FaTimesCircle size={11} color="#dc2626" /> : <FaClock size={11} color="#d97706" />}
                       <span style={{ color: stColor, fontWeight: 700 }}>{st}</span>
-                      {sub.url && <a href={sub.url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", marginLeft: 4 }}>view</a>}
+                      <a href={sub.url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", marginLeft: 4 }}>view</a>
                       {needsReupload && <span style={{ color: "#dc2626" }}>· please re-upload</span>}
                     </div>
+                  ) : (
+                    <div style={{ fontSize: 11.5, marginTop: 3, color: "#94a3b8" }}>Not uploaded yet</div>
                   )}
                 </div>
-                {(!sub || needsReupload) && (
+                {showUpload && (
                   <label style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 600, color: "#fff", background: "var(--brand, #34a06a)", borderRadius: 8, padding: "8px 14px", cursor: uploading ? "default" : "pointer", opacity: uploading === docName ? 0.7 : 1 }}>
-                    {uploading === docName ? <><span className="btn-spinner" /> Uploading…</> : <><FaCloudUploadAlt size={14} /> Upload</>}
+                    {uploading === docName ? <><span className="btn-spinner" /> Uploading…</> : <><FaCloudUploadAlt size={14} /> {needsReupload ? "Re-upload" : "Upload"}</>}
                     <input type="file" accept="application/pdf,image/*" style={{ display: "none" }} disabled={!!uploading}
                       onChange={e => upload(docName, e.target.files?.[0])} />
                   </label>
                 )}
-                {sub && st === "Approved" && <FaCheckCircle size={18} color="#16a34a" style={{ flexShrink: 0 }} />}
+                {uploaded && st === "Approved" && <FaCheckCircle size={18} color="#16a34a" style={{ flexShrink: 0 }} />}
               </div>
             );
           })}
         </div>
 
         <p style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", marginTop: 20 }}>
-          Accepted: PDF or image, up to 8 MB each. Your files are stored securely.
+          Accepted: PDF or image (JPG, PNG), up to 15 MB each. Your files are stored securely.
         </p>
       </div>
     </Shell>

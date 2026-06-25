@@ -5,6 +5,7 @@ import DailyQuote from "./DailyQuote";
 import DailyWorkPlan from "./DailyWorkPlan";
 import ChatBot from "./ChatBot";
 
+const Chat            = lazy(() => import("./Chat"));
 const WorkAnalytics  = lazy(() => import("./WorkAnalytics"));
 const WorkHistory     = lazy(() => import("./WorkHistory"));
 const AdminWorkByTeam = lazy(() => import("./AdminWorkByTeam"));
@@ -13,6 +14,7 @@ const AdminATS        = lazy(() => import("./AdminATS"));
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
+import useChatUnread from "./useChatUnread";
 
 const EmployeeLMS         = lazy(() => import("./EmployeeLMS"));
 const EmployeeCareer      = lazy(() => import("./EmployeeCareer"));
@@ -54,7 +56,8 @@ import {
   FaFileDownload,
   FaLaptop,
   FaBars,
-  FaGift
+  FaGift,
+  FaSave
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 
@@ -81,13 +84,15 @@ function StatItem({ icon, label, count, colorClass, onClick }) {
 }
 
 export default function ManagerDashboard({ token, api, user, onLogout, passwordChanged = true }) {
-  
+
+  const chatUnread = useChatUnread(token, api);
+
   // ============================================================================
   // 1. CORE DATA STATES
   // ============================================================================
-  
-  /** 
-   * Stores the attendance records for the current user 
+
+  /**
+   * Stores the attendance records for the current user
    */
   const [attendance, setAttendance] = useState([]);
   
@@ -110,6 +115,15 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
    * NEW: Stores hardware/equipment requests submitted by the team 
    */
   const [teamAssets, setTeamAssets] = useState([]);
+
+  /**
+   * Asset assignment-to-email state (manager now owns the final provisioning step).
+   * The manager sends an email with the request details to the office admin / procurement.
+   */
+  const [assignAsset, setAssignAsset]     = useState(null);   // asset being assigned
+  const [assignEmails, setAssignEmails]   = useState("");      // comma-sep email input
+  const [assignSending, setAssignSending] = useState(false);
+  const [assignMsg, setAssignMsg]         = useState("");
 
   /** 
    * Stores dynamic badge counts for dashboard quick launch icons 
@@ -848,7 +862,43 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           alert("Error updating asset: " + err.message);
       }
   }
-  
+
+  /**
+   * NEW: Manager assigns an approved asset by emailing the office admin / procurement.
+   * (This step was previously done by Admin — ownership moved to the Manager.)
+   */
+  async function sendAssetAssignment(e) {
+    e.preventDefault();
+    const emails = assignEmails.split(/[,\s]+/).map(x => x.trim()).filter(x => x.includes("@"));
+    if (emails.length === 0) return setAssignMsg("Enter at least one valid email address.");
+    setAssignSending(true); setAssignMsg("");
+    try {
+      const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      const res = await fetch(`${baseUrl}/api/manager/assets/${assignAsset._id}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          emails,
+          asset: {
+            employee_name: assignAsset.employee_name,
+            department:    assignAsset.department,
+            asset_name:    assignAsset.asset_name,
+            reason:        assignAsset.reason,
+          },
+        }),
+      });
+      if (res.ok) {
+        setAssignMsg("Email sent successfully!");
+        await load(true);
+        setTimeout(() => { setAssignAsset(null); setAssignEmails(""); setAssignMsg(""); }, 1500);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setAssignMsg(d.message || "Failed to send email.");
+      }
+    } catch { setAssignMsg("Network error. Please try again."); }
+    finally { setAssignSending(false); }
+  }
+
   // ============================================================================
   // UTILITY HELPERS (SAFELY UPDATED FOR DATE PARSING)
   // ============================================================================
@@ -967,6 +1017,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         setView={setView}
         onLogout={onLogout}
         navBadges={{
+          "chat": chatUnread,
           "team-leaves": notificationCounts?.leaves || 0,
           "pms-manager": notificationCounts?.pms || 0,
           "corrections": notificationCounts?.corrections || 0,
@@ -1884,6 +1935,20 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                                         >
                                             <FaTimesCircle /> Reject
                                         </button>
+                                        {(asset.manager_status || "").toLowerCase() === "approved" && (
+                                            <button
+                                                onClick={() => { setAssignAsset(asset); setAssignEmails(""); setAssignMsg(""); }}
+                                                style={{
+                                                    display: "flex", alignItems: "center", gap: 5,
+                                                    padding: "5px 10px", borderRadius: 6, border: "none",
+                                                    background: "#0f766e", color: "#fff",
+                                                    fontSize: 12, fontWeight: 600, cursor: "pointer",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                <FaSave size={10} /> Assign to Mail
+                                            </button>
+                                        )}
                                     </div>
                                 </td>
                             </tr>
@@ -1892,6 +1957,76 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                 </table>
               </div>
           </div>
+      )}
+
+      {/* ── Assign to Mail Modal (Manager-owned provisioning step) ── */}
+      {assignAsset && (
+        <div className="modal-overlay" onClick={() => setAssignAsset(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+              <div>
+                <h3 style={{ margin: 0, color: "#0f766e", fontSize: 16 }}>Assign Asset by Email</h3>
+                <p style={{ margin: "5px 0 0", fontSize: 12, color: "#64748b" }}>
+                  An email with the request details will be sent to the entered addresses.
+                </p>
+              </div>
+              <button onClick={() => setAssignAsset(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}>
+                <FaTimes />
+              </button>
+            </div>
+
+            {/* Asset summary */}
+            <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10, padding: "12px 16px", marginBottom: 18, fontSize: 13 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[
+                  { label: "Employee",   value: assignAsset.employee_name },
+                  { label: "Department", value: assignAsset.department || "—" },
+                  { label: "Asset",      value: assignAsset.asset_name },
+                  { label: "Reason",     value: assignAsset.reason },
+                ].map(({ label, value }) => (
+                  <div key={label}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+                    <div style={{ fontWeight: 600, color: "#0c4a6e", marginTop: 2 }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {assignMsg && (
+              <div style={{
+                marginBottom: 14, padding: "9px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+                background: assignMsg.includes("success") ? "#f0fdf4" : "#fef2f2",
+                color:      assignMsg.includes("success") ? "#16a34a"  : "#b91c1c",
+                border: `1px solid ${assignMsg.includes("success") ? "#bbf7d0" : "#fecaca"}`,
+              }}>
+                {assignMsg}
+              </div>
+            )}
+
+            <form onSubmit={sendAssetAssignment}>
+              <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 6 }}>
+                Recipient Email(s)
+                <span style={{ fontWeight: 400, color: "#94a3b8", marginLeft: 6 }}>separate multiple with comma</span>
+              </label>
+              <textarea
+                className="modern-input"
+                rows={3}
+                placeholder="admin@company.com, procure@company.com"
+                value={assignEmails}
+                onChange={e => setAssignEmails(e.target.value)}
+                required
+                style={{ resize: "none" }}
+              />
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
+                <button className="btn" type="submit" disabled={assignSending}
+                  style={{ background: "#0f766e", display: "flex", alignItems: "center", gap: 6 }}>
+                  <FaSave size={11} /> {assignSending ? "Sending…" : "Send Email"}
+                </button>
+                <button className="btn ghost" type="button" onClick={() => setAssignAsset(null)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* — Team Directory — */}
@@ -2022,6 +2157,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
 
       {/* — Holidays & Modals — */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
+      {view === "chat"    && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
       {view === "lms"     && <ErrorBoundary label="My Courses" resetKey={view}><EmployeeLMS token={token} /></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
       {view === "work-analytics" && <ErrorBoundary label="My Work Analytics" resetKey={view}><WorkAnalytics token={token} /></ErrorBoundary>}

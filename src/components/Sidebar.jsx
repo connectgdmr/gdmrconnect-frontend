@@ -5,12 +5,13 @@ import {
   FaChartPie, FaCalendarAlt, FaBullhorn, FaUserShield, FaLaptop,
   FaHistory, FaCalendarPlus, FaEdit, FaChartLine, FaClipboardCheck,
   FaSignOutAlt, FaBalanceScale, FaBuilding, FaClipboardList, FaGraduationCap, FaBriefcase, FaMoneyBillWave,
-  FaTasks, FaChartArea, FaFolderOpen, FaUserTag
+  FaTasks, FaChartArea, FaFolderOpen, FaUserTag, FaCommentDots
 } from "react-icons/fa";
 
 const NAV_ITEMS = {
   admin: [
     { icon: <FaTachometerAlt />, label: "Dashboard", view: "dashboard" },
+    { icon: <FaCommentDots />, label: "Messages", view: "chat" },
     { icon: <FaUsers />, label: "Employees", view: "employees" },
     { icon: <FaCalendarCheck />, label: "Leave Requests", view: "leaves" },
     { icon: <FaClock />, label: "Attendance", view: "attendance" },
@@ -31,6 +32,7 @@ const NAV_ITEMS = {
   ],
   manager: [
     { icon: <FaTachometerAlt />, label: "Dashboard", view: "dashboard" },
+    { icon: <FaCommentDots />, label: "Messages", view: "chat" },
     { icon: <FaHistory />, label: "Attendance Log", view: "attendance-log" },
     { icon: <FaCalendarCheck />, label: "My Leaves", view: "my-leaves" },
     { icon: <FaCalendarPlus />, label: "Apply Leave", view: "apply-leave" },
@@ -55,6 +57,7 @@ const NAV_ITEMS = {
   ],
   employee: [
     { icon: <FaTachometerAlt />, label: "Dashboard", view: "dashboard" },
+    { icon: <FaCommentDots />, label: "Messages", view: "chat" },
     { icon: <FaHistory />, label: "Attendance Log", view: "attendance-log" },
     { icon: <FaCalendarCheck />, label: "My Leaves", view: "my-leaves" },
     { icon: <FaCalendarPlus />, label: "Apply Leave", view: "apply-leave" },

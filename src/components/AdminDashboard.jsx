@@ -4,6 +4,7 @@ import Sidebar from "./Sidebar";
 // ============================================================================
 // COMPONENT IMPORTS — view-specific pages are lazy-loaded on demand
 // ============================================================================
+const Chat                   = lazy(() => import("./Chat"));
 const EmployeeForm           = lazy(() => import("./EmployeeForm"));
 const EmployeeList           = lazy(() => import("./EmployeeList"));
 const AdminLeavePage         = lazy(() => import("./AdminLeavePage"));
@@ -47,6 +48,7 @@ import {
 import ProfilePanel from "./ProfilePanel";
 import AdminInsights from "./AdminInsights";
 import ErrorBoundary from "./ErrorBoundary";
+import useChatUnread from "./useChatUnread";
 import ChatBot from "./ChatBot";
 import { SkeletonTable, SkeletonCards } from "./Skeleton";
 
@@ -122,7 +124,9 @@ function StatItem({ icon, label, count, colorClass, onClick }) {
 }
 
 export default function AdminDashboard({ token, api, user, onLogout }) {
-  
+
+  const chatUnread = useChatUnread(token, api);
+
   // — Core States —
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -176,10 +180,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
   // — Asset States —
   const [allAssets, setAllAssets] = useState([]);
-  const [assignAsset, setAssignAsset]     = useState(null);   // asset being assigned
-  const [assignEmails, setAssignEmails]   = useState("");      // comma-sep email input
-  const [assignSending, setAssignSending] = useState(false);
-  const [assignMsg, setAssignMsg]         = useState("");
 
   // — Department States —
   const [departments, setDepartments] = useState([]);
@@ -565,37 +565,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       }
   }
 
-  async function sendAssetAssignment(e) {
-    e.preventDefault();
-    const emails = assignEmails.split(/[,\s]+/).map(e => e.trim()).filter(e => e.includes("@"));
-    if (emails.length === 0) return setAssignMsg("Enter at least one valid email address.");
-    setAssignSending(true); setAssignMsg("");
-    try {
-      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-      const res = await fetch(`${baseUrl}/api/admin/assets/${assignAsset._id}/assign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          emails,
-          asset: {
-            employee_name: assignAsset.employee_name,
-            department:    assignAsset.department,
-            asset_name:    assignAsset.asset_name,
-            reason:        assignAsset.reason,
-          },
-        }),
-      });
-      if (res.ok) {
-        setAssignMsg("Email sent successfully!");
-        setTimeout(() => { setAssignAsset(null); setAssignEmails(""); setAssignMsg(""); }, 1500);
-      } else {
-        const d = await res.json();
-        setAssignMsg(d.message || "Failed to send email.");
-      }
-    } catch { setAssignMsg("Network error. Please try again."); }
-    finally { setAssignSending(false); }
-  }
-
   // — Stat Click Handler —
   
   async function handleStatClick(type, title) {
@@ -680,6 +649,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         setView={(v) => { setView(v); if (v === "employees") setSubView("list"); }}
         onLogout={onLogout}
         navBadges={{
+          chat: chatUnread,
           leaves: notifCounts?.leaves || 0,
           assets: notifCounts?.assets || 0,
           announcements: notifCounts?.announcements || 0,
@@ -958,6 +928,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {view === "work-by-team" && <ErrorBoundary label="Work by Team" resetKey={view}><AdminWorkByTeam token={token} role="admin" /></ErrorBoundary>}
 
       {/* 11. CLIENTS */}
+      {view === "chat" && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
       {view === "clients" && <ErrorBoundary label="Clients" resetKey={view}><AdminClients token={token} /></ErrorBoundary>}
 
       {/* 12. RECRUITMENT / ATS */}
@@ -1477,18 +1448,14 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                                             <FaTimesCircle /> Reject
                                         </button>
                                         {(asset.admin_status || "").toLowerCase() === "approved" && (
-                                            <button
-                                                onClick={() => { setAssignAsset(asset); setAssignEmails(""); setAssignMsg(""); }}
-                                                style={{
-                                                    display: "flex", alignItems: "center", gap: 5,
-                                                    padding: "5px 10px", borderRadius: 6, border: "none",
-                                                    background: "#0f766e", color: "#fff",
-                                                    fontSize: 12, fontWeight: 600, cursor: "pointer",
-                                                    whiteSpace: "nowrap",
-                                                }}
-                                            >
-                                                <FaSave size={10} /> Assign to Office Admin
-                                            </button>
+                                            <span style={{
+                                                display: "inline-flex", alignItems: "center", gap: 5,
+                                                padding: "5px 10px", borderRadius: 6,
+                                                background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0",
+                                                fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
+                                            }}>
+                                                <FaCheckCircle size={10} /> Approved — manager assigns
+                                            </span>
                                         )}
                                     </div>
                                 </td>
@@ -1498,76 +1465,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                 </table>
               </div>
           </div>
-      )}
-
-      {/* ── Assign to Office Admin Modal ── */}
-      {assignAsset && (
-        <div className="modal-overlay" onClick={() => setAssignAsset(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
-              <div>
-                <h3 style={{ margin: 0, color: "#0f766e", fontSize: 16 }}>Assign to Office Admin</h3>
-                <p style={{ margin: "5px 0 0", fontSize: 12, color: "#64748b" }}>
-                  An email with the request details will be sent to the entered addresses.
-                </p>
-              </div>
-              <button onClick={() => setAssignAsset(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}>
-                <FaTimes />
-              </button>
-            </div>
-
-            {/* Asset summary */}
-            <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10, padding: "12px 16px", marginBottom: 18, fontSize: 13 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {[
-                  { label: "Employee",   value: assignAsset.employee_name },
-                  { label: "Department", value: assignAsset.department || "—" },
-                  { label: "Asset",      value: assignAsset.asset_name },
-                  { label: "Reason",     value: assignAsset.reason },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
-                    <div style={{ fontWeight: 600, color: "#0c4a6e", marginTop: 2 }}>{value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {assignMsg && (
-              <div style={{
-                marginBottom: 14, padding: "9px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
-                background: assignMsg.includes("success") ? "#f0fdf4" : "#fef2f2",
-                color:      assignMsg.includes("success") ? "#16a34a"  : "#b91c1c",
-                border: `1px solid ${assignMsg.includes("success") ? "#bbf7d0" : "#fecaca"}`,
-              }}>
-                {assignMsg}
-              </div>
-            )}
-
-            <form onSubmit={sendAssetAssignment}>
-              <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 6 }}>
-                Office Admin Email(s)
-                <span style={{ fontWeight: 400, color: "#94a3b8", marginLeft: 6 }}>separate multiple with comma</span>
-              </label>
-              <textarea
-                className="modern-input"
-                rows={3}
-                placeholder="admin@company.com, procure@company.com"
-                value={assignEmails}
-                onChange={e => setAssignEmails(e.target.value)}
-                required
-                style={{ resize: "none" }}
-              />
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
-                <button className="btn" type="submit" disabled={assignSending}
-                  style={{ background: "#0f766e", display: "flex", alignItems: "center", gap: 6 }}>
-                  <FaSave size={11} /> {assignSending ? "Sending…" : "Send Email"}
-                </button>
-                <button className="btn ghost" type="button" onClick={() => setAssignAsset(null)}>Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
       )}
 
       </Suspense>
