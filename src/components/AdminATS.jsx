@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   FaUserPlus, FaSearch, FaTimes, FaUsers, FaCheckCircle, FaHandshake, FaPercent,
   FaFilePdf, FaLink, FaVideo, FaFolderOpen, FaPaperPlane, FaTrash, FaPlus, FaHistory,
@@ -328,26 +328,55 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
   const sc = STATUS_COLOR(c.status);
   const skills = Array.isArray(c.skills) ? c.skills : (c.skills ? String(c.skills).split(",").map(s => s.trim()) : []);
 
-  async function api(path, method, body) {
+  // Fetch the FULL candidate record on open (and after mutations) so every saved
+  // field, recording, portfolio link and the audit trail show — the list row that
+  // opened this drawer may only carry a summary. Merge so we never lose data.
+  const loadDetail = useCallback(async () => {
+    try {
+      const r = await fetch(`${BASE}/admin/ats/candidates/${candidate._id}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) { const d = await r.json().catch(() => null); if (d && (d._id || d.name)) setC(prev => ({ ...prev, ...d })); }
+    } catch { /* keep current data on transient errors */ }
+  }, [candidate._id, token]);
+  useEffect(() => { loadDetail(); }, [loadDetail]);
+
+  // Fire a mutation; returns true/false. Never overwrites local state with a
+  // partial response — callers do an optimistic update, then loadDetail() resyncs.
+  async function apiCall(path, method, body) {
     setBusy(true);
     try {
       const r = await fetch(`${BASE}/admin/ats/candidates/${c._id}${path}`, {
         method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: body ? JSON.stringify(body) : undefined,
       });
-      if (r.ok) { const d = await r.json().catch(() => null); if (d && d._id) setC(d); onChanged?.(); return d || true; }
+      if (r.ok) { onChanged?.(); return true; }
       return false;
     } catch { return false; } finally { setBusy(false); }
   }
 
   async function changeStatus(ns) {
-    const updated = await api(`/status`, "PUT", { status: ns });
-    if (updated && updated._id) return;
-    // optimistic if backend returns just ok
-    setC(prev => ({ ...prev, status: ns, status_history: [...(prev.status_history || []), { status: ns, at: new Date().toISOString(), by: "You" }] }));
+    const prevStatus = c.status;
+    // optimistic
+    setC(p => ({ ...p, status: ns, status_history: [...(p.status_history || []), { status: ns, at: new Date().toISOString(), by: "You" }] }));
+    const ok = await apiCall(`/status`, "PUT", { status: ns });
+    if (!ok) { setC(p => ({ ...p, status: prevStatus })); alert("Could not update status. Please try again."); return; }
+    loadDetail(); // resync (audit trail / persisted state)
   }
-  async function addRecording() { if (!recUrl.trim()) return; const u = await api(`/recording`, "POST", { type: recType, url: recUrl.trim() }); if (!(u && u._id)) setC(p => ({ ...p, recordings: [...(p.recordings || []), { type: recType, url: recUrl.trim() }] })); setRecUrl(""); }
-  async function addPortfolio() { if (!portUrl.trim()) return; const u = await api(`/portfolio`, "POST", { url: portUrl.trim() }); if (!(u && u._id)) setC(p => ({ ...p, portfolio_links: [...(p.portfolio_links || []), portUrl.trim()] })); setPortUrl(""); }
-  async function requestDocs() { const u = await api(`/doc-request`, "POST", {}); if (u) alert("Document submission link sent to the candidate's email."); }
+  async function addRecording() {
+    if (!recUrl.trim()) return;
+    const entry = { type: recType, url: recUrl.trim() };
+    setC(p => ({ ...p, recordings: [...(p.recordings || []), entry] })); // optimistic
+    setRecUrl("");
+    const ok = await apiCall(`/recording`, "POST", entry);
+    if (ok) loadDetail(); else alert("Could not save the recording. Please try again.");
+  }
+  async function addPortfolio() {
+    if (!portUrl.trim()) return;
+    const url = portUrl.trim();
+    setC(p => ({ ...p, portfolio_links: [...(p.portfolio_links || []), url] })); // optimistic
+    setPortUrl("");
+    const ok = await apiCall(`/portfolio`, "POST", { url });
+    if (ok) loadDetail(); else alert("Could not save the portfolio link. Please try again.");
+  }
+  async function requestDocs() { const ok = await apiCall(`/doc-request`, "POST", {}); if (ok) alert("Document submission link sent to the candidate's email."); else alert("Could not send the document link. Please try again."); }
 
   const Field = ({ label, value }) => (
     <div><div style={{ fontSize: 10.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div><div style={{ fontSize: 13.5, color: "#0f172a", marginTop: 2 }}>{value || "—"}</div></div>
