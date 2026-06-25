@@ -162,19 +162,51 @@ export default function Chat({ token, api, user }) {
   const ts = (v) => (v ? new Date(v).getTime() || 0 : 0);
   const channels = conversations.filter(c => c.type === "channel");
   const dmConvos = conversations.filter(c => c.type === "dm");
+  const peopleById = new Map(people.map(p => [(p._id || p.id), p]));
   const dmFor = (uid) => dmConvos.find(c => (c.members || c.participants || []).some(m => (m._id || m.id || m) === uid));
 
+  // Resolve the other participant of a DM conversation (peer name/id), tolerant
+  // of various backend shapes — so existing chats render even when /chat/users
+  // returns the peer (e.g. an employee whose directory is empty).
+  function peerInfo(conv) {
+    const explicit = conv.peer || conv.with || conv.other_user;
+    if (explicit) {
+      const id = explicit._id || explicit.id || explicit;
+      return { id, name: explicit.name || conv.peer_name || peopleById.get(id)?.name || "Team member", dept: explicit.department };
+    }
+    const members = conv.members || conv.participants || [];
+    const other = members.find(m => (m._id || m.id || m) !== myId) ?? members[0];
+    const id = other?._id || other?.id || other;
+    const name = other?.name || conv.peer_name || conv.name || conv.title || peopleById.get(id)?.name || "Team member";
+    return { id, name, dept: other?.department || peopleById.get(id)?.department };
+  }
+
   const q = search.trim().toLowerCase();
+  const matchQ = (s) => !q || (s || "").toLowerCase().includes(q);
+
   // Sort so the most recent / unread conversations bubble to the top.
   const filteredChannels = channels
-    .filter(c => !q || (c.name || "").toLowerCase().includes(q))
+    .filter(c => matchQ(c.name))
     .sort((a, b) => ts(b.last_at) - ts(a.last_at));
-  const filteredPeople = people
-    .filter(p => !q || (p.name || "").toLowerCase().includes(q) || (p.department || "").toLowerCase().includes(q))
+
+  // Build DM entries from BOTH existing conversations and the people directory.
+  const dmEntries = [];
+  const seenPeers = new Set();
+  dmConvos.forEach(c => {
+    const pi = peerInfo(c);
+    if (pi.id) seenPeers.add(pi.id);
+    dmEntries.push({ key: c._id, conv: c, id: pi.id, name: pi.name, dept: pi.dept, last_at: c.last_at, last_message: c.last_message, unread: c.unread });
+  });
+  people.forEach(p => {
+    const id = p._id || p.id;
+    if (seenPeers.has(id)) return;                 // already shown via its conversation
+    dmEntries.push({ key: id, person: p, id, name: p.name, dept: p.department || p.role });
+  });
+  const filteredDms = dmEntries
+    .filter(e => matchQ(e.name) || matchQ(e.dept))
     .sort((a, b) => {
-      const ca = dmFor(a._id || a.id), cb = dmFor(b._id || b.id);
-      const d = ts(cb?.last_at) - ts(ca?.last_at);
-      if (d !== 0) return d;                       // recent chats first
+      const d = ts(b.last_at) - ts(a.last_at);
+      if (d !== 0) return d;                        // recent chats first
       return (a.name || "").localeCompare(b.name || ""); // then alphabetical
     });
 
@@ -199,6 +231,14 @@ export default function Chat({ token, api, user }) {
   function openChannel(c) {
     setActive({ id: c._id, type: "channel", title: c.name });
     setMobilePane("thread");
+  }
+  function openDmEntry(entry) {
+    if (entry.conv) {
+      setActive({ id: entry.conv._id, type: "dm", title: entry.name, peerId: entry.id });
+      setMobilePane("thread");
+    } else {
+      openPerson(entry.person || { _id: entry.id, name: entry.name });
+    }
   }
 
   // ── send message ──────────────────────────────────────────────
@@ -310,24 +350,20 @@ export default function Chat({ token, api, user }) {
 
               {/* Direct messages */}
               <div className="gchat-section-label"><FaCommentDots size={10} /> Direct Messages</div>
-              {filteredPeople.length === 0 && <div className="gchat-rail-hint">No people found</div>}
-              {filteredPeople.map(p => {
-                const uid = p._id || p.id;
-                const conv = dmFor(uid);
-                return (
-                  <button key={uid} className={`gchat-item ${active?.peerId === uid ? "active" : ""}`} onClick={() => openPerson(p)}>
-                    <Avatar name={p.name} size={38} />
-                    <div className="gchat-item-body">
-                      <div className="gchat-item-top">
-                        <span className="gchat-item-name">{p.name}</span>
-                        {conv?.last_at && <span className="gchat-item-time">{fmtListTime(conv.last_at)}</span>}
-                      </div>
-                      <div className="gchat-item-sub">{conv?.last_message || (p.role ? p.role : p.department) || "Start a conversation"}</div>
+              {filteredDms.length === 0 && <div className="gchat-rail-hint">No people found</div>}
+              {filteredDms.map(e => (
+                <button key={e.key} className={`gchat-item ${active?.peerId === e.id || active?.id === e.conv?._id ? "active" : ""}`} onClick={() => openDmEntry(e)}>
+                  <Avatar name={e.name} size={38} />
+                  <div className="gchat-item-body">
+                    <div className="gchat-item-top">
+                      <span className="gchat-item-name">{e.name}</span>
+                      {e.last_at && <span className="gchat-item-time">{fmtListTime(e.last_at)}</span>}
                     </div>
-                    {conv?.unread > 0 && <span className="gchat-unread">{conv.unread}</span>}
-                  </button>
-                );
-              })}
+                    <div className="gchat-item-sub">{e.last_message || e.dept || "Start a conversation"}</div>
+                  </div>
+                  {e.unread > 0 && <span className="gchat-unread">{e.unread}</span>}
+                </button>
+              ))}
             </>
           )}
         </div>
