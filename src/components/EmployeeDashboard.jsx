@@ -6,6 +6,7 @@ import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, getRatingInfo } from "../constants";
 import useChatUnread from "./useChatUnread";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
+import { getCurrentLocation } from "../utils/geolocation";
 
 const Chat                = lazy(() => import("./Chat"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
@@ -524,10 +525,12 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   async function submitAttendance(imageData) {
     setSubmittingPhoto(true);
     try {
+      // Best-effort geo-location (won't block check-in if denied/unavailable)
+      const location = await getCurrentLocation();
       if (actionType === "checkin") {
-        await api.checkinWithPhoto(token, imageData);
+        await api.checkinWithPhoto(token, imageData, location);
       } else {
-        await api.checkoutWithPhoto(token, imageData);
+        await api.checkoutWithPhoto(token, imageData, location);
       }
       
       await new Promise(r => setTimeout(r, 500));

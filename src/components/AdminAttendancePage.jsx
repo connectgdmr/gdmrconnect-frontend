@@ -10,8 +10,16 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaUserClock,
-  FaUserSlash
+  FaUserSlash,
+  FaMapMarkerAlt
 } from "react-icons/fa";
+
+// Resolve a readable location label from various backend shapes
+const locLabel = (loc) => {
+  if (!loc) return "";
+  if (typeof loc === "string") return loc;
+  return loc.district || loc.label || loc.city || loc.state || "";
+};
 
 // ============================================================================
 // HELPER FUNCTIONS & DATA FORMATTING
@@ -652,6 +660,7 @@ export default function AdminAttendancePage({ token, api }) {
                         <th style={{ padding: 12 }}>In Time</th>
                         <th style={{ padding: 12 }}>Out Time</th>
                         <th style={{ padding: 12 }}>Status</th>
+                        <th style={{ padding: 12 }}>Login From</th>
                         <th style={{ padding: 12 }}>Verification</th>
                       </tr>
                     </thead>
@@ -666,6 +675,19 @@ export default function AdminAttendancePage({ token, api }) {
                               {formatTime(rec.checkout?.time)}
                           </td>
                           <td style={{ padding: 12 }}>{getStatusDisplay(rec)}</td>
+                          <td style={{ padding: 12 }}>
+                            {(() => {
+                              const ci = locLabel(rec.checkin?.location);
+                              const co = locLabel(rec.checkout?.location);
+                              if (!ci && !co) return <span style={{ color: '#aaa', fontSize: 12 }}>—</span>;
+                              return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 12, color: '#475569' }}>
+                                  {ci && <span title="Check-in location" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><FaMapMarkerAlt size={10} color="#16a34a" /> {ci}</span>}
+                                  {co && co !== ci && <span title="Check-out location" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><FaMapMarkerAlt size={10} color="#dc2626" /> {co}</span>}
+                                </div>
+                              );
+                            })()}
+                          </td>
                           <td style={{ padding: 12 }}>
                             <div style={{display:'flex', gap:10}}>
                                 {rec.checkin?.photo_url && (

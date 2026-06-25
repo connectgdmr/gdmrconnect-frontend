@@ -16,6 +16,7 @@ import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
 import useChatUnread from "./useChatUnread";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
+import { getCurrentLocation } from "../utils/geolocation";
 
 const EmployeeLMS         = lazy(() => import("./EmployeeLMS"));
 const EmployeeCareer      = lazy(() => import("./EmployeeCareer"));
@@ -476,12 +477,13 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
    * Cloudinary storage and database logging.
    */
   async function submitAttendance(imageData) {
-    setSubmittingPhoto(true); 
+    setSubmittingPhoto(true);
     try {
+      const location = await getCurrentLocation();
       if (actionType === "checkin") {
-          await api.checkinWithPhoto(token, imageData);
+          await api.checkinWithPhoto(token, imageData, location);
       } else {
-          await api.checkoutWithPhoto(token, imageData);
+          await api.checkoutWithPhoto(token, imageData, location);
       }
       
       setSubmittingPhoto(false); 

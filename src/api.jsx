@@ -69,29 +69,29 @@ export default {
   employeeAttendance: (id, token) => request(`/admin/attendance/${id}`, "GET", null, token),
   todayStats: (token) => request("/admin/today-stats", "GET", null, token),
 
-  // Attendance with Photo
-  checkinWithPhoto: async (token, imageData) => {
+  // Attendance with Photo (+ optional geo-location captured at check-in/out)
+  checkinWithPhoto: async (token, imageData, location = null) => {
     const res = await fetch(`${API_BASE}/attendance/checkin-photo`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ image: imageData }),
+      body: JSON.stringify({ image: imageData, location }),
     });
     const data = await res.json();
     if (!res.ok) throw data;
     return data;
   },
 
-  checkoutWithPhoto: async (token, imageData) => {
+  checkoutWithPhoto: async (token, imageData, location = null) => {
     const res = await fetch(`${API_BASE}/attendance/checkout-photo`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ image: imageData }),
+      body: JSON.stringify({ image: imageData, location }),
     });
     const data = await res.json();
     if (!res.ok) throw data;
