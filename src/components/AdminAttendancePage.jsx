@@ -14,35 +14,29 @@ import {
   FaMapMarkerAlt
 } from "react-icons/fa";
 
-// Resolve the geo-coordinates (and a maps link) from various backend shapes.
+// Resolve the geo-coordinates (or a place name) from various backend shapes.
 // Shows lat,lng as the primary value; falls back to a place name only if no
 // coordinates are present.
-const locInfo = (loc) => {
-  if (!loc) return null;
-  if (typeof loc === "string") return { text: loc, mapsUrl: null };
+const locText = (loc) => {
+  if (!loc) return "";
+  if (typeof loc === "string") return loc;
   const lat = loc.lat ?? loc.latitude, lng = loc.lng ?? loc.lon ?? loc.longitude;
-  if (lat != null && lng != null) {
-    return { text: `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`, mapsUrl: `https://www.google.com/maps?q=${lat},${lng}` };
-  }
-  const named = loc.district || loc.label || loc.city || loc.town || loc.village || loc.state;
-  return named ? { text: named, mapsUrl: null } : null;
+  if (lat != null && lng != null) return `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`;
+  return loc.district || loc.label || loc.city || loc.town || loc.village || loc.state || "";
 };
 // Tolerate different keys the backend might use for the stored location
 const checkinLoc  = (rec) => rec?.checkin?.location  || rec?.checkin_location  || rec?.login_location  || rec?.location_in;
 const checkoutLoc = (rec) => rec?.checkout?.location || rec?.checkout_location || rec?.logout_location || rec?.location_out;
 
-// Render a location cell (coords link or place name, else dash)
+// Render a location cell (plain coords / place name, else dash)
 const LocationCell = ({ loc, color, label }) => {
-  const info = locInfo(loc);
-  if (!info) return <span style={{ color: '#aaa', fontSize: 12 }}>—</span>;
-  const body = (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: info.mapsUrl ? '#2563eb' : '#475569' }}>
-      <FaMapMarkerAlt size={10} color={color} /> {info.text}
+  const text = locText(loc);
+  if (!text) return <span style={{ color: '#aaa', fontSize: 12 }}>—</span>;
+  return (
+    <span title={label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#475569' }}>
+      <FaMapMarkerAlt size={10} color={color} /> {text}
     </span>
   );
-  return info.mapsUrl
-    ? <a href={info.mapsUrl} target="_blank" rel="noreferrer" title={`${label} — open in Google Maps`} style={{ textDecoration: 'none' }}>{body}</a>
-    : <span title={label}>{body}</span>;
 };
 
 // ============================================================================
