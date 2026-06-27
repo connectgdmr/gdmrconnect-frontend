@@ -661,6 +661,7 @@ export default function AdminAttendancePage({ token, api }) {
                         <th style={{ padding: 12 }}>Out Time</th>
                         <th style={{ padding: 12 }}>Status</th>
                         <th style={{ padding: 12 }}>Login From</th>
+                        <th style={{ padding: 12 }}>Logout From</th>
                         <th style={{ padding: 12 }}>Verification</th>
                       </tr>
                     </thead>
@@ -676,17 +677,14 @@ export default function AdminAttendancePage({ token, api }) {
                           </td>
                           <td style={{ padding: 12 }}>{getStatusDisplay(rec)}</td>
                           <td style={{ padding: 12 }}>
-                            {(() => {
-                              const ci = locLabel(rec.checkin?.location);
-                              const co = locLabel(rec.checkout?.location);
-                              if (!ci && !co) return <span style={{ color: '#aaa', fontSize: 12 }}>—</span>;
-                              return (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 12, color: '#475569' }}>
-                                  {ci && <span title="Check-in location" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><FaMapMarkerAlt size={10} color="#16a34a" /> {ci}</span>}
-                                  {co && co !== ci && <span title="Check-out location" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><FaMapMarkerAlt size={10} color="#dc2626" /> {co}</span>}
-                                </div>
-                              );
-                            })()}
+                            {locLabel(rec.checkin?.location)
+                              ? <span title="Check-in location" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#475569' }}><FaMapMarkerAlt size={10} color="#16a34a" /> {locLabel(rec.checkin?.location)}</span>
+                              : <span style={{ color: '#aaa', fontSize: 12 }}>—</span>}
+                          </td>
+                          <td style={{ padding: 12 }}>
+                            {locLabel(rec.checkout?.location)
+                              ? <span title="Check-out location" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#475569' }}><FaMapMarkerAlt size={10} color="#dc2626" /> {locLabel(rec.checkout?.location)}</span>
+                              : <span style={{ color: '#aaa', fontSize: 12 }}>—</span>}
                           </td>
                           <td style={{ padding: 12 }}>
                             <div style={{display:'flex', gap:10}}>
