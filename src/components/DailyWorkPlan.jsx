@@ -16,6 +16,9 @@ export const TASK_STATUSES = [
 ];
 const STATUS_META = (s) => TASK_STATUSES.find(x => x.v === s) || TASK_STATUSES[0];
 const blankTask = () => ({ id: Date.now() + Math.random(), title: "", priority: "Medium", est_time: "", project: "", client: "", status: "Pending" });
+// Preserve the backend's task identifier so per-task status updates target the
+// right task (otherwise the client-only random id never matches server-side).
+const normalizeTasks = (raw = []) => raw.map(t => { const b = blankTask(); return { ...b, ...t, id: t.id ?? t._id ?? b.id }; });
 export const carryKey = (uid) => `gdmr_carryforward_${uid || "guest"}`;
 
 export default function DailyWorkPlan({ token, user, departments = [] }) {
@@ -51,7 +54,7 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
       .then(d => {
         const carried = drainCarryForward().map(t => ({ ...blankTask(), ...t, id: Date.now() + Math.random(), status: "Pending" }));
         if (d && d.tasks?.length) {
-          const existing = d.tasks.map(t => ({ ...blankTask(), ...t }));
+          const existing = normalizeTasks(d.tasks);
           setTasks(carried.length ? [...existing, ...carried] : existing);
           setStatus(d.status || "draft");
           setPlanId(d._id || null);
@@ -85,6 +88,7 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
         const d = await r.json().catch(() => ({}));
         setStatus(submit ? "submitted" : "draft");
         setPlanId(d._id || planId);
+        if (Array.isArray(d.tasks) && d.tasks.length) setTasks(normalizeTasks(d.tasks)); // sync server task ids
         if (submit) setEditing(false);
         setMsg(submit ? "Plan submitted! Your manager has been notified." : "Draft saved.");
       } else { setMsg("Could not save. Please try again."); }
@@ -130,9 +134,17 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
             if (!t.title.trim()) return null;
             const done = t.status === "Completed";
             const sm = STATUS_META(t.status);
-            const changeStatus = (ns) => {
-              updateTask(t.id, { status: ns });
-              fetch(`${BASE}/my/work-plan/${planId}/task/${t.id}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: ns }) }).catch(() => {});
+            const changeStatus = async (ns) => {
+              const prev = t.status;
+              updateTask(t.id, { status: ns }); // optimistic
+              try {
+                const r = await fetch(`${BASE}/my/work-plan/${planId}/task/${t.id}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: ns }) });
+                if (!r.ok) throw new Error();
+                setMsg("");
+              } catch {
+                updateTask(t.id, { status: prev }); // revert so the UI matches what's saved
+                setMsg("Could not update task status. Please try again.");
+              }
             };
             return (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#f8fafc", borderRadius: 10, border: "1px solid #f1f5f9" }}>
