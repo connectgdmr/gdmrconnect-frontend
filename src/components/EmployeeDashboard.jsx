@@ -1083,9 +1083,20 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                                           </span>
                                       </td>
                                       <td>
-                                          <span className={`status-badge ${getStatusClass(asset.status)}`} style={{border: '1px solid #ccc'}}>
-                                              {asset.status || 'Pending'}
-                                          </span>
+                                          {(() => {
+                                              const m = (asset.manager_status || '').toLowerCase();
+                                              const a = (asset.admin_status || '').toLowerCase();
+                                              const finalStatus = (m === 'rejected' || a === 'rejected')
+                                                  ? 'Rejected'
+                                                  : (m === 'approved' && a === 'approved')
+                                                      ? 'Approved'
+                                                      : 'Pending';
+                                              return (
+                                                  <span className={`status-badge ${getStatusClass(finalStatus)}`} style={{border: '1px solid #ccc'}}>
+                                                      {finalStatus}
+                                                  </span>
+                                              );
+                                          })()}
                                       </td>
                                   </tr>
                               ))
