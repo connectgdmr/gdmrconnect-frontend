@@ -136,13 +136,20 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
             const sm = STATUS_META(t.status);
             const changeStatus = async (ns) => {
               const prev = t.status;
-              updateTask(t.id, { status: ns }); // optimistic
+              const updated = tasks.map(x => x.id === t.id ? { ...x, status: ns } : x);
+              setTasks(updated); // optimistic
               try {
-                const r = await fetch(`${BASE}/my/work-plan/${planId}/task/${t.id}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: ns }) });
+                // Persist by re-saving the whole plan for today (reliable upsert
+                // by date) rather than a per-task id the server may not match.
+                const r = await fetch(`${BASE}/my/work-plan`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ date: today, tasks: updated.filter(x => x.title.trim()), status, notify: false }),
+                });
                 if (!r.ok) throw new Error();
                 setMsg("");
               } catch {
-                updateTask(t.id, { status: prev }); // revert so the UI matches what's saved
+                setTasks(ts => ts.map(x => x.id === t.id ? { ...x, status: prev } : x)); // revert
                 setMsg("Could not update task status. Please try again.");
               }
             };

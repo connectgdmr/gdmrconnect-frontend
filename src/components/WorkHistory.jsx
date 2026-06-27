@@ -23,10 +23,26 @@ export default function WorkHistory({ token, user }) {
 
   const toArr = (d) => Array.isArray(d) ? d : (d?.plans || d?.data || []);
 
-  // Change a past task's status (persists + optimistic update)
-  const changeStatus = (planId, taskId, ns) => {
-    setPlans(ps => ps.map(p => p._id === planId ? { ...p, tasks: p.tasks.map(t => (t.id === taskId || t._id === taskId) ? { ...t, status: ns } : t) } : p));
-    fetch(`${BASE}/my/work-plan/${planId}/task/${taskId}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: ns }) }).catch(() => {});
+  // Change a past task's status — persist by re-saving the whole plan for its
+  // own date (reliable upsert by date), with optimistic update + revert.
+  const changeStatus = async (planId, taskId, ns) => {
+    const plan = plans.find(p => p._id === planId);
+    if (!plan) return;
+    const prevTasks = plan.tasks;
+    const newTasks = (plan.tasks || []).map(t => (t.id === taskId || t._id === taskId) ? { ...t, status: ns } : t);
+    setPlans(ps => ps.map(p => p._id === planId ? { ...p, tasks: newTasks } : p));
+    try {
+      const r = await fetch(`${BASE}/my/work-plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ date: plan.date, tasks: newTasks, status: plan.status || "submitted", notify: false }),
+      });
+      if (!r.ok) throw new Error();
+    } catch {
+      setPlans(ps => ps.map(p => p._id === planId ? { ...p, tasks: prevTasks } : p));
+      setToast("Could not update status. Please try again.");
+      setTimeout(() => setToast(""), 4000);
+    }
   };
 
   // Queue an unfinished task to continue in today's plan
