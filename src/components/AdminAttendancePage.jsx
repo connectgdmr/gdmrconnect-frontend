@@ -14,12 +14,20 @@ import {
   FaMapMarkerAlt
 } from "react-icons/fa";
 
-// Resolve a readable location label from various backend shapes
+// Resolve a readable location label from various backend shapes.
+// Falls back to coordinates when no place name was resolved.
 const locLabel = (loc) => {
   if (!loc) return "";
   if (typeof loc === "string") return loc;
-  return loc.district || loc.label || loc.city || loc.state || "";
+  const named = loc.district || loc.label || loc.city || loc.town || loc.village || loc.state;
+  if (named) return named;
+  const lat = loc.lat ?? loc.latitude, lng = loc.lng ?? loc.lon ?? loc.longitude;
+  if (lat != null && lng != null) return `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}`;
+  return "";
 };
+// Tolerate different keys the backend might use for the stored location
+const checkinLoc  = (rec) => rec?.checkin?.location  || rec?.checkin_location  || rec?.login_location  || rec?.location_in;
+const checkoutLoc = (rec) => rec?.checkout?.location || rec?.checkout_location || rec?.logout_location || rec?.location_out;
 
 // ============================================================================
 // HELPER FUNCTIONS & DATA FORMATTING
@@ -677,13 +685,13 @@ export default function AdminAttendancePage({ token, api }) {
                           </td>
                           <td style={{ padding: 12 }}>{getStatusDisplay(rec)}</td>
                           <td style={{ padding: 12 }}>
-                            {locLabel(rec.checkin?.location)
-                              ? <span title="Check-in location" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#475569' }}><FaMapMarkerAlt size={10} color="#16a34a" /> {locLabel(rec.checkin?.location)}</span>
+                            {locLabel(checkinLoc(rec))
+                              ? <span title="Check-in location" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#475569' }}><FaMapMarkerAlt size={10} color="#16a34a" /> {locLabel(checkinLoc(rec))}</span>
                               : <span style={{ color: '#aaa', fontSize: 12 }}>—</span>}
                           </td>
                           <td style={{ padding: 12 }}>
-                            {locLabel(rec.checkout?.location)
-                              ? <span title="Check-out location" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#475569' }}><FaMapMarkerAlt size={10} color="#dc2626" /> {locLabel(rec.checkout?.location)}</span>
+                            {locLabel(checkoutLoc(rec))
+                              ? <span title="Check-out location" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#475569' }}><FaMapMarkerAlt size={10} color="#dc2626" /> {locLabel(checkoutLoc(rec))}</span>
                               : <span style={{ color: '#aaa', fontSize: 12 }}>—</span>}
                           </td>
                           <td style={{ padding: 12 }}>
