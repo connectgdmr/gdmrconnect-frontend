@@ -63,7 +63,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
         {/* Row 1: Name and Email */}
         <div className="form-row">
           <input className="input" placeholder="Full name" value={name} onChange={e=>setName(e.target.value)} required />
-          <input className="input" placeholder="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
+          <input className="input" placeholder="Email" type="email" value={email} onChange={e=>setEmail(e.target.value.toLowerCase())} required />
         </div>
         
         {/* Row 2: Department and Position (Fixed layout) */}
