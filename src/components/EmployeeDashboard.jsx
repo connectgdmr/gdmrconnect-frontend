@@ -6,7 +6,7 @@ import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, getRatingInfo } from "../constants";
 import useChatUnread from "./useChatUnread";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
-import { requireLocation } from "../utils/geolocation";
+import { getCurrentLocation } from "../utils/geolocation";
 
 const Chat                = lazy(() => import("./Chat"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
@@ -498,20 +498,14 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
     setPreviewImage(null);
     setSubmittingPhoto(false);
 
-    // Step 1: require location — triggers browser permission popup on all devices
+    // Trigger the browser location popup on all devices.
+    // Location is best-effort — if denied, attendance still submits with photo only.
     setFetchingLocation(true);
-    let loc;
-    try {
-      loc = await requireLocation();
-    } catch (err) {
-      setFetchingLocation(false);
-      alert(err.message);
-      return; // block camera if location denied
-    }
+    const loc = await getCurrentLocation(); // never throws; returns null if denied
     setLocationData(loc);
     setFetchingLocation(false);
 
-    // Step 2: open camera only after location is confirmed
+    // Always open camera regardless of whether location was granted or denied
     setCameraOpen(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -1826,8 +1820,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         <div className="modal-overlay" style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',background:'rgba(0,0,0,0.7)',display:'flex',justifyContent:'center',alignItems:'center',zIndex:999}}>
           <div style={{background:'#fff',padding:'36px 40px',borderRadius:16,textAlign:'center',maxWidth:320,width:'90%'}}>
             <div className="loader" style={{margin:'0 auto'}}></div>
-            <p style={{marginTop:18,fontWeight:700,fontSize:15,color:'#0f172a'}}>Requesting Location Access</p>
-            <p style={{fontSize:13,color:'#64748b',marginTop:6,lineHeight:1.5}}>Please <strong>Allow</strong> location in the popup to continue. Location is required for attendance.</p>
+            <p style={{marginTop:18,fontWeight:700,fontSize:15,color:'#0f172a'}}>Requesting Location</p>
+            <p style={{fontSize:13,color:'#64748b',marginTop:6,lineHeight:1.5}}>Please <strong>Allow</strong> location in the popup for accurate attendance tracking.</p>
           </div>
         </div>
       )}
