@@ -8,35 +8,54 @@ import { SkeletonTable, SkeletonStats } from "./Skeleton";
 const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
 
 const EARNINGS = [
-  { key: "basic",          label: "Basic Salary" },
-  { key: "hra",            label: "House Rent Allowance" },
-  { key: "conveyance",     label: "Conveyance" },
-  { key: "medical",        label: "Medical Allowance" },
-  { key: "special",        label: "Special Allowance" },
-  { key: "other_earnings", label: "Other Earnings" },
+  { key: "basic",            label: "Basic" },
+  { key: "da",               label: "DA" },
+  { key: "hra",              label: "HRA" },
+  { key: "travel_allowance", label: "Travel Allowance" },
+  { key: "other_allowance",  label: "Other Allowance" },
 ];
 const DEDUCTIONS = [
-  { key: "pf",                label: "Provident Fund (PF)" },
-  { key: "professional_tax",  label: "Professional Tax" },
-  { key: "tds",               label: "Income Tax (TDS)" },
-  { key: "other_deductions",  label: "Other Deductions" },
+  { key: "pf",               label: "PF" },
+  { key: "esi",              label: "ESI" },
+  { key: "lop",              label: "LOP" },
+  { key: "tds",              label: "TDS" },
+  { key: "other_deductions", label: "Other Deductions" },
 ];
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const INCREMENT_TYPES = ["New Hire", "Annual Increment", "Promotion", "Performance Bonus", "Correction", "Other"];
 
 const inr = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const fmt2 = (n) => Number(n || 0).toFixed(2);
 const sumKeys = (obj, keys) => keys.reduce((s, k) => s + (Number(obj?.[k]) || 0), 0);
 const grossOf = (s) => sumKeys(s, EARNINGS.map(e => e.key));
 const dedOf   = (s) => sumKeys(s, DEDUCTIONS.map(d => d.key));
-const netOf   = (s) => grossOf(s) - dedOf(s);
+const netOf   = (s) => grossOf(s) + (Number(s?.bonus) || 0) - dedOf(s);
 
 const blankSalary = () => ({
   ...Object.fromEntries([...EARNINGS, ...DEDUCTIONS].map(f => [f.key, ""])),
+  bonus: "",
   effective_date: new Date().toISOString().slice(0, 10),
   increment_type: "Annual Increment",
   increment_reason: "",
 });
+
+function numberToWords(n) {
+  const ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
+    "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+  const tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+  function w(num) {
+    if (num === 0) return "";
+    if (num < 20) return ones[num] + " ";
+    if (num < 100) return tens[Math.floor(num/10)] + " " + ones[num%10] + " ";
+    if (num < 1000) return ones[Math.floor(num/100)] + " Hundred " + w(num%100);
+    if (num < 100000) return w(Math.floor(num/1000)) + "Thousand " + w(num%1000);
+    if (num < 10000000) return w(Math.floor(num/100000)) + "Lakh " + w(num%100000);
+    return w(Math.floor(num/10000000)) + "Crore " + w(num%10000000);
+  }
+  const amount = Math.round(Number(n) || 0);
+  return amount === 0 ? "Zero" : w(amount).trim().replace(/\s+/g, " ");
+}
 
 export default function AdminPayroll({ token, employees = [] }) {
   const [tab, setTab] = useState("setup");
@@ -121,6 +140,7 @@ export default function AdminPayroll({ token, employees = [] }) {
     const numericKeys = [...EARNINGS, ...DEDUCTIONS].map(f => f.key);
     const payload = {
       ...Object.fromEntries(numericKeys.map(k => [k, Number(salaryForm[k]) || 0])),
+      bonus: Number(salaryForm.bonus) || 0,
       effective_date: salaryForm.effective_date || new Date().toISOString().slice(0, 10),
       increment_type: salaryForm.increment_type || "Annual Increment",
       increment_reason: salaryForm.increment_reason || "",
@@ -375,6 +395,14 @@ export default function AdminPayroll({ token, employees = [] }) {
                       </div>
                     </div>
                   ))}
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>Bonus</label>
+                    <div style={{ position: "relative" }}>
+                      <FaRupeeSign size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
+                      <input className="modern-input" type="number" min="0" step="0.01" value={salaryForm.bonus} placeholder="0"
+                        onChange={e => setSalaryForm(s => ({ ...s, bonus: e.target.value }))} style={{ margin: 0, paddingLeft: 26 }} />
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Deductions</div>
@@ -392,8 +420,9 @@ export default function AdminPayroll({ token, employees = [] }) {
               </div>
 
               {/* Live totals */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, margin: "18px 0", padding: "14px 0", borderTop: "1px solid #f1f5f9", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, margin: "18px 0", padding: "14px 0", borderTop: "1px solid #f1f5f9", borderBottom: "1px solid #f1f5f9" }}>
                 <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: "#64748b" }}>Gross</div><div style={{ fontWeight: 800, color: "#0f172a" }}>{inr(grossOf(salaryForm))}</div></div>
+                <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: "#64748b" }}>Bonus</div><div style={{ fontWeight: 800, color: "#0f172a" }}>{inr(salaryForm.bonus)}</div></div>
                 <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: "#64748b" }}>Deductions</div><div style={{ fontWeight: 800, color: "#dc2626" }}>−{inr(dedOf(salaryForm))}</div></div>
                 <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: "#64748b" }}>Net Pay</div><div style={{ fontWeight: 800, color: "#16a34a" }}>{inr(netOf(salaryForm))}</div></div>
               </div>
@@ -479,85 +508,185 @@ export default function AdminPayroll({ token, employees = [] }) {
 
 // ── Shared printable payslip modal ──────────────────────────────────────────
 export function PayslipModal({ slip, onClose, monthLabel }) {
-  const gross = slip.gross ?? grossOf(slip);
-  const ded   = slip.total_deductions ?? dedOf(slip);
-  const net   = slip.net ?? netOf(slip);
+  const gross  = slip.gross  ?? grossOf(slip);
+  const ded    = slip.total_deductions ?? dedOf(slip);
+  const bonus  = Number(slip.bonus) || 0;
+  const net    = slip.net ?? netOf(slip);
   const period = slip.period || monthLabel || "";
 
+  const TD = ({ children, style = {} }) => (
+    <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontSize: 12.5, ...style }}>{children}</td>
+  );
+
   const printSlip = () => {
-    const w = window.open("", "_blank", "width=720,height=900");
+    const w = window.open("", "_blank", "width=800,height=1000");
     if (!w) return;
-    const rows = (items, obj) => items.filter(i => Number(obj?.[i.key]) > 0)
-      .map(i => `<tr><td style="padding:6px 0;color:#475569">${i.label}</td><td style="text-align:right;font-weight:600">${inr(obj[i.key])}</td></tr>`).join("");
-    w.document.write(`
-      <html><head><title>Payslip - ${slip.employee_name}</title>
-      <style>body{font-family:Arial,sans-serif;padding:40px;color:#0f172a}h1{color:#34a06a;margin:0}table{width:100%;border-collapse:collapse}
-      .hdr{display:flex;justify-content:space-between;border-bottom:2px solid #34a06a;padding-bottom:16px;margin-bottom:20px}
-      .cols{display:flex;gap:40px}.col{flex:1}.tot{border-top:2px solid #e2e8f0;margin-top:12px;padding-top:12px}
-      .net{background:#f0fdf4;padding:16px;border-radius:8px;margin-top:20px;display:flex;justify-content:space-between;font-size:18px;font-weight:800}</style>
-      </head><body>
-      <div class="hdr"><div><h1>GDMR CONNECT</h1><div style="color:#64748b;font-size:13px">Salary Slip</div></div>
-      <div style="text-align:right"><div style="font-weight:700">${period}</div></div></div>
-      <table style="margin-bottom:24px"><tr><td style="color:#64748b">Employee</td><td style="text-align:right;font-weight:600">${slip.employee_name || ""}</td></tr>
-      <tr><td style="color:#64748b">Department</td><td style="text-align:right">${slip.department || "—"}</td></tr></table>
-      <div class="cols"><div class="col"><h3 style="color:#16a34a;font-size:13px">EARNINGS</h3><table>${rows(EARNINGS, slip)}
-      <tr class="tot"><td style="font-weight:700">Gross</td><td style="text-align:right;font-weight:800">${inr(gross)}</td></tr></table></div>
-      <div class="col"><h3 style="color:#dc2626;font-size:13px">DEDUCTIONS</h3><table>${rows(DEDUCTIONS, slip)}
-      <tr class="tot"><td style="font-weight:700">Total</td><td style="text-align:right;font-weight:800">${inr(ded)}</td></tr></table></div></div>
-      <div class="net"><span>NET PAY</span><span>${inr(net)}</span></div>
-      <p style="color:#94a3b8;font-size:11px;margin-top:30px;text-align:center">This is a computer-generated payslip and does not require a signature.</p>
-      </body></html>`);
+    const earnRows = EARNINGS.map(f =>
+      `<tr><td class="lbl">${f.label}</td><td class="val">${fmt2(slip[f.key])}</td></tr>`
+    ).join("");
+    const dedRows = DEDUCTIONS.map(f =>
+      `<tr><td class="lbl">${f.label}</td><td class="val">${fmt2(slip[f.key])}</td></tr>`
+    ).join("");
+    w.document.write(`<!DOCTYPE html><html><head><title>Payslip - ${slip.employee_name || ""}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;padding:36px 40px;color:#0f172a;font-size:12.5px}
+  h1{text-align:center;font-size:15px;font-weight:700;padding:8px 0;border-bottom:1px solid #94a3b8}
+  .ref{text-align:right;font-size:11px;color:#dc2626;padding:4px 0}
+  table{width:100%;border-collapse:collapse}
+  td,th{border:1px solid #94a3b8;padding:5px 8px}
+  .lbl{font-weight:600;width:32%}
+  .val{width:18%;text-align:right}
+  .hdr{font-weight:700;background:#f1f5f9}
+  .tot{font-weight:700}
+  .net{font-weight:700;font-size:13px}
+  .words{padding:12px 0;font-size:12px}
+  .bank-tbl td{border:1px solid #94a3b8;padding:5px 8px}
+  .foot{margin-top:40px;display:flex;justify-content:space-between;font-size:11px;color:#64748b}
+</style></head><body>
+<h1>GDMR CONNECT — SALARY SLIP</h1>
+<div class="ref">${period}</div>
+<table style="margin:10px 0">
+  <tr><td class="lbl">Employee Name:</td><td>${slip.employee_name || ""}</td><td class="lbl">Employee ID:</td><td>${slip.employee_id || ""}</td></tr>
+  <tr><td class="lbl">Designation:</td><td>${slip.designation || ""}</td><td class="lbl">Grade &amp; Profile:</td><td>${slip.grade_profile || ""}</td></tr>
+  <tr><td class="lbl">Total days of work</td><td>${slip.days_worked ?? ""}</td><td class="lbl">Salary Period:</td><td>${period}</td></tr>
+</table>
+<table style="margin-bottom:0">
+  <thead><tr><th class="hdr" colspan="2">Earnings</th><th class="hdr" colspan="2">Deduction</th></tr></thead>
+  <tbody>
+    ${EARNINGS.map((e, i) => { const d = DEDUCTIONS[i]; return `<tr><td class="lbl">${e.label}</td><td class="val">${fmt2(slip[e.key])}</td>${d ? `<td class="lbl">${d.label}</td><td class="val">${fmt2(slip[d.key])}</td>` : "<td></td><td></td>"}</tr>`; }).join("")}
+    <tr class="tot"><td>Gross Salary:</td><td class="val">${fmt2(gross)}</td><td>Total Deductions:</td><td class="val">${Math.round(ded)}</td></tr>
+    <tr><td>Bonus</td><td class="val">${fmt2(bonus)}</td><td></td><td></td></tr>
+    <tr class="net"><td colspan="4">Net Salary: &nbsp;&nbsp;${fmt2(net)}</td></tr>
+  </tbody>
+</table>
+<div class="words">In Words: &nbsp;&nbsp;${numberToWords(net)} Rupees Only</div>
+<table class="bank-tbl" style="margin-top:8px">
+  <tr><td style="font-weight:600;width:30%">Bank Detail</td><td>${slip.bank_detail || ""}</td></tr>
+  <tr><td style="font-weight:600">Transaction Detail</td><td style="color:#16a34a">${slip.transaction_detail || "Complete"}</td></tr>
+  <tr><td style="font-weight:600">Date:</td><td>${slip.transaction_date || ""}</td></tr>
+</table>
+<div class="foot"><span>This is a computer-generated payslip.</span><span>GDMR Connect</span></div>
+</body></html>`);
     w.document.close();
     setTimeout(() => w.print(), 300);
   };
 
+  const cellStyle = { border: "1px solid #cbd5e1", padding: "5px 8px", fontSize: 12.5 };
+  const lblStyle  = { ...cellStyle, fontWeight: 600, background: "#f8fafc", width: "26%" };
+  const valStyle  = { ...cellStyle, width: "24%" };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 540, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+      <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: "100%", maxHeight: "92vh", overflowY: "auto", padding: 24 }}>
+        {/* Modal header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div>
-            <h3 style={{ margin: 0, color: "var(--red)", fontSize: 16 }}>Salary Slip</h3>
-            <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>{period}</div>
+            <h3 style={{ margin: 0, color: "var(--red)", fontSize: 15 }}>Salary Slip</h3>
+            <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{period}</div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><FaTimes size={15} /></button>
         </div>
 
-        <div style={{ padding: "14px 0", borderBottom: "1px solid #f1f5f9", marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "#0f172a" }}>{slip.employee_name}</div>
-          <div style={{ fontSize: 13, color: "#64748b" }}>{slip.department || "—"}</div>
+        {/* Company title */}
+        <div style={{ textAlign: "center", fontWeight: 700, fontSize: 15, padding: "10px 0", borderTop: "1px solid #cbd5e1", borderBottom: "1px solid #cbd5e1", marginBottom: 10 }}>
+          GDMR CONNECT — SALARY SLIP
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", textTransform: "uppercase", marginBottom: 8 }}>Earnings</div>
-            {EARNINGS.filter(f => Number(slip[f.key]) > 0).map(f => (
-              <div key={f.key} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0", color: "#475569" }}>
-                <span>{f.label}</span><span style={{ fontWeight: 600 }}>{inr(slip[f.key])}</span>
-              </div>
-            ))}
-            <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #e2e8f0", marginTop: 8, paddingTop: 8, fontWeight: 700 }}>
-              <span>Gross</span><span>{inr(gross)}</span>
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", textTransform: "uppercase", marginBottom: 8 }}>Deductions</div>
-            {DEDUCTIONS.filter(f => Number(slip[f.key]) > 0).map(f => (
-              <div key={f.key} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0", color: "#475569" }}>
-                <span>{f.label}</span><span style={{ fontWeight: 600 }}>{inr(slip[f.key])}</span>
-              </div>
-            ))}
-            <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #e2e8f0", marginTop: 8, paddingTop: 8, fontWeight: 700, color: "#dc2626" }}>
-              <span>Total</span><span>−{inr(ded)}</span>
-            </div>
-          </div>
+        {/* Employee info table */}
+        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12 }}>
+          <tbody>
+            <tr>
+              <TD style={lblStyle}>Employee Name:</TD>
+              <TD style={valStyle}>{slip.employee_name || ""}</TD>
+              <TD style={lblStyle}>Employee ID:</TD>
+              <TD style={valStyle}>{slip.employee_id || ""}</TD>
+            </tr>
+            <tr>
+              <TD style={lblStyle}>Designation:</TD>
+              <TD style={valStyle}>{slip.designation || ""}</TD>
+              <TD style={lblStyle}>Grade &amp; Profile:</TD>
+              <TD style={valStyle}>{slip.grade_profile || ""}</TD>
+            </tr>
+            <tr>
+              <TD style={lblStyle}>Total days of work</TD>
+              <TD style={valStyle}>{slip.days_worked ?? ""}</TD>
+              <TD style={lblStyle}>Salary Period:</TD>
+              <TD style={valStyle}>{period}</TD>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Earnings / Deductions table */}
+        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
+          <thead>
+            <tr>
+              <th colSpan={2} style={{ ...cellStyle, background: "#f1f5f9", fontWeight: 700, textAlign: "left", width: "50%" }}>Earnings</th>
+              <th colSpan={2} style={{ ...cellStyle, background: "#f1f5f9", fontWeight: 700, textAlign: "left", width: "50%" }}>Deduction</th>
+            </tr>
+          </thead>
+          <tbody>
+            {EARNINGS.map((e, i) => {
+              const d = DEDUCTIONS[i];
+              return (
+                <tr key={e.key}>
+                  <TD style={{ ...cellStyle, width: "26%" }}>{e.label}</TD>
+                  <TD style={{ ...cellStyle, width: "24%", textAlign: "right" }}>{fmt2(slip[e.key])}</TD>
+                  {d
+                    ? <><TD style={{ ...cellStyle, width: "26%" }}>{d.label}</TD><TD style={{ ...cellStyle, width: "24%", textAlign: "right" }}>{fmt2(slip[d.key])}</TD></>
+                    : <><TD style={cellStyle}></TD><TD style={cellStyle}></TD></>
+                  }
+                </tr>
+              );
+            })}
+            {/* Gross / Total row */}
+            <tr>
+              <TD style={{ ...cellStyle, fontWeight: 700 }}>Gross Salary:</TD>
+              <TD style={{ ...cellStyle, fontWeight: 700, textAlign: "right" }}>{fmt2(gross)}</TD>
+              <TD style={{ ...cellStyle, fontWeight: 700 }}>Total Deductions:</TD>
+              <TD style={{ ...cellStyle, fontWeight: 700, textAlign: "right" }}>{Math.round(ded)}</TD>
+            </tr>
+            {/* Bonus row */}
+            <tr>
+              <TD style={cellStyle}>Bonus</TD>
+              <TD style={{ ...cellStyle, textAlign: "right" }}>{fmt2(bonus)}</TD>
+              <TD style={cellStyle}></TD>
+              <TD style={cellStyle}></TD>
+            </tr>
+            {/* Net Salary */}
+            <tr>
+              <TD colSpan={4} style={{ ...cellStyle, fontWeight: 700, fontSize: 13 }}>
+                Net Salary: &nbsp;&nbsp;{inr(net)}
+              </TD>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* In Words */}
+        <div style={{ fontSize: 12.5, padding: "8px 0", borderBottom: "1px solid #e2e8f0", marginBottom: 10 }}>
+          <span style={{ fontWeight: 600 }}>In Words:</span>&nbsp;&nbsp;
+          <span style={{ fontStyle: "italic", color: "#475569" }}>{numberToWords(net)} Rupees Only</span>
         </div>
 
-        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "14px 18px", marginTop: 18, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontWeight: 700, color: "#166534" }}>Net Pay</span>
-          <span style={{ fontWeight: 800, fontSize: 22, color: "#16a34a" }}>{inr(net)}</span>
-        </div>
+        {/* Bank Details */}
+        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 14 }}>
+          <tbody>
+            <tr>
+              <TD style={{ ...cellStyle, fontWeight: 600, width: "30%" }}>Bank Detail</TD>
+              <TD style={cellStyle}>{slip.bank_detail || ""}</TD>
+            </tr>
+            <tr>
+              <TD style={{ ...cellStyle, fontWeight: 600 }}>Transaction Detail</TD>
+              <TD style={{ ...cellStyle, color: "#16a34a", fontWeight: 600 }}>{slip.transaction_detail || "Complete"}</TD>
+            </tr>
+            <tr>
+              <TD style={{ ...cellStyle, fontWeight: 600 }}>Date:</TD>
+              <TD style={cellStyle}>{slip.transaction_date || ""}</TD>
+            </tr>
+          </tbody>
+        </table>
 
-        <button className="btn" onClick={printSlip} style={{ width: "100%", marginTop: 16, justifyContent: "center", display: "flex", alignItems: "center", gap: 8 }}>
+        <button className="btn" onClick={printSlip} style={{ width: "100%", justifyContent: "center", display: "flex", alignItems: "center", gap: 8 }}>
           <FaPrint size={12} /> Print / Download PDF
         </button>
       </div>
