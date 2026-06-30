@@ -5,8 +5,11 @@ import { FaCheckCircle, FaCloudUploadAlt, FaExclamationTriangle, FaFilePdf, FaCl
 const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
 
 const DEFAULT_DOCS = [
-  "Educational Certificate", "Passport Copy", "Visa Copy", "Photograph",
+  "Educational Certificate", "Passport Copy", "Visa Copy",
   "Experience Certificate", "Salary Certificate", "Reference Document", "Medical Report",
+  "Aadhaar Card", "PAN Card",
+  "Payslip - Last Month", "Payslip - 2nd Last Month", "Payslip - 3rd Last Month",
+  "Photograph",
 ];
 
 export default function CandidateDocuments({ docToken }) {

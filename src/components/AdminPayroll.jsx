@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   FaMoneyBillWave, FaEdit, FaTimes, FaPlay, FaCheckCircle,
-  FaSearch, FaFileInvoiceDollar, FaPrint, FaRupeeSign, FaClock,
+  FaSearch, FaFileInvoiceDollar, FaPrint, FaRupeeSign, FaClock, FaHistory,
 } from "react-icons/fa";
 import { SkeletonTable, SkeletonStats } from "./Skeleton";
 
@@ -23,6 +23,7 @@ const DEDUCTIONS = [
 ];
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const INCREMENT_TYPES = ["New Hire", "Annual Increment", "Promotion", "Performance Bonus", "Correction", "Other"];
 
 const inr = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const sumKeys = (obj, keys) => keys.reduce((s, k) => s + (Number(obj?.[k]) || 0), 0);
@@ -30,7 +31,12 @@ const grossOf = (s) => sumKeys(s, EARNINGS.map(e => e.key));
 const dedOf   = (s) => sumKeys(s, DEDUCTIONS.map(d => d.key));
 const netOf   = (s) => grossOf(s) - dedOf(s);
 
-const blankSalary = () => Object.fromEntries([...EARNINGS, ...DEDUCTIONS].map(f => [f.key, ""]));
+const blankSalary = () => ({
+  ...Object.fromEntries([...EARNINGS, ...DEDUCTIONS].map(f => [f.key, ""])),
+  effective_date: new Date().toISOString().slice(0, 10),
+  increment_type: "Annual Increment",
+  increment_reason: "",
+});
 
 export default function AdminPayroll({ token, employees = [] }) {
   const [tab, setTab] = useState("setup");
@@ -56,6 +62,9 @@ export default function AdminPayroll({ token, employees = [] }) {
   const [slipMonth, setSlipMonth]     = useState(now.getMonth());
   const [slipYear, setSlipYear]       = useState(now.getFullYear());
   const [viewSlip, setViewSlip]       = useState(null);
+
+  const [historyModal, setHistoryModal] = useState(null); // { emp, history[] }
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const [msg, setMsg] = useState({ text: "", type: "" });
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3500); };
@@ -96,10 +105,26 @@ export default function AdminPayroll({ token, employees = [] }) {
     setSalaryForm({ ...blankSalary(), ...(row.salary || {}) });
   }
 
+  async function openHistory(row) {
+    setHistoryLoading(true);
+    setHistoryModal({ emp: row, history: [] });
+    try {
+      const r = await fetch(`${BASE}/admin/payroll/salaries/${row.employee_id || row._id}/history`, { headers: { Authorization: `Bearer ${token}` } });
+      const history = r.ok ? toArr(await r.json()) : [];
+      setHistoryModal({ emp: row, history });
+    } catch { setHistoryModal(m => m ? { ...m, history: [] } : null); } finally { setHistoryLoading(false); }
+  }
+
   async function saveSalary(e) {
     e.preventDefault();
     setSavingSalary(true);
-    const payload = Object.fromEntries(Object.entries(salaryForm).map(([k, v]) => [k, Number(v) || 0]));
+    const numericKeys = [...EARNINGS, ...DEDUCTIONS].map(f => f.key);
+    const payload = {
+      ...Object.fromEntries(numericKeys.map(k => [k, Number(salaryForm[k]) || 0])),
+      effective_date: salaryForm.effective_date || new Date().toISOString().slice(0, 10),
+      increment_type: salaryForm.increment_type || "Annual Increment",
+      increment_reason: salaryForm.increment_reason || "",
+    };
     try {
       const r = await fetch(`${BASE}/admin/payroll/salaries/${editEmp.employee_id || editEmp._id}`, {
         method: "PUT",
@@ -210,9 +235,16 @@ export default function AdminPayroll({ token, employees = [] }) {
                         <td>{configured ? inr(grossOf(row.salary)) : <span style={{ color: "#94a3b8", fontSize: 12 }}>Not set</span>}</td>
                         <td style={{ fontWeight: 700, color: configured ? "#16a34a" : "#94a3b8" }}>{configured ? inr(netOf(row.salary)) : "—"}</td>
                         <td>
-                          <button className="btn ghost" style={{ fontSize: 12, padding: "5px 12px" }} onClick={() => openEdit(row)}>
-                            <FaEdit size={11} /> {configured ? "Edit" : "Set Salary"}
-                          </button>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button className="btn ghost" style={{ fontSize: 12, padding: "5px 12px" }} onClick={() => openEdit(row)}>
+                              <FaEdit size={11} /> {configured ? "Edit" : "Set Salary"}
+                            </button>
+                            {configured && (
+                              <button className="btn ghost" style={{ fontSize: 12, padding: "5px 12px", color: "#7c3aed", borderColor: "#ddd6fe" }} onClick={() => openHistory(row)}>
+                                <FaHistory size={11} /> History
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -366,11 +398,75 @@ export default function AdminPayroll({ token, employees = [] }) {
                 <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: "#64748b" }}>Net Pay</div><div style={{ fontWeight: 800, color: "#16a34a" }}>{inr(netOf(salaryForm))}</div></div>
               </div>
 
+              {/* Increment details */}
+              <div style={{ background: "#f8fafc", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Increment / Change Details</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>Effective Date</label>
+                    <input className="modern-input" type="date" value={salaryForm.effective_date || ""} onChange={e => setSalaryForm(s => ({ ...s, effective_date: e.target.value }))} style={{ margin: 0 }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>Type</label>
+                    <select className="modern-input" value={salaryForm.increment_type || "Annual Increment"} onChange={e => setSalaryForm(s => ({ ...s, increment_type: e.target.value }))} style={{ margin: 0 }}>
+                      {INCREMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ gridColumn: "span 2" }}>
+                    <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>Reason / Notes</label>
+                    <input className="modern-input" placeholder="e.g. Annual appraisal cycle, promotion to Senior role…" value={salaryForm.increment_reason || ""} onChange={e => setSalaryForm(s => ({ ...s, increment_reason: e.target.value }))} style={{ margin: 0 }} />
+                  </div>
+                </div>
+              </div>
+
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
                 <button className="btn" type="submit" disabled={savingSalary}>{savingSalary ? "Saving…" : "Save Salary"}</button>
                 <button className="btn ghost" type="button" onClick={() => setEditEmp(null)}>Cancel</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Salary History Modal ── */}
+      {historyModal && (
+        <div className="modal-overlay" onClick={() => setHistoryModal(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: "100%", maxHeight: "85vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid #e2e8f0", paddingBottom: 12 }}>
+              <div>
+                <h3 style={{ margin: 0, color: "#7c3aed", fontSize: 15, display: "flex", alignItems: "center", gap: 7 }}><FaHistory size={13} /> Salary History</h3>
+                <div style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>{historyModal.emp.employee_name}{historyModal.emp.department && <span style={{ color: "#94a3b8" }}> · {historyModal.emp.department}</span>}</div>
+              </div>
+              <button onClick={() => setHistoryModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><FaTimes size={15} /></button>
+            </div>
+            {historyLoading ? <div className="loader" style={{ margin: "30px auto" }} /> :
+            historyModal.history.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "48px 20px", color: "#94a3b8" }}>
+                <FaHistory size={32} style={{ opacity: 0.2, marginBottom: 12 }} />
+                <p style={{ margin: 0, fontSize: 14 }}>No salary history found yet.</p>
+                <p style={{ margin: "6px 0 0", fontSize: 12 }}>Salary changes with effective dates will appear here.</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table className="styled-table-global">
+                  <thead>
+                    <tr><th>Effective Date</th><th>Type</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Reason</th></tr>
+                  </thead>
+                  <tbody>
+                    {historyModal.history.slice().reverse().map((h, i) => (
+                      <tr key={i}>
+                        <td style={{ fontWeight: 600 }}>{h.effective_date ? new Date(h.effective_date).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }) : "—"}</td>
+                        <td><span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "#f5f3ff", color: "#7c3aed" }}>{h.increment_type || "Update"}</span></td>
+                        <td>{inr(grossOf(h))}</td>
+                        <td style={{ color: "#dc2626" }}>−{inr(dedOf(h))}</td>
+                        <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(netOf(h))}</td>
+                        <td style={{ fontSize: 12.5, color: "#64748b" }}>{h.increment_reason || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
