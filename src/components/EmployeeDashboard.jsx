@@ -6,7 +6,7 @@ import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, getRatingInfo } from "../constants";
 import useChatUnread from "./useChatUnread";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
-import { getCurrentLocation } from "../utils/geolocation";
+import { requireLocation } from "../utils/geolocation";
 
 const Chat                = lazy(() => import("./Chat"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
@@ -205,9 +205,13 @@ function _UnusedDailyQuote() {
   );
 }
 
-function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) {
+function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0, disabled = false }) {
   return (
-    <div className="quick-launch-item" onClick={onClick} style={{position:'relative'}}>
+    <div
+      className="quick-launch-item"
+      onClick={disabled ? undefined : onClick}
+      style={{ position: 'relative', opacity: disabled ? 0.45 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
+    >
       <div className="quick-launch-icon" style={{ color }}>{icon}</div>
       <div className="quick-launch-label">{label}</div>
       {badgeCount > 0 && <span className="icon-badge">{badgeCount}</span>}
@@ -297,9 +301,11 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // 8. CAMERA & HARDWARE STATES
   // ============================================================================
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [actionType, setActionType] = useState(null); 
-  const [previewImage, setPreviewImage] = useState(null); 
+  const [actionType, setActionType] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
   const [submittingPhoto, setSubmittingPhoto] = useState(false);
+  const [fetchingLocation, setFetchingLocation] = useState(false);
+  const [locationData, setLocationData] = useState(null);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -484,18 +490,34 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // HARDWARE INTERACTION (CAMERA)
   // ============================================================================
   /**
-   * Initializes the webcam for attendance tracking.
+   * Requests mandatory location then opens the webcam for attendance.
+   * The browser location-permission popup fires immediately on all devices.
    */
   async function openCamera(type) {
     setActionType(type);
-    setCameraOpen(true);
-    setPreviewImage(null); 
+    setPreviewImage(null);
     setSubmittingPhoto(false);
+
+    // Step 1: require location — triggers browser permission popup on all devices
+    setFetchingLocation(true);
+    let loc;
+    try {
+      loc = await requireLocation();
+    } catch (err) {
+      setFetchingLocation(false);
+      alert(err.message);
+      return; // block camera if location denied
+    }
+    setLocationData(loc);
+    setFetchingLocation(false);
+
+    // Step 2: open camera only after location is confirmed
+    setCameraOpen(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      streamRef.current = stream; 
+      streamRef.current = stream;
       if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+        videoRef.current.srcObject = stream;
       }
     } catch (err) {
       alert("Camera access denied or unavailable. Please check your browser permissions.");
@@ -525,12 +547,10 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   async function submitAttendance(imageData) {
     setSubmittingPhoto(true);
     try {
-      // Best-effort geo-location (won't block check-in if denied/unavailable)
-      const location = await getCurrentLocation();
       if (actionType === "checkin") {
-        await api.checkinWithPhoto(token, imageData, location);
+        await api.checkinWithPhoto(token, imageData, locationData);
       } else {
-        await api.checkoutWithPhoto(token, imageData, location);
+        await api.checkoutWithPhoto(token, imageData, locationData);
       }
       
       await new Promise(r => setTimeout(r, 500));
@@ -550,12 +570,13 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
    */
   function closeCamera() {
     if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     }
     setCameraOpen(false);
     setPreviewImage(null);
     setSubmittingPhoto(false);
+    setLocationData(null);
   }
 
   // ============================================================================
@@ -970,8 +991,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
           <div className="card dashboard-widget">
             <h4 className="widget-title">Quick Actions</h4>
             <div className="quick-launch-grid">
-              <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} />
-              <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} />
+              <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} disabled={fetchingLocation} />
+              <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} disabled={fetchingLocation} />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
@@ -1799,6 +1820,17 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
           </div>
         );
       })()}
+
+      {/* --- LOCATION FETCHING MODAL --- */}
+      {fetchingLocation && (
+        <div className="modal-overlay" style={{position:'fixed',top:0,left:0,width:'100%',height:'100%',background:'rgba(0,0,0,0.7)',display:'flex',justifyContent:'center',alignItems:'center',zIndex:999}}>
+          <div style={{background:'#fff',padding:'36px 40px',borderRadius:16,textAlign:'center',maxWidth:320,width:'90%'}}>
+            <div className="loader" style={{margin:'0 auto'}}></div>
+            <p style={{marginTop:18,fontWeight:700,fontSize:15,color:'#0f172a'}}>Requesting Location Access</p>
+            <p style={{fontSize:13,color:'#64748b',marginTop:6,lineHeight:1.5}}>Please <strong>Allow</strong> location in the popup to continue. Location is required for attendance.</p>
+          </div>
+        </div>
+      )}
 
       {/* --- CAMERA MODAL --- */}
       {cameraOpen && (

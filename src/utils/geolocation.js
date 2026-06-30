@@ -48,3 +48,41 @@ export async function getCurrentLocation() {
     return null;
   }
 }
+
+/**
+ * Mandatory version — throws with a user-friendly message if location is
+ * denied, unavailable, or unsupported. Use this for attendance check-in/out
+ * where location is required.
+ */
+export async function requireLocation() {
+  if (typeof navigator === "undefined" || !navigator.geolocation) {
+    throw new Error(
+      "Location services are not supported by your browser. Please use a modern browser (Chrome, Safari, Firefox) to mark attendance."
+    );
+  }
+
+  let coords;
+  try {
+    coords = await getCoords(12000);
+  } catch (err) {
+    const code = err?.code;
+    if (code === 1) {
+      throw new Error(
+        "Location permission was denied.\n\nTo mark attendance you must allow location access:\n• Mobile: tap the lock/info icon in your browser address bar → Site settings → Location → Allow\n• Desktop: click the location icon in the address bar and select Allow"
+      );
+    } else if (code === 2) {
+      throw new Error(
+        "Your location could not be determined. Please make sure location/GPS is enabled on your device and try again."
+      );
+    } else if (code === 3) {
+      throw new Error(
+        "Location request timed out. Please ensure location services are enabled and you have a GPS or network signal, then try again."
+      );
+    }
+    throw new Error("Could not get your location. Please allow location access and try again.");
+  }
+
+  let geo = {};
+  try { geo = await reverseGeocode(coords.lat, coords.lng); } catch { /* coords only is fine */ }
+  return { ...coords, ...geo };
+}
