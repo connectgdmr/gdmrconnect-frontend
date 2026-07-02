@@ -1716,9 +1716,13 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                     <thead><tr><th>Employee</th><th>New Time</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
                     <tbody>
                         {pendingCorrections.length === 0 && <tr><td colSpan="5" style={{textAlign:'center', padding:20, color:'#999'}}>No pending corrections found.</td></tr>}
-                        {pendingCorrections.map(c => (
+                        {pendingCorrections.map(c => {
+                          const resolvedName = (c.employee_name && c.employee_name !== "Unknown")
+                            ? c.employee_name
+                            : (teamMembers.find(m => String(m._id) === String(c.employee_id || c.user_id || ""))?.name || c.employee_name || "—");
+                          return (
                             <tr key={c._id}>
-                                <td style={{fontWeight: 'bold'}}>{c.employee_name}</td>
+                                <td style={{fontWeight: 'bold'}}>{resolvedName}</td>
                                 <td>{new Date(c.new_time).toLocaleString()}</td>
                                 <td>{c.reason}</td>
                                 <td><span className={`status-badge ${getStatusClass(c.status)}`}>{c.status}</span></td>
@@ -1737,7 +1741,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                                     )}
                                 </td>
                             </tr>
-                        ))}
+                          );
+                        })}
                     </tbody>
                 </table>
               </div>

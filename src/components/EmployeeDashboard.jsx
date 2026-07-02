@@ -668,10 +668,12 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         const res = await fetch(`${api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/attendance/request-correction`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 new_time: correctionData.newTime,
                 reason: correctionData.reason,
-                attendance_id: "manual_entry" 
+                attendance_id: "manual_entry",
+                employee_name: user?.name || user?.employee_name || "",
+                employee_id: user?._id || user?.id || user?.employee_id || "",
             })
         });
         const data = await res.json();
