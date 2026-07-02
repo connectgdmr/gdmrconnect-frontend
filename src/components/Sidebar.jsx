@@ -50,7 +50,7 @@ const NAV_ITEMS = {
     { icon: <FaHistory />, label: "Work History", view: "work-history" },
     { icon: <FaLaptop />, label: "Team Assets", view: "team-assets" },
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },
-    { icon: <FaGraduationCap />, label: "My Courses", view: "lms" },
+    { icon: <FaGraduationCap />, label: "LMS", view: "lms" },
     { icon: <FaBriefcase />, label: "Jobs", view: "career" },
     { icon: <FaMoneyBillWave />, label: "Payroll", view: "payroll" },
     { icon: <FaUserShield />, label: "Special Access", view: "special-access" },
