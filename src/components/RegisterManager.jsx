@@ -36,18 +36,28 @@ export default function RegisterManager({ token, api }) {
   async function loadDepartments() {
     try {
       const baseUrl = api?.baseUrl || BASE;
-      const r = await fetch(`${baseUrl}/api/admin/departments`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (r.ok) {
-        const data = await r.json();
-        const names = Array.isArray(data)
-          ? data.map(d => d.name || d).filter(Boolean)
-          : [];
-        if (names.length) {
-          setDepartments(names);
-          setDepartment(prev => prev || names[0]);
-        }
+      const headers = { Authorization: `Bearer ${token}` };
+      const nameSet = new Set();
+
+      // Pull departments that exist on employee records (the main source of truth)
+      const empRes = await fetch(`${baseUrl}/api/admin/employees`, { headers });
+      if (empRes.ok) {
+        const emps = await empRes.json();
+        const list = Array.isArray(emps) ? emps : (emps?.employees || []);
+        list.forEach(e => { if (e.department) nameSet.add(e.department); });
+      }
+
+      // Also pull explicitly created department records (may include ones with no employees yet)
+      const deptRes = await fetch(`${baseUrl}/api/admin/departments`, { headers });
+      if (deptRes.ok) {
+        const saved = await deptRes.json();
+        if (Array.isArray(saved)) saved.forEach(d => { if (d.name) nameSet.add(d.name); });
+      }
+
+      const names = [...nameSet].sort();
+      if (names.length) {
+        setDepartments(names);
+        setDepartment(prev => prev || names[0]);
       }
     } catch {}
   }
