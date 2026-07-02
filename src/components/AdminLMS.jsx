@@ -3,6 +3,7 @@ import {
   FaPlus, FaTimes, FaEdit, FaTrash, FaGraduationCap,
   FaBook, FaVideo, FaFileAlt, FaLink, FaUsers,
   FaChevronDown, FaChevronRight, FaCheckCircle, FaSearch,
+  FaEye, FaTag, FaUserTie,
 } from "react-icons/fa";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 
@@ -29,7 +30,7 @@ function ProgressBar({ pct }) {
   );
 }
 
-const blankCourse  = () => ({ title: "", description: "", category: "Technical", thumbnailUrl: "", expiryDate: "" });
+const blankCourse  = () => ({ title: "", description: "", category: "Technical", thumbnailUrl: "", expiryDate: "", courseCode: "" });
 const blankModule  = () => ({ title: "", lessons: [blankLesson()] });
 const blankLesson  = () => ({ title: "", type: "Video", url: "", content: "" });
 
@@ -70,6 +71,12 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
   const [progCourse, setProgCourse] = useState("all");
   const [progDept, setProgDept]     = useState("all");
   const [progSearch, setProgSearch] = useState("");
+
+  // Search / sort / filter / preview
+  const [search, setSearch]       = useState("");
+  const [sortBy, setSortBy]       = useState("newest");
+  const [filterCat, setFilterCat] = useState("all");
+  const [previewCourse, setPreviewCourse] = useState(null);
 
   const [msg, setMsg] = useState({ text: "", type: "" });
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3500); };
@@ -125,6 +132,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
       category: c.category || "Technical",
       thumbnailUrl: c.thumbnail_url || c.thumbnailUrl || "",
       expiryDate: (c.expiry_date || c.expiryDate || "").slice(0, 10),
+      courseCode: c.course_code || c.courseCode || "",
     });
     setModules(normalizeModules(c.modules || c.course_modules));
     setExpandedMod(0);
@@ -157,6 +165,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
       category: courseForm.category || "Technical",
       thumbnail_url: courseForm.thumbnailUrl || "",
       expiry_date: courseForm.expiryDate || null,
+      course_code: courseForm.courseCode || "",
       modules: cleanModules,
     };
     try {
@@ -201,6 +210,21 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
   const addLesson    = (mi) => updateModule(mi, { lessons: [...modules[mi].lessons, blankLesson()] });
   const updateLesson = (mi, li, data) => updateModule(mi, { lessons: modules[mi].lessons.map((l, i) => i === li ? { ...l, ...data } : l) });
   const removeLesson = (mi, li) => updateModule(mi, { lessons: modules[mi].lessons.filter((_, i) => i !== li) });
+
+  const visibleCourses = (() => {
+    const q = search.toLowerCase();
+    let list = courses.filter(c => {
+      const code = (c.course_code || c.courseCode || "").toLowerCase();
+      const matchSearch = !q || (c.title || "").toLowerCase().includes(q) || code.includes(q);
+      const matchCat = filterCat === "all" || c.category === filterCat;
+      return matchSearch && matchCat;
+    });
+    if (sortBy === "az") list = [...list].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    else if (sortBy === "za") list = [...list].sort((a, b) => (b.title || "").localeCompare(a.title || ""));
+    else if (sortBy === "oldest") { /* keep original order */ }
+    else list = [...list].reverse();
+    return list;
+  })();
 
   const TABS = [
     { key: "courses",  label: "Courses" },
@@ -255,49 +279,82 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
       {/* ── Courses list ── */}
       {tab === "courses" && (
         loading ? <SkeletonCards count={6} />
-        : courses.length === 0 ? (
-          <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
-            <FaGraduationCap size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
-            <p style={{ margin: 0 }}>No courses yet. Create the first one.</p>
+        : (
+        <>
+          {/* Search / Sort / Filter toolbar */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+            <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+              <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+              <input className="modern-input" placeholder="Search by title or course code…" value={search}
+                onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
+            </div>
+            <select className="modern-input" value={filterCat} onChange={e => setFilterCat(e.target.value)} style={{ margin: 0, minWidth: 150 }}>
+              <option value="all">All Categories</option>
+              {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+            </select>
+            <select className="modern-input" value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ margin: 0, minWidth: 140 }}>
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="az">A → Z</option>
+              <option value="za">Z → A</option>
+            </select>
           </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
-            {courses.map(c => {
-              const cat = CAT_COLORS[c.category] || CAT_COLORS.Other;
-              return (
-                <div key={c._id} className="card" style={{ display: "flex", flexDirection: "column", gap: 10, padding: 0, overflow: "hidden" }}>
-                  {c.thumbnail_url ? (
-                    <img src={c.thumbnail_url} alt="" style={{ width: "100%", height: 120, objectFit: "cover" }} />
-                  ) : (
-                    <div style={{ height: 80, background: `linear-gradient(135deg, ${cat.bg}, #fff)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <FaBook size={28} color={cat.color} />
-                    </div>
-                  )}
-                  <div style={{ padding: "0 16px 16px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: cat.color, background: cat.bg, padding: "2px 8px", borderRadius: 4 }}>{c.category}</span>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <button className="btn-action btn-edit" onClick={() => startEdit(c)} title="Edit"><FaEdit /></button>
-                        <button className="btn-action btn-remove" onClick={() => deleteCourse(c._id)} title="Delete"><FaTrash /></button>
+
+          {visibleCourses.length === 0 ? (
+            <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
+              <FaGraduationCap size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
+              <p style={{ margin: 0 }}>{courses.length === 0 ? "No courses yet. Create the first one." : "No courses match your search."}</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+              {visibleCourses.map(c => {
+                const cat = CAT_COLORS[c.category] || CAT_COLORS.Other;
+                const code = c.course_code || c.courseCode;
+                return (
+                  <div key={c._id} className="card" style={{ display: "flex", flexDirection: "column", gap: 10, padding: 0, overflow: "hidden" }}>
+                    {c.thumbnail_url ? (
+                      <img src={c.thumbnail_url} alt="" style={{ width: "100%", height: 120, objectFit: "cover" }} />
+                    ) : (
+                      <div style={{ height: 80, background: `linear-gradient(135deg, ${cat.bg}, #fff)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <FaBook size={28} color={cat.color} />
                       </div>
+                    )}
+                    <div style={{ padding: "0 16px 16px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: cat.color, background: cat.bg, padding: "2px 8px", borderRadius: 4 }}>{c.category}</span>
+                          {code && <span style={{ fontSize: 10, fontWeight: 700, color: "#7c3aed", background: "#f5f3ff", padding: "2px 8px", borderRadius: 4, fontFamily: "monospace", display: "flex", alignItems: "center", gap: 3 }}><FaTag size={8} />{code}</span>}
+                        </div>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button className="btn-action" title="Preview" onClick={() => setPreviewCourse(c)} style={{ color: "#0f766e" }}><FaEye /></button>
+                          <button className="btn-action btn-edit" onClick={() => startEdit(c)} title="Edit"><FaEdit /></button>
+                          <button className="btn-action btn-remove" onClick={() => deleteCourse(c._id)} title="Delete"><FaTrash /></button>
+                        </div>
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>{c.title}</div>
+                      {c.created_by_name && (
+                        <div style={{ fontSize: 11, color: "#7c3aed", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+                          <FaUserTie size={9} /> {c.created_by_name}{c.department && <span style={{ color: "#94a3b8" }}>· {c.department}</span>}
+                        </div>
+                      )}
+                      {c.description && <p style={{ margin: "0 0 8px", fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{c.description.slice(0, 70)}{c.description.length > 70 ? "…" : ""}</p>}
+                      <div style={{ fontSize: 12, color: "#94a3b8" }}>{c.modules?.length || 0} modules · {c.modules?.reduce((s, m) => s + (m.lessons?.length || 0), 0) || 0} lessons</div>
+                      {(c.expiry_date || c.expiryDate) && (() => {
+                        const exp = new Date((c.expiry_date || c.expiryDate)); const expired = exp < new Date();
+                        return <div style={{ fontSize: 11, fontWeight: 600, marginTop: 5, color: expired ? "#dc2626" : "#0f766e" }}>
+                          {expired ? "⛔ Expired " : "⏳ Expires "}{exp.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        </div>;
+                      })()}
+                      <button className="btn ghost" style={{ marginTop: 10, fontSize: 12, width: "100%" }} onClick={() => { setAssignCourseId(c._id); setTab("assign"); }}>
+                        <FaUsers size={11} /> Assign to Employees
+                      </button>
                     </div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>{c.title}</div>
-                    {c.description && <p style={{ margin: "0 0 8px", fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{c.description.slice(0, 70)}{c.description.length > 70 ? "…" : ""}</p>}
-                    <div style={{ fontSize: 12, color: "#94a3b8" }}>{c.modules?.length || 0} modules · {c.modules?.reduce((s, m) => s + (m.lessons?.length || 0), 0) || 0} lessons</div>
-                    {(c.expiry_date || c.expiryDate) && (() => {
-                      const exp = new Date((c.expiry_date || c.expiryDate)); const expired = exp < new Date();
-                      return <div style={{ fontSize: 11, fontWeight: 600, marginTop: 5, color: expired ? "#dc2626" : "#0f766e" }}>
-                        {expired ? "⛔ Expired " : "⏳ Expires "}{exp.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                      </div>;
-                    })()}
-                    <button className="btn ghost" style={{ marginTop: 10, fontSize: 12, width: "100%" }} onClick={() => { setAssignCourseId(c._id); setTab("assign"); }}>
-                      <FaUsers size={11} /> Assign to Employees
-                    </button>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
+        </>
         )
       )}
 
@@ -311,6 +368,10 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
               <div style={{ marginBottom: 13 }}>
                 <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Title *</label>
                 <input className="modern-input" value={courseForm.title} onChange={e => setCourseForm({ ...courseForm, title: e.target.value })} placeholder="e.g. React Fundamentals" required />
+              </div>
+              <div style={{ marginBottom: 13 }}>
+                <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Course Code <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional)</span></label>
+                <input className="modern-input" value={courseForm.courseCode} onChange={e => setCourseForm({ ...courseForm, courseCode: e.target.value.toUpperCase() })} placeholder="e.g. TEC-001" style={{ fontFamily: "monospace" }} />
               </div>
               <div style={{ marginBottom: 13 }}>
                 <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Description</label>
@@ -492,6 +553,88 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
           </form>
         </div>
       )}
+
+      {/* ── Course Preview Modal ── */}
+      {previewCourse && (() => {
+        const c = previewCourse;
+        const cat = CAT_COLORS[c.category] || CAT_COLORS.Other;
+        const code = c.course_code || c.courseCode;
+        const mods = c.modules || c.course_modules || [];
+        const totalLessons = mods.reduce((s, m) => s + ((m.lessons || m.module_lessons || []).length), 0);
+        return (
+          <div className="modal-overlay" onClick={() => setPreviewCourse(null)}>
+            <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 640, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: cat.color, background: cat.bg, padding: "2px 8px", borderRadius: 4 }}>{c.category}</span>
+                    {code && <span style={{ fontSize: 10, fontWeight: 700, color: "#7c3aed", background: "#f5f3ff", padding: "2px 8px", borderRadius: 4, fontFamily: "monospace" }}>#{code}</span>}
+                  </div>
+                  <h3 style={{ margin: "0 0 4px", color: "#0f172a", fontSize: 17 }}>{c.title}</h3>
+                  {c.created_by_name && (
+                    <div style={{ fontSize: 12, color: "#7c3aed", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+                      <FaUserTie size={10} /> Created by {c.created_by_name}{c.department && <span style={{ color: "#94a3b8" }}> · {c.department}</span>}
+                    </div>
+                  )}
+                  {c.description && <p style={{ margin: "6px 0 0", fontSize: 13, color: "#475569", lineHeight: 1.6 }}>{c.description}</p>}
+                </div>
+                <button onClick={() => setPreviewCourse(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", marginLeft: 12, flexShrink: 0 }}><FaTimes size={15} /></button>
+              </div>
+
+              <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#64748b", padding: "10px 0", borderTop: "1px solid #f1f5f9", borderBottom: "1px solid #f1f5f9", marginBottom: 14 }}>
+                <span><b style={{ color: "#0f172a" }}>{mods.length}</b> modules</span>
+                <span><b style={{ color: "#0f172a" }}>{totalLessons}</b> lessons</span>
+                {(c.expiry_date || c.expiryDate) && (() => {
+                  const exp = new Date(c.expiry_date || c.expiryDate); const expired = exp < new Date();
+                  return <span style={{ color: expired ? "#dc2626" : "#0f766e", fontWeight: 600 }}>{expired ? "⛔ Expired" : "⏳ Expires"} {exp.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span>;
+                })()}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {mods.map((mod, mi) => {
+                  const lessons = mod.lessons || mod.module_lessons || [];
+                  const [open, setOpen] = [expandedMod === `pv${mi}`, (v) => setExpandedMod(v ? `pv${mi}` : null)];
+                  return (
+                    <div key={mi} style={{ border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden" }}>
+                      <div onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", cursor: "pointer", background: "#f8fafc" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          {open ? <FaChevronDown size={11} color="#94a3b8" /> : <FaChevronRight size={11} color="#94a3b8" />}
+                          <span style={{ fontWeight: 600, fontSize: 13, color: "#0f172a" }}>{mod.title || mod.name || `Module ${mi + 1}`}</span>
+                        </div>
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>{lessons.length} lesson{lessons.length !== 1 ? "s" : ""}</span>
+                      </div>
+                      {open && (
+                        <div style={{ padding: "6px 14px 10px" }}>
+                          {lessons.map((ls, li) => (
+                            <div key={li} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: li < lessons.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                              <span style={{ color: "#94a3b8", flexShrink: 0 }}>{LESSON_ICON[ls.type || ls.lesson_type] || <FaFileAlt />}</span>
+                              <span style={{ fontSize: 13, flex: 1, color: "#334155" }}>{ls.title || ls.name || ls.lesson_title || `Lesson ${li + 1}`}</span>
+                              <span style={{ fontSize: 10, color: "#94a3b8", background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>{ls.type || ls.lesson_type || "Video"}</span>
+                              {(ls.url || ls.resource_url || ls.link) && (
+                                <a href={ls.url || ls.resource_url || ls.link} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#3b82f6", textDecoration: "none", flexShrink: 0 }}>Open ↗</a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+                <button className="btn" onClick={() => { startEdit(c); setPreviewCourse(null); }} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <FaEdit size={11} /> Edit Course
+                </button>
+                <button className="btn ghost" onClick={() => { setAssignCourseId(c._id); setTab("assign"); setPreviewCourse(null); }} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <FaUsers size={11} /> Assign to Employees
+                </button>
+                <button className="btn ghost" onClick={() => setPreviewCourse(null)} style={{ marginLeft: "auto" }}>Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Employee Progress ── */}
       {tab === "progress" && (

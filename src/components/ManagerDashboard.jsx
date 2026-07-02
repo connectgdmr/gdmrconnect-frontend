@@ -19,6 +19,7 @@ import PasswordStrengthMeter from "./PasswordStrengthMeter";
 import { getCurrentLocation } from "../utils/geolocation";
 
 const EmployeeLMS         = lazy(() => import("./EmployeeLMS"));
+const ManagerLMS          = lazy(() => import("./ManagerLMS"));
 const EmployeeCareer      = lazy(() => import("./EmployeeCareer"));
 const EmployeePayroll     = lazy(() => import("./EmployeePayroll"));
 const AdminPayroll        = lazy(() => import("./AdminPayroll"));
@@ -2161,7 +2162,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {/* — Holidays & Modals — */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
       {view === "chat"    && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
-      {view === "lms"     && <ErrorBoundary label="My Courses" resetKey={view}><EmployeeLMS token={token} /></ErrorBoundary>}
+      {view === "lms"     && <ErrorBoundary label="LMS" resetKey={view}><Suspense fallback={<div />}><ManagerLMS token={token} user={user} myEmployees={teamMembers} /></Suspense></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
       {view === "work-analytics" && <ErrorBoundary label="My Work Analytics" resetKey={view}><WorkAnalytics token={token} /></ErrorBoundary>}
       {view === "work-history"   && <ErrorBoundary label="Work History" resetKey={view}><WorkHistory token={token} user={user} /></ErrorBoundary>}
