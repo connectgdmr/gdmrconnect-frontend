@@ -1,28 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { FaEdit, FaTrash } from "react-icons/fa";
 
-const departments = [
-  "Projects Dept",
-  "Accounts Dept",
-  "Graphic Designing Dept",
-  "HR Dept",
-  "Administration Dept",
-  "BRD Dept",
-  "Engineering Dept",
-  "Digital Marketing Dept"
-];
+const BASE = "https://gdmrconnect-backend-production.up.railway.app";
 
 export default function RegisterManager({ token, api }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [department, setDepartment] = useState(departments[0]);
+  const [department, setDepartment] = useState("");
+  const [departments, setDepartments] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [msg, setMsg] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [managers, setManagers] = useState([]); 
+  const [managers, setManagers] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Edit State
@@ -41,8 +33,28 @@ export default function RegisterManager({ token, api }) {
     }
   }
 
+  async function loadDepartments() {
+    try {
+      const baseUrl = api?.baseUrl || BASE;
+      const r = await fetch(`${baseUrl}/api/admin/departments`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (r.ok) {
+        const data = await r.json();
+        const names = Array.isArray(data)
+          ? data.map(d => d.name || d).filter(Boolean)
+          : [];
+        if (names.length) {
+          setDepartments(names);
+          setDepartment(prev => prev || names[0]);
+        }
+      }
+    } catch {}
+  }
+
   useEffect(() => {
     loadManagers();
+    loadDepartments();
   }, []);
 
   async function submit(e) {
@@ -62,7 +74,7 @@ export default function RegisterManager({ token, api }) {
       setEmail("");
       setPassword("");
       setConfirmPassword("");
-      setDepartment(departments[0]);
+      setDepartment(departments[0] || "");
       loadManagers(); 
     } catch (err) {
       setMsg("❌ " + (err.message || "Error registering manager"));
