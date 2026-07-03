@@ -262,8 +262,16 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   const pendingLeaves = myLeaves.filter(l => l.status === 'Pending');
   const approvedLeaves = myLeaves.filter(l => l.status === 'Approved');
   const rejectedLeaves = myLeaves.filter(l => l.status === 'Rejected');
-  
-  const MAX_WORDS = 30; 
+
+  // Always filter team leaves by CURRENT team members so that when an employee
+  // transfers to another department the old manager stops seeing their leaves and
+  // (once the backend is fixed) the new manager sees them immediately.
+  const teamMemberIds = new Set(teamMembers.map(m => String(m._id || m.id || "")));
+  const visibleTeamLeaves = teamMemberIds.size > 0
+    ? teamLeaves.filter(l => teamMemberIds.has(String(l.employee_id || l.user_id || "")))
+    : teamLeaves; // fall back to all if teamMembers hasn't loaded yet
+
+  const MAX_WORDS = 30;
   const MAX_FILE_SIZE_MB = 5;
 
   // ============================================================================
@@ -1768,8 +1776,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                         </tr>
                     </thead>
                     <tbody>
-                        {teamLeaves.length === 0 && <tr><td colSpan="8" style={{textAlign:'center', padding:20, color:'#999'}}>No leave requests found.</td></tr>}
-                        {teamLeaves.map(l => {
+                        {visibleTeamLeaves.length === 0 && <tr><td colSpan="8" style={{textAlign:'center', padding:20, color:'#999'}}>No leave requests found.</td></tr>}
+                        {visibleTeamLeaves.map(l => {
                             const { date, time } = formatDateTime(l.applied_at || l.created_at);
                             return (
                             <tr key={l._id}>
