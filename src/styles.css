@@ -433,7 +433,7 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 
 /* ── 13. DASHBOARD WIDGETS ─────────────────────────── */
 .dashboard-grid-container {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
   gap: 16px; margin-top: 16px;
 }
 .dashboard-widget {
@@ -441,6 +441,8 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
   padding: 24px; margin-top: 0 !important; background: #fff;
   border-radius: var(--radius-lg); border: 1px solid var(--slate-200) !important;
   box-shadow: var(--shadow-sm);
+  min-width: 0; /* prevent nested grid from bleeding out of its column */
+  overflow: hidden;
 }
 .widget-title {
   margin: 0 0 18px; font-size: 13px !important;
@@ -925,13 +927,13 @@ html, body { max-width: 100%; overflow-x: hidden; }
   .export-buttons .btn, .export-buttons .btn.ghost { flex: 1; justify-content: center; }
 }
 
-@media (min-width: 769px) {
+@media (min-width: 601px) {
   .leave-table-wrapper { display: block; }
   .leave-cards { display: none; }
 }
 
 /* iPad / tablet: collapse dashboard to 1 col so Quick Actions is full-width */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .dashboard-grid-container { grid-template-columns: 1fr; }
   .dashboard-widget { padding: 18px 16px; min-height: unset; }
   /* Wider minimum so items aren't too small when spanning full tablet width */
