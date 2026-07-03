@@ -930,10 +930,14 @@ html, body { max-width: 100%; overflow-x: hidden; }
   .leave-cards { display: none; }
 }
 
-@media (max-width: 768px) {
+/* iPad / tablet: collapse dashboard to 1 col so Quick Actions is full-width */
+@media (max-width: 900px) {
+  .dashboard-grid-container { grid-template-columns: 1fr; }
   .dashboard-widget { padding: 18px 16px; min-height: unset; }
-  .quick-launch-item { padding: 14px 8px 12px; }
-  .quick-launch-icon { width: 44px; height: 44px; font-size: 17px; }
+  /* Wider minimum so items aren't too small when spanning full tablet width */
+  .quick-launch-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+  .quick-launch-item { padding: 16px 10px 14px; }
+  .quick-launch-icon { width: 46px; height: 46px; font-size: 18px; }
   .quick-launch-label { font-size: 11.5px; }
 }
 
@@ -943,7 +947,9 @@ html, body { max-width: 100%; overflow-x: hidden; }
   .kpi-tile { padding: 16px; gap: 12px; }
   .kpi-icon { width: 42px; height: 42px; font-size: 17px; }
   .kpi-value { font-size: 23px; }
-  .quick-launch-grid { gap: 8px; }
+  /* Phone: revert to tighter items now that it's a single-col narrower container */
+  .quick-launch-grid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
+  .quick-launch-item { padding: 14px 8px 12px; }
   .overview-grid { grid-template-columns: repeat(2, 1fr); }
   /* Modals near full-width */
   .modal-box, .modal-card, .detail-modal-card { width: 94% !important; max-width: 94% !important; }
@@ -960,8 +966,8 @@ html, body { max-width: 100%; overflow-x: hidden; }
   .overview-card { padding: 14px; }
   .overview-count { font-size: 26px; }
   .kpi-row { grid-template-columns: 1fr; }
-  .quick-launch-grid { gap: 6px; }
-  .quick-launch-icon { width: 44px; height: 44px; font-size: 17px; }
+  .quick-launch-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; }
+  .quick-launch-icon { width: 42px; height: 42px; font-size: 16px; }
   .quick-launch-label { font-size: 11px; }
   .widget-title { font-size: 14px; }
   /* Tab bars on feature pages scroll horizontally instead of wrapping tall */
