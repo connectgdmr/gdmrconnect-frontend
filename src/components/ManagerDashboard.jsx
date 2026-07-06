@@ -232,9 +232,12 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [type, setType] = useState("full");
-  const [period, setPeriod] = useState("First Half"); 
+  const [period, setPeriod] = useState("First Half");
   const [file, setFile] = useState(null);
-  
+
+  // Manager's own attendance correction form
+  const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
+
   // Modal display states
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
@@ -795,6 +798,35 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       }
   }
   
+  /**
+   * Manager submits their own attendance correction — routed to admin for approval.
+   */
+  async function submitCorrection(e) {
+    e.preventDefault();
+    const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+    try {
+      const res = await fetch(`${baseUrl}/api/attendance/request-correction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          new_time: correctionData.newTime,
+          reason: correctionData.reason,
+          attendance_id: "manual_entry",
+          employee_name: user?.name || user?.employee_name || "",
+          employee_id: user?._id || user?.id || user?.employee_id || "",
+          submitted_by_role: "manager",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to submit correction.");
+      alert("Correction request sent to Admin for approval.");
+      setCorrectionData({ newTime: "", reason: "" });
+      setView("attendance-log");
+    } catch (err) {
+      alert("Error: " + err.message);
+    }
+  }
+
   /**
    * Pushes leave status updates to the dual-tier approval system.
    */
@@ -2117,11 +2149,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {/* — My Leaves — */}
       {view === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
+          <div style={{padding:'15px'}}>
               <h3 style={{margin:0, color:'var(--red)'}}>My Leaves</h3>
-              <button className="btn" style={{background:'#f59e0b', fontSize:'13px'}} onClick={() => setView("correction")}>
-                  <FaEdit style={{marginRight:5}}/> Request Correction
-              </button>
           </div>
           <div style={{overflowX: 'auto'}}>
             <table className="styled-table">
@@ -2145,11 +2174,40 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
+      {/* — Attendance Correction Form — */}
+      {view === "correction" && (
+        <div className="card" style={{marginTop: 16}}>
+          <h3>Request Attendance Correction</h3>
+          <p className="small" style={{marginBottom:20}}>Your correction request will be sent to Admin for approval.</p>
+          <form onSubmit={submitCorrection}>
+            <div style={{marginBottom:15}}>
+              <label className="modern-label">Correct Date &amp; Time</label>
+              <input className="modern-input" type="datetime-local" required
+                value={correctionData.newTime}
+                onChange={e => setCorrectionData({...correctionData, newTime: e.target.value})} />
+            </div>
+            <div style={{marginBottom:15}}>
+              <label className="modern-label">Reason</label>
+              <input className="modern-input" type="text" required placeholder="e.g. Forgot to punch out due to meeting..."
+                value={correctionData.reason}
+                onChange={e => setCorrectionData({...correctionData, reason: e.target.value})} />
+            </div>
+            <div style={{display:'flex', gap:10, justifyContent:'flex-end'}}>
+              <button type="button" className="btn ghost" onClick={() => setView("attendance-log")}>Cancel</button>
+              <button type="submit" className="btn">Send Request</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* — Attendance Log — */}
       {view === "attendance-log" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
                 <h3 style={{margin:0, color:'var(--red)'}}>My Attendance Log</h3>
+                <button className="btn" style={{fontSize:'13px'}} onClick={() => { setCorrectionData({newTime:'',reason:''}); setView("correction"); }}>
+                  <FaEdit style={{marginRight:5}}/> Request Correction
+                </button>
             </div>
             <div style={{overflowX: 'auto'}}>
                 <table className="styled-table-global">
