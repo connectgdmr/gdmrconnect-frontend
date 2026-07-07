@@ -5,6 +5,7 @@ import SplashScreen from "./components/SplashScreen";
 import TakeAssessment from "./components/TakeAssessment";
 import CandidateDocuments from "./components/CandidateDocuments";
 import api from "./api";
+import useChatNotifications from "./components/useChatNotifications";
 
 const AdminDashboard    = lazy(() => import("./components/AdminDashboard"));
 const EmployeeDashboard = lazy(() => import("./components/EmployeeDashboard"));
@@ -85,10 +86,13 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  function onLogout(){ 
-    setToken(null); 
-    setRole(null); 
-    setUser(null); 
+  // Background chat notification poller — fires even when Chat view is closed
+  useChatNotifications(token, api);
+
+  function onLogout(){
+    setToken(null);
+    setRole(null);
+    setUser(null);
     localStorage.clear(); // Ensure storage is wiped completely
   }
 

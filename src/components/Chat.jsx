@@ -3,6 +3,7 @@ import {
   FaSearch, FaPaperPlane, FaHashtag, FaArrowLeft, FaPlus, FaTimes,
   FaUsers, FaCommentDots, FaCheck, FaCircle, FaPen, FaTrash, FaEllipsisV, FaSignOutAlt
 } from "react-icons/fa";
+import { playNotifSound, showBrowserNotif, requestNotifPermission } from "../utils/notifications";
 
 /**
  * GDMR Connect — Team Chat (Slack-style messenger)
@@ -149,6 +150,20 @@ export default function Chat({ token, api, user }) {
   const activeRef = useRef(active);
   activeRef.current = active;
   const lastTypingSent = useRef(0);
+  const notifiedMsgIds = useRef(new Set()); // tracks message IDs already handled for sound
+
+  // ── notifications setup ───────────────────────────────────────
+  useEffect(() => { requestNotifPermission(); }, []);
+
+  // Tell the global background hook which conversation is currently open
+  useEffect(() => {
+    window.__gdmrActiveChatConvId = active?.id || null;
+    // Reset seen-message set whenever we switch conversations
+    notifiedMsgIds.current = new Set();
+  }, [active?.id]);
+
+  // Clear on unmount
+  useEffect(() => () => { window.__gdmrActiveChatConvId = null; }, []);
 
   // ── presence: heartbeat + poll who's online ───────────────────
   useEffect(() => {
@@ -206,11 +221,35 @@ export default function Chat({ token, api, user }) {
     if (showSpinner) setLoadingMsgs(true);
     try {
       const d = await jget(api, token, `/chat/conversations/${convId}/messages`);
-      // only apply if this is still the open conversation
-      if (activeRef.current?.id === convId) setMessages(arr(d, "messages"));
+      if (activeRef.current?.id === convId) {
+        const msgs = arr(d, "messages");
+        if (showSpinner) {
+          // Initial open: mark all existing messages as seen — no sound
+          msgs.forEach(m => { if (m._id) notifiedMsgIds.current.add(m._id); });
+        } else {
+          // Poll: detect truly new messages from others
+          msgs.forEach(m => {
+            const mid = m._id;
+            if (!mid || m.pending) return;
+            if (notifiedMsgIds.current.has(mid)) return;
+            notifiedMsgIds.current.add(mid);
+            const sid = m.sender_id || m.sender?._id;
+            if (sid === myId) return;
+            playNotifSound();
+            if (!document.hasFocus()) {
+              showBrowserNotif(
+                m.sender_name || activeRef.current?.title || "New message",
+                m.text,
+                convId,
+              );
+            }
+          });
+        }
+        setMessages(msgs);
+      }
     } catch { /* keep last messages on transient errors */ }
     finally { if (showSpinner) setLoadingMsgs(false); }
-  }, [api, token]);
+  }, [api, token, myId]);
 
   useEffect(() => {
     if (!active?.id) return;
