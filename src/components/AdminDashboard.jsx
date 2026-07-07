@@ -262,8 +262,11 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
     // Always derive base departments from employee records first
     const map = {};
     source.forEach((emp) => {
-      const d = emp.department || "Unassigned";
-      if (!map[d]) map[d] = { _id: d, name: d, description: "", head_id: null };
+      const deptVal = emp.department;
+      const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
+      depts.forEach(d => {
+        if (!map[d]) map[d] = { _id: d, name: d, description: "", head_id: null };
+      });
     });
     const derived = Object.values(map);
 
@@ -1099,16 +1102,21 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         // Derive per-dept employee lists from loaded employees array
         const deptEmployeeMap = {};
         employees.forEach(emp => {
-          const key = emp.department || "Unassigned";
-          if (!deptEmployeeMap[key]) deptEmployeeMap[key] = [];
-          deptEmployeeMap[key].push(emp);
+          const deptVal = emp.department;
+          const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
+          depts.forEach(key => {
+            if (!deptEmployeeMap[key]) deptEmployeeMap[key] = [];
+            deptEmployeeMap[key].push(emp);
+          });
         });
 
         // Enrich departments with live employee data
         const enriched = departments.map(d => ({
           ...d,
           members: deptEmployeeMap[d.name] || [],
-          manager: employees.find(e => e._id === d.head_id || (e.role === "manager" && e.department === d.name)) || null,
+          manager: employees.find(e => e._id === d.head_id || (e.role === "manager" && (
+            Array.isArray(e.department) ? e.department.includes(d.name) : e.department === d.name
+          ))) || null,
         }));
 
         // Summary stats
@@ -1292,7 +1300,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                       >
                         <option value="">— Select a manager —</option>
                         {employees.filter(e => e.role === "manager").map(m => (
-                          <option key={m._id} value={m._id}>{m.name} · {m.department}</option>
+                          <option key={m._id} value={m._id}>{m.name} · {Array.isArray(m.department) ? m.department.join(", ") : m.department}</option>
                         ))}
                       </select>
                     </div>
