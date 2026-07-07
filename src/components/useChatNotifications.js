@@ -11,8 +11,11 @@ export default function useChatNotifications(token, api) {
   const prevUnread = useRef({});
   const initialized = useRef(false);
 
+  // Silently request permission on first login (banner in Chat.jsx handles the visible prompt)
   useEffect(() => {
-    if (token) requestNotifPermission();
+    if (token && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
   }, [token]);
 
   useEffect(() => {

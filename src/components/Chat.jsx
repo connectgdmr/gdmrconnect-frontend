@@ -3,7 +3,7 @@ import {
   FaSearch, FaPaperPlane, FaHashtag, FaArrowLeft, FaPlus, FaTimes,
   FaUsers, FaCommentDots, FaCheck, FaCircle, FaPen, FaTrash, FaEllipsisV, FaSignOutAlt
 } from "react-icons/fa";
-import { playNotifSound, showBrowserNotif, requestNotifPermission } from "../utils/notifications";
+import { playNotifSound, showBrowserNotif, requestNotifPermission, prewarmAudio } from "../utils/notifications";
 
 /**
  * GDMR Connect — Team Chat (Slack-style messenger)
@@ -141,6 +141,7 @@ export default function Chat({ token, api, user }) {
   const [msgMenu, setMsgMenu]           = useState(null);    // message id whose action menu is open
   const [onlineIds, setOnlineIds]       = useState(() => new Set()); // online user ids (presence)
   const [typingNames, setTypingNames]   = useState([]);      // peers typing in the active convo
+  const [notifPerm, setNotifPerm]       = useState(() => ("Notification" in window ? Notification.permission : "unsupported"));
 
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(""), 3000); };
 
@@ -153,7 +154,9 @@ export default function Chat({ token, api, user }) {
   const notifiedMsgIds = useRef(new Set()); // tracks message IDs already handled for sound
 
   // ── notifications setup ───────────────────────────────────────
-  useEffect(() => { requestNotifPermission(); }, []);
+  useEffect(() => {
+    prewarmAudio(); // pre-warms AudioContext on first user interaction
+  }, []);
 
   // Tell the global background hook which conversation is currently open
   useEffect(() => {
@@ -559,9 +562,37 @@ export default function Chat({ token, api, user }) {
     });
   }
 
+  async function enableNotifications() {
+    const result = await requestNotifPermission();
+    setNotifPerm(result);
+    if (result === "granted") {
+      playNotifSound();
+      showBrowserNotif("Notifications enabled", "You'll now get notified when messages arrive.", "test");
+    }
+  }
+
   return (
     <div className={`gchat ${active ? "has-active" : ""}`} data-pane={mobilePane}>
       <ChatStyles />
+
+      {/* Notification permission banner */}
+      {notifPerm !== "granted" && notifPerm !== "unsupported" && (
+        <div style={{
+          gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: 10, padding: "8px 16px", background: "#fefce8", borderBottom: "1px solid #fde68a",
+          fontSize: 12.5, color: "#78350f",
+        }}>
+          <span>🔔 Enable notifications to get alerts when messages arrive.</span>
+          {notifPerm === "denied" ? (
+            <span style={{ fontWeight: 600, color: "#b45309" }}>Blocked in browser settings — click the lock icon in your address bar to allow.</span>
+          ) : (
+            <button onClick={enableNotifications} style={{
+              background: "#f59e0b", color: "#fff", border: "none", borderRadius: 6,
+              padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0,
+            }}>Enable</button>
+          )}
+        </div>
+      )}
 
       {/* ── Left rail ── */}
       <aside className="gchat-rail">

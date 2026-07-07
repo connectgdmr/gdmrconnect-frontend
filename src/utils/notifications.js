@@ -1,19 +1,33 @@
 let _audioCtx = null;
-function getAudioCtx() {
+
+// Pre-warm AudioContext on the first user gesture so it's ready for timer callbacks
+export function prewarmAudio() {
+  const warm = () => {
+    try {
+      if (!_audioCtx || _audioCtx.state === "closed") {
+        _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (_audioCtx.state === "suspended") _audioCtx.resume();
+    } catch {}
+    document.removeEventListener("click", warm);
+    document.removeEventListener("keydown", warm);
+    document.removeEventListener("touchstart", warm);
+  };
+  document.addEventListener("click", warm);
+  document.addEventListener("keydown", warm);
+  document.addEventListener("touchstart", warm);
+}
+
+// Soft two-tone chime — no external file required
+export async function playNotifSound() {
   try {
     if (!_audioCtx || _audioCtx.state === "closed") {
       _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    if (_audioCtx.state === "suspended") _audioCtx.resume();
-    return _audioCtx;
-  } catch { return null; }
-}
-
-// Soft two-tone chime — no external file required
-export function playNotifSound() {
-  try {
-    const ctx = getAudioCtx();
-    if (!ctx) return;
+    if (_audioCtx.state === "suspended") {
+      await _audioCtx.resume();
+    }
+    const ctx = _audioCtx;
     [880, 660].forEach((freq, i) => {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
@@ -38,13 +52,13 @@ export function showBrowserNotif(title, body, convId) {
     body: (body || "You have a new message").slice(0, 100),
     icon: "/favicon.ico",
     tag: `gdmr-chat-${convId}`,
-    silent: true, // we handle sound ourselves
+    silent: true,
   });
   n.onclick = () => { window.focus(); n.close(); };
 }
 
-export function requestNotifPermission() {
-  if ("Notification" in window && Notification.permission === "default") {
-    Notification.requestPermission().catch(() => {});
-  }
+export async function requestNotifPermission() {
+  if (!("Notification" in window)) return "unsupported";
+  if (Notification.permission !== "default") return Notification.permission;
+  return Notification.requestPermission().catch(() => "denied");
 }
