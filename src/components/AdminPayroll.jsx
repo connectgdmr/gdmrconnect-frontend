@@ -35,6 +35,7 @@ const netOf   = (s) => grossOf(s) + (Number(s?.bonus) || 0) - dedOf(s);
 const blankSalary = () => ({
   ...Object.fromEntries([...EARNINGS, ...DEDUCTIONS].map(f => [f.key, ""])),
   bonus: "",
+  employee_code: "",
   effective_date: new Date().toISOString().slice(0, 10),
   increment_type: "Annual Increment",
   increment_reason: "",
@@ -141,6 +142,7 @@ export default function AdminPayroll({ token, employees = [] }) {
     const payload = {
       ...Object.fromEntries(numericKeys.map(k => [k, Number(salaryForm[k]) || 0])),
       bonus: Number(salaryForm.bonus) || 0,
+      employee_code: salaryForm.employee_code || "",
       effective_date: salaryForm.effective_date || new Date().toISOString().slice(0, 10),
       increment_type: salaryForm.increment_type || "Annual Increment",
       increment_reason: salaryForm.increment_reason || "",
@@ -382,6 +384,17 @@ export default function AdminPayroll({ token, employees = [] }) {
             </div>
 
             <form onSubmit={saveSalary}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4, fontWeight: 600 }}>Employee Code</label>
+                <input
+                  className="modern-input"
+                  placeholder="e.g. GDMR-001, EMP001"
+                  value={salaryForm.employee_code || ""}
+                  onChange={e => setSalaryForm(s => ({ ...s, employee_code: e.target.value }))}
+                  style={{ margin: 0 }}
+                />
+              </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Earnings</div>
@@ -547,7 +560,7 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
 <h1>GDMR CONNECT — SALARY SLIP</h1>
 <div class="ref">${period}</div>
 <table style="margin:10px 0">
-  <tr><td class="lbl">Employee Name:</td><td>${slip.employee_name || ""}</td><td class="lbl">Employee ID:</td><td>${slip.employee_id || ""}</td></tr>
+  <tr><td class="lbl">Employee Name:</td><td>${slip.employee_name || ""}</td><td class="lbl">Employee Code:</td><td>${slip.employee_code || ""}</td></tr>
   <tr><td class="lbl">Designation:</td><td>${slip.designation || ""}</td><td class="lbl">Grade &amp; Profile:</td><td>${slip.grade_profile || ""}</td></tr>
   <tr><td class="lbl">Total days of work</td><td>${slip.days_worked ?? ""}</td><td class="lbl">Salary Period:</td><td>${period}</td></tr>
 </table>
@@ -599,8 +612,8 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
             <tr>
               <TD style={lblStyle}>Employee Name:</TD>
               <TD style={valStyle}>{slip.employee_name || ""}</TD>
-              <TD style={lblStyle}>Employee ID:</TD>
-              <TD style={valStyle}>{slip.employee_id || ""}</TD>
+              <TD style={lblStyle}>Employee Code:</TD>
+              <TD style={valStyle}>{slip.employee_code || ""}</TD>
             </tr>
             <tr>
               <TD style={lblStyle}>Designation:</TD>
