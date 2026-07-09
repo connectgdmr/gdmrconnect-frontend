@@ -119,7 +119,9 @@ const arr = (d, ...keys) => {
 };
 
 export default function Chat({ token, api, user }) {
-  const myId = user?._id || user?.id;
+  // Try every field the backend might use for the current user's ID
+  const myId = user?._id || user?.id || user?.employee_id || user?.admin_id || user?.manager_id || user?.userId;
+  const myIdStr = myId ? String(myId) : "";
 
   const [people, setPeople]             = useState([]);   // all users I can message
   const [conversations, setConvos]      = useState([]);   // dm + channel convos w/ unread
@@ -203,7 +205,10 @@ export default function Chat({ token, api, user }) {
         jget(api, token, "/chat/users"),
         jget(api, token, "/chat/conversations"),
       ]);
-      setPeople(arr(u, "users", "data", "employees", "members").filter(p => (p._id || p.id) !== myId));
+      const mySelf = myId ? String(myId) : "";
+      setPeople(arr(u, "users", "data", "employees", "members").filter(p => {
+        return !mySelf || String(p._id || p.id || "") !== mySelf;
+      }));
       setConvos(arr(c, "conversations", "data"));
       setError("");
     } catch (e) {
@@ -288,23 +293,42 @@ export default function Chat({ token, api, user }) {
   const ts = (v) => (v ? toDate(v).getTime() || 0 : 0);
   const channels = conversations.filter(c => c.type === "channel");
   const dmConvos = conversations.filter(c => c.type === "dm");
-  const peopleById = new Map(people.map(p => [(p._id || p.id), p]));
-  const dmFor = (uid) => dmConvos.find(c => (c.members || c.participants || []).some(m => (m._id || m.id || m) === uid));
+  // Use string keys so IDs always match regardless of ObjectId vs string type
+  const peopleById = new Map(people.map(p => [String(p._id || p.id || ""), p]));
+  const dmFor = (uid) => {
+    const uidStr = String(uid || "");
+    return dmConvos.find(c =>
+      (c.members || c.participants || []).some(m => String(m._id || m.id || m || "") === uidStr)
+    );
+  };
 
-  // Resolve the other participant of a DM conversation (peer name/id), tolerant
-  // of various backend shapes — so existing chats render even when /chat/users
-  // returns the peer (e.g. an employee whose directory is empty).
+  // Resolve the OTHER participant of a DM conversation (peer name/id).
+  // Uses string comparison throughout so MongoDB ObjectId ≡ string IDs always match.
+  // Falls back through several backend shapes and the people directory.
   function peerInfo(conv) {
     const explicit = conv.peer || conv.with || conv.other_user;
     if (explicit) {
       const id = explicit._id || explicit.id || explicit;
-      return { id, name: explicit.name || conv.peer_name || peopleById.get(id)?.name || "Team member", dept: explicit.department };
+      const idStr = String(id || "");
+      return { id, name: explicit.name || conv.peer_name || peopleById.get(idStr)?.name || "Team member", dept: explicit.department };
     }
     const members = conv.members || conv.participants || [];
-    const other = members.find(m => (m._id || m.id || m) !== myId) ?? members[0];
-    const id = other?._id || other?.id || other;
-    const name = other?.name || conv.peer_name || conv.name || conv.title || peopleById.get(id)?.name || "Team member";
-    return { id, name, dept: other?.department || peopleById.get(id)?.department };
+    // Find the member whose ID is not the current user — string comparison handles type mismatches.
+    // If myId is unknown, fall back to the second member (current user is typically listed first).
+    const other = myIdStr
+      ? (members.find(m => {
+          const mid = String(m._id || m.id || m || "");
+          return mid !== "" && mid !== myIdStr;
+        }) ?? members[1] ?? members[0])
+      : (members[1] ?? members[0]);
+    const id = other?._id || other?.id || (typeof other === "string" ? other : undefined);
+    const idStr = String(id || "");
+    const name = other?.name
+      || conv.peer_name
+      || (idStr ? peopleById.get(idStr)?.name : undefined)
+      || conv.name || conv.title
+      || "Team member";
+    return { id, name, dept: other?.department || (idStr ? peopleById.get(idStr)?.department : undefined) };
   }
 
   const q = search.trim().toLowerCase();
@@ -316,17 +340,23 @@ export default function Chat({ token, api, user }) {
     .sort((a, b) => ts(b.last_at) - ts(a.last_at));
 
   // Build DM entries from BOTH existing conversations and the people directory.
-  const dmEntries = [];
+  // Deduplicate: if multiple conversations exist with the same peer, keep only the most recent.
   const seenPeers = new Set();
+  const dmByPeer = new Map(); // String(peerId) → entry
   dmConvos.forEach(c => {
     const pi = peerInfo(c);
-    if (pi.id) seenPeers.add(pi.id);
-    dmEntries.push({ key: c._id, conv: c, id: pi.id, name: pi.name, dept: pi.dept, last_at: c.last_at, last_message: c.last_message, unread: c.unread });
+    const peerKey = pi.id ? String(pi.id) : `conv:${c._id}`;
+    const entry = { key: c._id, conv: c, id: pi.id, name: pi.name, dept: pi.dept, last_at: c.last_at, last_message: c.last_message, unread: c.unread || 0 };
+    if (!dmByPeer.has(peerKey) || ts(c.last_at) > ts(dmByPeer.get(peerKey).last_at)) {
+      dmByPeer.set(peerKey, entry);
+    }
+    if (pi.id) seenPeers.add(String(pi.id));
   });
+  const dmEntries = [...dmByPeer.values()];
   people.forEach(p => {
     const id = p._id || p.id;
-    if (seenPeers.has(id)) return;                 // already shown via its conversation
-    dmEntries.push({ key: id, person: p, id, name: p.name, dept: p.department || p.role });
+    if (id && seenPeers.has(String(id))) return; // already shown via its conversation
+    dmEntries.push({ key: String(id || p.name), person: p, id, name: p.name, dept: p.department || p.role });
   });
   const filteredDms = dmEntries
     .filter(e => matchQ(e.name) || matchQ(e.dept))
