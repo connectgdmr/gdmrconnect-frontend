@@ -1594,11 +1594,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
       {view === "work-analytics" && <ErrorBoundary label="My Work Analytics" resetKey={view}><WorkAnalytics token={token} /></ErrorBoundary>}
       {view === "work-history"   && <ErrorBoundary label="Work History" resetKey={view}><WorkHistory token={token} user={user} /></ErrorBoundary>}
-      {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}>
-        {user?.department?.toLowerCase().includes("account")
-          ? <AdminPayroll token={token} />
-          : <EmployeePayroll token={token} />}
-      </ErrorBoundary>}
+      {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}><EmployeePayroll token={token} /></ErrorBoundary>}
 
       {leaveModalOpen && (
         <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>

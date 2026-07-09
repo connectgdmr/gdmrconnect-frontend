@@ -2241,9 +2241,14 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {view === "clients"        && <ErrorBoundary label="Clients" resetKey={view}><AdminClients token={token} /></ErrorBoundary>}
       {view === "ats"            && <ErrorBoundary label="Recruitment" resetKey={view}><AdminATS token={token} role="manager" /></ErrorBoundary>}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}>
-        {user?.department?.toLowerCase().includes("account")
-          ? <AdminPayroll token={token} />
-          : <EmployeePayroll token={token} />}
+        {(() => {
+          const depts = Array.isArray(user?.department) ? user.department : (user?.department ? [user.department] : []);
+          const hasPayrollAccess = depts.some(d => {
+            const lower = (d || "").toLowerCase();
+            return lower.includes("account") || lower.includes("hr") || lower.includes("human resource");
+          });
+          return hasPayrollAccess ? <AdminPayroll token={token} /> : <EmployeePayroll token={token} />;
+        })()}
       </ErrorBoundary>}
 
       {leaveModalOpen && (
