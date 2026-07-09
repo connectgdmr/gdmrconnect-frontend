@@ -522,7 +522,7 @@ export default function Chat({ token, api, user }) {
   const activeOwnerId  = activeConv && (activeConv.created_by?._id || activeConv.created_by);
   const isOwner        = !!activeOwnerId && activeOwnerId === myId;
   const canDeleteChan  = active?.type === "channel" && (isAdmin || isOwner);
-  const canClearAll    = active?.type === "dm" || isAdmin || isOwner;
+  const canClearAll    = !!active;
 
   // ── render: group messages with date dividers ─────────────────
   function renderMessages() {
