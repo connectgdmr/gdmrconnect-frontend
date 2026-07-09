@@ -148,6 +148,7 @@ export default function Chat({ token, api, user }) {
   const isAdmin = (user?.role || (typeof localStorage !== "undefined" && localStorage.getItem("role"))) === "admin";
 
   const scrollRef = useRef(null);
+  const composerRef = useRef(null); // for auto-resize
   const activeRef = useRef(active);
   activeRef.current = active;
   const lastTypingSent = useRef(0);
@@ -379,13 +380,14 @@ export default function Chat({ token, api, user }) {
     };
     setMessages(m => [...m, optimistic]);
     setText("");
+    if (composerRef.current) { composerRef.current.style.height = "auto"; }
     try {
       await jpost(api, token, `/chat/conversations/${active.id}/messages`, { text: body });
       loadMessages(active.id, false);
       loadList();
     } catch (err) {
       setMessages(m => m.map(x => x._id === optimistic._id ? { ...x, failed: true, pending: false } : x));
-      setError(err.message || "Message failed to send.");
+      showToast(err.message || "Message failed to send.");
     } finally { setSending(false); }
   }
 
@@ -571,12 +573,14 @@ export default function Chat({ token, api, user }) {
     }
   }
 
+  const hasBanner = notifPerm !== "granted" && notifPerm !== "unsupported";
+
   return (
-    <div className={`gchat ${active ? "has-active" : ""}`} data-pane={mobilePane}>
+    <div className={`gchat${hasBanner ? " has-banner" : ""}${active ? " has-active" : ""}`} data-pane={mobilePane}>
       <ChatStyles />
 
       {/* Notification permission banner */}
-      {notifPerm !== "granted" && notifPerm !== "unsupported" && (
+      {hasBanner && (
         <div style={{
           gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "space-between",
           gap: 10, padding: "8px 16px", background: "#fefce8", borderBottom: "1px solid #fde68a",
@@ -721,10 +725,16 @@ export default function Chat({ token, api, user }) {
 
             <form className="gchat-composer" onSubmit={send}>
               <textarea
+                ref={composerRef}
                 rows={1}
                 placeholder={`Message ${active.type === "channel" ? "#" + active.title : active.title}`}
                 value={text}
-                onChange={e => { setText(e.target.value); if (e.target.value.trim()) notifyTyping(); }}
+                onChange={e => {
+                  setText(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+                  if (e.target.value.trim()) notifyTyping();
+                }}
                 onKeyDown={onComposerKey}
               />
               <button type="submit" className="gchat-send" disabled={!text.trim() || sending}>
@@ -850,8 +860,9 @@ function NewChannelModal({ api, token, people, onClose, onCreated }) {
 function ChatStyles() {
   return (
     <style>{`
-      .gchat { display:grid; grid-template-columns: 320px 1fr; height: calc(100vh - 140px); min-height: 520px;
+      .gchat { display:grid; grid-template-columns: 320px 1fr; grid-template-rows: 1fr; height: calc(100vh - 140px); min-height: 520px;
         background:#fff; border:1px solid #e6eaef; border-radius:16px; overflow:hidden; box-shadow:0 4px 24px rgba(16,40,30,0.05); }
+      .gchat.has-banner { grid-template-rows: auto 1fr; }
       .gchat-rail { border-right:1px solid #eef1f4; display:flex; flex-direction:column; background:#fafbfc; min-width:0; min-height:0; overflow:hidden; }
       .gchat-rail-head { display:flex; align-items:center; justify-content:space-between; padding:16px 16px 10px; }
       .gchat-rail-head h3 { margin:0; font-size:18px; color:#0f172a; }
