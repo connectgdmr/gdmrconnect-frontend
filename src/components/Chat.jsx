@@ -18,18 +18,21 @@ const BASE = (api) => (api?.baseUrl || "https://gdmrconnect-backend-production.u
 
 // Deterministic avatar colour from a name/id
 const AVATAR_COLORS = ["#34a06a", "#0f766e", "#2563eb", "#7c3aed", "#db2777", "#ea580c", "#0891b2", "#65a30d"];
-function colorFor(key = "") {
+function colorFor(key) {
+  const k = typeof key === "string" ? key : (key ? String(key) : "");
   let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0;
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
-function initials(name = "?") {
-  const p = name.trim().split(/\s+/);
+function initials(name) {
+  const n = typeof name === "string" ? name : (name ? String(name) : "?");
+  const p = n.trim().split(/\s+/);
   return ((p[0]?.[0] || "") + (p[1]?.[0] || "")).toUpperCase() || "?";
 }
 
 function Avatar({ name, size = 38, isChannel = false, online = false }) {
-  const bg = isChannel ? "#1c5249" : colorFor(name);
+  const safeName = typeof name === "string" ? name : (name ? String(name) : "");
+  const bg = isChannel ? "#1c5249" : colorFor(safeName);
   return (
     <div style={{ position: "relative", flexShrink: 0, width: size, height: size }}>
       <div style={{
@@ -37,7 +40,7 @@ function Avatar({ name, size = 38, isChannel = false, online = false }) {
         color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
         fontWeight: 700, fontSize: size * 0.38,
       }}>
-        {isChannel ? <FaHashtag size={size * 0.42} /> : initials(name)}
+        {isChannel ? <FaHashtag size={size * 0.42} /> : initials(safeName)}
       </div>
       {online && !isChannel && (
         <span style={{
@@ -298,7 +301,7 @@ export default function Chat({ token, api, user }) {
   const dmFor = (uid) => {
     const uidStr = String(uid || "");
     return dmConvos.find(c =>
-      (c.members || c.participants || []).some(m => String(m._id || m.id || m || "") === uidStr)
+      (c.members || c.participants || []).some(m => String(m?._id || m?.id || m || "") === uidStr)
     );
   };
 
@@ -317,7 +320,7 @@ export default function Chat({ token, api, user }) {
     // If myId is unknown, fall back to the second member (current user is typically listed first).
     const other = myIdStr
       ? (members.find(m => {
-          const mid = String(m._id || m.id || m || "");
+          const mid = String(m?._id || m?.id || m || "");
           return mid !== "" && mid !== myIdStr;
         }) ?? members[1] ?? members[0])
       : (members[1] ?? members[0]);
@@ -356,7 +359,7 @@ export default function Chat({ token, api, user }) {
   people.forEach(p => {
     const id = p._id || p.id;
     if (id && seenPeers.has(String(id))) return; // already shown via its conversation
-    dmEntries.push({ key: String(id || p.name), person: p, id, name: p.name, dept: p.department || p.role });
+    dmEntries.push({ key: String(id || p.name || ""), person: p, id, name: p.name || "", dept: p.department || p.role || "" });
   });
   const filteredDms = dmEntries
     .filter(e => matchQ(e.name) || matchQ(e.dept))
