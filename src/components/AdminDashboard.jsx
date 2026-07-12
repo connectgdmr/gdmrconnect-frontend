@@ -170,6 +170,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   const [detailType, setDetailType] = useState("");
   const [detailLoading, setDetailLoading] = useState(false);
 
+  // Pre-loaded today's leave roster (single source of truth for KPI + modal)
+  const [todayLeaveRows, setTodayLeaveRows] = useState(null);
+
   // — Announcement States —
   const [announcements, setAnnouncements] = useState([]);
   const [annTitle, setAnnTitle] = useState("");
@@ -208,6 +211,49 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   const [deptMembersOpen, setDeptMembersOpen] = useState(null); // dept object for quick-view
 
   // — Data Loaders —
+
+  // Builds today's leave roster — same dedup logic as the modal so KPI ↔ modal are always in sync.
+  async function loadTodayLeaves(empList) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const src = empList || employees;
+    try {
+      const allLeaves = await api.adminLeaves(token);
+      const rawList = Array.isArray(allLeaves) ? allLeaves : (allLeaves?.leaves || []);
+      const leaveList = rawList.filter(l => {
+        if ((l.status || "").toLowerCase() === "rejected") return false;
+        if (l.from_date && l.to_date) return l.from_date <= todayStr && l.to_date >= todayStr;
+        return l.date === todayStr;
+      });
+
+      const leaveRows = leaveList.map(l => {
+        const emp = src.find(e => String(e._id) === String(l.employee_id) || e.name === l.employee_name);
+        return { ...l, department: l.department || emp?.department || "—" };
+      });
+
+      // Add employees with active extended_leaves not already captured
+      const leaveEmpNames = new Set(leaveRows.map(r => r.employee_name));
+      src.forEach(e => {
+        if (!e.resignation?.notice_date &&
+            e.extended_leaves?.some(lv => lv.from_date <= todayStr && lv.to_date >= todayStr) &&
+            !leaveEmpNames.has(e.name)) {
+          const lv = e.extended_leaves[e.extended_leaves.length - 1];
+          leaveRows.push({
+            _id: `ext_${e._id}`,
+            employee_name: e.name,
+            department: Array.isArray(e.department) ? e.department[0] : (e.department || "—"),
+            type: lv.type,
+            status: "Extended Leave",
+            manager_status: "N/A",
+            admin_status: "N/A",
+            _extLeave: true,
+          });
+        }
+      });
+
+      setTodayLeaveRows(leaveRows);
+    } catch { /* silent */ }
+  }
+
   async function loadEmployees() {
     setLoading(true);
     try {
@@ -215,6 +261,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       setEmployees(list);
       // Always sync departments from fresh employee data (keeps EmployeeForm dropdown up-to-date)
       loadDepartments(list);
+      // Load today's leave roster with fresh employee data so KPI and modal stay in sync
+      loadTodayLeaves(list);
     } catch {
       // silent — UI shows stale data
     } finally {
@@ -604,42 +652,45 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       const todayStr = now.toISOString().slice(0, 10);
 
       if (type === 'leave') {
-        // Fetch all leaves and filter to ones covering today
-        const allLeaves = await api.adminLeaves(token);
-        const todayLeaves = (Array.isArray(allLeaves) ? allLeaves : allLeaves?.leaves || []).filter(l => {
-          if (l.from_date && l.to_date) return l.from_date <= todayStr && l.to_date >= todayStr;
-          return l.date === todayStr;
-        });
+        // Use the pre-loaded roster (same source as KPI) for instant, consistent results
+        if (todayLeaveRows !== null) {
+          setDetailLeaves([...todayLeaveRows]);
+        } else {
+          // Fallback: fetch fresh (same dedup logic as loadTodayLeaves)
+          const allLeaves = await api.adminLeaves(token);
+          const rawList = Array.isArray(allLeaves) ? allLeaves : (allLeaves?.leaves || []);
+          const todayLeaves = rawList.filter(l => {
+            if ((l.status || "").toLowerCase() === "rejected") return false;
+            if (l.from_date && l.to_date) return l.from_date <= todayStr && l.to_date >= todayStr;
+            return l.date === todayStr;
+          });
 
-        // Build leave rows — enrich with employee dept if missing
-        const leaveRows = todayLeaves.map(l => {
-          const emp = employees.find(e => String(e._id) === String(l.employee_id) || e.name === l.employee_name);
-          return { ...l, department: l.department || emp?.department || "—" };
-        });
+          const leaveRows = todayLeaves.map(l => {
+            const emp = employees.find(e => String(e._id) === String(l.employee_id) || e.name === l.employee_name);
+            return { ...l, department: l.department || emp?.department || "—" };
+          });
 
-        // Add employees on an active extended leave covering today
-        const extLeaveEmps = employees.filter(e =>
-          !e.resignation?.notice_date &&
-          e.extended_leaves?.some(lv => lv.from_date <= todayStr && lv.to_date >= todayStr)
-        );
-        const leaveEmpNames = new Set(leaveRows.map(r => r.employee_name));
-        extLeaveEmps.forEach(e => {
-          if (!leaveEmpNames.has(e.name)) {
-            const lv = e.extended_leaves[e.extended_leaves.length - 1];
-            leaveRows.push({
-              _id: `ext_${e._id}`,
-              employee_name: e.name,
-              department: e.department || "—",
-              type: lv.type,
-              status: "Extended Leave",
-              manager_status: "N/A",
-              admin_status: "N/A",
-              _extLeave: true,
-            });
-          }
-        });
+          const leaveEmpNames = new Set(leaveRows.map(r => r.employee_name));
+          employees.forEach(e => {
+            if (!e.resignation?.notice_date &&
+                e.extended_leaves?.some(lv => lv.from_date <= todayStr && lv.to_date >= todayStr) &&
+                !leaveEmpNames.has(e.name)) {
+              const lv = e.extended_leaves[e.extended_leaves.length - 1];
+              leaveRows.push({
+                _id: `ext_${e._id}`,
+                employee_name: e.name,
+                department: e.department || "—",
+                type: lv.type,
+                status: "Extended Leave",
+                manager_status: "N/A",
+                admin_status: "N/A",
+                _extLeave: true,
+              });
+            }
+          });
 
-        setDetailLeaves(leaveRows);
+          setDetailLeaves(leaveRows);
+        }
       } else {
         // For present / absent / not_checked_in — use attendance summary
         const summaryData = await api.getAttendanceSummary(now.toISOString().slice(0, 7), token);
@@ -752,22 +803,37 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {/* DASHBOARD HOME VIEW (WIDGETS) */}
       {/* ============================================================================ */}
       {view === "dashboard" && (() => {
-        const todayStr        = new Date().toISOString().slice(0, 10);
-        const resignedCount   = employees.filter(e => !!e.resignation?.notice_date).length;
-        const extLeaveCount   = employees.filter(e =>
-          !e.resignation?.notice_date &&
+        const todayStr = new Date().toISOString().slice(0, 10);
+
+        // Active workforce: excludes fully offboarded employees (LWD passed), includes notice-period
+        const activeEmps = employees.filter(e => empExitStatus(e) !== "offboarded");
+        // Offboarded employees should not inflate any attendance count
+        const offboardedCount = employees.filter(e => empExitStatus(e) === "offboarded").length;
+
+        // Extended-leave employees (active, no offboard)
+        const extLeaveEmpsAll = activeEmps.filter(e =>
           e.extended_leaves?.some(lv => lv.from_date <= todayStr && lv.to_date >= todayStr)
-        ).length;
-        const adjNotCheckedIn = Math.max(0, (stats.not_checked_in ?? 0) - resignedCount);
-        const adjOnLeave      = (stats.leave ?? 0) + extLeaveCount;
+        );
+
+        // On Leave: use pre-loaded deduplicated list when available (matches modal exactly)
+        const leaveCount = todayLeaveRows !== null
+          ? todayLeaveRows.length
+          : (stats.leave ?? 0) + extLeaveEmpsAll.length;
+
+        // Not Checked In: backend count minus offboarded, minus extended-leave employees
+        // that don't have a daily leave record (they appear as NCI in backend but are actually on leave)
+        const leaveEmpNameSet = new Set((todayLeaveRows || []).map(r => r.employee_name));
+        const extLeaveNoRecord = extLeaveEmpsAll.filter(e => !leaveEmpNameSet.has(e.name)).length;
+        const adjNotCheckedIn = Math.max(0, (stats.not_checked_in ?? 0) - offboardedCount - extLeaveNoRecord);
+
         return (
         <>
         {/* KPI Row */}
         <div className="kpi-row">
-          <KpiTile icon={<FaUsers />}        label="Total Workforce" value={employees.length}   tone="brand" />
-          <KpiTile icon={<FaCheckCircle />}  label="Present Today"    value={stats.present ?? 0} tone="green" onClick={() => handleStatClick('present', 'Present Today')} />
-          <KpiTile icon={<FaUserClock />}    label="On Leave"         value={adjOnLeave}          tone="teal" onClick={() => handleStatClick('leave', 'On Leave Today')} />
-          <KpiTile icon={<FaUserSlash />}    label="Not Checked In"   value={adjNotCheckedIn}     tone="slate" onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
+          <KpiTile icon={<FaUsers />}        label="Total Workforce" value={activeEmps.length}    tone="brand" />
+          <KpiTile icon={<FaCheckCircle />}  label="Present Today"    value={stats.present ?? 0}  tone="green" onClick={() => handleStatClick('present', 'Present Today')} />
+          <KpiTile icon={<FaUserClock />}    label="On Leave"         value={leaveCount}           tone="teal"  onClick={() => handleStatClick('leave', 'On Leave Today')} />
+          <KpiTile icon={<FaUserSlash />}    label="Not Checked In"   value={adjNotCheckedIn}      tone="slate" onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
         </div>
 
         {/* Quick Launch */}
@@ -792,8 +858,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         <AdminInsights
           stats={{
             ...stats,
-            leave:         (stats.leave ?? 0) + employees.filter(e => !e.resignation?.notice_date && e.extended_leaves?.some(lv => { const t = new Date().toISOString().slice(0,10); return lv.from_date <= t && lv.to_date >= t; })).length,
-            not_checked_in: Math.max(0, (stats.not_checked_in ?? 0) - employees.filter(e => !!e.resignation?.notice_date).length),
+            leave:          leaveCount,
+            not_checked_in: adjNotCheckedIn,
           }}
           employees={employees}
           api={api}
