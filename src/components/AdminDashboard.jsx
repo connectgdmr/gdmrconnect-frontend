@@ -92,21 +92,38 @@ function KpiTile({ icon, label, value, tone = "brand", onClick }) {
   );
 }
 
-function MemberRow({ emp, badge }) {
+function empExitStatus(emp) {
+  if (!emp.resignation?.notice_date) return null;
+  const lwd = emp.resignation.last_working_day;
+  if (!lwd) return "notice";
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return new Date(lwd) < today ? "offboarded" : "notice";
+}
+
+function MemberRow({ emp, badge, exitLabel }) {
+  const isFormer = !!exitLabel;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid #f8fafc" }}>
-      <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,#334155,#1e293b)", color: "#fff", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+    <div style={{
+      display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid #f8fafc",
+      opacity: isFormer ? 0.45 : 1,
+      filter: isFormer ? "grayscale(60%)" : "none",
+    }}>
+      <div style={{ width: 38, height: 38, borderRadius: "50%", background: isFormer ? "#94a3b8" : "linear-gradient(135deg,#334155,#1e293b)", color: "#fff", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         {emp.name?.charAt(0).toUpperCase() || "?"}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 13.5, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{emp.name}</div>
+        <div style={{ fontWeight: 600, fontSize: 13.5, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: isFormer ? "line-through" : "none" }}>{emp.name}</div>
         <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 1 }}>{emp.position || emp.email || "—"}</div>
       </div>
-      {badge && (
+      {exitLabel ? (
+        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "#f1f5f9", color: "#64748b", border: "1px solid #cbd5e1", flexShrink: 0 }}>
+          {exitLabel}
+        </span>
+      ) : badge ? (
         <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 999, background: badge.bg, color: badge.color, flexShrink: 0 }}>
           {badge.label}
         </span>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -1319,8 +1336,10 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
             {deptMembersOpen && (() => {
               const d = deptMembersOpen;
               const clr = getColor(d.name);
-              const managers = d.members.filter(m => m.role === "manager");
-              const regulars = d.members.filter(m => m.role !== "manager");
+              const activeMembers = d.members.filter(m => !empExitStatus(m));
+              const formerMembers = d.members.filter(m => !!empExitStatus(m));
+              const managers = activeMembers.filter(m => m.role === "manager");
+              const regulars = activeMembers.filter(m => m.role !== "manager");
               return (
                 <>
                   <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 6000, backdropFilter: "blur(2px)" }} onClick={() => setDeptMembersOpen(null)} />
@@ -1335,7 +1354,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                           <div>
                             <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>{d.name}</div>
                             <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-                              {d.members.length} {d.members.length === 1 ? "member" : "members"}
+                              {activeMembers.length} active{formerMembers.length > 0 ? `, ${formerMembers.length} former` : ""}
                             </div>
                           </div>
                         </div>
@@ -1370,6 +1389,22 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                               {regulars.map(emp => (
                                 <MemberRow key={emp._id} emp={emp} />
                               ))}
+                            </>
+                          )}
+                          {formerMembers.length > 0 && (
+                            <>
+                              <div style={{ height: 1, background: "#f1f5f9", margin: "14px 0" }} />
+                              <p style={{ fontSize: 10.5, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: "0.7px", margin: "0 0 10px" }}>Former / Off-boarded</p>
+                              {formerMembers.map(emp => {
+                                const st = empExitStatus(emp);
+                                return (
+                                  <MemberRow
+                                    key={emp._id}
+                                    emp={emp}
+                                    exitLabel={st === "offboarded" ? "Off-boarded" : "Serving Notice"}
+                                  />
+                                );
+                              })}
                             </>
                           )}
                         </>
