@@ -343,6 +343,19 @@ export default function AdminAttendanceSummary({ token, api }) {
   const metrics = useMemo(() => entries.length ? computeMetrics(entries, idMap, totalEmp) : null, [entries, idMap, totalEmp]);
   const { insights, score } = useMemo(() => metrics ? generateInsights(metrics, totalEmp) : { insights: [], score: 0 }, [metrics, totalEmp]);
 
+  // Must be before early return — Rules of Hooks
+  const filteredEmp = useMemo(() => {
+    const list = metrics?.empList ? [...metrics.empList] : [];
+    let result = list;
+    if (empFilter !== "all") result = result.filter(e => e.risk === empFilter || (empFilter === "good" && e.risk === "good") || (empFilter === "perfect" && e.absent === 0 && e.nci === 0));
+    if (empSearch) result = result.filter(e => e.name.toLowerCase().includes(empSearch.toLowerCase()));
+    if (empSort === "rate") result.sort((a, b) => b.rate - a.rate);
+    else if (empSort === "absent") result.sort((a, b) => b.absent - a.absent);
+    else if (empSort === "present") result.sort((a, b) => b.present - a.present);
+    else if (empSort === "name") result.sort((a, b) => a.name.localeCompare(b.name));
+    return result;
+  }, [metrics, empFilter, empSearch, empSort]);
+
   function handleExport(fmt) {
     if (!summary) return;
     if (fmt === "csv") {
@@ -375,17 +388,6 @@ export default function AdminAttendanceSummary({ token, api }) {
   const sparkAbsent   = trend?.map(d => d.absent) || [];
   const presentRate   = totalRate?.toFixed(1);
 
-  const filteredEmp = useMemo(() => {
-    if (!empList) return [];
-    let list = [...empList];
-    if (empFilter !== "all") list = list.filter(e => e.risk === empFilter || (empFilter === "good" && e.risk === "good") || (empFilter === "perfect" && e.absent === 0 && e.nci === 0));
-    if (empSearch) list = list.filter(e => e.name.toLowerCase().includes(empSearch.toLowerCase()));
-    if (empSort === "rate") list.sort((a, b) => b.rate - a.rate);
-    else if (empSort === "absent") list.sort((a, b) => b.absent - a.absent);
-    else if (empSort === "present") list.sort((a, b) => b.present - a.present);
-    else if (empSort === "name") list.sort((a, b) => a.name.localeCompare(b.name));
-    return list;
-  }, [empList, empFilter, empSearch, empSort]);
 
   const tabs = [
     { id: "overview",  label: "Overview",    icon: <FaChartPie size={11} /> },
