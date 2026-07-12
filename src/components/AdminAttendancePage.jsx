@@ -1,17 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 import {
   FaSearch,
   FaFilter,
   FaTimes,
   FaList,
-  FaThLarge, 
+  FaThLarge,
   FaCalendarAlt,
   FaCheckCircle,
   FaTimesCircle,
   FaUserClock,
   FaUserSlash,
-  FaMapMarkerAlt
+  FaMapMarkerAlt,
+  FaChartBar,
+  FaTrophy,
+  FaExclamationTriangle,
+  FaUsers,
+  FaBuilding,
 } from "react-icons/fa";
 
 // Resolve the geo-coordinates (or a place name) from various backend shapes.
@@ -103,7 +108,7 @@ export default function AdminAttendancePage({ token, api }) {
   const [departments, setDepartments] = useState([]);
   
   // --- Master Logs States (COMPLETE VISIBILITY FEATURE) ---
-  const [viewMode, setViewMode] = useState("grid"); // Toggles between "grid" or "logs"
+  const [viewMode, setViewMode] = useState("grid"); // Toggles between "grid", "logs", "analyzer"
   const [allAttendanceLogs, setAllAttendanceLogs] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
 
@@ -132,6 +137,14 @@ export default function AdminAttendancePage({ token, api }) {
   const [detailTitle, setDetailTitle] = useState("");
   const [detailList, setDetailList] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // --- Analyzer State ---
+  const [analyzerMonth, setAnalyzerMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [analyzerSummary, setAnalyzerSummary] = useState(null);
+  const [analyzerLoading, setAnalyzerLoading] = useState(false);
+  const [analyzerIdMap, setAnalyzerIdMap] = useState({});   // id -> { name, dept }
+  const [analyzerEmpDeptMap, setAnalyzerEmpDeptMap] = useState({}); // id -> dept
+  const [expandedDay, setExpandedDay] = useState(null);
 
   // ============================================================================
   // API DATA FETCHING
@@ -264,6 +277,14 @@ export default function AdminAttendancePage({ token, api }) {
     }
   }
 
+  async function loadAnalyzerData(month) {
+    setAnalyzerLoading(true);
+    try {
+      const data = await api.getAttendanceSummary(month, token);
+      setAnalyzerSummary(data);
+    } catch { /* silent */ } finally { setAnalyzerLoading(false); }
+  }
+
   // ============================================================================
   // EFFECTS & FILTER LOGIC
   // ============================================================================
@@ -280,6 +301,25 @@ export default function AdminAttendancePage({ token, api }) {
     
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Build id maps once employees load
+  useEffect(() => {
+    if (!employees.length) return;
+    const idM = {}, deptM = {};
+    employees.forEach(e => {
+      const id = String(e._id || "");
+      if (!id) return;
+      idM[id] = e.name || "Unknown";
+      deptM[id] = Array.isArray(e.department) ? e.department[0] : (e.department || "");
+    });
+    setAnalyzerIdMap(idM);
+    setAnalyzerEmpDeptMap(deptM);
+  }, [employees]);
+
+  // Load analyzer data when month changes or tab switches to analyzer
+  useEffect(() => {
+    if (viewMode === "analyzer") loadAnalyzerData(analyzerMonth);
+  }, [viewMode, analyzerMonth]);
 
   // Filter Logic for Employee Grid View
   useEffect(() => {
@@ -345,6 +385,109 @@ export default function AdminAttendancePage({ token, api }) {
   };
 
   // StatItem is defined above the component for performance
+
+  // ============================================================================
+  // ANALYZER COMPUTED DATA
+  // ============================================================================
+  const analyzerData = useMemo(() => {
+    if (!analyzerSummary?.days) return null;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const dayEntries = Object.entries(analyzerSummary.days)
+      .filter(([d]) => d <= todayStr)
+      .sort(([a], [b]) => a.localeCompare(b));
+
+    const cnt = (v) => Array.isArray(v) ? v.length : (Number(v) || 0);
+    const ids = (v) => Array.isArray(v) ? v : [];
+
+    // Resolve id or object to { id, name }
+    const resolve = (item) => {
+      if (!item) return null;
+      if (typeof item === "object") {
+        const id = String(item._id || item.id || "");
+        const name = item.name || item.employee_name || analyzerIdMap[id] || "Unknown";
+        return { id, name };
+      }
+      const id = String(item);
+      return { id, name: analyzerIdMap[id] || id };
+    };
+
+    // Per-employee stats
+    const empStats = {}; // id -> { name, dept, present, absent, leave, nci }
+    const ensure = (id, name) => {
+      if (!empStats[id]) empStats[id] = {
+        id, name, dept: analyzerEmpDeptMap[id] || "",
+        present: 0, absent: 0, leave: 0, nci: 0,
+      };
+    };
+
+    dayEntries.forEach(([, d]) => {
+      [["present", d.present], ["absent", d.absent], ["leave", d.leave], ["nci", d.not_checked_in]].forEach(([cat, arr]) => {
+        ids(arr).forEach(item => {
+          const r = resolve(item);
+          if (!r?.id) return;
+          ensure(r.id, r.name);
+          empStats[r.id][cat]++;
+        });
+      });
+    });
+
+    // Enrich from employee roster (adds people with zero attendance)
+    employees.forEach(e => {
+      const id = String(e._id || "");
+      if (!id) return;
+      if (!empStats[id]) empStats[id] = {
+        id, name: e.name, dept: Array.isArray(e.department) ? e.department[0] : (e.department || ""),
+        present: 0, absent: 0, leave: 0, nci: 0,
+      };
+      else {
+        empStats[id].name = e.name;
+        empStats[id].dept = Array.isArray(e.department) ? e.department[0] : (e.department || "");
+      }
+    });
+
+    const empList = Object.values(empStats).map(e => {
+      const total = e.present + e.absent + e.leave + e.nci;
+      return { ...e, total, rate: total > 0 ? Math.round((e.present / total) * 100) : 0 };
+    }).sort((a, b) => b.rate - a.rate || b.present - a.present);
+
+    // KPIs
+    const workingDays = dayEntries.length;
+    const totalPresent = dayEntries.reduce((s, [, d]) => s + cnt(d.present), 0);
+    const totalAbsent  = dayEntries.reduce((s, [, d]) => s + cnt(d.absent), 0);
+    const totalLeave   = dayEntries.reduce((s, [, d]) => s + cnt(d.leave), 0);
+    const totalEmp = analyzerSummary.total_employees || employees.length || 1;
+    const avgRate = workingDays > 0 ? Math.round((totalPresent / (workingDays * totalEmp)) * 100) : 0;
+
+    // Department breakdown
+    const deptMap = {};
+    empList.forEach(e => {
+      const d = e.dept || "Unassigned";
+      if (!deptMap[d]) deptMap[d] = { dept: d, present: 0, absent: 0, leave: 0, total: 0, members: 0 };
+      deptMap[d].present += e.present;
+      deptMap[d].absent  += e.absent;
+      deptMap[d].leave   += e.leave;
+      deptMap[d].total   += e.total;
+      deptMap[d].members++;
+    });
+    const deptList = Object.values(deptMap).map(d => ({
+      ...d, rate: d.total > 0 ? Math.round((d.present / d.total) * 100) : 0,
+    })).sort((a, b) => b.rate - a.rate);
+
+    // Day details (for leave calendar)
+    const dayDetails = dayEntries.map(([date, d]) => ({
+      date,
+      presentNames: ids(d.present).map(resolve).filter(Boolean),
+      absentNames:  ids(d.absent).map(resolve).filter(Boolean),
+      leaveNames:   ids(d.leave).map(resolve).filter(Boolean),
+      nciNames:     ids(d.not_checked_in).map(resolve).filter(Boolean),
+      presentCount: cnt(d.present),
+      absentCount:  cnt(d.absent),
+      leaveCount:   cnt(d.leave),
+      nciCount:     cnt(d.not_checked_in),
+    }));
+
+    return { empList, deptList, dayDetails, workingDays, totalPresent, totalAbsent, totalLeave, totalEmp, avgRate };
+  }, [analyzerSummary, analyzerIdMap, analyzerEmpDeptMap, employees]);
 
   // ============================================================================
   // COMPONENT RENDER
@@ -448,10 +591,10 @@ export default function AdminAttendancePage({ token, api }) {
               >
                   <FaThLarge /> Employee Grid
               </button>
-              <button 
+              <button
                   onClick={() => setViewMode("logs")}
                   style={{
-                      display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', border: 'none', 
+                      display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', border: 'none',
                       borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
                       background: viewMode === "logs" ? '#fff' : 'transparent',
                       color: viewMode === "logs" ? 'var(--red)' : '#64748b',
@@ -460,6 +603,19 @@ export default function AdminAttendancePage({ token, api }) {
                   }}
               >
                   <FaList /> Complete Logs
+              </button>
+              <button
+                  onClick={() => setViewMode("analyzer")}
+                  style={{
+                      display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', border: 'none',
+                      borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
+                      background: viewMode === "analyzer" ? '#fff' : 'transparent',
+                      color: viewMode === "analyzer" ? 'var(--red)' : '#64748b',
+                      boxShadow: viewMode === "analyzer" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.2s ease'
+                  }}
+              >
+                  <FaChartBar /> Analyzer
               </button>
           </div>
       </div>
@@ -602,6 +758,256 @@ export default function AdminAttendancePage({ token, api }) {
                  </div>
               )}
           </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* VIEW MODE: ANALYZER                                        */}
+      {/* ========================================================= */}
+      {viewMode === "analyzer" && (
+        <div style={{ marginTop: 20 }}>
+          {/* Month picker */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+            <FaCalendarAlt color="#94a3b8" />
+            <input
+              type="month"
+              value={analyzerMonth}
+              onChange={e => setAnalyzerMonth(e.target.value)}
+              className="input"
+              style={{ width: 180, marginBottom: 0 }}
+            />
+            <span style={{ fontSize: 13, color: "#64748b" }}>
+              {analyzerData ? `${analyzerData.workingDays} working days tracked` : ""}
+            </span>
+          </div>
+
+          {analyzerLoading || !analyzerData ? (
+            <SkeletonTable rows={8} cols={5} />
+          ) : (
+            <>
+              {/* ── KPI Strip ─────────────────────────────────────── */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 12, marginBottom: 24 }}>
+                {[
+                  { icon: <FaUsers />, label: "Total Employees", value: analyzerData.totalEmp, color: "#0f766e", bg: "#effdf8" },
+                  { icon: <FaCheckCircle />, label: "Avg Attendance", value: `${analyzerData.avgRate}%`, color: "#16a34a", bg: "#f0fdf4" },
+                  { icon: <FaCalendarAlt />, label: "Working Days", value: analyzerData.workingDays, color: "#1d4ed8", bg: "#eff6ff" },
+                  { icon: <FaTimesCircle />, label: "Total Absences", value: analyzerData.totalAbsent, color: "#dc2626", bg: "#fef2f2" },
+                  { icon: <FaUserClock />, label: "Total On Leave", value: analyzerData.totalLeave, color: "#d97706", bg: "#fffbeb" },
+                ].map(k => (
+                  <div key={k.label} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 10, background: k.bg, color: k.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{k.icon}</div>
+                    <div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{k.value}</div>
+                      <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 3 }}>{k.label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Top Performers & Most Absent ──────────────────── */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+                {/* Top workers */}
+                <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                  <div style={{ padding: "14px 18px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 8 }}>
+                    <FaTrophy color="#d97706" size={13} />
+                    <span style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>Most Present</span>
+                  </div>
+                  <div style={{ padding: "10px 18px" }}>
+                    {analyzerData.empList.slice(0, 5).map((emp, i) => (
+                      <div key={emp.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < 4 ? "1px solid #f8fafc" : "none" }}>
+                        <span style={{ width: 20, fontSize: 11, fontWeight: 700, color: i === 0 ? "#d97706" : "#94a3b8" }}>#{i + 1}</span>
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#0f766e,#0d9488)", color: "#fff", fontWeight: 700, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {(emp.name || "?")[0].toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{emp.name}</div>
+                          <div style={{ fontSize: 11, color: "#64748b" }}>{emp.dept}</div>
+                        </div>
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>{emp.rate}%</div>
+                          <div style={{ fontSize: 10, color: "#94a3b8" }}>{emp.present}d</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Most absent */}
+                <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                  <div style={{ padding: "14px 18px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 8 }}>
+                    <FaExclamationTriangle color="#dc2626" size={13} />
+                    <span style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>Needs Attention</span>
+                  </div>
+                  <div style={{ padding: "10px 18px" }}>
+                    {[...analyzerData.empList].reverse().slice(0, 5).map((emp, i) => (
+                      <div key={emp.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < 4 ? "1px solid #f8fafc" : "none" }}>
+                        <span style={{ width: 20, fontSize: 11, fontWeight: 700, color: i === 0 ? "#dc2626" : "#94a3b8" }}>#{i + 1}</span>
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#dc2626,#ef4444)", color: "#fff", fontWeight: 700, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {(emp.name || "?")[0].toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{emp.name}</div>
+                          <div style={{ fontSize: 11, color: "#64748b" }}>{emp.dept}</div>
+                        </div>
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>{emp.rate}%</div>
+                          <div style={{ fontSize: 10, color: "#94a3b8" }}>{emp.absent}d absent</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Department Comparison ─────────────────────────── */}
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", marginBottom: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                <div style={{ padding: "14px 18px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 8 }}>
+                  <FaBuilding color="#0f766e" size={13} />
+                  <span style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>Department Attendance Rate</span>
+                </div>
+                <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+                  {analyzerData.deptList.map(d => (
+                    <div key={d.dept}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>{d.dept}</span>
+                        <div style={{ display: "flex", gap: 12, fontSize: 11.5, color: "#64748b" }}>
+                          <span style={{ color: "#16a34a", fontWeight: 600 }}>{d.present}p</span>
+                          <span style={{ color: "#dc2626" }}>{d.absent}a</span>
+                          <span style={{ color: "#d97706" }}>{d.leave}l</span>
+                          <span style={{ fontWeight: 700, color: d.rate >= 80 ? "#16a34a" : d.rate >= 60 ? "#d97706" : "#dc2626", minWidth: 36, textAlign: "right" }}>{d.rate}%</span>
+                        </div>
+                      </div>
+                      <div style={{ height: 7, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${d.rate}%`, background: d.rate >= 80 ? "linear-gradient(90deg,#16a34a,#22c55e)" : d.rate >= 60 ? "linear-gradient(90deg,#d97706,#f59e0b)" : "linear-gradient(90deg,#dc2626,#ef4444)", borderRadius: 999, transition: "width 0.6s" }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Full Employee Attendance Table ────────────────── */}
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", marginBottom: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                <div style={{ padding: "14px 18px", borderBottom: "1px solid #f1f5f9" }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>All Employees — Attendance Breakdown</span>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: "#f8fafc" }}>
+                        {["Employee", "Dept", "Present", "Absent", "On Leave", "Not Checked-in", "Rate", ""].map(h => (
+                          <th key={h} style={{ padding: "10px 14px", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", textAlign: "left", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analyzerData.empList.map((emp, idx) => (
+                        <tr key={emp.id} style={{ borderBottom: "1px solid #f8fafc", background: idx % 2 === 0 ? "#fff" : "#fafcfd" }}>
+                          <td style={{ padding: "10px 14px", fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap" }}>{emp.name}</td>
+                          <td style={{ padding: "10px 14px", color: "#64748b", fontSize: 12 }}>{emp.dept || "—"}</td>
+                          <td style={{ padding: "10px 14px", color: "#16a34a", fontWeight: 600 }}>{emp.present}</td>
+                          <td style={{ padding: "10px 14px", color: "#dc2626", fontWeight: 600 }}>{emp.absent}</td>
+                          <td style={{ padding: "10px 14px", color: "#d97706", fontWeight: 600 }}>{emp.leave}</td>
+                          <td style={{ padding: "10px 14px", color: "#64748b" }}>{emp.nci}</td>
+                          <td style={{ padding: "10px 14px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div style={{ width: 60, height: 6, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${emp.rate}%`, background: emp.rate >= 80 ? "#16a34a" : emp.rate >= 60 ? "#d97706" : "#dc2626", borderRadius: 999 }} />
+                              </div>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: emp.rate >= 80 ? "#16a34a" : emp.rate >= 60 ? "#d97706" : "#dc2626", minWidth: 34 }}>{emp.rate}%</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: "10px 14px" }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: emp.rate >= 80 ? "#f0fdf4" : emp.rate >= 60 ? "#fffbeb" : "#fef2f2", color: emp.rate >= 80 ? "#16a34a" : emp.rate >= 60 ? "#d97706" : "#dc2626", border: `1px solid ${emp.rate >= 80 ? "#bbf7d0" : emp.rate >= 60 ? "#fde68a" : "#fecaca"}` }}>
+                              {emp.rate >= 80 ? "Good" : emp.rate >= 60 ? "Fair" : "Low"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ── Leave / Absence Calendar ──────────────────────── */}
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                <div style={{ padding: "14px 18px", borderBottom: "1px solid #f1f5f9" }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>Daily Breakdown — Who Was Where</span>
+                  <span style={{ fontSize: 12, color: "#94a3b8", marginLeft: 8 }}>Click a row to see names</span>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: "#f8fafc" }}>
+                        {["Date", "Present", "Absent", "On Leave", "Not Checked-in", "Attendance %"].map(h => (
+                          <th key={h} style={{ padding: "10px 14px", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", textAlign: "left", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...analyzerData.dayDetails].reverse().map(day => {
+                        const total = day.presentCount + day.absentCount + day.leaveCount + day.nciCount;
+                        const rate = total > 0 ? Math.round((day.presentCount / total) * 100) : 0;
+                        const isOpen = expandedDay === day.date;
+                        const fmtDate = (d) => {
+                          try { return new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); } catch { return d; }
+                        };
+                        const tag = (label, color, bg) => (
+                          <span style={{ display: "inline-block", fontSize: 10.5, fontWeight: 600, padding: "1px 7px", borderRadius: 999, background: bg, color, marginRight: 4, marginBottom: 3 }}>{label}</span>
+                        );
+                        return (
+                          <React.Fragment key={day.date}>
+                            <tr
+                              onClick={() => setExpandedDay(isOpen ? null : day.date)}
+                              style={{ borderBottom: "1px solid #f8fafc", cursor: "pointer", background: isOpen ? "#f0fdf4" : "inherit" }}
+                            >
+                              <td style={{ padding: "10px 14px", fontWeight: 600, color: "#334155", whiteSpace: "nowrap" }}>{fmtDate(day.date)}</td>
+                              <td style={{ padding: "10px 14px", color: "#16a34a", fontWeight: 700 }}>{day.presentCount}</td>
+                              <td style={{ padding: "10px 14px", color: day.absentCount > 0 ? "#dc2626" : "#94a3b8", fontWeight: day.absentCount > 0 ? 700 : 400 }}>{day.absentCount}</td>
+                              <td style={{ padding: "10px 14px", color: day.leaveCount > 0 ? "#d97706" : "#94a3b8", fontWeight: day.leaveCount > 0 ? 700 : 400 }}>{day.leaveCount}</td>
+                              <td style={{ padding: "10px 14px", color: "#64748b" }}>{day.nciCount}</td>
+                              <td style={{ padding: "10px 14px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <div style={{ width: 56, height: 5, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
+                                    <div style={{ height: "100%", width: `${rate}%`, background: rate >= 80 ? "#16a34a" : rate >= 60 ? "#d97706" : "#dc2626", borderRadius: 999 }} />
+                                  </div>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: rate >= 80 ? "#16a34a" : rate >= 60 ? "#d97706" : "#dc2626" }}>{rate}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                            {isOpen && (
+                              <tr style={{ background: "#f8fffe" }}>
+                                <td colSpan={6} style={{ padding: "12px 18px 14px", borderBottom: "1px solid #e2e8f0" }}>
+                                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
+                                    {[
+                                      { label: "Present", names: day.presentNames, color: "#16a34a", bg: "#f0fdf4", borderColor: "#bbf7d0" },
+                                      { label: "Absent", names: day.absentNames, color: "#dc2626", bg: "#fef2f2", borderColor: "#fecaca" },
+                                      { label: "On Leave", names: day.leaveNames, color: "#d97706", bg: "#fffbeb", borderColor: "#fde68a" },
+                                      { label: "Not Checked-in", names: day.nciNames, color: "#64748b", bg: "#f1f5f9", borderColor: "#e2e8f0" },
+                                    ].map(cat => (
+                                      <div key={cat.label} style={{ border: `1px solid ${cat.borderColor}`, borderRadius: 8, overflow: "hidden" }}>
+                                        <div style={{ background: cat.bg, padding: "6px 10px", fontWeight: 700, fontSize: 11, color: cat.color, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                                          {cat.label} ({cat.names.length})
+                                        </div>
+                                        <div style={{ padding: "8px 10px" }}>
+                                          {cat.names.length === 0 ? (
+                                            <span style={{ fontSize: 11, color: "#94a3b8", fontStyle: "italic" }}>None</span>
+                                          ) : cat.names.map(n => tag(n.name, cat.color, cat.bg))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {/* ========================================================= */}
