@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from "react";
 import {
   FaTimes, FaTrophy, FaMedal, FaStar, FaPlus, FaTrash,
-  FaCalendarAlt, FaUserCheck, FaUserTimes, FaPlane,
-  FaRocket, FaCheckCircle, FaExclamationTriangle, FaBriefcase,
-  FaChevronDown, FaChevronUp,
+  FaCalendarAlt, FaUserTimes, FaPlane, FaRocket,
+  FaChevronDown, FaChevronUp, FaArrowUp, FaChartLine,
+  FaBolt, FaClock, FaUserPlus, FaClipboardList,
+  FaCheckCircle, FaExclamationTriangle,
 } from "react-icons/fa";
 
-// ─── ACHIEVEMENT TYPE CONFIG ──────────────────────────────────────────────────
+// ─── ACHIEVEMENT TYPE CONFIG (FA icons only — no emojis) ─────────────────────
 const ACH_TYPES = [
-  { value: "eom",         label: "Employee of the Month",   emoji: "🏆", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
-  { value: "eoq",         label: "Employee of the Quarter", emoji: "🥇", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
-  { value: "eoy",         label: "Employee of the Year",    emoji: "⭐", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
-  { value: "salary_hike", label: "Salary Hike",             emoji: "💹", color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
-  { value: "promotion",   label: "Promotion",               emoji: "📈", color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe" },
-  { value: "custom",      label: "Custom Award",            emoji: "🎖️", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
+  { value: "eom",         label: "Employee of the Month",   Icon: FaTrophy,       color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+  { value: "eoq",         label: "Employee of the Quarter", Icon: FaMedal,        color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
+  { value: "eoy",         label: "Employee of the Year",    Icon: FaStar,         color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+  { value: "salary_hike", label: "Salary Hike",             Icon: FaArrowUp,      color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
+  { value: "promotion",   label: "Promotion",               Icon: FaChartLine,    color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe" },
+  { value: "custom",      label: "Custom Award",            Icon: FaBolt,         color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
 ];
 
 const C_BRAND = "#34a06a";
@@ -64,28 +65,23 @@ function Avatar({ name, size = 56 }) {
   );
 }
 
-// ─── TIMELINE ────────────────────────────────────────────────────────────────
-function TimelineDot({ color }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-      <div style={{ width: 13, height: 13, borderRadius: "50%", background: color, border: "2px solid #fff", boxShadow: `0 0 0 2px ${color}40` }} />
-      <div style={{ width: 2, flex: 1, background: "#e2e8f0", minHeight: 24 }} />
-    </div>
-  );
-}
-
+// ─── TIMELINE ITEM ────────────────────────────────────────────────────────────
 function TimelineItem({ event, isLast }) {
+  const EventIcon = event.Icon;
   return (
     <div style={{ display: "flex", gap: 14 }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, width: 13 }}>
-        <div style={{ width: 13, height: 13, borderRadius: "50%", background: event.color, border: "2px solid #fff", boxShadow: `0 0 0 2px ${event.color}40`, zIndex: 1 }} />
-        {!isLast && <div style={{ width: 2, flex: 1, background: "#e2e8f0", minHeight: 28 }} />}
-      </div>
-      <div style={{ flex: 1, paddingBottom: isLast ? 0 : 20, paddingTop: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-          <span style={{ fontSize: 15 }}>{event.emoji}</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{event.title}</span>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, width: 24 }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: "50%", background: event.color + "18",
+          border: `2px solid ${event.color}`, display: "flex", alignItems: "center",
+          justifyContent: "center", zIndex: 1, flexShrink: 0,
+        }}>
+          <EventIcon size={12} color={event.color} />
         </div>
+        {!isLast && <div style={{ width: 2, flex: 1, background: "#e2e8f0", minHeight: 24 }} />}
+      </div>
+      <div style={{ flex: 1, paddingBottom: isLast ? 0 : 20, paddingTop: 5 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 2 }}>{event.title}</div>
         {event.sub && <div style={{ fontSize: 12, color: "#64748b", marginBottom: 3 }}>{event.sub}</div>}
         <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{fmtDate(event.date)}</div>
       </div>
@@ -93,7 +89,7 @@ function TimelineItem({ event, isLast }) {
   );
 }
 
-// ─── MINI BAR ────────────────────────────────────────────────────────────────
+// ─── MINI PROGRESS BAR ────────────────────────────────────────────────────────
 function MiniBar({ value, max, color }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
@@ -124,7 +120,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
   const dept = Array.isArray(emp.department) ? emp.department.join(", ") : (emp.department || "—");
   const tenureStr = tenure(joinDate) || "—";
 
-  // ── Status ──────────────────────────────────────────────────────────────
+  // ── Status ────────────────────────────────────────────────────────────────
   const isOffboarded = emp.resignation?.notice_date &&
     emp.resignation.last_working_day &&
     new Date(emp.resignation.last_working_day) < new Date();
@@ -133,12 +129,12 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
     lv => lv.from_date <= todayStr && lv.to_date >= todayStr
   );
   const statusBadge = isOffboarded
-    ? { label: "Alumni", color: "#64748b", bg: "#f1f5f9" }
+    ? { label: "Alumni",          color: "#64748b", bg: "#f1f5f9" }
     : isInNotice
-    ? { label: "Notice Period", color: "#d97706", bg: "#fffbeb" }
+    ? { label: "Notice Period",   color: "#d97706", bg: "#fffbeb" }
     : isOnExtLeave
-    ? { label: "Extended Leave", color: "#7c3aed", bg: "#f5f3ff" }
-    : { label: "Active", color: "#16a34a", bg: "#f0fdf4" };
+    ? { label: "Extended Leave",  color: "#7c3aed", bg: "#f5f3ff" }
+    : { label: "Active",          color: "#16a34a", bg: "#f0fdf4" };
 
   // ── Leaves for this employee ───────────────────────────────────────────────
   const empLeaves = (allLeaves || [])
@@ -148,7 +144,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
   // ── Attendance this month ──────────────────────────────────────────────────
   const att = monthAttendance || {};
   const attTotal = (att.present || 0) + (att.absent || 0) + (att.leave || 0) + (att.nci || 0);
-  const attRate = attTotal > 0 ? Math.round((att.present / attTotal) * 100) : att.rate ?? 0;
+  const attRate = attTotal > 0 ? Math.round((att.present / attTotal) * 100) : (att.rate ?? 0);
 
   // ── API calls ──────────────────────────────────────────────────────────────
   async function loadAchievements() {
@@ -198,17 +194,16 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
 
   useEffect(() => { loadAchievements(); }, [emp._id]);
 
-  // ── Build timeline ─────────────────────────────────────────────────────────
+  // ── Build career timeline ──────────────────────────────────────────────────
   const timeline = [];
 
   if (joinDate) {
     timeline.push({
       date: joinDate.slice(0, 10),
-      emoji: "🚀",
+      Icon: FaUserPlus,
       title: "Joined GDMR Connect",
       sub: `Started as ${emp.position || "team member"} · ${dept}`,
       color: C_BRAND,
-      order: 0,
     });
   }
 
@@ -216,41 +211,37 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
     const cfg = achConfig(a.type);
     timeline.push({
       date: a.month ? `${a.month}-01` : (a.created_at?.slice(0, 10) || "2020-01-01"),
-      emoji: cfg.emoji,
+      Icon: cfg.Icon,
       title: a.title,
       sub: a.description || (a.month ? fmtMonth(a.month) : ""),
       color: cfg.color,
-      order: 1,
     });
   });
 
   (emp.extended_leaves || []).forEach(lv => {
     timeline.push({
       date: lv.from_date || "2020-01-01",
-      emoji: "✈️",
+      Icon: FaPlane,
       title: `Extended Leave — ${lv.type || "Sabbatical"}`,
       sub: `${fmtDate(lv.from_date)} → ${fmtDate(lv.to_date)}`,
       color: "#7c3aed",
-      order: 1,
     });
   });
 
   if (emp.resignation?.notice_date) {
     timeline.push({
       date: emp.resignation.notice_date,
-      emoji: "📋",
+      Icon: FaUserTimes,
       title: isOffboarded ? "Offboarded" : "Resignation Notice",
       sub: emp.resignation.last_working_day
         ? `Last working day: ${fmtDate(emp.resignation.last_working_day)}`
         : "LWD not set",
       color: "#dc2626",
-      order: 2,
     });
   }
 
-  timeline.sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order);
+  timeline.sort((a, b) => a.date.localeCompare(b.date));
 
-  // Group achievements by type for badge display
   const achByType = {};
   ACH_TYPES.forEach(t => { achByType[t.value] = achievements.filter(a => a.type === t.value); });
 
@@ -266,20 +257,17 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
       style={{ position: "fixed", inset: 0, zIndex: 9000, display: "flex", alignItems: "flex-start", justifyContent: "flex-end", background: "rgba(15,23,42,0.55)", backdropFilter: "blur(3px)" }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
-      <div
-        style={{
-          width: "min(680px, 100vw)", height: "100vh", overflowY: "auto",
-          background: "#f8fafc", boxShadow: "-8px 0 48px rgba(0,0,0,0.18)",
-          display: "flex", flexDirection: "column",
-          animation: "slideInRight 0.22s ease",
-        }}
-      >
+      <div style={{
+        width: "min(680px, 100vw)", height: "100vh", overflowY: "auto",
+        background: "#f8fafc", boxShadow: "-8px 0 48px rgba(0,0,0,0.18)",
+        display: "flex", flexDirection: "column",
+        animation: "slideInRight 0.22s ease",
+      }}>
         <style>{`
           @keyframes slideInRight { from { transform: translateX(48px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
           .journey-section { background: #fff; border-radius: 12px; padding: 18px 20px; margin: 0 16px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
           .journey-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
-          .ach-badge { display: flex; align-items: center; gap: 8px; padding: 10px 13px; border-radius: 10px; border: 1px solid; margin-bottom: 8px; }
-          .ach-badge-count { font-size: 18px; font-weight: 900; min-width: 22px; }
+          .ach-badge { display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-radius: 10px; border: 1px solid; margin-bottom: 8px; }
           .leave-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #f1f5f9; gap: 10px; }
           .stat-mini { text-align: center; flex: 1; }
           .stat-mini-val { font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; }
@@ -290,11 +278,11 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
           .award-form-row select:focus, .award-form-row input:focus, .award-form-row textarea:focus { border-color: #34a06a; background: #fff; }
         `}</style>
 
-        {/* ─── HERO HEADER ─────────────────────────────────────────────── */}
+        {/* ─── HERO HEADER ──────────────────────────────────────────────── */}
         <div style={{ background: "linear-gradient(135deg, #1c5249 0%, #34a06a 100%)", padding: "28px 20px 22px", position: "relative", flexShrink: 0 }}>
           <button
             onClick={onClose}
-            style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", backdropFilter: "blur(4px)" }}
+            style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}
           >
             <FaTimes size={14} />
           </button>
@@ -310,8 +298,8 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                   {statusBadge.label}
                 </span>
                 {tenureStr !== "—" && (
-                  <span style={{ fontSize: 11.5, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.90)" }}>
-                    🕐 {tenureStr} tenure
+                  <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.90)" }}>
+                    <FaClock size={9} /> {tenureStr} tenure
                   </span>
                 )}
                 {joinDate && (
@@ -323,16 +311,19 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
             </div>
           </div>
 
-          {/* ─── Achievement count tickers ─ */}
+          {/* Achievement count chips */}
           {achievements.length > 0 && (
             <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-              {ACH_TYPES.filter(t => achByType[t.value]?.length > 0).map(t => (
-                <div key={t.value} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)", borderRadius: 8, padding: "5px 10px" }}>
-                  <span style={{ fontSize: 14 }}>{t.emoji}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{achByType[t.value].length}×</span>
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.75)" }}>{t.label.split(" ").slice(-1)[0]}</span>
-                </div>
-              ))}
+              {ACH_TYPES.filter(t => achByType[t.value]?.length > 0).map(t => {
+                const AIcon = t.Icon;
+                return (
+                  <div key={t.value} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)", borderRadius: 8, padding: "5px 10px" }}>
+                    <AIcon size={11} color="#fff" />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{achByType[t.value].length}×</span>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.75)" }}>{t.label.split(" ").slice(-1)[0]}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -341,7 +332,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         <div style={{ margin: "12px 16px 0" }}>
           <div className="journey-section" style={{ margin: 0 }}>
             <div className="journey-section-title"><FaCheckCircle size={10} /> Attendance — {month}</div>
-            <div style={{ display: "flex", gap: 0, borderRadius: 10, overflow: "hidden", border: "1px solid #f1f5f9" }}>
+            <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid #f1f5f9" }}>
               {[
                 { label: "Rate",    val: `${attRate}%`,       color: attRate >= 80 ? "#16a34a" : attRate >= 65 ? "#d97706" : "#dc2626", bg: attRate >= 80 ? "#f0fdf4" : attRate >= 65 ? "#fffbeb" : "#fef2f2" },
                 { label: "Present", val: att.present ?? "—",  color: "#34a06a",  bg: "#fff" },
@@ -359,7 +350,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
               <div style={{ marginTop: 10 }}>
                 <MiniBar value={att.present || 0} max={attTotal} color="#34a06a" />
                 <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 10.5, color: "#94a3b8" }}>
-                  {[["Present", "#34a06a"], ["Absent", "#dc2626"], ["Leave", "#d97706"], ["NCI", "#94a3b8"]].map(([l, c]) => (
+                  {[["Present","#34a06a"],["Absent","#dc2626"],["Leave","#d97706"],["NCI","#94a3b8"]].map(([l, c]) => (
                     <span key={l} style={{ display: "flex", alignItems: "center", gap: 3 }}>
                       <span style={{ width: 7, height: 7, borderRadius: "50%", background: c, display: "inline-block" }} />
                       {l}
@@ -371,20 +362,15 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, margin: "12px 16px 0", columnGap: 12 }}>
-
-          {/* ─── CAREER TIMELINE ─────────────────────────────────────── */}
-          <div className="journey-section" style={{ margin: 0, gridColumn: "1 / -1" }}>
+        {/* ─── CAREER TIMELINE ─────────────────────────────────────────── */}
+        <div style={{ margin: "12px 16px 0" }}>
+          <div className="journey-section" style={{ margin: 0 }}>
             <div className="journey-section-title"><FaRocket size={10} /> Career Journey</div>
             {timeline.length === 0 ? (
               <div style={{ textAlign: "center", color: "#94a3b8", fontSize: 12.5, padding: "12px 0" }}>No timeline events yet.</div>
-            ) : (
-              <div>
-                {timeline.map((ev, i) => (
-                  <TimelineItem key={`${ev.date}-${i}`} event={ev} isLast={i === timeline.length - 1} />
-                ))}
-              </div>
-            )}
+            ) : timeline.map((ev, i) => (
+              <TimelineItem key={`${ev.date}-${i}`} event={ev} isLast={i === timeline.length - 1} />
+            ))}
           </div>
         </div>
 
@@ -410,7 +396,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                     const t = ACH_TYPES.find(a => a.value === e.target.value);
                     setAwardForm(f => ({ ...f, type: e.target.value, title: t ? t.label : f.title }));
                   }}>
-                    {ACH_TYPES.map(t => <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>)}
+                    {ACH_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
                 <div className="award-form-row">
@@ -438,16 +424,19 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
               <div style={{ textAlign: "center", color: "#94a3b8", fontSize: 12.5, padding: "12px 0" }}>Loading…</div>
             ) : achievements.length === 0 ? (
               <div style={{ textAlign: "center", padding: "18px 0" }}>
-                <FaMedal size={28} style={{ color: "#e2e8f0", marginBottom: 8 }} />
+                <FaTrophy size={28} style={{ color: "#e2e8f0", marginBottom: 8 }} />
                 <div style={{ fontSize: 12.5, color: "#94a3b8" }}>No achievements recorded yet. Click "Award" to recognise this employee.</div>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {achievements.map(a => {
                   const cfg = achConfig(a.type);
+                  const AIcon = cfg.Icon;
                   return (
                     <div key={a._id} className="ach-badge" style={{ background: cfg.bg, borderColor: cfg.border }}>
-                      <span style={{ fontSize: 20 }}>{cfg.emoji}</span>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: cfg.color + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <AIcon size={15} color={cfg.color} />
+                      </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: cfg.color }}>{a.title}</div>
                         {a.month && <div style={{ fontSize: 11.5, color: "#64748b" }}>{fmtMonth(a.month)}</div>}
@@ -471,7 +460,9 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
               onClick={() => setLeavesExpanded(v => !v)}
               style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: leavesExpanded ? 14 : 0 }}
             >
-              <div className="journey-section-title" style={{ marginBottom: 0 }}><FaCalendarAlt size={10} /> Leave History ({empLeaves.length})</div>
+              <div className="journey-section-title" style={{ marginBottom: 0 }}>
+                <FaCalendarAlt size={10} /> Leave History ({empLeaves.length})
+              </div>
               {leavesExpanded ? <FaChevronUp size={11} color="#94a3b8" /> : <FaChevronDown size={11} color="#94a3b8" />}
             </button>
             {leavesExpanded && (
@@ -528,7 +519,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
           <div style={{ margin: "0 16px 24px" }}>
             <div className="journey-section" style={{ margin: 0, background: "#fef2f2", border: "1px solid #fecaca" }}>
               <div className="journey-section-title" style={{ color: "#dc2626" }}><FaUserTimes size={10} /> Resignation Details</div>
-              <div style={{ display: "flex", gap: 24 }}>
+              <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
                 <div>
                   <div style={{ fontSize: 10.5, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase" }}>Notice Date</div>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: "#dc2626" }}>{fmtDate(emp.resignation.notice_date)}</div>
@@ -549,6 +540,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
             </div>
           </div>
         )}
+
       </div>
     </div>
   );
