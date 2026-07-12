@@ -6,6 +6,7 @@ import {
   FaTrophy, FaSearch, FaFilter, FaTable,
 } from "react-icons/fa";
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
+import EmployeeJourneyModal from "./EmployeeJourneyModal";
 
 // ─── WORKING DAY LOGIC ────────────────────────────────────────────────────────
 // Sundays = off. Saturdays = off EXCEPT the last Saturday of each month.
@@ -346,10 +347,13 @@ export default function AdminAttendanceSummary({ token, api }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [idMap, setIdMap] = useState({});
+  const [employees, setEmployees] = useState([]);   // full employee objects for Journey modal
+  const [allLeaves, setAllLeaves] = useState([]);   // all leave apps for Journey modal
   const [activeTab, setActiveTab] = useState("overview");
   const [empSearch, setEmpSearch] = useState("");
   const [empSort, setEmpSort] = useState("rate");
   const [empFilter, setEmpFilter] = useState("all");
+  const [journeyEmp, setJourneyEmp] = useState(null); // employee object to show in Journey modal
 
   async function load() {
     setLoading(true);
@@ -360,12 +364,19 @@ export default function AdminAttendanceSummary({ token, api }) {
 
   useEffect(() => { load(); }, [month]);
   useEffect(() => {
+    // Load full employee list for Journey modal
     api.listEmployees(token)
       .then(list => {
+        const arr = Array.isArray(list) ? list : list?.employees || [];
         const m = {};
-        (Array.isArray(list) ? list : list?.employees || []).forEach(e => { if (e?._id) m[String(e._id)] = e.name; });
+        arr.forEach(e => { if (e?._id) m[String(e._id)] = e.name; });
         setIdMap(m);
+        setEmployees(arr);
       })
+      .catch(() => {});
+    // Load all leave applications for Journey modal
+    api.adminLeaves(token)
+      .then(data => setAllLeaves(Array.isArray(data) ? data : data?.leaves || []))
       .catch(() => {});
   }, [token]);
 
@@ -448,8 +459,30 @@ export default function AdminAttendanceSummary({ token, api }) {
     return { label: "Good", cls: "" };
   };
 
+  // Find a full employee object by name (for Journey modal)
+  function findEmpByName(name) {
+    return employees.find(e => e.name === name) || { name, _id: name };
+  }
+
+  // Attendance data for a given employee name in the current month
+  function empMonthAtt(name) {
+    return metrics?.empList?.find(e => e.name === name) || {};
+  }
+
   return (
     <div>
+      {/* ─ Employee Journey Modal ─ */}
+      {journeyEmp && (
+        <EmployeeJourneyModal
+          emp={journeyEmp}
+          allLeaves={allLeaves}
+          monthAttendance={empMonthAtt(journeyEmp.name)}
+          month={month}
+          onClose={() => setJourneyEmp(null)}
+          api={api}
+          token={token}
+        />
+      )}
       {/* ─ Page Header ─ */}
       <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
         <div>
@@ -765,9 +798,21 @@ export default function AdminAttendanceSummary({ token, api }) {
                     ) : filteredEmp.map((e, i) => {
                       const badge = riskBadge(e);
                       return (
-                        <tr key={e.name}>
+                        <tr
+                          key={e.name}
+                          onClick={() => setJourneyEmp(findEmpByName(e.name))}
+                          style={{ cursor: "pointer" }}
+                          title="Click to view employee journey"
+                        >
                           <td style={{ color: "var(--slate-400)", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{i + 1}</td>
-                          <td style={{ fontWeight: 600, color: "var(--slate-700)" }}>{e.name}</td>
+                          <td>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#334155,#1e293b)", color: "#fff", fontWeight: 700, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                {e.name.charAt(0).toUpperCase()}
+                              </div>
+                              <span style={{ fontWeight: 600, color: "var(--slate-700)" }}>{e.name}</span>
+                            </div>
+                          </td>
                           <td style={{ fontWeight: 700, color: C_BRAND, fontVariantNumeric: "tabular-nums" }}>{e.present}</td>
                           <td style={{ fontWeight: 700, color: e.absent > 0 ? C_DANGER : "var(--slate-300)", fontVariantNumeric: "tabular-nums" }}>{e.absent}</td>
                           <td style={{ fontWeight: 700, color: e.leave > 0 ? C_WARN : "var(--slate-300)", fontVariantNumeric: "tabular-nums" }}>{e.leave}</td>
