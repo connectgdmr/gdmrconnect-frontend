@@ -424,10 +424,13 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
 
   const filtered = employees.filter((emp) => {
     const q = searchTerm.toLowerCase();
+    const deptStr = Array.isArray(emp.department)
+      ? emp.department.join(" ")
+      : (emp.department || "");
     const matchesSearch =
       emp.name?.toLowerCase().includes(q) ||
       emp.email?.toLowerCase().includes(q) ||
-      emp.department?.toLowerCase().includes(q);
+      deptStr.toLowerCase().includes(q);
     const matchesRole   = roleFilter   === "All" || emp.role === roleFilter;
     const matchesStatus = statusFilter === "All" || getEmpStatus(emp) === statusFilter;
     return matchesSearch && matchesRole && matchesStatus;
