@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { FaEdit, FaTrash } from "react-icons/fa";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app";
+import { BASE_URL as BASE } from "../api";
 
 function DeptCheckboxList({ departments, selected, onChange }) {
   const toggle = (d) =>

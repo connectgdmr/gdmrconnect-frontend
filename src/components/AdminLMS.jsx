@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   FaPlus, FaTimes, FaEdit, FaTrash, FaGraduationCap,
   FaBook, FaVideo, FaFileAlt, FaLink, FaUsers,
@@ -7,7 +7,7 @@ import {
 } from "react-icons/fa";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 
 const CATEGORIES = ["Technical", "Soft Skills", "Compliance", "Leadership", "Product", "Other"];
 const LESSON_TYPES = ["Video", "Document", "Article"];

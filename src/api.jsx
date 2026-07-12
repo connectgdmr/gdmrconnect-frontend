@@ -1,5 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_URL || "https://gdmrconnect-backend-production.up.railway.app/api";
 export const BASE_URL = API_BASE.replace(/\/api$/, "");
+export const API_URL = API_BASE; // full /api path — import this instead of hardcoding the URL
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -70,33 +71,11 @@ export default {
   todayStats: (token) => request("/admin/today-stats", "GET", null, token),
 
   // Attendance with Photo (+ optional geo-location captured at check-in/out)
-  checkinWithPhoto: async (token, imageData, location = null) => {
-    const res = await fetch(`${API_BASE}/attendance/checkin-photo`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ image: imageData, location }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw data;
-    return data;
-  },
+  checkinWithPhoto: (token, imageData, location = null) =>
+    request("/attendance/checkin-photo", "POST", { image: imageData, location }, token),
 
-  checkoutWithPhoto: async (token, imageData, location = null) => {
-    const res = await fetch(`${API_BASE}/attendance/checkout-photo`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ image: imageData, location }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw data;
-    return data;
-  },
+  checkoutWithPhoto: (token, imageData, location = null) =>
+    request("/attendance/checkout-photo", "POST", { image: imageData, location }, token),
 
   // Leaves
   applyLeave: (payload, token) => request("/leaves", "POST", payload, token),

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from "react";
+import { resolveAttachmentUrl } from "../utils/security";
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
 import DailyQuote from "./DailyQuote";
@@ -297,15 +298,15 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         api?.myAttendance ? api.myAttendance(token) : Promise.resolve([]),
         api?.myLeaves ? api.myLeaves(token) : Promise.resolve([]),
         api?.getManagerEmployees ? api.getManagerEmployees(token) : Promise.resolve([]),
-        fetch(`${baseUrl}/api/manager/pms`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/manager/corrections`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/admin/leaves`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/notifications/counts`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/announcements`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/pms-template`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/admin/pms-dashboard?month=${dashboardMonth}`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/my/delegated-access`, { headers }).then(r => r.json()),
-        fetch(`${baseUrl}/api/manager/assets`, { headers }).then(r => r.json()) 
+        fetch(`${baseUrl}/api/manager/pms`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch(`${baseUrl}/api/manager/corrections`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch(`${baseUrl}/api/admin/leaves`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch(`${baseUrl}/api/notifications/counts`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch(`${baseUrl}/api/announcements`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch(`${baseUrl}/api/pms-template`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch(`${baseUrl}/api/admin/pms-dashboard?month=${dashboardMonth}`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch(`${baseUrl}/api/my/delegated-access`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch(`${baseUrl}/api/manager/assets`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status))
       ]);
 
       // Map results to state safely avoiding any undefined crashes
@@ -760,6 +761,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           document.body.appendChild(a);
           a.click();
           a.remove();
+          window.URL.revokeObjectURL(url);
       } catch(err) {
           alert("Export failed: " + err.message);
       }
@@ -1078,7 +1080,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             <button className="topbar-back" onClick={() => setView("dashboard")}><FaArrowLeft /></button>
           )}
           <span className="topbar-title">
-            {view === "dashboard" ? "Manager Dashboard" : view.replace(/-/g, " ")}
+            {view === "dashboard" ? "Manager Dashboard" : view.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
           </span>
           <div className="topbar-right">
             {view === "dashboard" && (
@@ -1246,7 +1248,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           <button className="btn ghost" onClick={() => setView("dashboard")} style={{padding: '8px 12px', display:'flex', alignItems:'center', gap:6}}>
             <FaArrowLeft /> Back
           </button>
-          <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>{view.replace(/-/g, " ")}</h3>
+          <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>{view.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</h3>
         </div>
       )}
       
@@ -1844,10 +1846,10 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                                     <div style={{fontSize:11, color:'#475569', lineHeight:'1.4', marginBottom: l.attachment_url ? 6 : 0}}>
                                       {l.reason || <span style={{fontStyle:'italic', color:'#cbd5e1'}}>No reason</span>}
                                     </div>
-                                    {l.attachment_url && (
+                                    {resolveAttachmentUrl(l.attachment_url, api.baseUrl) && (
                                       <div>
-                                        <a 
-                                          href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://gdmrconnect-backend-production.up.railway.app${l.attachment_url}`}
+                                        <a
+                                          href={resolveAttachmentUrl(l.attachment_url, api.baseUrl)}
                                           target="_blank" 
                                           rel="noreferrer"
                                           style={{ 
@@ -2164,7 +2166,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
                       <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
                       <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
-                      <td>{l.attachment_url ? <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://gdmrconnect-backend-production.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{resolveAttachmentUrl(l.attachment_url, api.baseUrl) ? <a href={resolveAttachmentUrl(l.attachment_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))
                 )}
@@ -2220,7 +2222,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                         <tr key={a._id}>
                           <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
                           <td>{new Date(a.time).toLocaleString()}</td>
-                          <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://gdmrconnect-backend-production.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                          <td>{resolveAttachmentUrl(a.photo_url, api.baseUrl) ? <a href={resolveAttachmentUrl(a.photo_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                         </tr>
                       ))
                     )}

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { FaTasks, FaCheckCircle, FaPercentage, FaChartLine, FaProjectDiagram } from "react-icons/fa";
 import { LineChart, BarChart, DonutChart, ProgressRing } from "./Charts";
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 const RANGES = [
   { k: "today", label: "Today" },
   { k: "week",  label: "This Week" },

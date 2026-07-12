@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import Logo from "../assets/GDMR-LOGO-unit.png";
 import { FaClock, FaCheckCircle, FaExclamationTriangle, FaLock } from "react-icons/fa";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 

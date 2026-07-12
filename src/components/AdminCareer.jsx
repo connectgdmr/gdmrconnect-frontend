@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   FaPlus, FaTimes, FaEdit, FaBriefcase, FaMapMarkerAlt,
   FaClock, FaUsers, FaLink, FaSearch, FaCheckCircle,
@@ -6,7 +6,7 @@ import {
 } from "react-icons/fa";
 import { SkeletonList, SkeletonTable } from "./Skeleton";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 
 const JOB_TYPES   = ["Full-time", "Part-time", "Contract", "Internship"];
 const REF_STATUSES = ["New", "Shortlisted", "Interview", "Hired", "Rejected"];

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   FaPlus, FaTimes, FaPaperPlane, FaEdit, FaTrash,
   FaCheckCircle, FaTimesCircle, FaClipboardList, FaUserGraduate,
@@ -6,7 +6,7 @@ import {
 } from "react-icons/fa";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 
 const STATUS_STYLE = {
   pending:   { color: "#d97706", bg: "#fffbeb", border: "#fde68a" },

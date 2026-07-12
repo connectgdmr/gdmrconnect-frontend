@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import api from "../api";
 import {
   FaTrash, FaUserShield, FaSearch, FaFilter, FaUserTie, FaUser,
   FaEdit, FaUserClock, FaTimes, FaPlus, FaExclamationTriangle,
@@ -81,7 +80,7 @@ function EmploymentStatusBadge({ emp }) {
   );
 }
 
-function StatusModal({ employee, onClose, onRefresh }) {
+function StatusModal({ employee, onClose, onRefresh, api, token }) {
   const [tab, setTab]       = useState("leave");
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -96,8 +95,6 @@ function StatusModal({ employee, onClose, onRefresh }) {
   const [noticeDate,   setNoticeDate]   = useState("");
   const [lastDay,      setLastDay]      = useState("");
   const [resignReason, setResignReason] = useState("");
-
-  const token = localStorage.getItem("token");
 
   useEffect(() => {
     api.getEmployeeStatus(employee._id, token)
@@ -379,7 +376,7 @@ function StatusModal({ employee, onClose, onRefresh }) {
   );
 }
 
-export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, onPromote, departments = [] }) {
+export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, onPromote, departments = [], api, token }) {
   const [searchTerm, setSearchTerm]         = useState("");
   const [roleFilter, setRoleFilter]         = useState("All");
   const [statusFilter, setStatusFilter]     = useState("All");
@@ -391,10 +388,9 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
   const [statusEmployee, setStatusEmployee] = useState(null);
 
   useEffect(() => {
-    if (!showEditModal) return;
-    const token = localStorage.getItem("token");
+    if (!showEditModal || !api || !token) return;
     api.getManagers(token).then(setManagers).catch(() => {});
-  }, [showEditModal]);
+  }, [showEditModal, api, token]);
 
   const handleDeleteClick = (id)  => { setSelectedId(id); setShowDeleteModal(true); };
   const confirmDelete     = ()    => { onDelete(selectedId); setShowDeleteModal(false); setSelectedId(null); };
@@ -402,7 +398,6 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
 
   const handleEditSave = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem("token");
     try {
       await api.editEmployee(editingEmployee._id, editingEmployee, token);
       onPatch?.(editingEmployee._id, editingEmployee);
@@ -552,6 +547,8 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
           employee={statusEmployee}
           onClose={() => setStatusEmployee(null)}
           onRefresh={onRefresh}
+          api={api}
+          token={token}
         />
       )}
 

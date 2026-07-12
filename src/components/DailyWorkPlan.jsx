@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { FaPlus, FaTimes, FaCheckCircle, FaRegClock, FaPaperPlane, FaSave, FaTasks, FaPen } from "react-icons/fa";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 const PRIORITIES = [
   { v: "High",   color: "#dc2626", bg: "#fef2f2" },
   { v: "Medium", color: "#d97706", bg: "#fffbeb" },

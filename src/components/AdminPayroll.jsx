@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   FaMoneyBillWave, FaEdit, FaTimes, FaPlay, FaCheckCircle,
   FaSearch, FaFileInvoiceDollar, FaPrint, FaRupeeSign, FaClock, FaHistory,
 } from "react-icons/fa";
 import { SkeletonTable, SkeletonStats } from "./Skeleton";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 
 const EARNINGS = [
   { key: "basic",            label: "Basic" },

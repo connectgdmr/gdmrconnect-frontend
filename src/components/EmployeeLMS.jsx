@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   FaGraduationCap, FaBook, FaVideo, FaFileAlt, FaLink,
   FaCheckCircle, FaChevronDown, FaChevronRight, FaLock,
 } from "react-icons/fa";
 import { SkeletonStats, SkeletonList } from "./Skeleton";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 
 const TYPE_ICON = { Video: <FaVideo size={12} />, Document: <FaFileAlt size={12} />, Article: <FaLink size={12} /> };
 

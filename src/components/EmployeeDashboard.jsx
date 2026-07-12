@@ -7,6 +7,7 @@ import { RATING_SCALE, getRatingInfo } from "../constants";
 import useChatUnread from "./useChatUnread";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 import { getCurrentLocation } from "../utils/geolocation";
+import { resolveAttachmentUrl } from "../utils/security";
 
 const Chat                = lazy(() => import("./Chat"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
@@ -54,168 +55,22 @@ const WorkAnalytics = lazy(() => import("./WorkAnalytics"));
 const WorkHistory   = lazy(() => import("./WorkHistory"));
 const AdminLMS      = lazy(() => import("./AdminLMS"));
 
-// ─── Daily Motivational Quote (unused — kept for reference) ───────────────────
-const _UNUSED_QUOTES = [
-  { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
-  { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
-  { text: "In the middle of every difficulty lies opportunity.", author: "Albert Einstein" },
-  { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
-  { text: "The future depends on what you do today.", author: "Mahatma Gandhi" },
-  { text: "Hard work beats talent when talent doesn't work hard.", author: "Tim Notke" },
-  { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
-  { text: "What you get by achieving your goals is not as important as what you become.", author: "Henry David Thoreau" },
-  { text: "Success usually comes to those who are too busy to be looking for it.", author: "Henry David Thoreau" },
-  { text: "Opportunities don't happen. You create them.", author: "Chris Grosser" },
-  { text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson" },
-  { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
-  { text: "Quality is not an act, it is a habit.", author: "Aristotle" },
-  { text: "Your limitation — it's only your imagination.", author: "Unknown" },
-  { text: "Push yourself, because no one else is going to do it for you.", author: "Unknown" },
-  { text: "Great things never come from comfort zones.", author: "Unknown" },
-  { text: "Dream it. Wish it. Do it.", author: "Unknown" },
-  { text: "Success doesn't just find you. You have to go out and get it.", author: "Unknown" },
-  { text: "The harder you work for something, the greater you'll feel when you achieve it.", author: "Unknown" },
-  { text: "Don't stop when you're tired. Stop when you're done.", author: "Unknown" },
-  { text: "Wake up with determination. Go to bed with satisfaction.", author: "Unknown" },
-  { text: "Do something today that your future self will thank you for.", author: "Sean Patrick Flanery" },
-  { text: "Little things make big days.", author: "Unknown" },
-  { text: "It's going to be hard, but hard does not mean impossible.", author: "Unknown" },
-  { text: "Don't wait for opportunity. Create it.", author: "Unknown" },
-  { text: "Sometimes we're tested not to show our weaknesses, but to discover our strengths.", author: "Unknown" },
-  { text: "The key to success is to focus on goals, not obstacles.", author: "Unknown" },
-  { text: "Dream bigger. Do bigger.", author: "Unknown" },
-  { text: "You are stronger than you think.", author: "Unknown" },
-  { text: "Strive for progress, not perfection.", author: "Unknown" },
-  { text: "Be so good they can't ignore you.", author: "Steve Martin" },
-  { text: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
-  { text: "Talent wins games, but teamwork wins championships.", author: "Michael Jordan" },
-  { text: "Alone we can do so little; together we can do so much.", author: "Helen Keller" },
-  { text: "Coming together is a beginning, staying together is progress, working together is success.", author: "Henry Ford" },
-  { text: "The strength of the team is each individual member. The strength of each member is the team.", author: "Phil Jackson" },
-  { text: "No matter how many mistakes you make or how slow you progress, you are still way ahead of everyone who isn't trying.", author: "Tony Robbins" },
-  { text: "Take risks: if you win, you will be happy; if you lose, you will be wise.", author: "Unknown" },
-  { text: "The only place where success comes before work is in the dictionary.", author: "Vidal Sassoon" },
-  { text: "Invest in yourself. Your career is the engine of your wealth.", author: "Paul Clitheroe" },
-  { text: "Excellence is not a skill. It is an attitude.", author: "Ralph Marston" },
-  { text: "The road to success and the road to failure are almost exactly the same.", author: "Colin R. Davis" },
-  { text: "Innovation distinguishes between a leader and a follower.", author: "Steve Jobs" },
-  { text: "Your work is going to fill a large part of your life, and the only way to be truly satisfied is to do what you believe is great work.", author: "Steve Jobs" },
-  { text: "You miss 100% of the shots you don't take.", author: "Wayne Gretzky" },
-  { text: "Whether you think you can or you think you can't, you're right.", author: "Henry Ford" },
-  { text: "I have not failed. I've just found 10,000 ways that won't work.", author: "Thomas Edison" },
-  { text: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese Proverb" },
-  { text: "It always seems impossible until it's done.", author: "Nelson Mandela" },
-  { text: "An unexamined life is not worth living.", author: "Socrates" },
-  { text: "The way to get started is to quit talking and begin doing.", author: "Walt Disney" },
-  { text: "You only live once, but if you do it right, once is enough.", author: "Mae West" },
-  { text: "Too many of us are not living our dreams because we are living our fears.", author: "Les Brown" },
-  { text: "Definiteness of purpose is the starting point of all achievement.", author: "W. Clement Stone" },
-  { text: "Life is what happens when you're busy making other plans.", author: "John Lennon" },
-  { text: "A person who never made a mistake never tried anything new.", author: "Albert Einstein" },
-  { text: "You become what you believe.", author: "Oprah Winfrey" },
-  { text: "The most common way people give up their power is by thinking they don't have any.", author: "Alice Walker" },
-  { text: "The mind is everything. What you think you become.", author: "Buddha" },
-  { text: "Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did.", author: "Mark Twain" },
-  { text: "Life is not measured by the number of breaths we take, but by the moments that take our breath away.", author: "Maya Angelou" },
-  { text: "If life were predictable, it would cease to be life and be without flavor.", author: "Eleanor Roosevelt" },
-  { text: "Everything you've ever wanted is on the other side of fear.", author: "George Addair" },
-  { text: "Spread love everywhere you go. Let no one ever come to you without leaving happier.", author: "Mother Teresa" },
-  { text: "If you look at what you have in life, you'll always have more.", author: "Oprah Winfrey" },
-  { text: "If you want to live a happy life, tie it to a goal, not to people or things.", author: "Albert Einstein" },
-  { text: "Never let the fear of striking out keep you from playing the game.", author: "Babe Ruth" },
-  { text: "Money and success don't change people; they merely amplify what is already there.", author: "Will Smith" },
-  { text: "Your time is limited, so don't waste it living someone else's life.", author: "Steve Jobs" },
-  { text: "Not how long, but how well you have lived is the main thing.", author: "Seneca" },
-  { text: "We must be willing to let go of the life we planned so as to have the life that is waiting for us.", author: "Joseph Campbell" },
-  { text: "If you are not willing to risk the usual, you will have to settle for the ordinary.", author: "Jim Rohn" },
-  { text: "The more that you read, the more things you will know.", author: "Dr. Seuss" },
-  { text: "You have brains in your head. You have feet in your shoes. You can steer yourself in any direction you choose.", author: "Dr. Seuss" },
-  { text: "Speak softly and carry a big stick; you will go far.", author: "Theodore Roosevelt" },
-  { text: "Keep your face always toward the sunshine, and shadows will fall behind you.", author: "Walt Whitman" },
-  { text: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King" },
-  { text: "I would rather die of passion than of boredom.", author: "Vincent van Gogh" },
-  { text: "If opportunity doesn't knock, build a door.", author: "Milton Berle" },
-  { text: "I am not a product of my circumstances. I am a product of my decisions.", author: "Stephen Covey" },
-  { text: "Every child is an artist. The problem is how to remain an artist once we grow up.", author: "Pablo Picasso" },
-  { text: "You can never cross the ocean until you have the courage to lose sight of the shore.", author: "Christopher Columbus" },
-  { text: "Either you run the day or the day runs you.", author: "Jim Rohn" },
-  { text: "Whether you think you can or think you can't, you're right.", author: "Henry Ford" },
-  { text: "The two most important days in your life are the day you are born and the day you find out why.", author: "Mark Twain" },
-  { text: "Whatever the mind of man can conceive and believe, it can achieve.", author: "Napoleon Hill" },
-  { text: "Eighty percent of success is showing up.", author: "Woody Allen" },
-  { text: "I didn't fail the test. I just found 100 ways to do it wrong.", author: "Benjamin Franklin" },
-  { text: "In order to succeed, your desire for success should be greater than your fear of failure.", author: "Bill Cosby" },
-  { text: "A journey of a thousand miles must begin with a single step.", author: "Lao Tzu" },
-  { text: "Don't count the days, make the days count.", author: "Muhammad Ali" },
-  { text: "The difference between ordinary and extraordinary is that little extra.", author: "Jimmy Johnson" },
-  { text: "Things work out best for those who make the best of how things work out.", author: "John Wooden" },
-  { text: "To live a creative life, we must lose our fear of being wrong.", author: "Joseph Chilton Pearce" },
-  { text: "If you are not willing to risk the usual, you will have to settle for the ordinary.", author: "Jim Rohn" },
-  { text: "Trust yourself. You know more than you think you do.", author: "Benjamin Spock" },
-  { text: "What's money? A man is a success if he gets up in the morning and goes to bed at night and in between does what he wants to do.", author: "Bob Dylan" },
-];
 
-function _UnusedDailyQuote() {
-  const dayOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
-  );
-  const quote = _UNUSED_QUOTES[dayOfYear % _UNUSED_QUOTES.length];
-
-  return (
-    <div style={{
-      position: "relative", overflow: "hidden",
-      background: "linear-gradient(135deg, #fff5f5 0%, #ffffff 60%, #fafcff 100%)",
-      border: "1px solid #fee2e2",
-      borderLeft: "4px solid var(--red)",
-      borderRadius: 12,
-      padding: "18px 22px 16px 24px",
-      marginBottom: 0,
-    }}>
-      {/* Decorative large quote mark */}
-      <span style={{
-        position: "absolute", top: -2, left: 14,
-        fontSize: 72, lineHeight: 1, color: "var(--red)", opacity: 0.08,
-        fontFamily: "Georgia, serif", fontWeight: 900, userSelect: "none",
-        pointerEvents: "none",
-      }}>
-        "
-      </span>
-
-      <div style={{ position: "relative" }}>
-        <div style={{
-          fontSize: 13.5, lineHeight: 1.65, color: "#1e293b",
-          fontStyle: "italic", fontWeight: 500,
-          marginBottom: 10,
-        }}>
-          "{quote.text}"
-        </div>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-        }}>
-          <span style={{
-            display: "inline-block", width: 20, height: 1.5,
-            background: "var(--red)", borderRadius: 2, opacity: 0.6, flexShrink: 0,
-          }} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#64748b", letterSpacing: "0.02em" }}>
-            {quote.author}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0, disabled = false }) {
   return (
-    <div
+    <button
+      type="button"
       className="quick-launch-item"
       onClick={disabled ? undefined : onClick}
-      style={{ position: 'relative', opacity: disabled ? 0.45 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
+      disabled={disabled}
+      aria-label={label}
+      style={{ position: 'relative', opacity: disabled ? 0.45 : 1, cursor: disabled ? 'not-allowed' : 'pointer', background: 'none', border: 'none', padding: 0, textAlign: 'center', width: '100%' }}
     >
       <div className="quick-launch-icon" style={{ color }}>{icon}</div>
       <div className="quick-launch-label">{label}</div>
       {badgeCount > 0 && <span className="icon-badge">{badgeCount}</span>}
-    </div>
+    </button>
   );
 }
 
@@ -693,6 +548,10 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   async function applyLeave(e) {
     e.preventDefault();
     if (submittingLeave) return;
+    if (leaveDuration === 'multiple' && endDate && startDate && endDate < startDate) {
+      alert("End date cannot be before start date.");
+      return;
+    }
     setSubmittingLeave(true);
     try {
       let payload = {
@@ -800,7 +659,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
             <button className="topbar-back" onClick={handleBackNavigation}><FaArrowLeft /></button>
           )}
           <span className="topbar-title">
-            {view === "dashboard" ? "My Dashboard" : view.replace(/-/g, " ")}
+            {view === "dashboard" ? "My Dashboard" : view.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
           </span>
           <div className="topbar-right">
             {view === "dashboard" && Array.isArray(delegatedGrants) && delegatedGrants.length > 0 && (
@@ -861,10 +720,13 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                     <h3 style={{color:'var(--red)', margin:0, fontSize:18, fontWeight:700}}>Set Secure Password</h3>
                     <p style={{margin:'4px 0 0', fontSize:13, color:'#64748b'}}>Please set a strong password to secure your account.</p>
                   </div>
-                  <button
-                    onClick={() => { setShowPasswordModal(false); setPassError(""); setOldPassword(""); setNewPassword(""); setConfirmPassword(""); }}
-                    style={{background:'#f1f5f9', border:'none', borderRadius:'50%', width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#64748b', flexShrink:0}}
-                  ><FaTimes size={13} /></button>
+                  {passwordChanged && (
+                    <button
+                      onClick={() => { setShowPasswordModal(false); setPassError(""); setOldPassword(""); setNewPassword(""); setConfirmPassword(""); }}
+                      style={{background:'#f1f5f9', border:'none', borderRadius:'50%', width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#64748b', flexShrink:0}}
+                      aria-label="Close password dialog"
+                    ><FaTimes size={13} /></button>
+                  )}
                 </div>
                 <div style={{padding:'20px 24px 24px'}}>
                 {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '8px'}}>{passError}</div>}
@@ -882,44 +744,44 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                             onChange={(e) => setOldPassword(e.target.value)}
                             required
                         />
-                        <span className="password-toggle-icon" onClick={() => setShowOldPass(!showOldPass)}>
+                        <button type="button" className="password-toggle-icon" aria-label={showOldPass ? "Hide password" : "Show password"} onClick={() => setShowOldPass(!showOldPass)}>
                             {showOldPass ? <FaEyeSlash /> : <FaEye />}
-                        </span>
+                        </button>
                     </div>
 
                     {/* NEW PASSWORD */}
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
                         <label className="modern-label">New Password</label>
-                        <input 
-                            type={showNewPass ? "text" : "password"} 
-                            className="modern-input" 
+                        <input
+                            type={showNewPass ? "text" : "password"}
+                            className="modern-input"
                             style={{ paddingRight: '40px' }}
                             placeholder="1 Uppercase, 1 Lowercase, 1 Number, 1 Special Char"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             required
                         />
-                        <span className="password-toggle-icon" onClick={() => setShowNewPass(!showNewPass)}>
+                        <button type="button" className="password-toggle-icon" aria-label={showNewPass ? "Hide password" : "Show password"} onClick={() => setShowNewPass(!showNewPass)}>
                             {showNewPass ? <FaEyeSlash /> : <FaEye />}
-                        </span>
+                        </button>
                         <PasswordStrengthMeter password={newPassword} />
                     </div>
 
                     {/* CONFIRM PASSWORD */}
                     <div style={{ position: 'relative', marginBottom: '15px' }}>
                         <label className="modern-label">Confirm New Password</label>
-                        <input 
-                            type={showConfirmPass ? "text" : "password"} 
-                            className="modern-input" 
+                        <input
+                            type={showConfirmPass ? "text" : "password"}
+                            className="modern-input"
                             style={{ paddingRight: '40px' }}
                             placeholder="Re-enter new password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             required
                         />
-                        <span className="password-toggle-icon" onClick={() => setShowConfirmPass(!showConfirmPass)}>
+                        <button type="button" className="password-toggle-icon" aria-label={showConfirmPass ? "Hide password" : "Show password"} onClick={() => setShowConfirmPass(!showConfirmPass)}>
                             {showConfirmPass ? <FaEyeSlash /> : <FaEye />}
-                        </span>
+                        </button>
                     </div>
 
                     <button className="btn" style={{width: '100%', marginTop: 20, padding: 12}}>Save Password</button>
@@ -948,7 +810,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
             <FaArrowLeft /> Back
           </button>
           <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>
-            {view.replace(/-/g, " ")}
+            {view.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
           </h3>
         </div>
       )}
@@ -1413,11 +1275,11 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
               <form onSubmit={submitCorrection}>
                   <div style={{marginBottom:15}}>
                       <label className="modern-label">Correct Date & Time</label>
-                      <input className="modern-input" type="datetime-local" required onChange={e => setCorrectionData({...correctionData, newTime: e.target.value})} />
+                      <input className="modern-input" type="datetime-local" required value={correctionData.newTime} onChange={e => setCorrectionData({...correctionData, newTime: e.target.value})} />
                   </div>
                   <div style={{marginBottom:15}}>
                       <label className="modern-label">Reason</label>
-                      <input className="modern-input" type="text" required placeholder="e.g. Forgot to punch out due to meeting..." onChange={e => setCorrectionData({...correctionData, reason: e.target.value})} />
+                      <input className="modern-input" type="text" required placeholder="e.g. Forgot to punch out due to meeting..." value={correctionData.reason} onChange={e => setCorrectionData({...correctionData, reason: e.target.value})} />
                   </div>
                   <div style={{display:'flex', justifyContent:'flex-end'}}>
                       <button type="submit" className="btn" style={{marginTop:15}}>Send Request</button>
@@ -1553,7 +1415,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
                       <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
                       <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
-                      <td>{l.attachment_url ? <a href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://gdmrconnect-backend-production.up.railway.app${l.attachment_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{resolveAttachmentUrl(l.attachment_url, api.baseUrl) ? <a href={resolveAttachmentUrl(l.attachment_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))
                 )}
@@ -1577,7 +1439,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                     <tr key={a._id}>
                       <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
                       <td>{new Date(a.time).toLocaleString()}</td>
-                      <td>{a.photo_url ? <a href={a.photo_url.startsWith('http') ? a.photo_url : `https://gdmrconnect-backend-production.up.railway.app${a.photo_url}`} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>{resolveAttachmentUrl(a.photo_url, api.baseUrl) ? <a href={resolveAttachmentUrl(a.photo_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))
                 )}

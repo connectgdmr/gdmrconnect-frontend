@@ -11,30 +11,27 @@ const AdminDashboard    = lazy(() => import("./components/AdminDashboard"));
 const EmployeeDashboard = lazy(() => import("./components/EmployeeDashboard"));
 const ManagerDashboard  = lazy(() => import("./components/ManagerDashboard"));
 
-// Public, token-based routes (no login required)
+// Public, token-based routes (no login required) — evaluated at module scope
+// so the App component can unconditionally call all hooks (Rules of Hooks).
 const assessmentMatch = window.location.pathname.match(/^\/assessment\/([^/]+)/);
 const documentsMatch  = window.location.pathname.match(/^\/documents\/([^/]+)/);
 
 // Helper to decode JWT simply to check expiration
-function parseJwt (token) {
-    try {
-        return JSON.parse(atob(token.split('.')[1]));
-    } catch (e) {
-        return null;
-    }
+function parseJwt(token) {
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch {
+    return null;
+  }
+}
+
+function PublicRoutes() {
+  if (assessmentMatch) return <TakeAssessment assessmentToken={assessmentMatch[1]} />;
+  if (documentsMatch)  return <CandidateDocuments docToken={documentsMatch[1]} />;
+  return null;
 }
 
 export default function App() {
-  // Public assessment-taking page — no login required
-  if (assessmentMatch) {
-    return <TakeAssessment assessmentToken={assessmentMatch[1]} />;
-  }
-
-  // Public candidate document-upload portal — no login required
-  if (documentsMatch) {
-    return <CandidateDocuments docToken={documentsMatch[1]} />;
-  }
-
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [role, setRole] = useState(localStorage.getItem("role"));
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user") || "null"));
@@ -89,11 +86,15 @@ export default function App() {
   // Background chat notification poller — fires even when Chat view is closed
   useChatNotifications(token, api);
 
-  function onLogout(){
+  function onLogout() {
     setToken(null);
     setRole(null);
     setUser(null);
-    localStorage.clear(); // Ensure storage is wiped completely
+    // Only remove app keys — localStorage.clear() wipes third-party data and
+    // dismissal state (announcement banners etc.) which should survive re-login
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("user");
   }
 
   async function handleLogin(data){
@@ -102,13 +103,12 @@ export default function App() {
     setUser(data.user);
   }
 
-  if (showSplash) {
-    return <SplashScreen />;
-  }
+  // Public routes — rendered after hooks so Rules of Hooks is satisfied
+  if (assessmentMatch || documentsMatch) return <PublicRoutes />;
 
-  if(!token) {
-    return <Login onLogin={handleLogin} api={api} />;
-  }
+  if (showSplash) return <SplashScreen />;
+
+  if (!token) return <Login onLogin={handleLogin} api={api} />;
 
   return (
     <Suspense fallback={<div className="loader-container"><div className="loader"></div></div>}>

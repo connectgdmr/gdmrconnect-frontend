@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   FaUsers, FaTasks, FaCheckCircle, FaHourglassHalf, FaSearch, FaFilter,
   FaFileCsv, FaFileExcel, FaFilePdf, FaRegCommentDots, FaChevronDown, FaChevronRight, FaTimes,
@@ -6,7 +6,7 @@ import {
 import { BarChart, DonutChart, ProgressRing, LineChart } from "./Charts";
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 const PRI = { High: "#dc2626", Medium: "#d97706", Low: "#16a34a" };
 const ST  = { Completed: { c: "#16a34a", b: "#f0fdf4" }, "In Progress": { c: "#2563eb", b: "#eff6ff" }, Pending: { c: "#d97706", b: "#fffbeb" } };
 

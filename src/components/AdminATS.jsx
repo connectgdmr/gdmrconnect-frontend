@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+﻿import React, { useState, useEffect, useCallback } from "react";
 import {
   FaUserPlus, FaSearch, FaTimes, FaUsers, FaCheckCircle, FaHandshake, FaPercent,
   FaFilePdf, FaLink, FaVideo, FaFolderOpen, FaPaperPlane, FaTrash, FaPlus, FaHistory,
@@ -7,7 +7,7 @@ import {
 import { BarChart, DonutChart } from "./Charts";
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 
 // Recruitment lifecycle statuses (ordered) with grouped colors
 const STATUSES = [

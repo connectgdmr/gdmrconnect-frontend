@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { resolveAttachmentUrl } from "../utils/security";
 import { SkeletonTable } from "./Skeleton";
 import {
   FaSearch,
@@ -21,6 +22,7 @@ export default function AdminLeavePage({ token, api }) {
   
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -62,11 +64,11 @@ export default function AdminLeavePage({ token, api }) {
   // ============================================================================
 
   async function updateStatus(id, status) {
+    if (saving) return;
     if (!window.confirm(`Are you sure you want to mark this leave request as ${status}?`)) {
         return;
     }
-    
-    setLoading(true); 
+    setSaving(true);
     try {
       await api.updateLeave(id, { status }, token);
       await load();
@@ -74,7 +76,8 @@ export default function AdminLeavePage({ token, api }) {
     } catch (err) {
       console.error("Status Update Error:", err);
       alert("Error updating leave request: " + (err.message || "Unknown error occurred."));
-      setLoading(false);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -332,10 +335,10 @@ export default function AdminLeavePage({ token, api }) {
                           <div style={{ fontSize: "12px", color: "#475569", lineHeight: 1.4, wordWrap: 'break-word', marginBottom: l.attachment_url ? 8 : 0 }}>
                               {l.reason || <span style={{fontStyle: 'italic', color: '#cbd5e1'}}>No reason</span>}
                           </div>
-                          {l.attachment_url && (
+                          {resolveAttachmentUrl(l.attachment_url, api.baseUrl) && (
                             <div>
-                              <a 
-                                href={l.attachment_url.startsWith('http') ? l.attachment_url : `https://gdmrconnect-backend-production.up.railway.app${l.attachment_url}`}
+                              <a
+                                href={resolveAttachmentUrl(l.attachment_url, api.baseUrl)}
                                 target="_blank" 
                                 rel="noreferrer"
                                 style={{ 
@@ -358,15 +361,17 @@ export default function AdminLeavePage({ token, api }) {
                         {/* Administrative Actions (Stacked Vertically) */}
                         <td>
                             <div className="action-btn-group">
-                                <button 
-                                    className="action-btn btn-approve" 
+                                <button
+                                    className="action-btn btn-approve"
                                     onClick={() => updateStatus(l._id, "Approved")}
+                                    disabled={saving || (l.status || "").toLowerCase().includes("approved")}
                                 >
                                     <FaCheckCircle /> Approve
                                 </button>
-                                <button 
-                                    className="action-btn btn-reject" 
+                                <button
+                                    className="action-btn btn-reject"
                                     onClick={() => updateStatus(l._id, "Rejected")}
+                                    disabled={saving || (l.status || "").toLowerCase().includes("rejected")}
                                 >
                                     <FaTimesCircle /> Reject
                                 </button>

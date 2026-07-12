@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import {
   FaBriefcase, FaMapMarkerAlt, FaClock, FaUsers,
   FaPlus, FaTimes, FaCheckCircle, FaStar, FaFileUpload, FaFilePdf,
 } from "react-icons/fa";
 import { SkeletonList } from "./Skeleton";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 
 const TYPE_COLORS = {
   "Full-time":  { color: "#34a06a", bg: "#f0fdf4" },

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import Logo from "../assets/GDMR-LOGO-unit.png";
 import { FaCheckCircle, FaCloudUploadAlt, FaExclamationTriangle, FaFilePdf, FaClock, FaTimesCircle } from "react-icons/fa";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 
 const DEFAULT_DOCS = [
   "Educational Certificate", "Passport Copy", "Visa Copy",

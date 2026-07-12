@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { FaFolder, FaPlus, FaTrash, FaBuilding, FaSearch } from "react-icons/fa";
 import { SkeletonCards } from "./Skeleton";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 
 // Soft green-family folder tints
 const TINTS = [

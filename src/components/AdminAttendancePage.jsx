@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { resolveAttachmentUrl } from "../utils/security";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 import {
   FaSearch,
@@ -738,9 +739,9 @@ export default function AdminAttendancePage({ token, api }) {
                                          </span>
                                      </td>
                                      <td style={{ padding: '12px 15px' }}>
-                                         {log.photo_url ? (
-                                             <a 
-                                                href={log.photo_url.startsWith('http') ? log.photo_url : `https://gdmrconnect-backend-production.up.railway.app${log.photo_url}`} 
+                                         {resolveAttachmentUrl(log.photo_url, api.baseUrl) ? (
+                                             <a
+                                                href={resolveAttachmentUrl(log.photo_url, api.baseUrl)}
                                                 target="_blank" 
                                                 rel="noreferrer" 
                                                 style={{ fontSize: 13, color: '#3b82f6', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: 4 }}
@@ -1108,11 +1109,11 @@ export default function AdminAttendancePage({ token, api }) {
                           </td>
                           <td style={{ padding: 12 }}>
                             <div style={{display:'flex', gap:10}}>
-                                {rec.checkin?.photo_url && (
-                                  <a href={rec.checkin.photo_url.startsWith('http') ? rec.checkin.photo_url : `https://gdmrconnect-backend-production.up.railway.app${rec.checkin.photo_url}`} target="_blank" rel="noreferrer" style={{fontSize:12, color:'#3b82f6', textDecoration:'none', fontWeight: 'bold', background: '#eff6ff', padding: '4px 8px', borderRadius: 4}}>Check-In Photo</a>
+                                {resolveAttachmentUrl(rec.checkin?.photo_url, api.baseUrl) && (
+                                  <a href={resolveAttachmentUrl(rec.checkin.photo_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{fontSize:12, color:'#3b82f6', textDecoration:'none', fontWeight: 'bold', background: '#eff6ff', padding: '4px 8px', borderRadius: 4}}>Check-In Photo</a>
                                 )}
-                                {rec.checkout?.photo_url && (
-                                  <a href={rec.checkout.photo_url.startsWith('http') ? rec.checkout.photo_url : `https://gdmrconnect-backend-production.up.railway.app${rec.checkout.photo_url}`} target="_blank" rel="noreferrer" style={{fontSize:12, color:'#dc2626', textDecoration:'none', fontWeight: 'bold', background: '#fef2f2', padding: '4px 8px', borderRadius: 4}}>Check-Out Photo</a>
+                                {resolveAttachmentUrl(rec.checkout?.photo_url, api.baseUrl) && (
+                                  <a href={resolveAttachmentUrl(rec.checkout.photo_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{fontSize:12, color:'#dc2626', textDecoration:'none', fontWeight: 'bold', background: '#fef2f2', padding: '4px 8px', borderRadius: 4}}>Check-Out Photo</a>
                                 )}
                                 {!rec.checkin?.photo_url && !rec.checkout?.photo_url && <span style={{color: '#aaa', fontSize: 12}}>N/A</span>}
                             </div>

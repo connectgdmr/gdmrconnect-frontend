@@ -65,10 +65,10 @@ const AdminATS        = lazy(() => import("./AdminATS"));
 // ============================================================================
 function QuickLaunchItem({ icon, label, onClick, color = "var(--red)" }) {
   return (
-    <div className="quick-launch-item" onClick={onClick}>
+    <button type="button" className="quick-launch-item" onClick={onClick} aria-label={label}>
       <div className="quick-launch-icon" style={{color}}>{icon}</div>
       <div className="quick-launch-label">{label}</div>
-    </div>
+    </button>
   );
 }
 
@@ -435,9 +435,13 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   }
 
   async function deleteEmployee(id) {
-    if(!window.confirm("Are you sure you want to completely remove this employee?")) return;
-    await api.deleteEmployee(id, token);
-    await loadEmployees();
+    if (!window.confirm("Are you sure you want to completely remove this employee?")) return;
+    try {
+      await api.deleteEmployee(id, token);
+      await loadEmployees();
+    } catch {
+      alert("Failed to delete employee. Please try again.");
+    }
   }
 
   async function promoteToManager(empId) {
@@ -684,7 +688,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
             <button className="topbar-back" onClick={() => setView("dashboard")}><FaArrowLeft /></button>
           )}
           <span className="topbar-title">
-            {view === "dashboard" ? "Admin Dashboard" : view.replace(/-/g, " ")}
+            {view === "dashboard" ? "Admin Dashboard" : view.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
           </span>
           <div className="topbar-right">
             <button className="topbar-profile-btn" onClick={() => setProfileOpen(true)}>
@@ -740,7 +744,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           <button className="btn ghost" onClick={() => setView("dashboard")} style={{padding: '8px 12px', display:'flex', alignItems:'center', gap:6}}>
             <FaArrowLeft /> Back
           </button>
-          <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>{view.replace(/-/g, " ")}</h3>
+          <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>{view.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</h3>
         </div>
       )}
 
@@ -914,6 +918,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                 onRefresh={loadEmployees}
                 onPatch={patchEmployee}
                 onPromote={promoteToManager}
+                api={api}
+                token={token}
               />
             )}
           </div>

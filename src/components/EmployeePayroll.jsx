@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { FaFileInvoiceDollar, FaRupeeSign, FaCalendarAlt } from "react-icons/fa";
 import { SkeletonList } from "./Skeleton";
 import { PayslipModal } from "./AdminPayroll";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const inr = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 

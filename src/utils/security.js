@@ -64,3 +64,19 @@ export function getPasswordStrength(password = "") {
 }
 
 export const PASSWORD_RULES = PW_RULES;
+
+/**
+ * Safely resolve an attachment URL from the backend.
+ * Absolute http/https URLs are returned as-is; relative paths are prefixed
+ * with baseUrl. Returns null for any other scheme (e.g. javascript:) so the
+ * caller can skip rendering the link entirely.
+ */
+export function resolveAttachmentUrl(url, baseUrl) {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return (u.protocol === "http:" || u.protocol === "https:") ? url : null;
+  } catch {
+    return `${baseUrl}${url}`;
+  }
+}

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { FaHistory, FaSearch, FaRegClock, FaCheckCircle, FaRedo } from "react-icons/fa";
 import { TASK_STATUSES, carryKey } from "./DailyWorkPlan";
 import { SkeletonList } from "./Skeleton";
 
-const BASE = "https://gdmrconnect-backend-production.up.railway.app/api";
+import { API_URL as BASE } from "../api";
 const PRI = { High: "#dc2626", Medium: "#d97706", Low: "#16a34a" };
 const SM = (s) => TASK_STATUSES.find(x => x.v === s) || TASK_STATUSES[0];
 
