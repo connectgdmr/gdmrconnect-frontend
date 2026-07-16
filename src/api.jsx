@@ -173,7 +173,7 @@ export default {
     formData.append("reason", payload.reason);
     if (file) formData.append("attachment", file);
 
-    const res = await fetch(`${API_BASE}/leaves`, {
+    const res = await fetch(`${FETCH_BASE}/leaves`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
@@ -193,7 +193,7 @@ export default {
 
   getAttendanceSummary: async (month, token) => {
     const res = await fetch(
-      `${API_BASE}/admin/attendance-summary?month=${month}`,
+      `${FETCH_BASE}/admin/attendance-summary?month=${month}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await res.json();
