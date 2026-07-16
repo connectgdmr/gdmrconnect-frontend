@@ -7,11 +7,13 @@ const MAX_ATTEMPTS = 5;       // client-side soft lock after this many failures
 const COOLDOWN_SECONDS = 30;  // how long the form is disabled after hitting the limit
 
 const FEATURES = [
-  "Smart Attendance Tracking",
-  "Leave Management System",
-  "Performance Reviews (PMS)",
-  "Asset Request Management",
-  "Real-time Announcements",
+  "HR, Attendance & Leave Management",
+  "Payroll, PMS & Performance Reviews",
+  "Recruitment & Applicant Tracking (ATS)",
+  "Learning Management System (LMS)",
+  "Client & Asset Management",
+  "Work Planning, Analytics & Reports",
+  "Team Collaboration & Real-time Chat",
 ];
 
 export default function Login({ onLogin, api }) {
@@ -95,11 +97,11 @@ export default function Login({ onLogin, api }) {
           <img src={Logo} alt="GDMR Logo" className="login-brand-logo" />
           <div>
             <div className="login-brand-name">GDMR CONNECT</div>
-            <div className="login-brand-sub">HRMS Platform</div>
+            <div className="login-brand-sub">Your Complete Business Suite</div>
           </div>
         </div>
         <h1 className="login-tagline">
-          Manage your workforce with intelligence &amp; precision.
+          Run your entire business from one powerful platform.
         </h1>
         <div className="login-features">
           {FEATURES.map((f) => (

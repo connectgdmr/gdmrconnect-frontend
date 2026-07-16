@@ -117,7 +117,7 @@ export default function Sidebar({ role, user, view, setView, onLogout, navBadges
           <img src={Logo} alt="GDMR" className="sidebar-logo" />
           <div>
             <div className="sidebar-brand-name">GDMR CONNECT</div>
-            <div className="sidebar-brand-sub">HRMS Platform</div>
+            <div className="sidebar-brand-sub">Your Complete Business Suite</div>
           </div>
         </div>
 
