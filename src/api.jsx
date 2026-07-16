@@ -2,9 +2,14 @@ const API_BASE = import.meta.env.VITE_API_URL || "https://gdmrconnect-backend-pr
 export const BASE_URL = API_BASE.replace(/\/api$/, "");
 export const API_URL = API_BASE; // full /api path — import this instead of hardcoding the URL
 
-const REQUEST_TIMEOUT_MS = 30000;
+// Jio and some Indian ISPs block Railway's default subdomain or time out on cold starts.
+// Retry up to MAX_RETRIES times with exponential back-off before surfacing an error.
+const REQUEST_TIMEOUT_MS = 45000;  // 45 s — gives Railway cold-starts time to wake up
+const MAX_RETRIES = 2;
 
-async function request(path, method = "GET", body, token) {
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function request(path, method = "GET", body, token, attempt = 0) {
   const headers = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
@@ -20,7 +25,6 @@ async function request(path, method = "GET", body, token) {
     });
     clearTimeout(timeoutId);
     const data = await res.json().catch(() => ({}));
-    // Rate limiting (429) and account lockout (423) — surface a clear message
     if (res.status === 429) {
       throw { status: 429, message: data?.message || "Too many attempts. Please wait a moment and try again." };
     }
@@ -31,11 +35,25 @@ async function request(path, method = "GET", body, token) {
     return data;
   } catch (err) {
     clearTimeout(timeoutId);
-    if (err.name === "AbortError") {
-      throw new Error("Request timed out. The server may be starting up — please try again in a moment.");
+
+    // Don't retry auth errors or app-level errors — only low-level network failures
+    if (err?.status) throw err;
+
+    const isNetworkError = err instanceof TypeError;
+    const isTimeout = err?.name === "AbortError";
+
+    if ((isNetworkError || isTimeout) && attempt < MAX_RETRIES) {
+      await sleep(1500 * (attempt + 1)); // 1.5 s, 3 s
+      return request(path, method, body, token, attempt + 1);
     }
-    if (err instanceof TypeError) {
-      throw new Error("Network error — please check your internet connection and try again.");
+
+    if (isTimeout) {
+      throw new Error("Connection timed out. The server may be waking up — please try again.");
+    }
+    if (isNetworkError) {
+      throw new Error(
+        "Unable to reach the server. If you're on Jio mobile network, try switching to WiFi or a different SIM. If the problem persists, contact support."
+      );
     }
     throw err;
   }

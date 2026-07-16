@@ -34,7 +34,7 @@ export default function Login({ onLogin, api }) {
   }, [cooldown]);
 
   async function handle(e) {
-    e.preventDefault();
+    if (e?.preventDefault) e.preventDefault();
     setErr("");
     if (cooldown > 0) return;
 
@@ -170,6 +170,15 @@ export default function Login({ onLogin, api }) {
             {err && (
               <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#dc2626", fontSize: 14 }}>
                 {err}
+                {(err.toLowerCase().includes("unable to reach") || err.toLowerCase().includes("timed out") || err.toLowerCase().includes("network")) && (
+                  <button
+                    type="button"
+                    onClick={handle}
+                    style={{ display: "block", marginTop: 10, background: "#dc2626", color: "#fff", border: "none", borderRadius: 6, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Retry
+                  </button>
+                )}
               </div>
             )}
 
