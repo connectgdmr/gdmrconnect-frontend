@@ -2,12 +2,52 @@ const API_BASE = import.meta.env.VITE_API_URL || "https://gdmrconnect-backend-pr
 export const BASE_URL = API_BASE.replace(/\/api$/, "");
 export const API_URL = API_BASE; // full /api path — import this instead of hardcoding the URL
 
-// Jio and some Indian ISPs block Railway's default subdomain or time out on cold starts.
-// Retry up to MAX_RETRIES times with exponential back-off before surfacing an error.
-const REQUEST_TIMEOUT_MS = 45000;  // 45 s — gives Railway cold-starts time to wake up
-const MAX_RETRIES = 2;
+// Jio and some Indian ISPs mis-route Railway's .up.railway.app domain — especially
+// after Railway changed IP ranges (~mid 2025). fetch() prefers HTTP/2 which some Jio
+// transparent proxies mishandle; XMLHttpRequest falls back to HTTP/1.1 and can get
+// through where fetch() can't. Strategy: 3 fetch attempts → 1 XHR attempt.
+const REQUEST_TIMEOUT_MS = 20000;  // 20 s per fetch attempt — fail fast so XHR retry kicks in sooner
+const MAX_RETRIES = 2;             // 3 total fetch attempts (0, 1, 2)
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// XHR path — HTTP/1.1 fallback for ISP proxies that interfere with HTTP/2
+function requestXHR(path, method, body, token) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, `${API_BASE}${path}`, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.timeout = 30000;
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText || "{}");
+        if (xhr.status === 429) {
+          reject({ status: 429, message: data?.message || "Too many attempts. Please wait a moment and try again." });
+        } else if (xhr.status === 423) {
+          reject({ status: 423, message: data?.message || "Account temporarily locked due to multiple failed attempts. Please try again later." });
+        } else if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(data);
+        } else {
+          reject({ status: xhr.status, ...data });
+        }
+      } catch {
+        reject({ status: xhr.status });
+      }
+    };
+    xhr.onerror = () => {
+      const e = new TypeError("XHR network error");
+      e.isNetworkError = true;
+      reject(e);
+    };
+    xhr.ontimeout = () => {
+      const e = new Error("XHR timeout");
+      e.isNetworkError = true;
+      reject(e);
+    };
+    xhr.send(body ? JSON.stringify(body) : null);
+  });
+}
 
 async function request(path, method = "GET", body, token, attempt = 0) {
   const headers = { "Content-Type": "application/json" };
@@ -22,6 +62,7 @@ async function request(path, method = "GET", body, token, attempt = 0) {
       headers,
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
+      cache: "no-store",
     });
     clearTimeout(timeoutId);
     const data = await res.json().catch(() => ({}));
@@ -43,8 +84,20 @@ async function request(path, method = "GET", body, token, attempt = 0) {
     const isTimeout = err?.name === "AbortError";
 
     if ((isNetworkError || isTimeout) && attempt < MAX_RETRIES) {
-      await sleep(1500 * (attempt + 1)); // 1.5 s, 3 s
+      await sleep(1000 * (attempt + 1)); // 1 s, 2 s
       return request(path, method, body, token, attempt + 1);
+    }
+
+    // All fetch() attempts failed — try XHR as final fallback (HTTP/1.1, different
+    // browser code path, often bypasses ISP proxy interference with HTTP/2)
+    if (isNetworkError || isTimeout) {
+      try {
+        return await requestXHR(path, method, body, token);
+      } catch (xhrErr) {
+        // If XHR returned an HTTP error (auth failure, etc.), surface it directly
+        if (xhrErr?.status) throw xhrErr;
+        // XHR also failed at network level — fall through to user-facing error
+      }
     }
 
     if (isTimeout) {
