@@ -112,7 +112,7 @@ export default function App() {
 
   return (
     <Suspense fallback={<div className="loader-container"><div className="loader"></div></div>}>
-      {role === "admin" ? (
+      {role === "admin" || role === "owner" ? (
         <AdminDashboard token={token} api={api} user={user} onLogout={onLogout} />
       ) : role === "manager" ? (
         <ManagerDashboard token={token} api={api} user={user} onLogout={onLogout} />

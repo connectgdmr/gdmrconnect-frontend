@@ -137,6 +137,7 @@ export default {
   getManagers: (token) => request("/admin/managers", "GET", null, token),
   editManager: (id, payload, token) => request(`/admin/managers/${id}`, "PUT", payload, token),
   deleteManager: (id, token) => request(`/admin/managers/${id}`, "DELETE", null, token),
+  setManagerRole: (id, role, token) => request(`/admin/managers/${id}/role`, "PUT", { role }, token),
   getManagerEmployees: (token) => request("/manager/my-employees", "GET", null, token),
 
   // Attendance
