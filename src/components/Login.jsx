@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from "react";
 import Logo from "../assets/GDMR-LOGO-unit.png";
-import { FaEye, FaEyeSlash, FaCheckCircle } from "react-icons/fa";
+import { FaEye, FaEyeSlash, FaUsers, FaMoneyBillWave, FaUserTag, FaGraduationCap, FaBuilding, FaChartArea, FaCommentDots } from "react-icons/fa";
 import { cleanEmail, isValidEmail } from "../utils/security";
 
-const MAX_ATTEMPTS = 5;       // client-side soft lock after this many failures
-const COOLDOWN_SECONDS = 30;  // how long the form is disabled after hitting the limit
+const MAX_ATTEMPTS = 5;
+const COOLDOWN_SECONDS = 30;
 
 const FEATURES = [
-  "HR, Attendance & Leave Management",
-  "Payroll, PMS & Performance Reviews",
-  "Recruitment & Applicant Tracking (ATS)",
-  "Learning Management System (LMS)",
-  "Client & Asset Management",
-  "Work Planning, Analytics & Reports",
-  "Team Collaboration & Real-time Chat",
+  { icon: <FaUsers />,         label: "HR, Attendance & Leave Management" },
+  { icon: <FaMoneyBillWave />, label: "Payroll, PMS & Performance Reviews" },
+  { icon: <FaUserTag />,       label: "Recruitment & Applicant Tracking (ATS)" },
+  { icon: <FaGraduationCap />, label: "Learning Management System (LMS)" },
+  { icon: <FaBuilding />,      label: "Client & Asset Management" },
+  { icon: <FaChartArea />,     label: "Work Planning, Analytics & Reports" },
+  { icon: <FaCommentDots />,   label: "Team Collaboration & Real-time Chat" },
 ];
 
 export default function Login({ onLogin, api }) {
@@ -101,13 +101,15 @@ export default function Login({ onLogin, api }) {
           </div>
         </div>
         <h1 className="login-tagline">
-          Run your entire business from one powerful platform.
+          Run your entire business from{" "}
+          <span className="login-tagline-accent">one powerful platform.</span>
         </h1>
+        <p className="login-tagline-sub">Everything your team needs — HR, finance, operations, growth — unified and ready to use.</p>
         <div className="login-features">
           {FEATURES.map((f) => (
-            <div key={f} className="login-feature-item">
-              <FaCheckCircle style={{ color: "#34a06a", flexShrink: 0, fontSize: 15 }} />
-              <span>{f}</span>
+            <div key={f.label} className="login-feature-item">
+              <span className="login-feature-icon">{f.icon}</span>
+              <span>{f.label}</span>
             </div>
           ))}
         </div>
