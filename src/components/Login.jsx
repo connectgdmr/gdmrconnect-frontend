@@ -58,7 +58,7 @@ export default function Login({ onLogin, api }) {
         setErr(err.message || "Too many login attempts. Please wait a moment and try again.");
       } else if (err?.status === 423) {
         setErr(err.message || "Account locked due to multiple failed attempts. Please try again later.");
-      } else if (err?.message?.includes("Network error") || err?.message?.includes("timed out")) {
+      } else if (err?.isNetworkError || err?.message?.includes("Network error") || err?.message?.includes("timed out")) {
         setErr(err.message);
       } else {
         // Generic message — never reveal whether the email or the password was wrong

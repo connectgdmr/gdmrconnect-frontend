@@ -48,12 +48,16 @@ async function request(path, method = "GET", body, token, attempt = 0) {
     }
 
     if (isTimeout) {
-      throw new Error("Connection timed out. The server may be waking up — please try again.");
+      const e = new Error("Connection timed out. The server may be waking up — please try again.");
+      e.isNetworkError = true;
+      throw e;
     }
     if (isNetworkError) {
-      throw new Error(
-        "Unable to reach the server. If you're on Jio mobile network, try switching to WiFi or a different SIM. If the problem persists, contact support."
+      const e = new Error(
+        "Unable to reach the server. If you're on Jio mobile data, try switching to WiFi or a different SIM."
       );
+      e.isNetworkError = true;
+      throw e;
     }
     throw err;
   }
