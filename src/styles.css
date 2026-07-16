@@ -140,6 +140,7 @@ body {
 .sidebar-nav-item.active .sidebar-nav-dot { background: #fff; animation: none; box-shadow: none; }
 .sidebar-footer {
   padding: 10px 10px 14px;
+  padding-bottom: max(14px, calc(14px + env(safe-area-inset-bottom)));
   border-top: 1px solid var(--slate-100); flex-shrink: 0;
 }
 .sidebar-user-pill {
@@ -873,7 +874,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
    content, so switch to an off-canvas drawer and give the content full width.
    1100px covers 1366px laptops running at 125% display scaling (~1093px CSS). */
 @media (max-width: 1100px) {
-  .sidebar { position: fixed; left: 0; top: 0; height: 100vh; transform: translateX(-100%); z-index: 300; }
+  .sidebar { position: fixed; left: 0; top: 0; height: 100vh; height: 100dvh; transform: translateX(-100%); z-index: 300; }
   .sidebar.sidebar-open { transform: translateX(0); box-shadow: 8px 0 32px rgba(0,0,0,0.3); }
   .topbar-hamburger { display: flex; }
   .main-content { padding: 18px; }
