@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
-import { FaEdit, FaTrash } from "react-icons/fa";
+import { FaEdit, FaTrash, FaCrown } from "react-icons/fa";
 
 import { BASE_URL as BASE } from "../api";
 
@@ -40,6 +40,7 @@ export default function RegisterManager({ token, api }) {
   const [showModal, setShowModal] = useState(false);
   const [managers, setManagers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [togglingId, setTogglingId] = useState(null);
 
   // Edit State
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -116,6 +117,20 @@ export default function RegisterManager({ token, api }) {
     }
 
     setShowModal(true);
+  }
+
+  async function toggleOwner(m) {
+    const newRole = m.role === "owner" ? "manager" : "owner";
+    const label = newRole === "owner" ? "Make Business Owner" : "Remove Business Owner";
+    if (!window.confirm(`${label} for ${m.name}?`)) return;
+    setTogglingId(m._id);
+    try {
+      await api.setManagerRole(m._id, newRole, token);
+      loadManagers();
+    } catch {
+      alert("Failed to update role. Please try again.");
+    }
+    setTogglingId(null);
   }
 
   async function deleteManager(id) {
@@ -250,14 +265,42 @@ export default function RegisterManager({ token, api }) {
               <th>Department(s)</th>
               <th style={{ textAlign: "center" }}>Action</th>
             </tr>
+
           </thead>
           <tbody>
             {managers.map(m => (
               <tr key={m._id}>
-                <td>{m.name}</td>
+                <td>
+                  {m.name}
+                  {m.role === "owner" && (
+                    <span style={{
+                      marginLeft: 8, background: "#fef3c7", color: "#b45309",
+                      fontSize: 11, fontWeight: 600, borderRadius: 4,
+                      padding: "2px 7px", verticalAlign: "middle",
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                    }}>
+                      <FaCrown style={{ fontSize: 10 }} /> Business Owner
+                    </span>
+                  )}
+                </td>
                 <td>{m.email}</td>
                 <td>{displayDept(m.department)}</td>
-                <td style={{ textAlign:"center", display:"flex", gap:"5px", justifyContent:"center" }}>
+                <td style={{ textAlign:"center", display:"flex", gap:"5px", justifyContent:"center", alignItems:"center" }}>
+                  <button
+                    onClick={() => toggleOwner(m)}
+                    disabled={togglingId === m._id}
+                    title={m.role === "owner" ? "Remove Business Owner" : "Make Business Owner"}
+                    style={{
+                      border: "none", cursor: "pointer", borderRadius: 4,
+                      padding: "5px 10px", fontSize: 12, fontWeight: 600,
+                      display: "flex", alignItems: "center", gap: 4,
+                      background: m.role === "owner" ? "#f1f5f9" : "#fef3c7",
+                      color: m.role === "owner" ? "#64748b" : "#b45309",
+                    }}
+                  >
+                    <FaCrown style={{ fontSize: 11 }} />
+                    {togglingId === m._id ? "..." : m.role === "owner" ? "Remove Owner" : "Make Owner"}
+                  </button>
                   <button className="icon-btn edit" onClick={() => handleEditClick(m)} title="Edit">
                     <FaEdit />
                   </button>
