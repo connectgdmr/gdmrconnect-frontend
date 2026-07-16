@@ -2,10 +2,12 @@ const API_BASE = import.meta.env.VITE_API_URL || "https://gdmrconnect-backend-pr
 export const BASE_URL = API_BASE.replace(/\/api$/, "");
 export const API_URL = API_BASE; // full /api path — import this instead of hardcoding the URL
 
-// Jio and some Indian ISPs mis-route Railway's .up.railway.app domain — especially
-// after Railway changed IP ranges (~mid 2025). fetch() prefers HTTP/2 which some Jio
-// transparent proxies mishandle; XMLHttpRequest falls back to HTTP/1.1 and can get
-// through where fetch() can't. Strategy: 3 fetch attempts → 1 XHR attempt.
+// All fetch calls use the same-origin Vercel proxy (/api/*) so Jio mobile data
+// cannot block them — blocking /api/* would block the whole site. BASE_URL/API_URL
+// above are still used for constructing media/file URLs that point to the CDN.
+const FETCH_BASE = '/api';
+
+// Strategy: 3 fetch attempts → 1 XHR attempt.
 const REQUEST_TIMEOUT_MS = 20000;  // 20 s per fetch attempt — fail fast so XHR retry kicks in sooner
 const MAX_RETRIES = 2;             // 3 total fetch attempts (0, 1, 2)
 
@@ -15,7 +17,7 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function requestXHR(path, method, body, token) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open(method, `${API_BASE}${path}`, true);
+    xhr.open(method, `${FETCH_BASE}${path}`, true);
     xhr.setRequestHeader("Content-Type", "application/json");
     if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.timeout = 30000;
@@ -57,7 +59,7 @@ async function request(path, method = "GET", body, token, attempt = 0) {
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetch(`${FETCH_BASE}${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
