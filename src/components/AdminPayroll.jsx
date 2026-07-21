@@ -6,6 +6,7 @@ import {
 import { SkeletonTable, SkeletonStats } from "./Skeleton";
 
 import AdminPayrollLoans from "./AdminPayrollLoans";
+import ErrorBoundary from "./ErrorBoundary";
 
 const BASE = "/api";
 
@@ -84,6 +85,7 @@ export default function AdminPayroll({ token, employees = [] }) {
   const [slipMonth, setSlipMonth]     = useState(now.getMonth());
   const [slipYear, setSlipYear]       = useState(now.getFullYear());
   const [viewSlip, setViewSlip]       = useState(null);
+  const [slipSearch, setSlipSearch]   = useState("");
 
   const [historyModal, setHistoryModal] = useState(null); // { emp, history[] }
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -321,13 +323,18 @@ export default function AdminPayroll({ token, employees = [] }) {
       {/* ── Payslips ── */}
       {tab === "payslips" && (
         <div>
-          <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
             <select className="modern-input" value={slipMonth} onChange={e => setSlipMonth(+e.target.value)} style={{ margin: 0, maxWidth: 180 }}>
               {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
             </select>
             <select className="modern-input" value={slipYear} onChange={e => setSlipYear(+e.target.value)} style={{ margin: 0, maxWidth: 130 }}>
               {[now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
+            <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
+              <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+              <input className="modern-input" placeholder="Search by employee name…" value={slipSearch}
+                onChange={e => setSlipSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
+            </div>
           </div>
 
           {slipsLoading ? <SkeletonTable rows={6} cols={6} />
@@ -336,47 +343,56 @@ export default function AdminPayroll({ token, employees = [] }) {
               <FaFileInvoiceDollar size={38} style={{ opacity: 0.2, marginBottom: 12 }} />
               <p style={{ margin: 0 }}>No payslips generated for {MONTHS[slipMonth]} {slipYear}.</p>
             </div>
-          ) : (
-            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ overflowX: "auto" }}>
-                <table className="styled-table-global">
-                  <thead><tr><th>Employee</th><th>Department</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th></tr></thead>
-                  <tbody>
-                    {payslips.map(p => {
-                      const paid = (p.status || "").toLowerCase() === "paid";
-                      return (
-                        <tr key={p._id}>
-                          <td style={{ fontWeight: 600 }}>{p.employee_name}</td>
-                          <td style={{ fontSize: 13, color: "#64748b" }}>{p.department || "—"}</td>
-                          <td>{inr(p.gross ?? grossOf(p))}</td>
-                          <td style={{ color: "#dc2626" }}>−{inr(p.total_deductions ?? dedOf(p))}</td>
-                          <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(p.net ?? netOf(p))}</td>
-                          <td>
-                            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
-                              color: paid ? "#16a34a" : "#d97706", background: paid ? "#f0fdf4" : "#fffbeb", border: `1px solid ${paid ? "#bbf7d0" : "#fde68a"}` }}>
-                              {p.status || "Pending"}
-                            </span>
-                          </td>
-                          <td>
-                            <div style={{ display: "flex", gap: 6 }}>
-                              <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => setViewSlip(p)}>View</button>
-                              {!paid && <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px", color: "#16a34a", borderColor: "#bbf7d0" }} onClick={() => markPaid(p._id)}>Mark Paid</button>}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+          ) : (() => {
+            const filteredSlips = slipSearch
+              ? payslips.filter(p => (String(p.employee_name || "")).toLowerCase().includes(slipSearch.toLowerCase()))
+              : payslips;
+            return (
+              <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+                <div style={{ overflowX: "auto" }}>
+                  <table className="styled-table-global">
+                    <thead><tr><th>Employee</th><th>Department</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                      {filteredSlips.length === 0 ? (
+                        <tr><td colSpan="7" style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>No payslips match "{slipSearch}".</td></tr>
+                      ) : filteredSlips.map(p => {
+                        const paid = (String(p.status || "")).toLowerCase() === "paid";
+                        return (
+                          <tr key={String(p._id || p.employee_id || Math.random())}>
+                            <td style={{ fontWeight: 600 }}>{String(p.employee_name || "")}</td>
+                            <td style={{ fontSize: 13, color: "#64748b" }}>{p.department || "—"}</td>
+                            <td>{inr(p.gross ?? grossOf(p))}</td>
+                            <td style={{ color: "#dc2626" }}>−{inr(p.total_deductions ?? dedOf(p))}</td>
+                            <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(p.net ?? netOf(p))}</td>
+                            <td>
+                              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
+                                color: paid ? "#16a34a" : "#d97706", background: paid ? "#f0fdf4" : "#fffbeb", border: `1px solid ${paid ? "#bbf7d0" : "#fde68a"}` }}>
+                                {p.status || "Pending"}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => setViewSlip(p)}>View</button>
+                                {!paid && <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px", color: "#16a34a", borderColor: "#bbf7d0" }} onClick={() => markPaid(p._id)}>Mark Paid</button>}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
 
       {/* ── Loans & Advances ── */}
       {tab === "loans" && (
-        <AdminPayrollLoans token={token} employees={employees} />
+        <ErrorBoundary label="Loans & Advances" resetKey="loans">
+          <AdminPayrollLoans token={token} employees={employees} />
+        </ErrorBoundary>
       )}
 
       {/* ── Salary Edit Modal ── */}
