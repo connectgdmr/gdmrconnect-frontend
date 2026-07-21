@@ -5,7 +5,9 @@ import {
 } from "react-icons/fa";
 import { SkeletonTable, SkeletonStats } from "./Skeleton";
 
-import { API_URL as BASE } from "../api";
+import AdminPayrollLoans from "./AdminPayrollLoans";
+
+const BASE = "/api";
 
 const EARNINGS = [
   { key: "basic",            label: "Basic" },
@@ -193,6 +195,7 @@ export default function AdminPayroll({ token, employees = [] }) {
     { key: "setup",    label: "Salary Setup" },
     { key: "run",      label: "Run Payroll" },
     { key: "payslips", label: "Payslips" },
+    { key: "loans",    label: "Loans & Advances" },
   ];
   const tabBtn = (key, label) => (
     <button key={key} onClick={() => setTab(key)} style={{
@@ -371,6 +374,11 @@ export default function AdminPayroll({ token, employees = [] }) {
         </div>
       )}
 
+      {/* ── Loans & Advances ── */}
+      {tab === "loans" && (
+        <AdminPayrollLoans token={token} employees={employees} />
+      )}
+
       {/* ── Salary Edit Modal ── */}
       {editEmp && (
         <div className="modal-overlay" onClick={() => setEditEmp(null)}>
@@ -521,10 +529,13 @@ export default function AdminPayroll({ token, employees = [] }) {
 
 // ── Shared printable payslip modal ──────────────────────────────────────────
 export function PayslipModal({ slip, onClose, monthLabel }) {
-  const gross  = slip.gross  ?? grossOf(slip);
-  const ded    = slip.total_deductions ?? dedOf(slip);
-  const bonus  = Number(slip.bonus) || 0;
-  const net    = slip.net ?? netOf(slip);
+  const gross    = slip.gross  ?? grossOf(slip);
+  const loanEmi  = Number(slip.loan_emi) || 0;
+  const advRec   = Number(slip.advance_recovery) || 0;
+  const baseDed  = slip.total_deductions ?? dedOf(slip);
+  const ded      = baseDed + loanEmi + advRec;
+  const bonus    = Number(slip.bonus) || 0;
+  const net      = slip.net ?? (gross + bonus - ded);
   const period = slip.period || monthLabel || "";
 
   const TD = ({ children, style = {} }) => (
@@ -534,12 +545,10 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
   const printSlip = () => {
     const w = window.open("", "_blank", "width=800,height=1000");
     if (!w) return;
-    const earnRows = EARNINGS.map(f =>
-      `<tr><td class="lbl">${f.label}</td><td class="val">${fmt2(slip[f.key])}</td></tr>`
-    ).join("");
-    const dedRows = DEDUCTIONS.map(f =>
-      `<tr><td class="lbl">${f.label}</td><td class="val">${fmt2(slip[f.key])}</td></tr>`
-    ).join("");
+    const extraDedRows = [
+      loanEmi > 0 ? `<tr><td></td><td></td><td class="lbl">Loan EMI</td><td class="val">${fmt2(loanEmi)}</td></tr>` : "",
+      advRec  > 0 ? `<tr><td></td><td></td><td class="lbl">Advance Recovery</td><td class="val">${fmt2(advRec)}</td></tr>` : "",
+    ].join("");
     w.document.write(`<!DOCTYPE html><html><head><title>Payslip - ${slip.employee_name || ""}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
@@ -568,6 +577,7 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
   <thead><tr><th class="hdr" colspan="2">Earnings</th><th class="hdr" colspan="2">Deduction</th></tr></thead>
   <tbody>
     ${EARNINGS.map((e, i) => { const d = DEDUCTIONS[i]; return `<tr><td class="lbl">${e.label}</td><td class="val">${fmt2(slip[e.key])}</td>${d ? `<td class="lbl">${d.label}</td><td class="val">${fmt2(slip[d.key])}</td>` : "<td></td><td></td>"}</tr>`; }).join("")}
+    ${extraDedRows}
     <tr class="tot"><td>Gross Salary:</td><td class="val">${fmt2(gross)}</td><td>Total Deductions:</td><td class="val">${Math.round(ded)}</td></tr>
     <tr><td>Bonus</td><td class="val">${fmt2(bonus)}</td><td></td><td></td></tr>
     <tr class="net"><td colspan="4">Net Salary: &nbsp;&nbsp;${fmt2(net)}</td></tr>
@@ -652,6 +662,21 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
                 </tr>
               );
             })}
+            {/* Extra loan/advance rows if any */}
+            {loanEmi > 0 && (
+              <tr>
+                <TD style={cellStyle}></TD><TD style={cellStyle}></TD>
+                <TD style={{ ...cellStyle, color: "#b45309" }}>Loan EMI</TD>
+                <TD style={{ ...cellStyle, textAlign: "right", color: "#b45309" }}>{fmt2(loanEmi)}</TD>
+              </tr>
+            )}
+            {advRec > 0 && (
+              <tr>
+                <TD style={cellStyle}></TD><TD style={cellStyle}></TD>
+                <TD style={{ ...cellStyle, color: "#1d4ed8" }}>Advance Recovery</TD>
+                <TD style={{ ...cellStyle, textAlign: "right", color: "#1d4ed8" }}>{fmt2(advRec)}</TD>
+              </tr>
+            )}
             {/* Gross / Total row */}
             <tr>
               <TD style={{ ...cellStyle, fontWeight: 700 }}>Gross Salary:</TD>
