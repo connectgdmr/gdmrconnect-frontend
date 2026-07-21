@@ -193,7 +193,9 @@ export default function AdminPayroll({ token, employees = [] }) {
     : payslips;
 
   const filteredSalaries = salaries.filter(s =>
-    !search || (s.employee_name || "").toLowerCase().includes(search.toLowerCase()) || (s.department || "").toLowerCase().includes(search.toLowerCase())
+    !search ||
+    String(s.employee_name || "").toLowerCase().includes(search.toLowerCase()) ||
+    String(s.department   || "").toLowerCase().includes(search.toLowerCase())
   );
 
   const TABS = [
@@ -261,7 +263,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                     return (
                       <tr key={row.employee_id || row._id}>
                         <td style={{ fontWeight: 600 }}>{row.employee_name}</td>
-                        <td style={{ fontSize: 13, color: "#64748b" }}>{row.department || "—"}</td>
+                        <td style={{ fontSize: 13, color: "#64748b" }}>{String(row.department || "") || "—"}</td>
                         <td>{configured ? inr(grossOf(row.salary)) : <span style={{ color: "#94a3b8", fontSize: 12 }}>Not set</span>}</td>
                         <td style={{ fontWeight: 700, color: configured ? "#16a34a" : "#94a3b8" }}>{configured ? inr(netOf(row.salary)) : "—"}</td>
                         <td>
@@ -359,7 +361,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                       return (
                         <tr key={String(p._id || p.employee_id || Math.random())}>
                           <td style={{ fontWeight: 600 }}>{String(p.employee_name || "")}</td>
-                          <td style={{ fontSize: 13, color: "#64748b" }}>{p.department || "—"}</td>
+                          <td style={{ fontSize: 13, color: "#64748b" }}>{String(p.department || "") || "—"}</td>
                           <td>{inr(p.gross ?? grossOf(p))}</td>
                           <td style={{ color: "#dc2626" }}>−{inr(p.total_deductions ?? dedOf(p))}</td>
                           <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(p.net ?? netOf(p))}</td>
