@@ -1,12 +1,11 @@
-﻿import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect, lazy, Suspense } from "react";
 import {
   FaMoneyBillWave, FaEdit, FaTimes, FaPlay, FaCheckCircle,
   FaSearch, FaFileInvoiceDollar, FaPrint, FaRupeeSign, FaClock, FaHistory,
 } from "react-icons/fa";
 import { SkeletonTable, SkeletonStats } from "./Skeleton";
 
-import AdminPayrollLoans from "./AdminPayrollLoans";
-import ErrorBoundary from "./ErrorBoundary";
+const AdminPayrollLoans = lazy(() => import("./AdminPayrollLoans"));
 
 const BASE = "/api";
 
@@ -189,6 +188,10 @@ export default function AdminPayroll({ token, employees = [] }) {
   const configuredCount = salaries.filter(s => s.salary && grossOf(s.salary) > 0).length;
   const monthlyOutlay   = salaries.reduce((sum, s) => sum + (s.salary ? netOf(s.salary) : 0), 0);
 
+  const filteredSlips = slipSearch
+    ? payslips.filter(p => (String(p.employee_name || "")).toLowerCase().includes(slipSearch.toLowerCase()))
+    : payslips;
+
   const filteredSalaries = salaries.filter(s =>
     !search || (s.employee_name || "").toLowerCase().includes(search.toLowerCase()) || (s.department || "").toLowerCase().includes(search.toLowerCase())
   );
@@ -343,56 +346,51 @@ export default function AdminPayroll({ token, employees = [] }) {
               <FaFileInvoiceDollar size={38} style={{ opacity: 0.2, marginBottom: 12 }} />
               <p style={{ margin: 0 }}>No payslips generated for {MONTHS[slipMonth]} {slipYear}.</p>
             </div>
-          ) : (() => {
-            const filteredSlips = slipSearch
-              ? payslips.filter(p => (String(p.employee_name || "")).toLowerCase().includes(slipSearch.toLowerCase()))
-              : payslips;
-            return (
-              <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-                <div style={{ overflowX: "auto" }}>
-                  <table className="styled-table-global">
-                    <thead><tr><th>Employee</th><th>Department</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody>
-                      {filteredSlips.length === 0 ? (
-                        <tr><td colSpan="7" style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>No payslips match "{slipSearch}".</td></tr>
-                      ) : filteredSlips.map(p => {
-                        const paid = (String(p.status || "")).toLowerCase() === "paid";
-                        return (
-                          <tr key={String(p._id || p.employee_id || Math.random())}>
-                            <td style={{ fontWeight: 600 }}>{String(p.employee_name || "")}</td>
-                            <td style={{ fontSize: 13, color: "#64748b" }}>{p.department || "—"}</td>
-                            <td>{inr(p.gross ?? grossOf(p))}</td>
-                            <td style={{ color: "#dc2626" }}>−{inr(p.total_deductions ?? dedOf(p))}</td>
-                            <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(p.net ?? netOf(p))}</td>
-                            <td>
-                              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
-                                color: paid ? "#16a34a" : "#d97706", background: paid ? "#f0fdf4" : "#fffbeb", border: `1px solid ${paid ? "#bbf7d0" : "#fde68a"}` }}>
-                                {p.status || "Pending"}
-                              </span>
-                            </td>
-                            <td>
-                              <div style={{ display: "flex", gap: 6 }}>
-                                <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => setViewSlip(p)}>View</button>
-                                {!paid && <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px", color: "#16a34a", borderColor: "#bbf7d0" }} onClick={() => markPaid(p._id)}>Mark Paid</button>}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+          ) : (
+            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+              <div style={{ overflowX: "auto" }}>
+                <table className="styled-table-global">
+                  <thead><tr><th>Employee</th><th>Department</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th></tr></thead>
+                  <tbody>
+                    {filteredSlips.length === 0 ? (
+                      <tr><td colSpan="7" style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>No payslips match "{slipSearch}".</td></tr>
+                    ) : filteredSlips.map(p => {
+                      const paid = (String(p.status || "")).toLowerCase() === "paid";
+                      return (
+                        <tr key={String(p._id || p.employee_id || Math.random())}>
+                          <td style={{ fontWeight: 600 }}>{String(p.employee_name || "")}</td>
+                          <td style={{ fontSize: 13, color: "#64748b" }}>{p.department || "—"}</td>
+                          <td>{inr(p.gross ?? grossOf(p))}</td>
+                          <td style={{ color: "#dc2626" }}>−{inr(p.total_deductions ?? dedOf(p))}</td>
+                          <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(p.net ?? netOf(p))}</td>
+                          <td>
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
+                              color: paid ? "#16a34a" : "#d97706", background: paid ? "#f0fdf4" : "#fffbeb", border: `1px solid ${paid ? "#bbf7d0" : "#fde68a"}` }}>
+                              {p.status || "Pending"}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => setViewSlip(p)}>View</button>
+                              {!paid && <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px", color: "#16a34a", borderColor: "#bbf7d0" }} onClick={() => markPaid(p._id)}>Mark Paid</button>}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            );
-          })()}
+            </div>
+          )}
         </div>
       )}
 
       {/* ── Loans & Advances ── */}
       {tab === "loans" && (
-        <ErrorBoundary label="Loans & Advances" resetKey="loans">
+        <Suspense fallback={<div style={{ marginTop: 16 }}><SkeletonTable rows={5} cols={8} /></div>}>
           <AdminPayrollLoans token={token} employees={employees} />
-        </ErrorBoundary>
+        </Suspense>
       )}
 
       {/* ── Salary Edit Modal ── */}
