@@ -66,6 +66,20 @@ export function getPasswordStrength(password = "") {
 export const PASSWORD_RULES = PW_RULES;
 
 /**
+ * Escape a value for safe interpolation into an HTML string (e.g. document.write).
+ * Converts &, <, >, ", ' to their HTML entity equivalents so no injected markup
+ * can execute when the string is written into a DOM document directly.
+ */
+export function escHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
+/**
  * Safely resolve an attachment URL from the backend.
  * Absolute http/https URLs are returned as-is; relative paths are prefixed
  * with baseUrl. Returns null for any other scheme (e.g. javascript:) so the

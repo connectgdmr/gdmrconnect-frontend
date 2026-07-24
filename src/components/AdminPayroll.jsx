@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, lazy, Suspense } from "react";
+import { escHtml } from "../utils/security";
 import {
   FaMoneyBillWave, FaEdit, FaTimes, FaPlay, FaCheckCircle,
   FaSearch, FaFileInvoiceDollar, FaPrint, FaRupeeSign, FaClock, FaHistory,
@@ -565,7 +566,7 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
       loanEmi > 0 ? `<tr><td></td><td></td><td class="lbl">Loan EMI</td><td class="val">${fmt2(loanEmi)}</td></tr>` : "",
       advRec  > 0 ? `<tr><td></td><td></td><td class="lbl">Advance Recovery</td><td class="val">${fmt2(advRec)}</td></tr>` : "",
     ].join("");
-    w.document.write(`<!DOCTYPE html><html><head><title>Payslip - ${slip.employee_name || ""}</title>
+    w.document.write(`<!DOCTYPE html><html><head><title>Payslip - ${escHtml(slip.employee_name || "")}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Arial,sans-serif;padding:36px 40px;color:#0f172a;font-size:12.5px}
@@ -583,11 +584,11 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
   .foot{margin-top:40px;display:flex;justify-content:space-between;font-size:11px;color:#64748b}
 </style></head><body>
 <h1>GDMR CONNECT — SALARY SLIP</h1>
-<div class="ref">${period}</div>
+<div class="ref">${escHtml(period)}</div>
 <table style="margin:10px 0">
-  <tr><td class="lbl">Employee Name:</td><td>${slip.employee_name || ""}</td><td class="lbl">Employee Code:</td><td>${slip.employee_code || ""}</td></tr>
-  <tr><td class="lbl">Designation:</td><td>${slip.designation || ""}</td><td class="lbl">Grade &amp; Profile:</td><td>${slip.grade_profile || ""}</td></tr>
-  <tr><td class="lbl">Total days of work</td><td>${slip.days_worked ?? ""}</td><td class="lbl">Salary Period:</td><td>${period}</td></tr>
+  <tr><td class="lbl">Employee Name:</td><td>${escHtml(slip.employee_name || "")}</td><td class="lbl">Employee Code:</td><td>${escHtml(slip.employee_code || "")}</td></tr>
+  <tr><td class="lbl">Designation:</td><td>${escHtml(slip.designation || "")}</td><td class="lbl">Grade &amp; Profile:</td><td>${escHtml(slip.grade_profile || "")}</td></tr>
+  <tr><td class="lbl">Total days of work</td><td>${escHtml(slip.days_worked ?? "")}</td><td class="lbl">Salary Period:</td><td>${escHtml(period)}</td></tr>
 </table>
 <table style="margin-bottom:0">
   <thead><tr><th class="hdr" colspan="2">Earnings</th><th class="hdr" colspan="2">Deduction</th></tr></thead>
@@ -601,9 +602,9 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
 </table>
 <div class="words">In Words: &nbsp;&nbsp;${numberToWords(net)} Rupees Only</div>
 <table class="bank-tbl" style="margin-top:8px">
-  <tr><td style="font-weight:600;width:30%">Bank Detail</td><td>${slip.bank_detail || ""}</td></tr>
-  <tr><td style="font-weight:600">Transaction Detail</td><td style="color:#16a34a">${slip.transaction_detail || "Complete"}</td></tr>
-  <tr><td style="font-weight:600">Date:</td><td>${slip.transaction_date || ""}</td></tr>
+  <tr><td style="font-weight:600;width:30%">Bank Detail</td><td>${escHtml(slip.bank_detail || "")}</td></tr>
+  <tr><td style="font-weight:600">Transaction Detail</td><td style="color:#16a34a">${escHtml(slip.transaction_detail || "Complete")}</td></tr>
+  <tr><td style="font-weight:600">Date:</td><td>${escHtml(slip.transaction_date || "")}</td></tr>
 </table>
 <div class="foot"><span>This is a computer-generated payslip.</span><span>GDMR Connect</span></div>
 </body></html>`);

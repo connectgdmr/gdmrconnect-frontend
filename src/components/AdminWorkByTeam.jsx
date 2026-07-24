@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
+import { escHtml } from "../utils/security";
 import {
   FaUsers, FaTasks, FaCheckCircle, FaHourglassHalf, FaSearch, FaFilter,
   FaFileCsv, FaFileExcel, FaFilePdf, FaRegCommentDots, FaChevronDown, FaChevronRight, FaTimes,
@@ -79,7 +80,7 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
   function exportPDF() {
     const w = window.open("", "_blank", "width=900,height=700"); if (!w) return;
     const rows = exportRows();
-    const body = rows.slice(1).map(r => `<tr>${r.map(c => `<td style="padding:6px 10px;border-bottom:1px solid #eee;font-size:12px">${c}</td>`).join("")}</tr>`).join("");
+    const body = rows.slice(1).map(r => `<tr>${r.map(c => `<td style="padding:6px 10px;border-bottom:1px solid #eee;font-size:12px">${escHtml(c)}</td>`).join("")}</tr>`).join("");
     w.document.write(`<html><head><title>Work Plans ${date}</title></head><body style="font-family:Arial">
       <h2 style="color:#34a06a">GDMR Connect — Work Plans (${date})</h2>
       <table style="width:100%;border-collapse:collapse"><thead><tr>${rows[0].map(h => `<th style="text-align:left;padding:8px 10px;border-bottom:2px solid #34a06a;font-size:11px;text-transform:uppercase;color:#475569">${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>
