@@ -109,7 +109,13 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
    * Stores the profile details of employees assigned to this manager 
    */
   const [teamMembers, setTeamMembers] = useState([]);
-  
+
+  /**
+   * Company-wide employee list, loaded on demand for HR/Accounts managers'
+   * Payroll tab (Salary Setup + Loans & Advances need every employee, not just this manager's team).
+   */
+  const [payrollEmployees, setPayrollEmployees] = useState([]);
+
   /** 
    * Stores the leave requests submitted by the team members 
    */
@@ -383,6 +389,17 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   useEffect(() => {
     if (view === "pms-calibration") fetchCalibration(calibrationMonth);
   }, [view, calibrationMonth]);
+
+  useEffect(() => {
+    if (view !== "payroll" || payrollEmployees.length || !api?.listEmployees) return;
+    const depts = Array.isArray(user?.department) ? user.department : (user?.department ? [user.department] : []);
+    const hasPayrollAccess = depts.some(d => {
+      const lower = (d || "").toLowerCase();
+      return lower.includes("account") || lower.includes("hr") || lower.includes("human resource");
+    });
+    if (!hasPayrollAccess) return;
+    api.listEmployees(token).then(list => { if (Array.isArray(list)) setPayrollEmployees(list); }).catch(() => {});
+  }, [view, user, api, token, payrollEmployees.length]);
 
   useEffect(() => {
     const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
@@ -2249,7 +2266,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             const lower = (d || "").toLowerCase();
             return lower.includes("account") || lower.includes("hr") || lower.includes("human resource");
           });
-          return hasPayrollAccess ? <AdminPayroll token={token} /> : <EmployeePayroll token={token} />;
+          return hasPayrollAccess ? <AdminPayroll token={token} employees={payrollEmployees} /> : <EmployeePayroll token={token} />;
         })()}
       </ErrorBoundary>}
 
