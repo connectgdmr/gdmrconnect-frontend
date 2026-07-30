@@ -126,6 +126,7 @@ export default {
 
   registerAdmin: (payload, token) => request("/register-admin", "POST", payload, token),
   registerManager: (payload, token) => request("/register-manager", "POST", payload, token),
+  getAdmins: (token) => request("/admin/admins", "GET", null, token),
 
   // Employees
   addEmployee: (payload, token) => request("/admin/employees", "POST", payload, token),

@@ -7,6 +7,7 @@ import Sidebar from "./Sidebar";
 const Chat                   = lazy(() => import("./Chat"));
 const EmployeeForm           = lazy(() => import("./EmployeeForm"));
 const EmployeeList           = lazy(() => import("./EmployeeList"));
+const RegisterAdmin          = lazy(() => import("./RegisterAdmin"));
 const AdminLeavePage         = lazy(() => import("./AdminLeavePage"));
 const AdminAttendancePage    = lazy(() => import("./AdminAttendancePage"));
 const RegisterManager        = lazy(() => import("./RegisterManager"));
@@ -970,9 +971,12 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           <div className="card admin-buttons" style={{ marginTop: "12px" }}>
             <button className={`btn ${subView === "list" ? "" : "ghost"}`} onClick={() => setSubView("list")}>Employee List</button>
             <button className={`btn ${subView === "add" ? "" : "ghost"}`} onClick={() => setSubView("add")}>Add New Employee</button>
+            <button className={`btn ${subView === "add-admin" ? "" : "ghost"}`} onClick={() => setSubView("add-admin")}>Add Admin</button>
           </div>
           <div style={{ marginTop: "16px" }}>
-            {subView === "add" ? (
+            {subView === "add-admin" ? (
+              <RegisterAdmin api={api} token={token} />
+            ) : subView === "add" ? (
               <EmployeeForm onAdd={addEmployee} api={api} token={token} departments={departments} />
             ) : loading ? (
               <SkeletonTable rows={8} cols={5} />
