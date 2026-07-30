@@ -975,7 +975,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           </div>
           <div style={{ marginTop: "16px" }}>
             {subView === "add-admin" ? (
-              <RegisterAdmin api={api} token={token} />
+              <RegisterAdmin api={api} token={token} user={user} />
             ) : subView === "add" ? (
               <EmployeeForm onAdd={addEmployee} api={api} token={token} departments={departments} />
             ) : loading ? (

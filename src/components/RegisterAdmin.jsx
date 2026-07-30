@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { FaUserShield } from "react-icons/fa";
+import { FaUserShield, FaTrash } from "react-icons/fa";
 
 const MAX_ADMINS = 3;
 
-export default function RegisterAdmin({ token, api }) {
+export default function RegisterAdmin({ token, api, user }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -13,6 +13,7 @@ export default function RegisterAdmin({ token, api }) {
 
   const [admins, setAdmins] = useState(null); // null = unknown (endpoint unavailable), [] = known empty
   const [adminsLoading, setAdminsLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
 
   async function loadAdmins() {
     setAdminsLoading(true);
@@ -27,6 +28,19 @@ export default function RegisterAdmin({ token, api }) {
   }
 
   useEffect(() => { loadAdmins(); }, []);
+
+  async function deleteAdmin(a) {
+    if (!window.confirm(`Delete admin "${a.name}" (${a.email})? This cannot be undone.`)) return;
+    setDeletingId(a._id);
+    try {
+      await api.deleteAdmin(a._id, token);
+      loadAdmins();
+    } catch (err) {
+      setMsg({ text: err?.message || "Failed to delete admin.", type: "error" });
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const knownCount = Array.isArray(admins) ? admins.length : null;
   const limitReached = knownCount !== null && knownCount >= MAX_ADMINS;
@@ -111,14 +125,32 @@ export default function RegisterAdmin({ token, api }) {
         <>
           <h3 style={{ color: "var(--brand)", marginTop: 20 }}>Existing Admins</h3>
           <table className="leave-table">
-            <thead><tr><th>Name</th><th>Email</th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th style={{ textAlign: "center" }}>Action</th></tr></thead>
             <tbody>
-              {admins.map(a => (
-                <tr key={a._id || a.email}>
-                  <td>{a.name}</td>
-                  <td>{a.email}</td>
-                </tr>
-              ))}
+              {admins.map(a => {
+                const isSelf = user?.email && a.email && user.email.toLowerCase() === a.email.toLowerCase();
+                return (
+                  <tr key={a._id || a.email}>
+                    <td>{a.name}</td>
+                    <td>{a.email}</td>
+                    <td style={{ textAlign: "center" }}>
+                      <button
+                        className="icon-btn"
+                        onClick={() => deleteAdmin(a)}
+                        disabled={isSelf || deletingId === a._id}
+                        title={isSelf ? "You can't delete your own account" : "Delete admin"}
+                        style={{
+                          border: "none", background: "none", borderRadius: 4, padding: 6,
+                          cursor: isSelf ? "not-allowed" : "pointer",
+                          color: isSelf ? "#cbd5e1" : "#dc2626",
+                        }}
+                      >
+                        <FaTrash />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </>
