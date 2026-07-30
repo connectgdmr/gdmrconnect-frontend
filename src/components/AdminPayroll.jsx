@@ -367,12 +367,13 @@ export default function AdminPayroll({ token, employees = [] }) {
                       <tr><td colSpan="7" style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>No payslips match "{slipSearch}".</td></tr>
                     ) : filteredSlips.map(p => {
                       const paid = (String(p.status || "")).toLowerCase() === "paid";
+                      const totalDed = (p.total_deductions ?? dedOf(p)) + (Number(p.loan_emi) || 0) + (Number(p.advance_recovery) || 0);
                       return (
                         <tr key={String(p._id || p.employee_id || Math.random())}>
                           <td style={{ fontWeight: 600 }}>{String(p.employee_name || "")}</td>
                           <td style={{ fontSize: 13, color: "#64748b" }}>{String(p.department || "") || "—"}</td>
                           <td>{inr(p.gross ?? grossOf(p))}</td>
-                          <td style={{ color: "#dc2626" }}>−{inr(p.total_deductions ?? dedOf(p))}</td>
+                          <td style={{ color: "#dc2626" }}>−{inr(totalDed)}</td>
                           <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(p.net ?? netOf(p))}</td>
                           <td>
                             <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
