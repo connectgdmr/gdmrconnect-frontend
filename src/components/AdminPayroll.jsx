@@ -28,6 +28,13 @@ const DEDUCTIONS = [
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const INCREMENT_TYPES = ["New Hire", "Annual Increment", "Promotion", "Performance Bonus", "Correction", "Other"];
 
+function isOffboarded(emp) {
+  const lwd = emp?.resignation?.last_working_day;
+  if (!emp?.resignation?.notice_date || !lwd) return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return new Date(lwd) < today;
+}
+
 const inr = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const fmt2 = (n) => Number(n || 0).toFixed(2);
 const sumKeys = (obj, keys) => keys.reduce((s, k) => s + (Number(obj?.[k]) || 0), 0);
@@ -100,11 +107,12 @@ export default function AdminPayroll({ token, employees = [] }) {
     try {
       const r = await fetch(`${BASE}/admin/payroll/salaries`, { headers: { Authorization: `Bearer ${token}` } });
       let list = r.ok ? toArr(await r.json()) : [];
-      // Merge with employees prop so unconfigured staff still appear
+      // Merge with employees prop so unconfigured staff still appear (skip fully offboarded staff)
       if (employees.length) {
+        const activeEmployees = employees.filter(e => !isOffboarded(e));
         const byId = {};
         list.forEach(s => { byId[String(s.employee_id || s._id)] = s; });
-        list = employees.map(e => {
+        list = activeEmployees.map(e => {
           const existing = byId[String(e._id)];
           return existing || { employee_id: e._id, employee_name: e.name, department: e.department, salary: null };
         });

@@ -6,6 +6,13 @@ const FETCH_BASE = "/api";
 const inr = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const fmt = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
+function isOffboarded(emp) {
+  const lwd = emp?.resignation?.last_working_day;
+  if (!emp?.resignation?.notice_date || !lwd) return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return new Date(lwd) < today;
+}
+
 function IssueLoanModal({ token, employees, onClose, onSuccess }) {
   const [form, setForm] = useState({
     employee_id: "", type: "loan", amount: "",
@@ -73,7 +80,7 @@ function IssueLoanModal({ token, employees, onClose, onSuccess }) {
             <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 5 }}>Employee *</label>
             <select className="modern-input" style={{ margin: 0 }} value={form.employee_id} onChange={e => set("employee_id", e.target.value)} required>
               <option value="">Select employee…</option>
-              {employees.map(emp => <option key={emp._id} value={emp._id}>{emp.name}{emp.department ? ` — ${emp.department}` : ""}</option>)}
+              {employees.filter(emp => !isOffboarded(emp)).map(emp => <option key={emp._id} value={emp._id}>{emp.name}{emp.department ? ` — ${emp.department}` : ""}</option>)}
             </select>
           </div>
 
