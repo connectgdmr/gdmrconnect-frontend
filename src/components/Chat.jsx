@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   FaSearch, FaPaperPlane, FaHashtag, FaArrowLeft, FaPlus, FaTimes,
-  FaUsers, FaCommentDots, FaCheck, FaCircle, FaPen, FaTrash, FaEllipsisV, FaSignOutAlt
+  FaUsers, FaCommentDots, FaCheck, FaCircle, FaPen, FaTrash, FaEllipsisV, FaSignOutAlt, FaPhone
 } from "react-icons/fa";
 import { playNotifSound, showBrowserNotif, requestNotifPermission, prewarmAudio } from "../utils/notifications";
+import { useCall } from "./CallContext";
 
 /**
  * GDMR Connect — Team Chat (Slack-style messenger)
@@ -125,6 +126,7 @@ export default function Chat({ token, api, user }) {
   // Try every field the backend might use for the current user's ID
   const myId = user?._id || user?.id || user?.employee_id || user?.admin_id || user?.manager_id || user?.userId;
   const myIdStr = myId ? String(myId) : "";
+  const call = useCall();
 
   const [people, setPeople]             = useState([]);   // all users I can message
   const [conversations, setConvos]      = useState([]);   // dm + channel convos w/ unread
@@ -718,6 +720,17 @@ export default function Chat({ token, api, user }) {
                   )}
                 </div>
               </div>
+              {active.type === "dm" && (
+                <button
+                  className="gchat-menu-btn"
+                  title={`Call ${active.title}`}
+                  onClick={() => call?.startCall(active.peerId, active.title)}
+                  disabled={!call || call.status !== "idle"}
+                  style={{ color: "var(--brand)" }}
+                >
+                  <FaPhone size={14} />
+                </button>
+              )}
               <div className="gchat-menu-wrap">
                 <button className="gchat-menu-btn" title="Conversation options" onClick={() => setHeaderMenu(v => !v)}>
                   <FaEllipsisV size={15} />

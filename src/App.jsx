@@ -6,6 +6,8 @@ import TakeAssessment from "./components/TakeAssessment";
 import CandidateDocuments from "./components/CandidateDocuments";
 import api from "./api";
 import useChatNotifications from "./components/useChatNotifications";
+import { CallProvider } from "./components/CallContext";
+import CallOverlay from "./components/CallOverlay";
 
 const AdminDashboard    = lazy(() => import("./components/AdminDashboard"));
 const EmployeeDashboard = lazy(() => import("./components/EmployeeDashboard"));
@@ -111,14 +113,17 @@ export default function App() {
   if (!token) return <Login onLogin={handleLogin} api={api} />;
 
   return (
-    <Suspense fallback={<div className="loader-container"><div className="loader"></div></div>}>
-      {role === "admin" || role === "owner" ? (
-        <AdminDashboard token={token} api={api} user={user} onLogout={onLogout} />
-      ) : role === "manager" ? (
-        <ManagerDashboard token={token} api={api} user={user} onLogout={onLogout} />
-      ) : (
-        <EmployeeDashboard token={token} api={api} user={user} onLogout={onLogout} />
-      )}
-    </Suspense>
+    <CallProvider token={token} user={user}>
+      <Suspense fallback={<div className="loader-container"><div className="loader"></div></div>}>
+        {role === "admin" || role === "owner" ? (
+          <AdminDashboard token={token} api={api} user={user} onLogout={onLogout} />
+        ) : role === "manager" ? (
+          <ManagerDashboard token={token} api={api} user={user} onLogout={onLogout} />
+        ) : (
+          <EmployeeDashboard token={token} api={api} user={user} onLogout={onLogout} />
+        )}
+      </Suspense>
+      <CallOverlay />
+    </CallProvider>
   );
 }
