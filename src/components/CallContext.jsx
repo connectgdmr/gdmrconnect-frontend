@@ -17,6 +17,7 @@ import Peer from "peerjs";
  */
 
 const peerIdFor = (userId) => `gdmr-${String(userId)}`;
+const RING_TIMEOUT_MS = 30000;
 
 function buildIceServers() {
   const servers = [{ urls: "stun:stun.l.google.com:19302" }];
@@ -43,6 +44,7 @@ export function CallProvider({ token, user, children }) {
   const currentCallRef = useRef(null);
   const localStreamRef = useRef(null);
   const timerRef = useRef(null);
+  const ringTimeoutRef = useRef(null);
 
   // "idle" | "calling" | "ringing" | "connected"
   const [status, setStatus] = useState("idle");
@@ -50,15 +52,23 @@ export function CallProvider({ token, user, children }) {
   const [muted, setMuted] = useState(false);
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState("");
+  const [audioBlocked, setAudioBlocked] = useState(false);
 
   const cleanup = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (ringTimeoutRef.current) { clearTimeout(ringTimeoutRef.current); ringTimeoutRef.current = null; }
     if (currentCallRef.current) { try { currentCallRef.current.close(); } catch {} currentCallRef.current = null; }
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
     setStatus("idle");
     setPeerName("");
     setMuted(false);
     setDuration(0);
+    setAudioBlocked(false);
+  }, []);
+
+  const retryAudio = useCallback(() => {
+    const audioEl = document.getElementById("gdmr-call-remote-audio");
+    audioEl?.play().then(() => setAudioBlocked(false)).catch(() => {});
   }, []);
 
   const attachRemoteAudio = (stream) => {
@@ -70,17 +80,43 @@ export function CallProvider({ token, user, children }) {
       document.body.appendChild(audioEl);
     }
     audioEl.srcObject = stream;
+    // Browsers can silently block autoplay even for an <audio> tag — detect it
+    // so the UI can offer a manual "tap to enable audio" fallback.
+    audioEl.play().then(() => setAudioBlocked(false)).catch(() => setAudioBlocked(true));
   };
 
   const wireCallEvents = useCallback((call) => {
     currentCallRef.current = call;
+
+    // Give up if the other side never picks up / ICE never completes
+    if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+    ringTimeoutRef.current = setTimeout(() => {
+      setError("No answer — call ended.");
+      cleanup();
+    }, RING_TIMEOUT_MS);
+
     call.on("stream", (remoteStream) => {
+      if (ringTimeoutRef.current) { clearTimeout(ringTimeoutRef.current); ringTimeoutRef.current = null; }
       attachRemoteAudio(remoteStream);
       setStatus("connected");
       timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
     });
     call.on("close", cleanup);
     call.on("error", () => { setError("Call failed."); cleanup(); });
+
+    // Detect a stalled/failed ICE connection even if PeerJS itself never
+    // fires "error" for it (this is the common cause of silent, dead calls).
+    const watchIce = () => {
+      const pc = call.peerConnection;
+      if (!pc) { setTimeout(watchIce, 300); return; }
+      pc.addEventListener("iceconnectionstatechange", () => {
+        if (["failed", "disconnected"].includes(pc.iceConnectionState)) {
+          setError("Call connection lost or blocked by the network.");
+          cleanup();
+        }
+      });
+    };
+    watchIce();
   }, [cleanup]);
 
   // Open (or reopen) this user's Peer connection
@@ -100,8 +136,12 @@ export function CallProvider({ token, user, children }) {
     });
 
     peer.on("error", (err) => {
-      // "peer-unavailable" just means the target isn't online — surfaced via startCall's own timeout instead
-      if (err?.type !== "peer-unavailable") setError("Connection issue with the calling service.");
+      if (err?.type === "peer-unavailable") {
+        setError("That person isn't reachable right now.");
+        cleanup();
+      } else {
+        setError("Connection issue with the calling service.");
+      }
     });
 
     return () => { peer.destroy(); peerRef.current = null; };
@@ -155,7 +195,7 @@ export function CallProvider({ token, user, children }) {
   }, []);
 
   return (
-    <CallContext.Provider value={{ status, peerName, muted, duration, error, startCall, answerCall, declineCall, hangUp, toggleMute, clearError: () => setError("") }}>
+    <CallContext.Provider value={{ status, peerName, muted, duration, error, audioBlocked, startCall, answerCall, declineCall, hangUp, toggleMute, retryAudio, clearError: () => setError("") }}>
       {children}
     </CallContext.Provider>
   );

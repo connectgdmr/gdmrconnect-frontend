@@ -15,7 +15,7 @@ function initials(name) {
 export default function CallOverlay() {
   const call = useCall();
   if (!call) return null;
-  const { status, peerName, muted, duration, error, answerCall, declineCall, hangUp, toggleMute, clearError } = call;
+  const { status, peerName, muted, duration, error, audioBlocked, answerCall, declineCall, hangUp, toggleMute, retryAudio, clearError } = call;
 
   useEffect(() => {
     if (!error) return;
@@ -78,9 +78,17 @@ export default function CallOverlay() {
         }}>
           {avatar}
           <div style={{ fontWeight: 700, fontSize: 15, color: "#0f172a", marginBottom: 2 }}>{peerName}</div>
-          <div style={{ fontSize: 12.5, color: "#64748b", marginBottom: 18 }}>
+          <div style={{ fontSize: 12.5, color: "#64748b", marginBottom: status === "connected" && audioBlocked ? 8 : 18 }}>
             {status === "calling" ? "Calling…" : fmtDuration(duration)}
           </div>
+          {status === "connected" && audioBlocked && (
+            <button onClick={retryAudio} style={{
+              display: "block", margin: "0 auto 14px", border: "1px solid #fde68a", background: "#fffbeb",
+              color: "#b45309", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+            }}>
+              🔇 Tap to enable audio
+            </button>
+          )}
           <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
             <button onClick={toggleMute} title={muted ? "Unmute" : "Mute"} style={{
               width: 44, height: 44, borderRadius: "50%", border: "1px solid #e2e8f0", cursor: "pointer",
