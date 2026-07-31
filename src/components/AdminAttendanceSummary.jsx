@@ -343,8 +343,22 @@ const SEV_CONFIG = {
 };
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function formatMonthsLabel(months) {
+  if (!months.length) return "No months selected";
+  if (months.length === 1) {
+    const [y, m] = months[0].split("-");
+    return `${MONTH_SHORT[+m - 1]} ${y}`;
+  }
+  const sorted = [...months].sort();
+  return `${sorted.length} months (${MONTH_SHORT[+sorted[0].split("-")[1] - 1]} ${sorted[0].split("-")[0]} – ${MONTH_SHORT[+sorted[sorted.length - 1].split("-")[1] - 1]} ${sorted[sorted.length - 1].split("-")[0]})`;
+}
+
 export default function AdminAttendanceSummary({ token, api }) {
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [months, setMonths] = useState([new Date().toISOString().slice(0, 7)]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [idMap, setIdMap] = useState({});
@@ -358,13 +372,27 @@ export default function AdminAttendanceSummary({ token, api }) {
   const [journeyEmp, setJourneyEmp] = useState(null); // employee object to show in Journey modal
 
   async function load() {
+    if (!months.length) { setSummary({ days: {}, total_employees: 0 }); return; }
     setLoading(true);
-    try { const data = await api.getAttendanceSummary(month, token); setSummary(data); }
-    catch { /* silent */ }
+    try {
+      const results = await Promise.all(months.map(m => api.getAttendanceSummary(m, token).catch(() => null)));
+      const mergedDays = {};
+      let totalEmp = 0;
+      results.forEach(data => {
+        if (!data) return;
+        Object.assign(mergedDays, data.days || {});
+        if (typeof data.total_employees === "number") totalEmp = Math.max(totalEmp, data.total_employees);
+      });
+      setSummary({ days: mergedDays, total_employees: totalEmp });
+    } catch { /* silent */ }
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, [month]);
+  useEffect(() => { load(); }, [months.join(",")]);
+
+  function toggleMonth(m) {
+    setMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m].sort());
+  }
   useEffect(() => {
     // Load full employee list for Journey modal
     api.listEmployees(token)
@@ -414,16 +442,17 @@ export default function AdminAttendanceSummary({ token, api }) {
 
   function handleExport(fmt) {
     if (!summary) return;
+    const label = formatMonthsLabel(months);
     if (fmt === "csv") {
       const blob = new Blob([convertToCSV(summary, idMap)], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = `Attendance_${month}.csv`;
+      const a = document.createElement("a"); a.href = url; a.download = `Attendance_${months.join("_")}.csv`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } else {
       const w = window.open("", "", "height=700,width=900");
       if (!w) return;
-      w.document.write(buildPDFHtml(summary, month, idMap));
+      w.document.write(buildPDFHtml(summary, label, idMap));
       w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
     }
   }
@@ -488,7 +517,7 @@ export default function AdminAttendanceSummary({ token, api }) {
           emp={journeyEmp}
           allLeaves={allLeaves}
           monthAttendance={empMonthAtt(journeyEmp.name)}
-          month={month}
+          month={months[months.length - 1] || new Date().toISOString().slice(0, 7)}
           onClose={() => setJourneyEmp(null)}
           api={api}
           token={token}
@@ -499,12 +528,61 @@ export default function AdminAttendanceSummary({ token, api }) {
         <div>
           <h2 style={{ color: "var(--red)", margin: 0 }}>Attendance Reports</h2>
           <p className="small" style={{ margin: "4px 0 0", color: "var(--slate-500)" }}>
-            Monthly summary · Mon–Fri + last Saturday counted · Sundays excluded
+            {months.length > 1 ? "Multi-month summary" : "Monthly summary"} · Mon–Fri + last Saturday counted · Sundays excluded
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <input type="month" value={month} onChange={e => setMonth(e.target.value)}
-            className="modern-input" style={{ width: "auto", margin: 0, padding: "8px 12px", fontSize: 13 }} />
+          <div style={{ position: "relative" }}>
+            <button
+              type="button" onClick={() => { setPickerOpen(o => !o); if (months.length) setPickerYear(+months[months.length - 1].split("-")[0]); }}
+              className="modern-input"
+              style={{ width: "auto", margin: 0, padding: "8px 12px", fontSize: 13, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}
+            >
+              <FaCalendarAlt size={12} color="var(--slate-400)" />
+              {formatMonthsLabel(months)}
+            </button>
+
+            {pickerOpen && (
+              <>
+                <div onClick={() => setPickerOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 19 }} />
+                <div style={{
+                  position: "absolute", top: "110%", right: 0, zIndex: 20, width: 250,
+                  background: "#fff", border: "1px solid var(--slate-200)", borderRadius: 12,
+                  boxShadow: "0 10px 28px rgba(0,0,0,0.14)", padding: 14,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <button type="button" onClick={() => setPickerYear(y => y - 1)} style={{ border: "none", background: "none", cursor: "pointer", color: "var(--slate-500)", fontSize: 15, padding: 4 }}>‹</button>
+                    <span style={{ fontWeight: 700, fontSize: 13.5, color: "var(--slate-700)" }}>{pickerYear}</span>
+                    <button type="button" onClick={() => setPickerYear(y => y + 1)} style={{ border: "none", background: "none", cursor: "pointer", color: "var(--slate-500)", fontSize: 15, padding: 4 }}>›</button>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+                    {MONTH_SHORT.map((label, i) => {
+                      const key = `${pickerYear}-${String(i + 1).padStart(2, "0")}`;
+                      const selected = months.includes(key);
+                      return (
+                        <button
+                          key={key} type="button" onClick={() => toggleMonth(key)}
+                          style={{
+                            padding: "8px 0", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                            border: selected ? "1px solid var(--brand)" : "1px solid var(--slate-200)",
+                            background: selected ? "var(--brand)" : "#fff",
+                            color: selected ? "#fff" : "var(--slate-600)",
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--slate-100)" }}>
+                    <button type="button" onClick={() => setMonths([])} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "var(--slate-500)" }}>Clear</button>
+                    <span style={{ fontSize: 11.5, color: "var(--slate-400)" }}>{months.length} selected</span>
+                    <button type="button" onClick={() => setPickerOpen(false)} className="btn" style={{ padding: "4px 12px", fontSize: 12 }}>Done</button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
           <button onClick={() => handleExport("csv")} className="btn ghost" style={{ padding: "8px 14px", fontSize: 12.5 }}>
             <FaFileCsv /> CSV
           </button>
@@ -686,7 +764,7 @@ export default function AdminAttendanceSummary({ token, api }) {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 <FaChartLine size={13} color="var(--brand)" />
-                <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--slate-700)" }}>Daily Attendance Trend — {month}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--slate-700)" }}>Daily Attendance Trend — {formatMonthsLabel(months)}</span>
               </div>
               <div style={{ display: "flex", gap: 16, fontSize: 12, color: "var(--slate-500)" }}>
                 {[["Present", C_BRAND, "solid"], ["Absent", C_DANGER, "dashed"], ["On Leave", C_WARN, "dashed"]].map(([l, c, d]) => (
@@ -861,7 +939,7 @@ export default function AdminAttendanceSummary({ token, api }) {
           <div className="card" style={{ display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
             <GaugeChart score={score} size={150} />
             <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--slate-400)", marginBottom: 6 }}>Attendance Score — {month}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--slate-400)", marginBottom: 6 }}>Attendance Score — {formatMonthsLabel(months)}</div>
               <h3 style={{ color: "var(--red)", margin: "0 0 8px", fontSize: 18 }}>
                 {score >= 88 ? "Excellent — Keep it up" : score >= 72 ? "Good — Room to improve" : "Needs attention"}
               </h3>
