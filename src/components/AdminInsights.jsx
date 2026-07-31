@@ -232,8 +232,19 @@ function AnimatedBar({ pct, color }) {
   );
 }
 
+// Normalizes /admin/today-stats' by_department into [name, count] pairs.
+// Backend may return it as a plain map ({ dept: count }) or an array of
+// { department|name, count } objects — handle either shape.
+function normalizeByDepartment(byDept) {
+  if (!byDept) return [];
+  if (Array.isArray(byDept)) {
+    return byDept.map(d => [d.department || d.name || d._id || "Unassigned", Number(d.count ?? d.value ?? 0) || 0]);
+  }
+  return Object.entries(byDept).map(([name, count]) => [name, Number(count) || 0]);
+}
+
 // ─── Main Insights Component ──────────────────────────────────────────────────
-export default function AdminInsights({ stats, employees, api, token }) {
+export default function AdminInsights({ stats, api, token }) {
   const [chartData, setChartData] = useState([]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -276,18 +287,14 @@ export default function AdminInsights({ stats, employees, api, token }) {
   const todayTotal = todayStats.present + todayStats.leave + todayStats.absent + sn;
   const presentPct = todayTotal > 0 ? Math.round((todayStats.present / todayTotal) * 100) : 0;
 
-  // Department headcount
-  const deptMap = {};
-  employees.forEach((emp) => {
-    const d = emp.department || "Unassigned";
-    deptMap[d] = (deptMap[d] || 0) + 1;
-  });
-  const deptData = Object.entries(deptMap).sort((a, b) => b[1] - a[1]).slice(0, 7);
+  // Department headcount, workforce totals — sourced from today-stats so
+  // resigned/offboarded employees (already excluded server-side) never get counted.
+  const deptData = normalizeByDepartment(stats.by_department).sort((a, b) => b[1] - a[1]).slice(0, 7);
   const deptMax  = deptData.length > 0 ? deptData[0][1] : 1;
 
-  const managerCount  = employees.filter((e) => e.role === "manager").length;
-  const employeeCount = employees.filter((e) => e.role === "employee").length;
-  const totalStaff    = employees.length;
+  const managerCount  = stats.manager_count   ?? 0;
+  const employeeCount = stats.employee_count  ?? 0;
+  const totalStaff    = stats.total_workforce ?? 0;
 
   return (
     <div className="insights-grid">
