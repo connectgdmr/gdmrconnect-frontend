@@ -24,6 +24,11 @@ const DEDUCTIONS = [
   { key: "tds",              label: "TDS" },
   { key: "other_deductions", label: "Other Deductions" },
 ];
+// Only PF is part of the constant salary structure. ESI/LOP/TDS/Other Deductions
+// vary month to month and are set in the Run Payroll step instead, so they never
+// touch the structure record or show up as a fake "increment" in Salary History.
+const STRUCTURE_DEDUCTIONS = DEDUCTIONS.filter(d => d.key === "pf");
+const MONTHLY_DEDUCTIONS   = DEDUCTIONS.filter(d => d.key !== "pf");
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const INCREMENT_TYPES = ["New Hire", "Annual Increment", "Promotion", "Performance Bonus", "Correction", "Other"];
@@ -40,10 +45,11 @@ const fmt2 = (n) => Number(n || 0).toFixed(2);
 const sumKeys = (obj, keys) => keys.reduce((s, k) => s + (Number(obj?.[k]) || 0), 0);
 const grossOf = (s) => sumKeys(s, EARNINGS.map(e => e.key));
 const dedOf   = (s) => sumKeys(s, DEDUCTIONS.map(d => d.key));
+const structureDedOf = (s) => sumKeys(s, STRUCTURE_DEDUCTIONS.map(d => d.key));
 const netOf   = (s) => grossOf(s) + (Number(s?.bonus) || 0) - dedOf(s);
 
 const blankSalary = () => ({
-  ...Object.fromEntries([...EARNINGS, ...DEDUCTIONS].map(f => [f.key, ""])),
+  ...Object.fromEntries([...EARNINGS, ...STRUCTURE_DEDUCTIONS].map(f => [f.key, ""])),
   bonus: "",
   employee_code: "",
   effective_date: new Date().toISOString().slice(0, 10),
@@ -80,11 +86,18 @@ export default function AdminPayroll({ token, employees = [] }) {
   const [salaryForm, setSalaryForm] = useState(blankSalary());
   const [savingSalary, setSavingSalary] = useState(false);
 
-  // Run payroll
+  // Run payroll — per-employee monthly deductions (ESI/LOP/TDS/Other), entered
+  // fresh for each run. Keyed by employee id: { [id]: { esi, lop, tds, other_deductions } }
   const now = new Date();
   const [runMonth, setRunMonth] = useState(now.getMonth());
   const [runYear, setRunYear]   = useState(now.getFullYear());
   const [running, setRunning]   = useState(false);
+  const [runAdjustments, setRunAdjustments] = useState({});
+  const setRunAdjField = (id, key, value) =>
+    setRunAdjustments(a => ({ ...a, [id]: { ...a[id], [key]: value } }));
+
+  // Adjustments are month-specific — clear them when the selected month/year changes
+  useEffect(() => { setRunAdjustments({}); }, [runMonth, runYear]);
 
   // Payslips
   const [payslips, setPayslips]       = useState([]);
@@ -150,8 +163,12 @@ export default function AdminPayroll({ token, employees = [] }) {
   async function saveSalary(e) {
     e.preventDefault();
     setSavingSalary(true);
-    const numericKeys = [...EARNINGS, ...DEDUCTIONS].map(f => f.key);
+    const numericKeys = [...EARNINGS, ...STRUCTURE_DEDUCTIONS].map(f => f.key);
     const payload = {
+      // Monthly deductions (ESI/LOP/TDS/Other) are never part of the structure —
+      // force them to 0 here so an old, since-removed value can't linger on the
+      // record. They're set per run in the Run Payroll step instead.
+      ...Object.fromEntries(MONTHLY_DEDUCTIONS.map(d => [d.key, 0])),
       ...Object.fromEntries(numericKeys.map(k => [k, Number(salaryForm[k]) || 0])),
       bonus: Number(salaryForm.bonus) || 0,
       employee_code: salaryForm.employee_code || "",
@@ -174,12 +191,25 @@ export default function AdminPayroll({ token, employees = [] }) {
     if (!window.confirm(`Generate payslips for ${MONTHS[runMonth]} ${runYear}? This will create payslips for all employees with a configured salary.`)) return;
     setRunning(true);
     try {
+      const adjustments = salaries
+        .filter(s => s.salary && grossOf(s.salary) > 0)
+        .map(s => {
+          const id = s.employee_id || s._id;
+          const a = runAdjustments[id] || {};
+          return {
+            employee_id: id,
+            esi: Number(a.esi) || 0,
+            lop: Number(a.lop) || 0,
+            tds: Number(a.tds) || 0,
+            other_deductions: Number(a.other_deductions) || 0,
+          };
+        });
       const r = await fetch(`${BASE}/admin/payroll/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ month: runMonth + 1, year: runYear }),
+        body: JSON.stringify({ month: runMonth + 1, year: runYear, adjustments }),
       });
-      if (r.ok) { const d = await r.json().catch(() => ({})); flash(d.message || "Payslips generated successfully."); setTab("payslips"); setSlipMonth(runMonth); setSlipYear(runYear); }
+      if (r.ok) { const d = await r.json().catch(() => ({})); flash(d.message || "Payslips generated successfully."); setRunAdjustments({}); setTab("payslips"); setSlipMonth(runMonth); setSlipYear(runYear); }
       else { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to generate payslips.", "error"); }
     } catch { flash("Network error.", "error"); } finally { setRunning(false); }
   }
@@ -299,40 +329,100 @@ export default function AdminPayroll({ token, employees = [] }) {
       )}
 
       {/* ── Run Payroll ── */}
-      {tab === "run" && (
-        <div className="card" style={{ maxWidth: 560 }}>
-          <h4 style={{ margin: "0 0 6px", color: "#0f172a" }}>Run Monthly Payroll</h4>
-          <p style={{ margin: "0 0 20px", fontSize: 13, color: "#64748b" }}>
-            Generate payslips for every employee with a configured salary for the selected month.
-          </p>
-          <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Month</label>
-              <select className="modern-input" value={runMonth} onChange={e => setRunMonth(+e.target.value)}>
-                {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
-              </select>
+      {tab === "run" && (() => {
+        const runSalaries = salaries.filter(s => s.salary && grossOf(s.salary) > 0);
+        const netPreviewOf = (s) => {
+          const id = s.employee_id || s._id;
+          const a = runAdjustments[id] || {};
+          const monthlyDed = MONTHLY_DEDUCTIONS.reduce((sum, d) => sum + (Number(a[d.key]) || 0), 0);
+          return grossOf(s.salary) + (Number(s.salary.bonus) || 0) - structureDedOf(s.salary) - monthlyDed;
+        };
+        const estimatedPayout = runSalaries.reduce((sum, s) => sum + netPreviewOf(s), 0);
+
+        return (
+        <div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <h4 style={{ margin: "0 0 6px", color: "#0f172a" }}>Run Monthly Payroll</h4>
+            <p style={{ margin: "0 0 20px", fontSize: 13, color: "#64748b" }}>
+              Set this month's ESI, LOP, TDS and Other Deductions per employee, then generate payslips.
+              Base salary stays untouched — these values apply only to this run.
+            </p>
+            <div style={{ display: "flex", gap: 12, marginBottom: 20, maxWidth: 560 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Month</label>
+                <select className="modern-input" value={runMonth} onChange={e => setRunMonth(+e.target.value)}>
+                  {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Year</label>
+                <select className="modern-input" value={runYear} onChange={e => setRunYear(+e.target.value)}>
+                  {[now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Year</label>
-              <select className="modern-input" value={runYear} onChange={e => setRunYear(+e.target.value)}>
-                {[now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2].map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
+            <div style={{ background: "#f8fafc", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: "#475569", maxWidth: 560 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span>Employees with salary configured</span><span style={{ fontWeight: 700 }}>{runSalaries.length}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Estimated net payout</span><span style={{ fontWeight: 700, color: "var(--red)" }}>{inr(estimatedPayout)}</span>
+              </div>
             </div>
           </div>
-          <div style={{ background: "#f8fafc", borderRadius: 10, padding: "14px 16px", marginBottom: 20, fontSize: 13, color: "#475569" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <span>Employees with salary configured</span><span style={{ fontWeight: 700 }}>{configuredCount}</span>
+
+          {runSalaries.length === 0 ? (
+            <div className="card" style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8" }}>
+              No employees have a configured salary yet — set one up in Salary Setup first.
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Estimated net payout</span><span style={{ fontWeight: 700, color: "var(--red)" }}>{inr(monthlyOutlay)}</span>
+          ) : (
+            <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
+              <div style={{ overflowX: "auto" }}>
+                <table className="styled-table-global">
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      {MONTHLY_DEDUCTIONS.map(d => <th key={d.key}>{d.label}</th>)}
+                      <th>Net Preview</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runSalaries.map(row => {
+                      const id = row.employee_id || row._id;
+                      const a = runAdjustments[id] || {};
+                      return (
+                        <tr key={id}>
+                          <td style={{ fontWeight: 600 }}>
+                            {row.employee_name}
+                            <div style={{ fontSize: 11.5, color: "#94a3b8", fontWeight: 500 }}>{row.department || "—"}</div>
+                          </td>
+                          {MONTHLY_DEDUCTIONS.map(d => (
+                            <td key={d.key}>
+                              <input
+                                className="modern-input" type="number" min="0" step="0.01" placeholder="0"
+                                value={a[d.key] ?? ""}
+                                onChange={e => setRunAdjField(id, d.key, e.target.value)}
+                                style={{ margin: 0, width: 100 }}
+                              />
+                            </td>
+                          ))}
+                          <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(netPreviewOf(row))}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-          <button className="btn" onClick={runPayroll} disabled={running || configuredCount === 0}
-            style={{ width: "100%", justifyContent: "center", display: "flex", alignItems: "center", gap: 8 }}>
+          )}
+
+          <button className="btn" onClick={runPayroll} disabled={running || runSalaries.length === 0}
+            style={{ width: "100%", maxWidth: 560, justifyContent: "center", display: "flex", alignItems: "center", gap: 8 }}>
             <FaPlay size={11} /> {running ? "Generating…" : `Generate Payslips for ${MONTHS[runMonth]} ${runYear}`}
           </button>
         </div>
-      )}
+        );
+      })()}
 
       {/* ── Payslips ── */}
       {tab === "payslips" && (
@@ -453,7 +543,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                 </div>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Deductions</div>
-                  {DEDUCTIONS.map(f => (
+                  {STRUCTURE_DEDUCTIONS.map(f => (
                     <div key={f.key} style={{ marginBottom: 10 }}>
                       <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>{f.label}</label>
                       <div style={{ position: "relative" }}>
@@ -463,6 +553,10 @@ export default function AdminPayroll({ token, employees = [] }) {
                       </div>
                     </div>
                   ))}
+                  <p style={{ fontSize: 11, color: "#94a3b8", margin: "10px 0 0", lineHeight: 1.5 }}>
+                    ESI, LOP, TDS and Other Deductions vary every month — set them in
+                    <strong style={{ color: "#64748b" }}> Run Payroll</strong> instead, right before generating that month's payslips.
+                  </p>
                 </div>
               </div>
 
@@ -470,8 +564,8 @@ export default function AdminPayroll({ token, employees = [] }) {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, margin: "18px 0", padding: "14px 0", borderTop: "1px solid #f1f5f9", borderBottom: "1px solid #f1f5f9" }}>
                 <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: "#64748b" }}>Gross</div><div style={{ fontWeight: 800, color: "#0f172a" }}>{inr(grossOf(salaryForm))}</div></div>
                 <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: "#64748b" }}>Bonus</div><div style={{ fontWeight: 800, color: "#0f172a" }}>{inr(salaryForm.bonus)}</div></div>
-                <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: "#64748b" }}>Deductions</div><div style={{ fontWeight: 800, color: "#dc2626" }}>−{inr(dedOf(salaryForm))}</div></div>
-                <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: "#64748b" }}>Net Pay</div><div style={{ fontWeight: 800, color: "#16a34a" }}>{inr(netOf(salaryForm))}</div></div>
+                <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: "#64748b" }}>Deductions</div><div style={{ fontWeight: 800, color: "#dc2626" }}>−{inr(structureDedOf(salaryForm))}</div></div>
+                <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, color: "#64748b" }}>Net Pay</div><div style={{ fontWeight: 800, color: "#16a34a" }}>{inr(grossOf(salaryForm) + (Number(salaryForm.bonus) || 0) - structureDedOf(salaryForm))}</div></div>
               </div>
 
               {/* Increment details */}
