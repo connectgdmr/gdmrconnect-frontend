@@ -128,6 +128,7 @@ export default {
   registerManager: (payload, token) => request("/register-manager", "POST", payload, token),
   getAdmins: (token) => request("/admin/admins", "GET", null, token),
   deleteAdmin: (id, token) => request(`/admin/admins/${id}`, "DELETE", null, token),
+  getPayrollSalaries: (token) => request("/admin/payroll/salaries", "GET", null, token),
 
   // Employees
   addEmployee: (payload, token) => request("/admin/employees", "POST", payload, token),

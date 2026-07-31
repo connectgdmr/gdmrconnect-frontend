@@ -348,6 +348,7 @@ export default function AdminAttendanceSummary({ token, api }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [idMap, setIdMap] = useState({});
+  const [codeMap, setCodeMap] = useState({});        // employee name -> employee code (from Payroll)
   const [employees, setEmployees] = useState([]);   // full employee objects for Journey modal
   const [allLeaves, setAllLeaves] = useState([]);   // all leave apps for Journey modal
   const [activeTab, setActiveTab] = useState("overview");
@@ -379,6 +380,15 @@ export default function AdminAttendanceSummary({ token, api }) {
     api.adminLeaves(token)
       .then(data => setAllLeaves(Array.isArray(data) ? data : data?.leaves || []))
       .catch(() => {});
+    // Load employee codes from Payroll (only place employee codes are stored)
+    api.getPayrollSalaries?.(token)
+      .then(list => {
+        const arr = Array.isArray(list) ? list : (list?.salaries || list?.data || []);
+        const m = {};
+        arr.forEach(s => { if (s?.employee_name && s?.employee_code) m[s.employee_name] = s.employee_code; });
+        setCodeMap(m);
+      })
+      .catch(() => {});
   }, [token]);
 
   const entries = useMemo(() => summary ? visibleDayEntries(summary) : [], [summary]);
@@ -393,7 +403,7 @@ export default function AdminAttendanceSummary({ token, api }) {
     if (empFilter === "critical") result = result.filter(e => e.risk === "critical");
     else if (empFilter === "warning") result = result.filter(e => e.risk === "warning");
     else if (empFilter === "good") result = result.filter(e => e.risk === "good");
-    else if (empFilter === "perfect") result = result.filter(e => e.absent === 0 && e.nci === 0);
+    else if (empFilter === "perfect") result = result.filter(e => e.absent === 0 && e.nci === 0 && e.present > 0);
     if (empSearch) result = result.filter(e => e.name.toLowerCase().includes(empSearch.toLowerCase()));
     if (empSort === "rate") result.sort((a, b) => b.rate - a.rate);
     else if (empSort === "absent") result.sort((a, b) => b.absent - a.absent);
@@ -454,9 +464,9 @@ export default function AdminAttendanceSummary({ token, api }) {
   ];
 
   const riskBadge = (e) => {
-    if (e.absent === 0 && e.nci === 0) return { label: "Perfect",  cls: "approved" };
+    if (e.absent === 0 && e.nci === 0 && e.present > 0) return { label: "Perfect",  cls: "approved" };
     if (e.risk === "critical")          return { label: "Critical", cls: "rejected" };
-    if (e.risk === "warning")           return { label: "At Risk",  cls: "pending"  };
+    if (e.risk === "warning" || e.risk === "low") return { label: "At Risk", cls: "pending" };
     return { label: "Good", cls: "" };
   };
 
@@ -784,7 +794,7 @@ export default function AdminAttendanceSummary({ token, api }) {
                 <table className="styled-table">
                   <thead>
                     <tr>
-                      <th>#</th><th>Employee</th>
+                      <th>Employee Code</th><th>Employee</th>
                       <th style={{ color: C_BRAND }}>Present</th>
                       <th style={{ color: C_DANGER }}>Absent</th>
                       <th style={{ color: C_WARN }}>Leave</th>
@@ -805,7 +815,7 @@ export default function AdminAttendanceSummary({ token, api }) {
                           style={{ cursor: "pointer" }}
                           title="Click to view employee journey"
                         >
-                          <td style={{ color: "var(--slate-400)", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{i + 1}</td>
+                          <td style={{ color: "var(--slate-400)", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{codeMap[e.name] || "—"}</td>
                           <td>
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                               <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#334155,#1e293b)", color: "#fff", fontWeight: 700, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
