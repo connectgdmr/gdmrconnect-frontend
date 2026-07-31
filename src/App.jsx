@@ -113,7 +113,7 @@ export default function App() {
   if (!token) return <Login onLogin={handleLogin} api={api} />;
 
   return (
-    <CallProvider token={token} user={user}>
+    <CallProvider token={token} api={api} user={user}>
       <Suspense fallback={<div className="loader-container"><div className="loader"></div></div>}>
         {role === "admin" || role === "owner" ? (
           <AdminDashboard token={token} api={api} user={user} onLogout={onLogout} />

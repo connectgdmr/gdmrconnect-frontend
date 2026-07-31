@@ -4,7 +4,7 @@ import {
   FaUsers, FaCommentDots, FaCheck, FaCircle, FaPen, FaTrash, FaEllipsisV, FaSignOutAlt, FaPhone
 } from "react-icons/fa";
 import { playNotifSound, showBrowserNotif, requestNotifPermission, prewarmAudio } from "../utils/notifications";
-import { useCall } from "./CallContext";
+import { useCall, CALL_LOG_PREFIX } from "./CallContext";
 
 /**
  * GDMR Connect — Team Chat (Slack-style messenger)
@@ -544,6 +544,21 @@ export default function Chat({ token, api, user }) {
       const ts = toDate(m.created_at).getTime();
       const grouped = !showDay && sid === lastSender && (ts - lastTs) < 5 * 60 * 1000;
       lastSender = sid; lastTs = ts;
+
+      if (m.text && m.text.startsWith(CALL_LOG_PREFIX)) {
+        lastSender = null; // next real message shows its avatar/sender again
+        return (
+          <React.Fragment key={m._id}>
+            {showDay && <div className="gchat-day"><span>{day}</span></div>}
+            <div className="gchat-call-log">
+              <FaPhone size={10} />
+              <span>{m.text.replace(`${CALL_LOG_PREFIX} `, "")}</span>
+              <span className="gchat-call-log-time">{fmtTime(m.created_at)}</span>
+            </div>
+          </React.Fragment>
+        );
+      }
+
       return (
         <React.Fragment key={m._id}>
           {showDay && <div className="gchat-day"><span>{day}</span></div>}
@@ -742,7 +757,7 @@ export default function Chat({ token, api, user }) {
                 <button
                   className="gchat-menu-btn"
                   title={`Call ${active.title}`}
-                  onClick={() => call?.startCall(active.peerId, active.title)}
+                  onClick={() => call?.startCall(active.peerId, active.title, active.id)}
                   disabled={!call || call.status !== "idle"}
                   style={{ color: "var(--brand)" }}
                 >
@@ -964,6 +979,8 @@ function ChatStyles() {
       .gchat-messages { flex:1; min-height:0; overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:3px; background:linear-gradient(#fcfdfc,#fafbfc); }
       .gchat-day { text-align:center; margin:14px 0 8px; }
       .gchat-day span { font-size:11px; font-weight:600; color:#94a3b8; background:#eef2f1; padding:3px 12px; border-radius:20px; }
+      .gchat-call-log { display:flex; align-items:center; justify-content:center; gap:7px; margin:8px auto; padding:6px 14px; background:#f8fafc; border:1px solid #eef1f4; border-radius:20px; color:#64748b; font-size:12px; font-weight:500; width:fit-content; max-width:80%; }
+      .gchat-call-log-time { color:#b6c0cc; font-size:10.5px; }
       .gchat-row { display:flex; gap:8px; align-items:flex-end; max-width:78%; }
       .gchat-row.mine { margin-left:auto; flex-direction:row-reverse; }
       .gchat-bubble-wrap { min-width:0; }

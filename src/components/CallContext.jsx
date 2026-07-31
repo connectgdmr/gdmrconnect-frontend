@@ -14,10 +14,15 @@ import Peer from "peerjs";
  *   VITE_TURN_URLS      comma-separated list of turn:/turns: URLs
  *   VITE_TURN_USERNAME, VITE_TURN_CREDENTIAL   shared by all of the above
  *   VITE_STUN_URL        optional extra STUN server (Google's is always included)
+ *
+ * Call outcomes are logged into the chat conversation as a normal text
+ * message (prefixed with a 📞 marker Chat.jsx renders specially) — only the
+ * caller posts it, so a shared DM never gets a duplicate log entry.
  */
 
 const peerIdFor = (userId) => `gdmr-${String(userId)}`;
 const RING_TIMEOUT_MS = 30000;
+export const CALL_LOG_PREFIX = "📞";
 
 function buildIceServers() {
   const servers = [{ urls: "stun:stun.l.google.com:19302" }];
@@ -33,18 +38,44 @@ function buildIceServers() {
   return servers;
 }
 
+function fmtDuration(sec) {
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+async function postCallLogMessage(api, token, conversationId, text) {
+  try {
+    const base = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+    await fetch(`${base}/api/chat/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ text }),
+    });
+  } catch { /* best-effort — a missed log entry shouldn't disrupt the call flow */ }
+}
+
 const CallContext = createContext(null);
 
 export function useCall() {
   return useContext(CallContext);
 }
 
-export function CallProvider({ token, user, children }) {
+export function CallProvider({ token, api, user, children }) {
   const peerRef = useRef(null);
   const currentCallRef = useRef(null);
   const localStreamRef = useRef(null);
   const timerRef = useRef(null);
   const ringTimeoutRef = useRef(null);
+
+  // Call-log bookkeeping (refs so `cleanup` always reads the latest values
+  // without needing to be recreated on every render)
+  const apiRef = useRef(api);
+  const tokenRef = useRef(token);
+  const conversationIdRef = useRef(null);
+  const callRoleRef = useRef(null); // "caller" | "callee"
+  const durationRef = useRef(0);
+  const everConnectedRef = useRef(false);
+  useEffect(() => { apiRef.current = api; tokenRef.current = token; }, [api, token]);
 
   // "idle" | "calling" | "ringing" | "connected"
   const [status, setStatus] = useState("idle");
@@ -55,6 +86,17 @@ export function CallProvider({ token, user, children }) {
   const [audioBlocked, setAudioBlocked] = useState(false);
 
   const cleanup = useCallback(() => {
+    if (callRoleRef.current === "caller" && conversationIdRef.current) {
+      const text = everConnectedRef.current
+        ? `${CALL_LOG_PREFIX} Voice call · ${fmtDuration(durationRef.current)}`
+        : `${CALL_LOG_PREFIX} Missed call — no answer`;
+      postCallLogMessage(apiRef.current, tokenRef.current, conversationIdRef.current, text);
+    }
+    conversationIdRef.current = null;
+    callRoleRef.current = null;
+    everConnectedRef.current = false;
+    durationRef.current = 0;
+
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (ringTimeoutRef.current) { clearTimeout(ringTimeoutRef.current); ringTimeoutRef.current = null; }
     if (currentCallRef.current) { try { currentCallRef.current.close(); } catch {} currentCallRef.current = null; }
@@ -97,9 +139,10 @@ export function CallProvider({ token, user, children }) {
 
     call.on("stream", (remoteStream) => {
       if (ringTimeoutRef.current) { clearTimeout(ringTimeoutRef.current); ringTimeoutRef.current = null; }
+      everConnectedRef.current = true;
       attachRemoteAudio(remoteStream);
       setStatus("connected");
-      timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
+      timerRef.current = setInterval(() => setDuration(d => { durationRef.current = d + 1; return d + 1; }), 1000);
     });
     call.on("close", cleanup);
     call.on("error", () => { setError("Call failed."); cleanup(); });
@@ -128,6 +171,7 @@ export function CallProvider({ token, user, children }) {
     peer.on("call", (call) => {
       // Only handle one call at a time — reject anything else while busy
       if (currentCallRef.current) { call.close(); return; }
+      callRoleRef.current = "callee";
       setPeerName(call.metadata?.callerName || "Someone");
       setStatus("ringing");
       currentCallRef.current = call; // held un-answered until the user accepts
@@ -147,12 +191,15 @@ export function CallProvider({ token, user, children }) {
     return () => { peer.destroy(); peerRef.current = null; };
   }, [token, user?._id]);
 
-  const startCall = useCallback(async (targetUserId, targetName) => {
+  const startCall = useCallback(async (targetUserId, targetName, conversationId) => {
     if (!peerRef.current || status !== "idle") return;
     setError("");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       localStreamRef.current = stream;
+      callRoleRef.current = "caller";
+      conversationIdRef.current = conversationId || null;
+      everConnectedRef.current = false;
       setPeerName(targetName || "Calling…");
       setStatus("calling");
       const call = peerRef.current.call(peerIdFor(targetUserId), stream, { metadata: { callerName: user?.name } });
