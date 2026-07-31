@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import Peer from "peerjs";
+import { startRingtone, startRingback } from "../utils/notifications";
 
 /**
  * Voice calling over WebRTC via PeerJS.
@@ -84,6 +85,18 @@ export function CallProvider({ token, api, user, children }) {
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState("");
   const [audioBlocked, setAudioBlocked] = useState(false);
+
+  // Ringtone (incoming) / ring-back tone (outgoing) — tears down whatever
+  // was playing before reacting to the new status, so every transition
+  // (ringing→connected, calling→connected, either→idle) stops cleanly.
+  const ringHandleRef = useRef(null);
+  useEffect(() => {
+    ringHandleRef.current?.stop();
+    ringHandleRef.current = null;
+    if (status === "ringing") ringHandleRef.current = startRingtone();
+    else if (status === "calling") ringHandleRef.current = startRingback();
+    return () => { ringHandleRef.current?.stop(); ringHandleRef.current = null; };
+  }, [status]);
 
   const cleanup = useCallback(() => {
     if (callRoleRef.current === "caller" && conversationIdRef.current) {

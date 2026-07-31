@@ -45,6 +45,48 @@ export async function playNotifSound() {
   } catch {}
 }
 
+async function tone(freqs, { gain = 0.22, dur = 0.35, gap = 0 } = {}) {
+  if (!_audioCtx || _audioCtx.state === "closed") {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (_audioCtx.state === "suspended") await _audioCtx.resume();
+  const ctx = _audioCtx;
+  freqs.forEach((freq, i) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.type = "sine";
+    const t = ctx.currentTime + i * (dur + gap);
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.start(t);
+    o.stop(t + dur);
+  });
+}
+
+// Incoming-call ringtone — classic alternating two-tone burst, repeating
+// until stop() is called. No external audio file required.
+export function startRingtone() {
+  let stopped = false;
+  const burst = () => { if (!stopped) tone([950, 1400], { gain: 0.25, dur: 0.35, gap: 0.05 }).catch(() => {}); };
+  burst();
+  const id = setInterval(burst, 1700);
+  return { stop: () => { stopped = true; clearInterval(id); } };
+}
+
+// Outgoing-call ring-back tone — a single softer pulse, distinct from the
+// incoming ringtone so callers can tell the two apart.
+export function startRingback() {
+  let stopped = false;
+  const pulse = () => { if (!stopped) tone([440], { gain: 0.15, dur: 0.5 }).catch(() => {}); };
+  pulse();
+  const id = setInterval(pulse, 2000);
+  return { stop: () => { stopped = true; clearInterval(id); } };
+}
+
 // Show OS-level browser notification (requires permission)
 export function showBrowserNotif(title, body, convId) {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
