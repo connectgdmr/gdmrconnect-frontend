@@ -11,20 +11,23 @@ import Peer from "peerjs";
  * TURN credentials are optional but recommended — without a TURN server,
  * calls between users on restrictive networks (corporate wifi, some mobile
  * carriers) may fail to connect. Set these in .env to enable one:
- *   VITE_TURN_URL, VITE_TURN_USERNAME, VITE_TURN_CREDENTIAL
+ *   VITE_TURN_URLS      comma-separated list of turn:/turns: URLs
+ *   VITE_TURN_USERNAME, VITE_TURN_CREDENTIAL   shared by all of the above
+ *   VITE_STUN_URL        optional extra STUN server (Google's is always included)
  */
 
 const peerIdFor = (userId) => `gdmr-${String(userId)}`;
 
 function buildIceServers() {
   const servers = [{ urls: "stun:stun.l.google.com:19302" }];
-  const turnUrl = import.meta.env.VITE_TURN_URL;
-  if (turnUrl) {
-    servers.push({
-      urls: turnUrl,
-      username: import.meta.env.VITE_TURN_USERNAME,
-      credential: import.meta.env.VITE_TURN_CREDENTIAL,
-    });
+  const stunUrl = import.meta.env.VITE_STUN_URL;
+  if (stunUrl) servers.push({ urls: stunUrl });
+
+  const turnUrls = (import.meta.env.VITE_TURN_URLS || "").split(",").map(s => s.trim()).filter(Boolean);
+  const username = import.meta.env.VITE_TURN_USERNAME;
+  const credential = import.meta.env.VITE_TURN_CREDENTIAL;
+  if (username && credential) {
+    turnUrls.forEach(urls => servers.push({ urls, username, credential }));
   }
   return servers;
 }
