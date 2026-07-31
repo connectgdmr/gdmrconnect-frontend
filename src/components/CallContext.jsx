@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import Peer from "peerjs";
-import { startRingtone, startRingback } from "../utils/notifications";
+import { startRingtone, startRingback, showCallNotif } from "../utils/notifications";
 
 /**
  * Voice calling over WebRTC via PeerJS.
@@ -19,6 +19,11 @@ import { startRingtone, startRingback } from "../utils/notifications";
  * Call outcomes are logged into the chat conversation as a normal text
  * message (prefixed with a 📞 marker Chat.jsx renders specially) — only the
  * caller posts it, so a shared DM never gets a duplicate log entry.
+ *
+ * Hang-up/decline is signaled explicitly over a PeerJS DataConnection rather
+ * than relying on WebRTC/ICE state changes to propagate — ICE can take a
+ * long time (or never cleanly) report "the other side hung up", especially
+ * before a MediaConnection has ever been answered.
  */
 
 const peerIdFor = (userId) => `gdmr-${String(userId)}`;
@@ -64,6 +69,7 @@ export function useCall() {
 export function CallProvider({ token, api, user, children }) {
   const peerRef = useRef(null);
   const currentCallRef = useRef(null);
+  const dataConnRef = useRef(null);
   const localStreamRef = useRef(null);
   const timerRef = useRef(null);
   const ringTimeoutRef = useRef(null);
@@ -76,6 +82,7 @@ export function CallProvider({ token, api, user, children }) {
   const callRoleRef = useRef(null); // "caller" | "callee"
   const durationRef = useRef(0);
   const everConnectedRef = useRef(false);
+  const declinedRef = useRef(false);
   useEffect(() => { apiRef.current = api; tokenRef.current = token; }, [api, token]);
 
   // "idle" | "calling" | "ringing" | "connected"
@@ -86,33 +93,53 @@ export function CallProvider({ token, api, user, children }) {
   const [error, setError] = useState("");
   const [audioBlocked, setAudioBlocked] = useState(false);
 
-  // Ringtone (incoming) / ring-back tone (outgoing) — tears down whatever
-  // was playing before reacting to the new status, so every transition
-  // (ringing→connected, calling→connected, either→idle) stops cleanly.
+  // Ringtone (incoming) / ring-back tone (outgoing) + OS notification while
+  // ringing — tears down whatever was playing before reacting to the new
+  // status, so every transition (ringing→connected, calling→connected,
+  // either→idle) stops cleanly.
   const ringHandleRef = useRef(null);
+  const callNotifRef = useRef(null);
   useEffect(() => {
     ringHandleRef.current?.stop();
     ringHandleRef.current = null;
-    if (status === "ringing") ringHandleRef.current = startRingtone();
-    else if (status === "calling") ringHandleRef.current = startRingback();
-    return () => { ringHandleRef.current?.stop(); ringHandleRef.current = null; };
+    callNotifRef.current?.close();
+    callNotifRef.current = null;
+
+    if (status === "ringing") {
+      ringHandleRef.current = startRingtone();
+      if (!document.hasFocus()) callNotifRef.current = showCallNotif(peerName);
+    } else if (status === "calling") {
+      ringHandleRef.current = startRingback();
+    }
+    return () => {
+      ringHandleRef.current?.stop(); ringHandleRef.current = null;
+      callNotifRef.current?.close(); callNotifRef.current = null;
+    };
   }, [status]);
+
+  const sendSignal = useCallback((type) => {
+    try { if (dataConnRef.current?.open) dataConnRef.current.send(type); } catch {}
+  }, []);
 
   const cleanup = useCallback(() => {
     if (callRoleRef.current === "caller" && conversationIdRef.current) {
       const text = everConnectedRef.current
         ? `${CALL_LOG_PREFIX} Voice call · ${fmtDuration(durationRef.current)}`
-        : `${CALL_LOG_PREFIX} Missed call — no answer`;
+        : declinedRef.current
+          ? `${CALL_LOG_PREFIX} Call declined`
+          : `${CALL_LOG_PREFIX} Missed call — no answer`;
       postCallLogMessage(apiRef.current, tokenRef.current, conversationIdRef.current, text);
     }
     conversationIdRef.current = null;
     callRoleRef.current = null;
     everConnectedRef.current = false;
+    declinedRef.current = false;
     durationRef.current = 0;
 
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (ringTimeoutRef.current) { clearTimeout(ringTimeoutRef.current); ringTimeoutRef.current = null; }
     if (currentCallRef.current) { try { currentCallRef.current.close(); } catch {} currentCallRef.current = null; }
+    if (dataConnRef.current) { try { dataConnRef.current.close(); } catch {} dataConnRef.current = null; }
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
     setStatus("idle");
     setPeerName("");
@@ -140,6 +167,17 @@ export function CallProvider({ token, api, user, children }) {
     audioEl.play().then(() => setAudioBlocked(false)).catch(() => setAudioBlocked(true));
   };
 
+  // Wire up an incoming/outgoing DataConnection as the explicit signaling
+  // channel for this call ("hangup" / "declined" messages).
+  const wireDataConn = useCallback((conn) => {
+    dataConnRef.current = conn;
+    conn.on("data", (data) => {
+      if (data === "declined") declinedRef.current = true;
+      if (data === "hangup" || data === "declined") cleanup();
+    });
+    conn.on("close", () => { if (dataConnRef.current === conn) dataConnRef.current = null; });
+  }, [cleanup]);
+
   const wireCallEvents = useCallback((call) => {
     currentCallRef.current = call;
 
@@ -147,6 +185,7 @@ export function CallProvider({ token, api, user, children }) {
     if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
     ringTimeoutRef.current = setTimeout(() => {
       setError("No answer — call ended.");
+      sendSignal("hangup");
       cleanup();
     }, RING_TIMEOUT_MS);
 
@@ -173,7 +212,7 @@ export function CallProvider({ token, api, user, children }) {
       });
     };
     watchIce();
-  }, [cleanup]);
+  }, [cleanup, sendSignal]);
 
   // Open (or reopen) this user's Peer connection
   useEffect(() => {
@@ -192,6 +231,9 @@ export function CallProvider({ token, api, user, children }) {
       call.on("close", cleanup);
     });
 
+    // Explicit signaling channel — the caller opens this alongside the call
+    peer.on("connection", (conn) => { wireDataConn(conn); });
+
     peer.on("error", (err) => {
       if (err?.type === "peer-unavailable") {
         setError("That person isn't reachable right now.");
@@ -202,7 +244,7 @@ export function CallProvider({ token, api, user, children }) {
     });
 
     return () => { peer.destroy(); peerRef.current = null; };
-  }, [token, user?._id]);
+  }, [token, user?._id, cleanup, wireDataConn]);
 
   const startCall = useCallback(async (targetUserId, targetName, conversationId) => {
     if (!peerRef.current || status !== "idle") return;
@@ -213,15 +255,17 @@ export function CallProvider({ token, api, user, children }) {
       callRoleRef.current = "caller";
       conversationIdRef.current = conversationId || null;
       everConnectedRef.current = false;
+      declinedRef.current = false;
       setPeerName(targetName || "Calling…");
       setStatus("calling");
+      wireDataConn(peerRef.current.connect(peerIdFor(targetUserId)));
       const call = peerRef.current.call(peerIdFor(targetUserId), stream, { metadata: { callerName: user?.name } });
       wireCallEvents(call);
     } catch {
       setError("Microphone access is required to make a call.");
       cleanup();
     }
-  }, [status, user?.name, wireCallEvents, cleanup]);
+  }, [status, user?.name, wireCallEvents, wireDataConn, cleanup]);
 
   const answerCall = useCallback(async () => {
     const call = currentCallRef.current;
@@ -239,11 +283,15 @@ export function CallProvider({ token, api, user, children }) {
   }, [wireCallEvents, cleanup]);
 
   const declineCall = useCallback(() => {
+    sendSignal("declined");
     currentCallRef.current?.close();
     cleanup();
-  }, [cleanup]);
+  }, [cleanup, sendSignal]);
 
-  const hangUp = useCallback(() => { cleanup(); }, [cleanup]);
+  const hangUp = useCallback(() => {
+    sendSignal("hangup");
+    cleanup();
+  }, [cleanup, sendSignal]);
 
   const toggleMute = useCallback(() => {
     const stream = localStreamRef.current;

@@ -87,6 +87,22 @@ export function startRingback() {
   return { stop: () => { stopped = true; clearInterval(id); } };
 }
 
+// Incoming-call OS notification — stays up (requireInteraction) until the
+// call is answered/declined/missed, at which point CallContext closes it.
+export function showCallNotif(callerName) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return null;
+  try {
+    const n = new Notification(`Incoming call — ${callerName || "Someone"}`, {
+      body: "Click to open GDMR Connect and answer",
+      icon: "/favicon.ico",
+      tag: "gdmr-call",
+      requireInteraction: true,
+    });
+    n.onclick = () => { window.focus(); n.close(); };
+    return n;
+  } catch { return null; }
+}
+
 // Show OS-level browser notification (requires permission)
 export function showBrowserNotif(title, body, convId) {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
