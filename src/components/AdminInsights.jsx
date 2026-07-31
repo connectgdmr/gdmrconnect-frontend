@@ -243,8 +243,15 @@ function normalizeByDepartment(byDept) {
   return Object.entries(byDept).map(([name, count]) => [name, Number(count) || 0]);
 }
 
+function isOffboarded(emp) {
+  const lwd = emp?.resignation?.last_working_day;
+  if (!emp?.resignation?.notice_date || !lwd) return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return new Date(lwd) < today;
+}
+
 // ─── Main Insights Component ──────────────────────────────────────────────────
-export default function AdminInsights({ stats, api, token }) {
+export default function AdminInsights({ stats, employees = [], api, token }) {
   const [chartData, setChartData] = useState([]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -287,14 +294,26 @@ export default function AdminInsights({ stats, api, token }) {
   const todayTotal = todayStats.present + todayStats.leave + todayStats.absent + sn;
   const presentPct = todayTotal > 0 ? Math.round((todayStats.present / todayTotal) * 100) : 0;
 
-  // Department headcount, workforce totals — sourced from today-stats so
-  // resigned/offboarded employees (already excluded server-side) never get counted.
-  const deptData = normalizeByDepartment(stats.by_department).sort((a, b) => b[1] - a[1]).slice(0, 7);
-  const deptMax  = deptData.length > 0 ? deptData[0][1] : 1;
+  // Department headcount, workforce totals — prefer today-stats (backend already
+  // excludes resigned/offboarded staff there). Until the backend adds those fields,
+  // fall back to the employees list, filtered to active staff on the frontend.
+  const hasWorkforceStats = typeof stats.total_workforce === "number";
+  const activeEmployees   = employees.filter(e => !isOffboarded(e));
 
-  const managerCount  = stats.manager_count   ?? 0;
-  const employeeCount = stats.employee_count  ?? 0;
-  const totalStaff    = stats.total_workforce ?? 0;
+  const deptData = hasWorkforceStats
+    ? normalizeByDepartment(stats.by_department).sort((a, b) => b[1] - a[1]).slice(0, 7)
+    : Object.entries(
+        activeEmployees.reduce((map, emp) => {
+          const d = emp.department || "Unassigned";
+          map[d] = (map[d] || 0) + 1;
+          return map;
+        }, {})
+      ).sort((a, b) => b[1] - a[1]).slice(0, 7);
+  const deptMax = deptData.length > 0 ? deptData[0][1] : 1;
+
+  const managerCount  = hasWorkforceStats ? (stats.manager_count  ?? 0) : activeEmployees.filter(e => e.role === "manager").length;
+  const employeeCount = hasWorkforceStats ? (stats.employee_count ?? 0) : activeEmployees.filter(e => e.role === "employee").length;
+  const totalStaff    = hasWorkforceStats ? (stats.total_workforce ?? 0) : activeEmployees.length;
 
   return (
     <div className="insights-grid">
