@@ -646,6 +646,24 @@ export default function Chat({ token, api, user }) {
           <input placeholder="Search people or channels" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
 
+        {(() => {
+          const onlinePeople = dmEntries.filter(e => e.id && isOnline(e.id));
+          if (!onlinePeople.length) return null;
+          return (
+            <div className="gchat-online-strip">
+              <div className="gchat-online-label">Online — {onlinePeople.length}</div>
+              <div className="gchat-online-row">
+                {onlinePeople.map(e => (
+                  <button key={e.id} className="gchat-online-avatar" title={e.name} onClick={() => openDmEntry(e)}>
+                    <Avatar name={e.name} size={44} online />
+                    <span className="gchat-online-name">{(e.name || "").split(" ")[0]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="gchat-rail-scroll">
           {loadingList ? (
             <div className="gchat-empty small"><div className="loader" /></div>
@@ -915,6 +933,12 @@ function ChatStyles() {
       .gchat-new-btn { width:30px; height:30px; border-radius:8px; border:none; background:var(--brand); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; }
       .gchat-search { display:flex; align-items:center; gap:8px; margin:0 14px 10px; padding:8px 12px; background:#fff; border:1px solid #e6eaef; border-radius:10px; color:#94a3b8; }
       .gchat-search input { border:none; outline:none; flex:1; font-size:13px; background:transparent; color:#0f172a; }
+      .gchat-online-strip { padding:2px 14px 12px; border-bottom:1px solid #eef1f4; flex-shrink:0; }
+      .gchat-online-label { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#94a3b8; margin-bottom:8px; }
+      .gchat-online-row { display:flex; gap:14px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
+      .gchat-online-row::-webkit-scrollbar { display:none; }
+      .gchat-online-avatar { display:flex; flex-direction:column; align-items:center; gap:4px; background:none; border:none; cursor:pointer; flex-shrink:0; width:52px; padding:0; }
+      .gchat-online-name { font-size:10.5px; color:#475569; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:52px; }
       .gchat-rail-scroll { flex:1; min-height:0; overflow-y:auto; padding-bottom:12px; }
       .gchat-section-label { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#94a3b8; padding:14px 16px 6px; }
       .gchat-rail-hint { font-size:12px; color:#b6c0cc; padding:4px 16px 8px; }
