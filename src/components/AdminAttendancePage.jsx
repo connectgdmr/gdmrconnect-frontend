@@ -157,17 +157,31 @@ export default function AdminAttendancePage({ token, api }) {
   async function loadTodayStats() {
     setStatsLoading(true);
     try {
-      if (api.todayStats) {
-          const res = await api.todayStats(token);
-          setStats(res);
-      } else {
-          // Fallback if todayStats isn't directly bound to the api prop
-          const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-          const res = await fetch(`${baseUrl}/api/admin/today-stats`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (res.ok) setStats(await res.json());
+      let res = null;
+      try {
+        if (api.todayStats) res = await api.todayStats(token);
+      } catch { /* e.g. restricted for delegated (non-admin) access — fall back below */ }
+
+      const total = (res?.present || 0) + (res?.absent || 0) + (res?.leave || 0) + (res?.not_checked_in || 0);
+      if (res && total > 0) {
+        setStats(res);
+        return;
       }
+
+      // today-stats came back empty/unauthorized — derive the same four
+      // numbers from the monthly attendance summary instead, which is
+      // already accessible under delegated access (used by the Analyzer tab).
+      const monthStr = new Date().toISOString().slice(0, 7);
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const summary = await api.getAttendanceSummary(monthStr, token);
+      const day = summary?.days?.[todayStr] || {};
+      const cnt = (v) => Array.isArray(v) ? v.length : (Number(v) || 0);
+      setStats({
+        present: cnt(day.present),
+        absent: cnt(day.absent),
+        leave: cnt(day.leave),
+        not_checked_in: cnt(day.not_checked_in),
+      });
     } catch (err) {
       console.error("Stats load error:", err);
     } finally {
