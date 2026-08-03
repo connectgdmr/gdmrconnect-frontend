@@ -80,7 +80,7 @@ function IssueLoanModal({ token, employees, onClose, onSuccess }) {
             <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 5 }}>Employee *</label>
             <select className="modern-input" style={{ margin: 0 }} value={form.employee_id} onChange={e => set("employee_id", e.target.value)} required>
               <option value="">Select employee…</option>
-              {employees.filter(emp => !isOffboarded(emp)).map(emp => <option key={emp._id} value={emp._id}>{emp.name}{emp.department ? ` — ${emp.department}` : ""}</option>)}
+              {employees.filter(emp => !isOffboarded(emp)).sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(emp => <option key={emp._id} value={emp._id}>{emp.name}{emp.department ? ` — ${emp.department}` : ""}</option>)}
             </select>
           </div>
 

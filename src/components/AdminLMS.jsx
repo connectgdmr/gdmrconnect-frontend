@@ -494,7 +494,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
             </div>
 
             {assignTarget === "department" ? (() => {
-              const allDepts = [...new Set(employees.map(e => e.department).filter(Boolean))];
+              const allDepts = [...new Set(employees.map(e => e.department).filter(Boolean))].sort((a, b) => a.localeCompare(b));
               const allSel = allDepts.length > 0 && allDepts.every(d => assignDepts.includes(d));
               return (
               <div style={{ marginBottom: 18 }}>
@@ -527,7 +527,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
                   </label>
                 </div>
                 <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8, padding: 8 }}>
-                  {employees.map(emp => (
+                  {[...employees].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(emp => (
                     <label key={emp._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 4px", cursor: "pointer" }}>
                       <input type="checkbox" checked={assignEmpIds.includes(emp._id)} onChange={e => setAssignEmpIds(e.target.checked ? [...assignEmpIds, emp._id] : assignEmpIds.filter(id => id !== emp._id))} />
                       <span style={{ fontSize: 13 }}>{emp.name}</span>

@@ -208,9 +208,9 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
     return list;
   })();
 
-  const filteredEmps = myEmployees.filter(e =>
-    !empSearch || (e.name || "").toLowerCase().includes(empSearch.toLowerCase())
-  );
+  const filteredEmps = myEmployees
+    .filter(e => !empSearch || (e.name || "").toLowerCase().includes(empSearch.toLowerCase()))
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   const filteredProgress = progress.filter(p => {
     const matchCourse = progCourse === "all" || p.course_id === progCourse;

@@ -1053,7 +1053,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                             </td>
                         </tr>
                     )}
-                    {teamMembers.map(m => (
+                    {[...teamMembers].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(m => (
                         <tr key={m._id}>
                             <td>{m.name}</td>
                             <td>{m.email}</td>
@@ -1455,7 +1455,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                   <div style={{textAlign:'center', padding:30, color:'#94a3b8', border:'1px dashed #e2e8f0', borderRadius:8}}>No team members found.</div>
                 ) : (
                   <div style={{display:'flex', flexWrap:'wrap', gap:10}}>
-                    {teamMembers.map(emp => (
+                    {[...teamMembers].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(emp => (
                       <label key={emp._id} className={`employee-chip ${assignedEmployees.includes(emp._id) ? 'selected' : ''}`}>
                         <input type="checkbox" style={{display:'none'}} checked={assignedEmployees.includes(emp._id)} onChange={() => toggleEmployeeAssignment(emp._id)} />
                         <FaUserCheck style={{opacity: assignedEmployees.includes(emp._id) ? 1 : 0.35}} />

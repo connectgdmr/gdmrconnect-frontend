@@ -1108,7 +1108,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                         <label style={{fontWeight: 600, fontSize: '14px', color: '#333'}}>Select Employee</label>
                         <select className="modern-input" style={{marginTop: 8}} value={grantData.employeeId} onChange={(e) => setGrantData({...grantData, employeeId: e.target.value})} required>
                             <option value="">-- Choose Employee --</option>
-                            {employees.map(emp => <option key={emp._id} value={emp._id}>{emp.name} ({emp.department})</option>)}
+                            {[...employees].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(emp => <option key={emp._id} value={emp._id}>{emp.name} ({emp.department})</option>)}
                         </select>
                     </div>
                     <div className="grant-form-col">
@@ -1206,11 +1206,11 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         // Enrich departments with live employee data
         const enriched = departments.map(d => ({
           ...d,
-          members: deptEmployeeMap[d.name] || [],
+          members: (deptEmployeeMap[d.name] || []).slice().sort((a, b) => (a.name || "").localeCompare(b.name || "")),
           manager: employees.find(e => e._id === d.head_id || (e.role === "manager" && (
             Array.isArray(e.department) ? e.department.includes(d.name) : e.department === d.name
           ))) || null,
-        }));
+        })).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
         // Summary stats
         const totalEmployees = employees.length;

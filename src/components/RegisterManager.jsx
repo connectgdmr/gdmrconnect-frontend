@@ -268,7 +268,7 @@ export default function RegisterManager({ token, api }) {
 
           </thead>
           <tbody>
-            {managers.map(m => (
+            {[...managers].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(m => (
               <tr key={m._id}>
                 <td>
                   {m.name}

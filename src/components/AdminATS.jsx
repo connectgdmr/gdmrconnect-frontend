@@ -354,7 +354,7 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
                       <label style={lbl}>Sourced By</label>
                       <select className="modern-input" value={form.sourced_by} onChange={e => setForm({ ...form, sourced_by: e.target.value })} style={{ margin: 0 }}>
                         <option value="">— Select Employee —</option>
-                        {employees.map(e => <option key={e._id} value={e._id}>{e.name}{e.department ? ` (${e.department})` : ""}</option>)}
+                        {[...employees].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(e => <option key={e._id} value={e._id}>{e.name}{e.department ? ` (${e.department})` : ""}</option>)}
                       </select>
                     </div>
 

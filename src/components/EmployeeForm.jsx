@@ -71,7 +71,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
           <div style={{ flex: 1 }}>
             <label>Department</label>
             <select className="input" value={department} onChange={e=>setDepartment(e.target.value)} required>
-              {deptList.map(d => <option key={d._id} value={d.name}>{d.name}</option>)}
+              {[...deptList].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(d => <option key={d._id} value={d.name}>{d.name}</option>)}
             </select>
           </div>
           <div style={{ flex: 1 }}>
@@ -98,7 +98,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
             <label>Assign Manager (Optional)</label>
             <select className="input" value={managerId} onChange={e=>setManagerId(e.target.value)}>
               <option value="">-- No Manager Assigned --</option>
-              {managers.map(m => (
+              {[...managers].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(m => (
                 <option key={m._id} value={m._id}>{m.name} ({m.department})</option>
               ))}
             </select>

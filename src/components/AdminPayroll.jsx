@@ -227,15 +227,16 @@ export default function AdminPayroll({ token, employees = [] }) {
   const configuredCount = salaries.filter(s => s.salary && grossOf(s.salary) > 0).length;
   const monthlyOutlay   = salaries.reduce((sum, s) => sum + (s.salary ? netOf(s.salary) : 0), 0);
 
-  const filteredSlips = slipSearch
+  const filteredSlips = (slipSearch
     ? payslips.filter(p => (String(p.employee_name || "")).toLowerCase().includes(slipSearch.toLowerCase()))
-    : payslips;
+    : payslips
+  ).slice().sort((a, b) => String(a.employee_name || "").localeCompare(String(b.employee_name || "")));
 
   const filteredSalaries = salaries.filter(s =>
     !search ||
     String(s.employee_name || "").toLowerCase().includes(search.toLowerCase()) ||
     String(s.department   || "").toLowerCase().includes(search.toLowerCase())
-  );
+  ).sort((a, b) => String(a.employee_name || "").localeCompare(String(b.employee_name || "")));
 
   const TABS = [
     { key: "setup",    label: "Salary Setup" },
@@ -330,7 +331,8 @@ export default function AdminPayroll({ token, employees = [] }) {
 
       {/* ── Run Payroll ── */}
       {tab === "run" && (() => {
-        const runSalaries = salaries.filter(s => s.salary && grossOf(s.salary) > 0);
+        const runSalaries = salaries.filter(s => s.salary && grossOf(s.salary) > 0)
+          .sort((a, b) => String(a.employee_name || "").localeCompare(String(b.employee_name || "")));
         const netPreviewOf = (s) => {
           const id = s.employee_id || s._id;
           const a = runAdjustments[id] || {};

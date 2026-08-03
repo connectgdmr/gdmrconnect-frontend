@@ -429,7 +429,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
     const matchesRole   = roleFilter   === "All" || emp.role === roleFilter;
     const matchesStatus = statusFilter === "All" || getEmpStatus(emp) === statusFilter;
     return matchesSearch && matchesRole && matchesStatus;
-  });
+  }).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   return (
     <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -599,7 +599,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                   value={editingEmployee.department || ""}
                   onChange={(e) => setEditingEmployee({ ...editingEmployee, department: e.target.value })}
                 >
-                  {departments.map((d) => (
+                  {[...departments].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map((d) => (
                     <option key={d._id || d.name} value={d.name}>{d.name}</option>
                   ))}
                 </select>
@@ -626,7 +626,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                   onChange={(e) => setEditingEmployee({ ...editingEmployee, manager_id: e.target.value || null })}
                 >
                   <option value="">No Manager / Self-Managed</option>
-                  {managers.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
+                  {[...managers].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
                 </select>
               </div>
 

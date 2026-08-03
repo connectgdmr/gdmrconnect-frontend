@@ -32,7 +32,7 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
   const [msg, setMsg]           = useState("");
   const [clients, setClients]   = useState([]);
 
-  const deptNames = departments.map(d => d.name || d).filter(Boolean);
+  const deptNames = departments.map(d => d.name || d).filter(Boolean).sort((a, b) => a.localeCompare(b));
 
   // Pull any "continue previous work" tasks queued from Work History
   const drainCarryForward = () => {

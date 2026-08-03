@@ -200,8 +200,8 @@ export default function AdminAttendancePage({ token, api }) {
       setFilteredEmployees(list);
       
       // Extract unique departments for the dropdown filter dynamically
-      const depts = ["All", ...new Set(list.map(e => e.department).filter(Boolean))];
-      setDepartments(depts);
+      const deptNames = [...new Set(list.map(e => e.department).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+      setDepartments(["All", ...deptNames]);
     } catch (err) {
       console.error("Error loading employees", err);
     } finally {
@@ -350,7 +350,7 @@ export default function AdminAttendancePage({ token, api }) {
       );
     }
 
-    setFilteredEmployees(result);
+    setFilteredEmployees([...result].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
   }, [searchTerm, selectedDept, employees]);
 
   // Filter Logic for Complete Logs View
@@ -489,12 +489,13 @@ export default function AdminAttendancePage({ token, api }) {
     })).sort((a, b) => b.rate - a.rate);
 
     // Day details (for leave calendar)
+    const byName = (a, b) => (a.name || "").localeCompare(b.name || "");
     const dayDetails = dayEntries.map(([date, d]) => ({
       date,
-      presentNames: ids(d.present).map(resolve).filter(Boolean),
-      absentNames:  ids(d.absent).map(resolve).filter(Boolean),
-      leaveNames:   ids(d.leave).map(resolve).filter(Boolean),
-      nciNames:     ids(d.not_checked_in).map(resolve).filter(Boolean),
+      presentNames: ids(d.present).map(resolve).filter(Boolean).sort(byName),
+      absentNames:  ids(d.absent).map(resolve).filter(Boolean).sort(byName),
+      leaveNames:   ids(d.leave).map(resolve).filter(Boolean).sort(byName),
+      nciNames:     ids(d.not_checked_in).map(resolve).filter(Boolean).sort(byName),
       presentCount: cnt(d.present),
       absentCount:  cnt(d.absent),
       leaveCount:   cnt(d.leave),

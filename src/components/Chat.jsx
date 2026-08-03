@@ -662,7 +662,7 @@ export default function Chat({ token, api, user }) {
         </div>
 
         {(() => {
-          const onlinePeople = dmEntries.filter(e => e.id && isOnline(e.id));
+          const onlinePeople = dmEntries.filter(e => e.id && isOnline(e.id)).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
           if (!onlinePeople.length) return null;
           return (
             <div className="gchat-online-strip">
@@ -904,7 +904,7 @@ function NewChannelModal({ api, token, people, onClose, onCreated }) {
           </label>
           <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #e6eaef", borderRadius: 10, padding: 6 }}>
             {people.length === 0 && <div className="gchat-rail-hint">No people available</div>}
-            {people.map(p => {
+            {[...people].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(p => {
               const id = p._id || p.id;
               const on = members.includes(id);
               return (

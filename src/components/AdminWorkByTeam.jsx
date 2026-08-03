@@ -47,7 +47,7 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
   const allTasks = safePlans.flatMap(p => (p.tasks || []).map(t => ({ ...t, _dept: p.department, _emp: p.employee_name })));
   const completed = allTasks.filter(t => t.status === "Completed").length;
   const pending   = allTasks.filter(t => t.status !== "Completed").length;
-  const depts = [...new Set(safePlans.map(p => p.department).filter(Boolean))];
+  const depts = [...new Set(safePlans.map(p => p.department).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
   // Dept-wise aggregation
   const deptAgg = depts.map(d => {
