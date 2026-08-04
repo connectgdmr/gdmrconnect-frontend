@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from 
 import { resolveAttachmentUrl } from "../utils/security";
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
+import InsightsBanner from "./InsightsBanner";
 import DailyQuote from "./DailyQuote";
 import DailyWorkPlan from "./DailyWorkPlan";
 import ChatBot from "./ChatBot";
@@ -1306,6 +1307,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           </button>
         </div>
       )}
+
+      {/* — Insights — */}
+      {view === "dashboard" && <InsightsBanner leaves={myLeaves} />}
 
       {/* — Announcement Notifications — */}
       {view === "dashboard" && (
@@ -2675,7 +2679,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
 
     <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
     {settingsOpen && <SettingsModal token={token} api={api} onClose={() => setSettingsOpen(false)} />}
-    <ChatBot token={token} user={user} role="manager" onNavigate={setView} />
+    <ChatBot token={token} api={api} user={user} role="manager" onNavigate={setView} />
     </>
   );
 }

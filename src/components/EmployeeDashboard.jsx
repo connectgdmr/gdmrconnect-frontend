@@ -10,6 +10,7 @@ import { getCurrentLocation } from "../utils/geolocation";
 import { resolveAttachmentUrl } from "../utils/security";
 import LeaveCalendar from "./LeaveCalendar";
 import SettingsModal from "./SettingsModal";
+import InsightsBanner from "./InsightsBanner";
 
 const Chat                = lazy(() => import("./Chat"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
@@ -858,6 +859,9 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
           </button>
         </div>
       )}
+
+      {/* — Insights — */}
+      {view === "dashboard" && <InsightsBanner leaves={leaves} />}
 
       {/* — Announcement Notifications — */}
       {view === "dashboard" && (
@@ -1769,7 +1773,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
 
     <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
     {settingsOpen && <SettingsModal token={token} api={api} onClose={() => setSettingsOpen(false)} />}
-    <ChatBot token={token} user={user} role="employee" onNavigate={setView} />
+    <ChatBot token={token} api={api} user={user} role="employee" onNavigate={setView} />
     </>
   );
 }

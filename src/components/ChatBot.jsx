@@ -1,11 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FaTimes, FaPaperPlane, FaRegLightbulb } from "react-icons/fa";
 import { GiLion } from "react-icons/gi";
+import { getNextHoliday } from "../data/holidays";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  REXOR — the GDMR Connect in-app assistant.
-//  100% client-side. No API keys, no backend, no cost. Answers from a curated
-//  HR knowledge base with smart keyword matching + one-tap navigation.
+//  Answers first from a curated, instant, zero-cost HR knowledge base with
+//  keyword matching + one-tap navigation. Anything it doesn't recognize is
+//  handed to a small LLM fallback (/api/assistant/chat) if the backend has
+//  one configured — otherwise it just says so, no backend/API key required.
 // ════════════════════════════════════════════════════════════════════════════
 
 const BOT_NAME = "Rexor";
@@ -105,7 +108,7 @@ function renderText(text) {
   );
 }
 
-export default function ChatBot({ user, role = "employee", onNavigate }) {
+export default function ChatBot({ user, role = "employee", onNavigate, token, api }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -123,28 +126,53 @@ export default function ChatBot({ user, role = "employee", onNavigate }) {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, typing]);
 
-  function reply(q) {
-    const hit = matchKB(q);
-    const action = hit?.action && (!hit.action.roles || hit.action.roles.includes(role)) ? hit.action : null;
-    if (hit) return { text: hit.a, action };
-    return {
-      text: "I'm still learning that one! 🌱 But I can instantly help with **leaves, attendance, payslips, courses, careers, announcements, holidays, password help** and more. Try one of these, or reach HR at info@gdmrfoundation.com.",
-      reshow: true,
-    };
+  const FALLBACK_TEXT = "I'm still learning that one! 🌱 But I can instantly help with **leaves, attendance, payslips, courses, careers, announcements, holidays, password help** and more. Try one of these, or reach HR at info@gdmrfoundation.com.";
+
+  // Asks the backend LLM (if configured) for anything the KB doesn't recognize.
+  // Returns null on any failure so the caller can fall back to FALLBACK_TEXT.
+  async function askAssistant(q) {
+    if (!token) return null;
+    try {
+      const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+      const nextHoliday = getNextHoliday();
+      const res = await fetch(`${baseUrl}/api/assistant/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: q, context: nextHoliday ? { next_holiday: nextHoliday } : {} }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.reply || null;
+    } catch {
+      return null;
+    }
   }
 
-  function send(text) {
+  async function send(text) {
     const q = (text ?? input).trim();
     if (!q || typing) return;
     setInput("");
     setMessages((m) => [...m, { from: "user", text: q }]);
     setTyping(true);
-    // small natural delay
-    setTimeout(() => {
-      const r = reply(q);
-      setTyping(false);
-      setMessages((m) => [...m, { from: "bot", text: r.text, action: r.action, reshow: r.reshow }]);
-    }, 480);
+
+    const hit = matchKB(q);
+    if (hit) {
+      const action = hit.action && (!hit.action.roles || hit.action.roles.includes(role)) ? hit.action : null;
+      // small natural delay for canned answers
+      setTimeout(() => {
+        setTyping(false);
+        setMessages((m) => [...m, { from: "bot", text: hit.a, action }]);
+      }, 480);
+      return;
+    }
+
+    const llmText = await askAssistant(q);
+    setTyping(false);
+    if (llmText) {
+      setMessages((m) => [...m, { from: "bot", text: llmText }]);
+    } else {
+      setMessages((m) => [...m, { from: "bot", text: FALLBACK_TEXT, reshow: true }]);
+    }
   }
 
   const suggestions = SUGGESTIONS[role] || SUGGESTIONS.employee;
