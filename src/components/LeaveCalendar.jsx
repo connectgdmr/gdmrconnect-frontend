@@ -4,7 +4,15 @@ import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 // Click-to-select calendar for multi-day leave — pick individual days
 // (not necessarily consecutive) instead of typing a start/end date range.
 const DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
-function ymd(d) { return d.toISOString().slice(0, 10); }
+// Build the date string from local components — toISOString() converts to
+// UTC first, which silently shifts the date back a day in timezones ahead
+// of UTC (e.g. clicking "11" in India (UTC+5:30) would report "10").
+function ymd(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export default function LeaveCalendar({ selected, onToggle }) {
   const [viewDate, setViewDate] = useState(new Date());
