@@ -1,12 +1,10 @@
-﻿import React, { useState, useEffect } from "react";
-import { FaPlus, FaTimes, FaCheckCircle, FaRegClock, FaPaperPlane, FaSave, FaTasks, FaPen } from "react-icons/fa";
+import React, { useState, useEffect } from "react";
+import { FaPlus, FaTimes, FaCheckCircle, FaPaperPlane, FaTasks, FaCopy, FaShareAlt } from "react-icons/fa";
 
 import { API_URL as BASE } from "../api";
-const PRIORITIES = [
-  { v: "High",   color: "#dc2626", bg: "#fef2f2" },
-  { v: "Medium", color: "#d97706", bg: "#fffbeb" },
-  { v: "Low",    color: "#16a34a", bg: "#f0fdf4" },
-];
+
+const DEFAULT_WORK_TYPES = ["Development", "Service", "Support"];
+
 // ClickUp-style task statuses
 export const TASK_STATUSES = [
   { v: "Pending",     color: "#64748b", bg: "#f1f5f9" },
@@ -15,13 +13,16 @@ export const TASK_STATUSES = [
   { v: "Completed",   color: "#16a34a", bg: "#f0fdf4" },
 ];
 const STATUS_META = (s) => TASK_STATUSES.find(x => x.v === s) || TASK_STATUSES[0];
-const blankTask = () => ({ id: Date.now() + Math.random(), title: "", priority: "Medium", est_time: "", project: "", client: "", status: "Pending" });
+// priority/est_time/project are kept in the data model (older payloads may still carry
+// them, and Work History/reporting still reads them) but are no longer shown in this
+// entry form — work_type + client now carry that classification instead.
+const blankTask = () => ({ id: Date.now() + Math.random(), title: "", work_type: "", priority: "Medium", est_time: "", project: "", client: "", status: "Pending" });
 // Preserve the backend's task identifier so per-task status updates target the
 // right task (otherwise the client-only random id never matches server-side).
 const normalizeTasks = (raw = []) => raw.map(t => { const b = blankTask(); return { ...b, ...t, id: t.id ?? t._id ?? b.id }; });
 export const carryKey = (uid) => `gdmr_carryforward_${uid || "guest"}`;
 
-export default function DailyWorkPlan({ token, user, departments = [] }) {
+export default function DailyWorkPlan({ token, user }) {
   const today = new Date().toISOString().slice(0, 10);
   const [tasks, setTasks]       = useState([blankTask()]);
   const [status, setStatus]     = useState("none"); // none | draft | submitted
@@ -31,8 +32,10 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
   const [editing, setEditing]   = useState(true);
   const [msg, setMsg]           = useState("");
   const [clients, setClients]   = useState([]);
+  const [workTypes, setWorkTypes] = useState(DEFAULT_WORK_TYPES);
+  const [sharing, setSharing]   = useState(false);
 
-  const deptNames = departments.map(d => d.name || d).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  const department = Array.isArray(user?.department) ? user.department[0] : user?.department;
 
   // Pull any "continue previous work" tasks queued from Work History
   const drainCarryForward = () => {
@@ -48,6 +51,14 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
     // Clients for the dropdown
     fetch(`${BASE}/clients`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : []).then(d => setClients(Array.isArray(d) ? d : (d?.clients || []))).catch(() => {});
+
+    // Department-configured work types (falls back to defaults if not set up yet)
+    if (department) {
+      fetch(`${BASE}/departments/${encodeURIComponent(department)}/work-types`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (Array.isArray(d?.types) && d.types.length) setWorkTypes(d.types); })
+        .catch(() => {});
+    }
 
     fetch(`${BASE}/my/work-plan?date=${today}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
@@ -96,6 +107,39 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
     finally { setSaving(false); }
   }
 
+  function formatStatusText() {
+    const named = tasks.filter(t => t.title.trim());
+    const dateLabel = new Date(today + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    const lines = [`My Work Status — ${dateLabel}`, ""];
+    named.forEach((t, i) => {
+      const bits = [t.work_type, t.client].filter(Boolean).join(" · ");
+      lines.push(`${i + 1}. [${t.status || "Pending"}] ${t.title}${bits ? ` (${bits})` : ""}`);
+    });
+    return lines.join("\n");
+  }
+
+  async function copyStatus() {
+    try {
+      await navigator.clipboard.writeText(formatStatusText());
+      setMsg("Copied today's work status to clipboard.");
+    } catch { setMsg("Could not copy — please select and copy manually."); }
+  }
+
+  async function shareStatus() {
+    setSharing(true); setMsg("");
+    try {
+      const r = await fetch(`${BASE}/my/work-plan/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ date: today }),
+      });
+      if (r.ok) setMsg("Today's status was emailed to your manager and owners.");
+      else if (r.status === 404) setMsg("Sharing by email isn't set up on the backend yet.");
+      else { const d = await r.json().catch(() => ({})); setMsg(d.message || "Could not share right now."); }
+    } catch { setMsg("Network error while sharing."); }
+    finally { setSharing(false); }
+  }
+
   if (loading) return null;
 
   const completed = tasks.filter(t => t.status === "Completed").length;
@@ -109,27 +153,29 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
             <FaTasks color="var(--brand)" size={16} />
           </div>
           <div>
-            <h4 style={{ margin: 0, fontSize: 15, color: "#0f172a" }}>What are you working on today?</h4>
+            <h4 style={{ margin: 0, fontSize: 15, color: "#0f172a" }}>What are you working on right now?</h4>
             <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
               {status === "submitted"
                 ? <span style={{ color: "#16a34a", fontWeight: 600 }}><FaCheckCircle size={11} /> Plan submitted · {completed}/{withTitles} done</span>
-                : status === "draft" ? "Draft saved — submit when ready" : "Plan your day so your manager knows your focus"}
+                : status === "draft" ? "Draft saved — submit when ready" : "Log it so your manager knows your focus"}
             </div>
           </div>
         </div>
-        {status === "submitted" && !editing && (
-          <button className="btn ghost" style={{ fontSize: 12, padding: "6px 12px" }} onClick={() => setEditing(true)}>
-            <FaPen size={10} /> Edit Plan
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn ghost" style={{ fontSize: 12, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }} onClick={copyStatus} disabled={withTitles === 0}>
+            <FaCopy size={10} /> Copy Status
           </button>
-        )}
+          <button className="btn ghost" style={{ fontSize: 12, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }} onClick={shareStatus} disabled={sharing || withTitles === 0}>
+            <FaShareAlt size={10} /> {sharing ? "Sharing…" : "Share Status"}
+          </button>
+        </div>
       </div>
 
-      {msg && <div style={{ marginBottom: 12, padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, background: msg.includes("submitted") || msg.includes("saved") ? "#f0fdf4" : "#fef2f2", color: msg.includes("submitted") || msg.includes("saved") ? "#16a34a" : "#b91c1c" }}>{msg}</div>}
+      {msg && <div style={{ marginBottom: 12, padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, background: /submit|saved|copied|emailed/i.test(msg) ? "#f0fdf4" : "#fef2f2", color: /submit|saved|copied|emailed/i.test(msg) ? "#16a34a" : "#b91c1c" }}>{msg}</div>}
 
       {/* Task rows */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {tasks.map((t, i) => {
-          const pr = PRIORITIES.find(p => p.v === t.priority) || PRIORITIES[1];
           if (!editing) {
             if (!t.title.trim()) return null;
             const done = t.status === "Completed";
@@ -159,10 +205,8 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 500, color: done ? "#94a3b8" : "#334155", textDecoration: done ? "line-through" : "none" }}>{t.title}</div>
                   <div style={{ display: "flex", gap: 10, marginTop: 3, flexWrap: "wrap" }}>
+                    {t.work_type && <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", borderRadius: 99, padding: "1px 8px" }}>{t.work_type}</span>}
                     {t.client && <span style={{ fontSize: 11, color: "#0f766e", fontWeight: 600 }}>🏢 {t.client}</span>}
-                    {t.project && <span style={{ fontSize: 11, color: "#64748b" }}>📁 {t.project}</span>}
-                    {t.est_time && <span style={{ fontSize: 11, color: "#64748b" }}><FaRegClock size={9} /> {t.est_time}</span>}
-                    <span style={{ fontSize: 10.5, fontWeight: 700, color: pr.color }}>● {t.priority}</span>
                   </div>
                 </div>
                 {/* Status selector — change as you work */}
@@ -184,25 +228,17 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
                 <input className="modern-input" style={{ margin: 0, flex: 1 }} placeholder="What's the task?" value={t.title} onChange={e => updateTask(t.id, { title: e.target.value })} />
                 {tasks.length > 1 && <button onClick={() => removeTask(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", flexShrink: 0 }}><FaTimes size={13} /></button>}
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 8 }}>
-                <select className="modern-input" style={{ margin: 0, fontSize: 12.5 }} value={t.priority} onChange={e => updateTask(t.id, { priority: e.target.value })}>
-                  {PRIORITIES.map(p => <option key={p.v} value={p.v}>{p.v} Priority</option>)}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
+                <select className="modern-input" style={{ margin: 0, fontSize: 12.5 }} value={t.work_type} onChange={e => updateTask(t.id, { work_type: e.target.value })}>
+                  <option value="">Type</option>
+                  {workTypes.map(wt => <option key={wt} value={wt}>{wt}</option>)}
                 </select>
-                <input className="modern-input" style={{ margin: 0, fontSize: 12.5 }} placeholder="Est. time (e.g. 2h)" value={t.est_time} onChange={e => updateTask(t.id, { est_time: e.target.value })} />
                 {clients.length > 0 ? (
                   <select className="modern-input" style={{ margin: 0, fontSize: 12.5 }} value={t.client} onChange={e => updateTask(t.id, { client: e.target.value })}>
                     <option value="">Client</option>
                     {clients.map(c => <option key={c._id || c.name} value={c.name}>{c.name}</option>)}
                   </select>
                 ) : null}
-                {deptNames.length > 0 ? (
-                  <select className="modern-input" style={{ margin: 0, fontSize: 12.5 }} value={t.project} onChange={e => updateTask(t.id, { project: e.target.value })}>
-                    <option value="">Project / Dept</option>
-                    {deptNames.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                ) : (
-                  <input className="modern-input" style={{ margin: 0, fontSize: 12.5 }} placeholder="Project / Dept" value={t.project} onChange={e => updateTask(t.id, { project: e.target.value })} />
-                )}
               </div>
             </div>
           );
@@ -215,10 +251,15 @@ export default function DailyWorkPlan({ token, user, departments = [] }) {
             <FaPlus size={10} /> Add Task
           </button>
           <div style={{ display: "flex", gap: 10, marginTop: 14, justifyContent: "flex-end", borderTop: "1px solid #f1f5f9", paddingTop: 14 }}>
-            <button className="btn ghost" disabled={saving} onClick={() => save(false)} style={{ fontSize: 13 }}><FaSave size={11} /> Save Draft</button>
+            <button className="btn ghost" disabled={saving} onClick={() => save(false)} style={{ fontSize: 13 }}>Save Draft</button>
             <button className="btn" disabled={saving} onClick={() => save(true)} style={{ fontSize: 13 }}><FaPaperPlane size={11} /> {saving ? "Submitting…" : "Submit Plan"}</button>
           </div>
         </>
+      )}
+      {status === "submitted" && !editing && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+          <button className="btn ghost" style={{ fontSize: 12, padding: "6px 12px" }} onClick={() => setEditing(true)}>Edit Plan</button>
+        </div>
       )}
     </div>
   );

@@ -1,92 +1,88 @@
-﻿import React, { useState, useEffect } from "react";
-import { FaTasks, FaCheckCircle, FaPercentage, FaChartLine, FaProjectDiagram } from "react-icons/fa";
-import { LineChart, BarChart, DonutChart, ProgressRing } from "./Charts";
-import { SkeletonStats, SkeletonTable } from "./Skeleton";
+import React, { useState, useEffect } from "react";
+import { FaRobot, FaSyncAlt } from "react-icons/fa";
+import DailyWorkPlan from "./DailyWorkPlan";
+import WorkHistory from "./WorkHistory";
 
 import { API_URL as BASE } from "../api";
 const RANGES = [
-  { k: "today", label: "Today" },
   { k: "week",  label: "This Week" },
   { k: "month", label: "This Month" },
 ];
 
-export default function WorkAnalytics({ token }) {
-  const [range, setRange]   = useState("week");
-  const [data, setData]     = useState(null);
+/** AI-written summary of work history — replaces the old chart grid. Backend
+ * endpoint (GET /api/my/work-analytics-ai?range=) doesn't exist yet; this
+ * degrades gracefully to a "not available yet" note until it does. */
+function AIAnalytics({ token }) {
+  const [range, setRange] = useState("week");
+  const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
+  const [available, setAvailable] = useState(true);
 
-  useEffect(() => {
+  function load() {
     setLoading(true);
-    fetch(`${BASE}/my/work-analytics?range=${range}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => setData(d || {}))
-      .catch(() => setData({}))
+    fetch(`${BASE}/my/work-analytics-ai?range=${range}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => { if (r.status === 404) { setAvailable(false); return null; } return r.ok ? r.json() : null; })
+      .then(d => { if (d?.summary) { setSummary(d.summary); setAvailable(true); } })
+      .catch(() => {})
       .finally(() => setLoading(false));
-  }, [range, token]);
+  }
 
-  const submitted = data?.tasks_submitted ?? 0;
-  const completed = data?.tasks_completed ?? 0;
-  const pct = submitted > 0 ? Math.round((completed / submitted) * 100) : 0;
-  const daily   = data?.daily_trend   || [];   // [{label, value}]
-  const weekly  = data?.weekly_trend  || [];   // [{label, value}]
-  const projects = (data?.projects || []).map(p => ({ label: p.name || p.label, value: p.count ?? p.value })); // [{name,count}]
+  useEffect(load, [range, token]);
 
   return (
-    <div style={{ marginTop: 16 }}>
-      <div className="card" style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h3 style={{ margin: 0, color: "var(--brand)" }}>My Work Analytics</h3>
-          <p className="small">Track your tasks, completion rate and productivity trends</p>
+    <div className="card">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 11, background: "linear-gradient(135deg, var(--brand), var(--teal-800))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <FaRobot color="#fff" size={16} />
+          </div>
+          <div>
+            <h4 style={{ margin: 0, fontSize: 15, color: "#0f172a" }}>AI Work Insights</h4>
+            <p className="small" style={{ margin: "2px 0 0" }}>A short, plain-language read on your recent work</p>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 99, padding: 4 }}>
-          {RANGES.map(r => (
-            <button key={r.k} onClick={() => setRange(r.k)} style={{
-              padding: "6px 16px", borderRadius: 99, border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 600,
-              background: range === r.k ? "var(--brand)" : "transparent", color: range === r.k ? "#fff" : "#64748b",
-            }}>{r.label}</button>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 99, padding: 4 }}>
+            {RANGES.map(r => (
+              <button key={r.k} onClick={() => setRange(r.k)} style={{ padding: "5px 13px", borderRadius: 99, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: range === r.k ? "var(--brand)" : "transparent", color: range === r.k ? "#fff" : "#64748b" }}>{r.label}</button>
+            ))}
+          </div>
+          <button onClick={load} title="Refresh" style={{ background: "#f1f5f9", border: "none", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#64748b" }}>
+            <FaSyncAlt size={12} />
+          </button>
         </div>
       </div>
 
-      {loading ? <><SkeletonStats count={4} /><div style={{ marginTop: 14 }}><SkeletonTable rows={6} cols={3} /></div></> : (
-      <>
-        {/* KPI tiles */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 16 }}>
-          {[
-            { icon: <FaTasks />,       label: "Tasks Submitted", value: submitted, color: "var(--brand)", bg: "var(--brand-light)" },
-            { icon: <FaCheckCircle />, label: "Tasks Completed", value: completed, color: "#16a34a", bg: "#f0fdf4" },
-            { icon: <FaPercentage />,  label: "Completion Rate", value: `${pct}%`,  color: "#0f766e", bg: "#effdf8" },
-            { icon: <FaChartLine />,   label: "Active Days",     value: data?.active_days ?? daily.filter(d => d.value > 0).length, color: "#7c3aed", bg: "#f5f3ff" },
-          ].map(s => (
-            <div key={s.label} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 46, height: 46, borderRadius: 12, background: s.bg, color: s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{s.icon}</div>
-              <div><div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{s.value}</div><div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>{s.label}</div></div>
-            </div>
-          ))}
+      {loading ? (
+        <div style={{ padding: "30px 0", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>Thinking…</div>
+      ) : !available ? (
+        <div style={{ padding: "24px 20px", textAlign: "center", color: "#94a3b8", fontSize: 13, background: "#f8fafc", borderRadius: 10 }}>
+          AI insights aren't available yet — this needs a backend endpoint that hasn't been added.
         </div>
-
-        {/* Charts grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, alignItems: "start" }} className="wa-grid">
-          <div className="card">
-            <h4 className="widget-title">Daily Activity Trend</h4>
-            <LineChart data={daily} valueLabel="tasks" />
-          </div>
-          <div className="card" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-            <h4 className="widget-title" style={{ alignSelf: "flex-start" }}>Completion</h4>
-            <ProgressRing percent={pct} size={150} label={`${completed} of ${submitted}`} />
-          </div>
-          <div className="card">
-            <h4 className="widget-title">Weekly Productivity</h4>
-            <BarChart data={weekly.length ? weekly : daily} />
-          </div>
-          <div className="card">
-            <h4 className="widget-title"><FaProjectDiagram size={12} /> Project Contribution</h4>
-            {projects.length ? <DonutChart segments={projects} centerLabel={projects.reduce((s,p)=>s+p.value,0)} centerSub="tasks" /> : <div style={{ padding: "30px 0", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No project data yet.</div>}
-          </div>
+      ) : summary ? (
+        <div style={{ fontSize: 13.5, color: "#334155", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{summary}</div>
+      ) : (
+        <div style={{ padding: "24px 20px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+          Not enough logged work in this period yet to summarize.
         </div>
-      </>
       )}
-      <style>{`@media (max-width: 820px){ .wa-grid { grid-template-columns: 1fr !important; } }`}</style>
+    </div>
+  );
+}
+
+export default function WorkAnalytics({ token, user }) {
+  return (
+    <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Today's status — same widget as the dashboard, also reachable from here */}
+      <DailyWorkPlan token={token} user={user} />
+
+      {/* Work history — filterable table with export */}
+      <div className="card">
+        <WorkHistory token={token} user={user} />
+      </div>
+
+      {/* AI-generated analytics — replaces the old chart grid */}
+      <AIAnalytics token={token} />
     </div>
   );
 }

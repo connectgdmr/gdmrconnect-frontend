@@ -45,6 +45,7 @@ import {
   FaEye,
   FaSitemap,
   FaTasks,
+  FaTags,
   FaCog
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
@@ -53,6 +54,7 @@ import AdminInsights from "./AdminInsights";
 import ErrorBoundary from "./ErrorBoundary";
 import useChatUnread from "./useChatUnread";
 import ChatBot from "./ChatBot";
+import WorkTypesManager from "./WorkTypesManager";
 import { SkeletonTable, SkeletonCards } from "./Skeleton";
 
 const AdminAssessment = lazy(() => import("./AdminAssessment"));
@@ -213,6 +215,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   const [deptForm, setDeptForm] = useState({ name: "", description: "", head_id: "" });
   const [deptSaving, setDeptSaving] = useState(false);
   const [deptMembersOpen, setDeptMembersOpen] = useState(null); // dept object for quick-view
+  const [workTypesDept, setWorkTypesDept] = useState(null); // department name for Work Types modal
 
   // — Data Loaders —
 
@@ -1333,6 +1336,13 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                             <FaEye size={11} /> View Members
                           </button>
                           <button
+                            onClick={() => setWorkTypesDept(dept.name)}
+                            title="Configure work types"
+                            style={{ padding: "7px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}
+                          >
+                            <FaTags size={11} />
+                          </button>
+                          <button
                             onClick={() => openEditDept(dept)}
                             style={{ padding: "7px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}
                           >
@@ -1504,6 +1514,18 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                 </>
               );
             })()}
+
+            {/* ── WORK TYPES MODAL ─────────────────────────────────────────── */}
+            {workTypesDept && (
+              <div className="modal-overlay" onClick={() => setWorkTypesDept(null)}>
+                <div className="modal-card" onClick={e => e.stopPropagation()} style={{ padding: 24, width: 480 }}>
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+                    <button onClick={() => setWorkTypesDept(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><FaTimes size={15} /></button>
+                  </div>
+                  <WorkTypesManager token={token} department={workTypesDept} canEdit={true} />
+                </div>
+              </div>
+            )}
           </div>
         );
       })()}

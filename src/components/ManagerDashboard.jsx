@@ -9,7 +9,6 @@ import ChatBot from "./ChatBot";
 
 const Chat            = lazy(() => import("./Chat"));
 const WorkAnalytics  = lazy(() => import("./WorkAnalytics"));
-const WorkHistory     = lazy(() => import("./WorkHistory"));
 const AdminWorkByTeam = lazy(() => import("./AdminWorkByTeam"));
 const AdminClients    = lazy(() => import("./AdminClients"));
 const AdminATS        = lazy(() => import("./AdminATS"));
@@ -64,10 +63,12 @@ import {
   FaBars,
   FaGift,
   FaSave,
-  FaCog
+  FaCog,
+  FaTags
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 import SettingsModal from "./SettingsModal";
+import WorkTypesManager from "./WorkTypesManager";
 
 function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) {
   return (
@@ -1335,6 +1336,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               <QuickLaunchItem icon={<FaEdit />} label="PMS Form Builder" onClick={() => setView("pms-builder")} />
               <QuickLaunchItem icon={<FaChartLine />} label="PMS Reviews" onClick={() => setView("pms-manager")} badgeCount={notificationCounts?.pms || 0} />
               <QuickLaunchItem icon={<FaUsers />} label="Dept Dashboard" onClick={() => setView("dept-dashboard")} />
+              <QuickLaunchItem icon={<FaTags />} label="Work Types" onClick={() => setView("work-types")} />
               <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} badgeCount={notificationCounts?.corrections || 0} />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
@@ -1582,6 +1584,17 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           </div>
         );
       })()}
+
+      {/* — Work Types Setup — */}
+      {view === "work-types" && (
+        <div className="card" style={{ marginTop: 16, maxWidth: 560 }}>
+          <WorkTypesManager
+            token={token}
+            department={Array.isArray(user?.department) ? user.department[0] : user?.department}
+            canEdit={true}
+          />
+        </div>
+      )}
 
       {/* — Dept Performance Dashboard — */}
       {view === "dept-dashboard" && (
@@ -2294,8 +2307,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {view === "chat"    && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
       {view === "lms"     && <ErrorBoundary label="LMS" resetKey={view}><Suspense fallback={<div />}><ManagerLMS token={token} user={user} myEmployees={teamMembers} /></Suspense></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
-      {view === "work-analytics" && <ErrorBoundary label="My Work Analytics" resetKey={view}><WorkAnalytics token={token} /></ErrorBoundary>}
-      {view === "work-history"   && <ErrorBoundary label="Work History" resetKey={view}><WorkHistory token={token} user={user} /></ErrorBoundary>}
+      {view === "work-analytics" && <ErrorBoundary label="My Work" resetKey={view}><WorkAnalytics token={token} user={user} /></ErrorBoundary>}
       {view === "work-by-team"   && <ErrorBoundary label="Work by Team" resetKey={view}><AdminWorkByTeam token={token} role="manager" /></ErrorBoundary>}
       {view === "clients"        && <ErrorBoundary label="Clients" resetKey={view}><AdminClients token={token} /></ErrorBoundary>}
       {view === "ats"            && <ErrorBoundary label="Recruitment" resetKey={view}><AdminATS token={token} role="manager" /></ErrorBoundary>}
