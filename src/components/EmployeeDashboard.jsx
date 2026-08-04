@@ -1101,7 +1101,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
             {/* Header */}
             <div className="card" style={{marginBottom:16}}>
               <div style={{display:'flex', alignItems:'center', gap:14, marginBottom: pmsTemplate?.cycle_name || pmsTemplate?.due_date ? 16 : 0}}>
-                <div style={{width:46, height:46, borderRadius:12, background:'linear-gradient(135deg, var(--red), #f97316)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
+                <div style={{width:46, height:46, borderRadius:12, background:'linear-gradient(135deg, var(--brand), var(--teal-800))', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
                   <FaChartLine color="#fff" size={20} />
                 </div>
                 <div style={{flex:1}}>
