@@ -488,7 +488,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                 return (
                 <tr key={emp._id} style={isResigned ? { opacity: 0.45, background: "#f8fafc", filter: "grayscale(30%)" } : {}}>
                   <td>
-                    <div className="emp-name">{emp.name}</div>
+                    <div className="emp-name">{emp.name}{emp.employee_code && <span style={{ color: "#94a3b8", fontWeight: 500 }}> · {emp.employee_code}</span>}</div>
                     <div className="emp-email">{emp.email}</div>
                     <EmploymentStatusBadge emp={emp} />
                   </td>
@@ -579,6 +579,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                 { label: "Full Name",      key: "name",     type: "text",  required: true },
                 { label: "Email Address",  key: "email",    type: "email", required: true },
                 { label: "Position Title", key: "position", type: "text",  required: false },
+                { label: "Employee ID",    key: "employee_code", type: "text", required: false },
               ].map(({ label, key, type, required }) => (
                 <div key={key} style={{ textAlign: "left", marginBottom: 14 }}>
                   <label style={{ fontWeight: 600, color: "#334155", fontSize: 13 }}>{label}</label>
