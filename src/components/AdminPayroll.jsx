@@ -230,10 +230,10 @@ export default function AdminPayroll({ token, employees = [] }) {
     } catch { flash("Could not update status.", "error"); }
   }
 
-  async function exportPayroll() {
-    setExporting(true);
+  async function exportPayroll(format) {
+    setExporting(format);
     try {
-      const r = await fetch(`${BASE}/admin/payroll/export?month=${slipMonth + 1}&year=${slipYear}`, {
+      const r = await fetch(`${BASE}/admin/payroll/export?month=${slipMonth + 1}&year=${slipYear}&format=${format}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to export payroll.", "error"); return; }
@@ -241,7 +241,7 @@ export default function AdminPayroll({ token, employees = [] }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Payroll_Export_${MONTHS[slipMonth]}_${slipYear}.xlsx`;
+      a.download = `Payroll_Export_${MONTHS[slipMonth]}_${slipYear}.${format}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -466,9 +466,13 @@ export default function AdminPayroll({ token, employees = [] }) {
               <input className="modern-input" placeholder="Search by employee name…" value={slipSearch}
                 onChange={e => setSlipSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
             </div>
-            <button className="btn ghost" onClick={exportPayroll} disabled={exporting || payslips.length === 0}
+            <button className="btn ghost" onClick={() => exportPayroll("xlsx")} disabled={!!exporting || payslips.length === 0}
               style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
-              <FaDownload size={11} /> {exporting ? "Exporting…" : "Export Payroll"}
+              <FaDownload size={11} /> {exporting === "xlsx" ? "Exporting…" : "Export Excel"}
+            </button>
+            <button className="btn ghost" onClick={() => exportPayroll("pdf")} disabled={!!exporting || payslips.length === 0}
+              style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
+              <FaDownload size={11} /> {exporting === "pdf" ? "Exporting…" : "Export PDF"}
             </button>
           </div>
 
