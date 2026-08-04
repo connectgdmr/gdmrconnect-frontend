@@ -2,7 +2,7 @@
 import { escHtml } from "../utils/security";
 import {
   FaMoneyBillWave, FaEdit, FaTimes, FaPlay, FaCheckCircle,
-  FaSearch, FaFileInvoiceDollar, FaPrint, FaRupeeSign, FaClock, FaHistory,
+  FaSearch, FaFileInvoiceDollar, FaPrint, FaRupeeSign, FaClock, FaHistory, FaDownload,
 } from "react-icons/fa";
 import { SkeletonTable, SkeletonStats } from "./Skeleton";
 
@@ -19,16 +19,20 @@ const EARNINGS = [
 ];
 const DEDUCTIONS = [
   { key: "pf",               label: "PF" },
+  { key: "professional_tax", label: "Professional Tax" },
+  { key: "gratuity",         label: "Gratuity" },
   { key: "esi",              label: "ESI" },
   { key: "lop",              label: "LOP" },
   { key: "tds",              label: "TDS" },
   { key: "other_deductions", label: "Other Deductions" },
 ];
-// Only PF is part of the constant salary structure. ESI/LOP/TDS/Other Deductions
-// vary month to month and are set in the Run Payroll step instead, so they never
-// touch the structure record or show up as a fake "increment" in Salary History.
-const STRUCTURE_DEDUCTIONS = DEDUCTIONS.filter(d => d.key === "pf");
-const MONTHLY_DEDUCTIONS   = DEDUCTIONS.filter(d => d.key !== "pf");
+// PF, Professional Tax and Gratuity are fixed monthly amounts set once on the
+// structure. ESI/LOP/TDS/Other Deductions vary month to month and are set in the
+// Run Payroll step instead, so they never touch the structure record or show up
+// as a fake "increment" in Salary History.
+const STRUCTURE_FIXED_KEYS = ["pf", "professional_tax", "gratuity"];
+const STRUCTURE_DEDUCTIONS = DEDUCTIONS.filter(d => STRUCTURE_FIXED_KEYS.includes(d.key));
+const MONTHLY_DEDUCTIONS   = DEDUCTIONS.filter(d => !STRUCTURE_FIXED_KEYS.includes(d.key));
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const INCREMENT_TYPES = ["New Hire", "Annual Increment", "Promotion", "Performance Bonus", "Correction", "Other"];
@@ -109,6 +113,8 @@ export default function AdminPayroll({ token, employees = [] }) {
 
   const [historyModal, setHistoryModal] = useState(null); // { emp, history[] }
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  const [exporting, setExporting] = useState(false);
 
   const [msg, setMsg] = useState({ text: "", type: "" });
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3500); };
@@ -222,6 +228,25 @@ export default function AdminPayroll({ token, employees = [] }) {
       });
       loadPayslips();
     } catch { flash("Could not update status.", "error"); }
+  }
+
+  async function exportPayroll() {
+    setExporting(true);
+    try {
+      const r = await fetch(`${BASE}/admin/payroll/export?month=${slipMonth + 1}&year=${slipYear}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to export payroll.", "error"); return; }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Payroll_Export_${MONTHS[slipMonth]}_${slipYear}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch { flash("Network error.", "error"); } finally { setExporting(false); }
   }
 
   const configuredCount = salaries.filter(s => s.salary && grossOf(s.salary) > 0).length;
@@ -441,6 +466,10 @@ export default function AdminPayroll({ token, employees = [] }) {
               <input className="modern-input" placeholder="Search by employee name…" value={slipSearch}
                 onChange={e => setSlipSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
             </div>
+            <button className="btn ghost" onClick={exportPayroll} disabled={exporting || payslips.length === 0}
+              style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
+              <FaDownload size={11} /> {exporting ? "Exporting…" : "Export Payroll"}
+            </button>
           </div>
 
           {slipsLoading ? <SkeletonTable rows={6} cols={6} />
@@ -698,7 +727,10 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
 <table style="margin-bottom:0">
   <thead><tr><th class="hdr" colspan="2">Earnings</th><th class="hdr" colspan="2">Deduction</th></tr></thead>
   <tbody>
-    ${EARNINGS.map((e, i) => { const d = DEDUCTIONS[i]; return `<tr><td class="lbl">${e.label}</td><td class="val">${fmt2(slip[e.key])}</td>${d ? `<td class="lbl">${d.label}</td><td class="val">${fmt2(slip[d.key])}</td>` : "<td></td><td></td>"}</tr>`; }).join("")}
+    ${Array.from({ length: Math.max(EARNINGS.length, DEDUCTIONS.length) }, (_, i) => {
+      const e = EARNINGS[i], d = DEDUCTIONS[i];
+      return `<tr>${e ? `<td class="lbl">${e.label}</td><td class="val">${fmt2(slip[e.key])}</td>` : "<td></td><td></td>"}${d ? `<td class="lbl">${d.label}</td><td class="val">${fmt2(slip[d.key])}</td>` : "<td></td><td></td>"}</tr>`;
+    }).join("")}
     ${extraDedRows}
     <tr class="tot"><td>Gross Salary:</td><td class="val">${fmt2(gross)}</td><td>Total Deductions:</td><td class="val">${Math.round(ded)}</td></tr>
     <tr><td>Bonus</td><td class="val">${fmt2(bonus)}</td><td></td><td></td></tr>
@@ -771,12 +803,14 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
             </tr>
           </thead>
           <tbody>
-            {EARNINGS.map((e, i) => {
-              const d = DEDUCTIONS[i];
+            {Array.from({ length: Math.max(EARNINGS.length, DEDUCTIONS.length) }, (_, i) => {
+              const e = EARNINGS[i], d = DEDUCTIONS[i];
               return (
-                <tr key={e.key}>
-                  <TD style={{ ...cellStyle, width: "26%" }}>{e.label}</TD>
-                  <TD style={{ ...cellStyle, width: "24%", textAlign: "right" }}>{fmt2(slip[e.key])}</TD>
+                <tr key={i}>
+                  {e
+                    ? <><TD style={{ ...cellStyle, width: "26%" }}>{e.label}</TD><TD style={{ ...cellStyle, width: "24%", textAlign: "right" }}>{fmt2(slip[e.key])}</TD></>
+                    : <><TD style={cellStyle}></TD><TD style={cellStyle}></TD></>
+                  }
                   {d
                     ? <><TD style={{ ...cellStyle, width: "26%" }}>{d.label}</TD><TD style={{ ...cellStyle, width: "24%", textAlign: "right" }}>{fmt2(slip[d.key])}</TD></>
                     : <><TD style={cellStyle}></TD><TD style={cellStyle}></TD></>

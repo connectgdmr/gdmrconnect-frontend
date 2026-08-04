@@ -11,6 +11,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState(deptList[0]?.name || "");
   const [position, setPosition] = useState("");
+  const [doj, setDoj] = useState("");
   const [managerId, setManagerId] = useState("");
   const [shift, setShift] = useState("morning");
   const [managers, setManagers] = useState([]);
@@ -43,11 +44,12 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
         email,
         department,
         position,
+        doj,
         shift,
         manager_id: managerId || undefined
       });
       setMsg("Employee added — credentials sent by email.");
-      setName(""); setEmail(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setManagerId(""); setShift("morning");
+      setName(""); setEmail(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setDoj(""); setManagerId(""); setShift("morning");
     } catch (err) {
       setMsg(err.message || "Error");
     } finally { setSaving(false); }
@@ -102,6 +104,14 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
                 <option key={m._id} value={m._id}>{m.name} ({m.department})</option>
               ))}
             </select>
+          </div>
+        </div>
+
+        {/* Row 4: Date of Joining */}
+        <div className="form-row">
+          <div style={{flex: 1}}>
+            <label>Date of Joining</label>
+            <input className="input" type="date" value={doj} onChange={e=>setDoj(e.target.value)} />
           </div>
         </div>
 

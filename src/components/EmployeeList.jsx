@@ -618,6 +618,16 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                 </select>
               </div>
 
+              <div style={{ textAlign: "left", marginBottom: 14 }}>
+                <label style={{ fontWeight: 600, color: "#334155", fontSize: 13 }}>Date of Joining</label>
+                <input
+                  className="modern-input"
+                  type="date"
+                  value={editingEmployee.doj || ""}
+                  onChange={(e) => setEditingEmployee({ ...editingEmployee, doj: e.target.value })}
+                />
+              </div>
+
               <div style={{ textAlign: "left", marginBottom: 24 }}>
                 <label style={{ fontWeight: 600, color: "#334155", fontSize: 13 }}>Assigned Manager</label>
                 <select
