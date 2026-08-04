@@ -2308,17 +2308,22 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
 
       {leaveModalOpen && (
         <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()}>
-            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15}}>
-              <h3 style={{ margin: 0, color: 'var(--red)' }}>{modalTitle}</h3>
-              <button className="btn ghost" onClick={() => setLeaveModalOpen(false)}><FaTimes /></button>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{padding:0, display:'flex', flexDirection:'column', maxHeight:'85vh'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 24px', borderBottom:'1px solid #e2e8f0', flexShrink:0}}>
+              <h3 style={{ margin: 0, fontSize:19, color: '#0f172a' }}>{modalTitle}</h3>
+              <button
+                onClick={() => setLeaveModalOpen(false)}
+                style={{ background:'#f1f5f9', border:'none', cursor:'pointer', color:'#475569', width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}
+              ><FaTimes size={15} /></button>
             </div>
-            <div style={{overflowY:'auto', flex:1}}>
-               {modalList.map((l) => (
-                  <div key={l._id} style={{padding:12, borderBottom:'1px solid #f9f9f9'}}>
-                    <div style={{fontWeight:600}}>{l.date || l.from_date}</div>
-                    <div style={{fontSize:13, color:'#666'}}>"{l.reason || "No reason"}"</div>
-                    <span className={`status-badge ${getStatusClass(l.status)}`} style={{marginTop:5}}>{l.status || 'Pending'}</span>
+            <div style={{overflowY:'auto', flex:1, padding:'8px 24px 20px'}}>
+               {modalList.length === 0 ? (
+                  <div style={{textAlign:'center', padding:'30px 0', color:'#94a3b8', fontSize:13}}>No records found.</div>
+               ) : modalList.map((l) => (
+                  <div key={l._id} style={{padding:'12px 4px', borderBottom:'1px solid #f4f6f8'}}>
+                    <div style={{fontWeight:600, color:'#0f172a'}}>{l.date || l.from_date}</div>
+                    <div style={{fontSize:13, color:'#64748b', margin:'3px 0 6px'}}>"{l.reason || "No reason"}"</div>
+                    <span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span>
                   </div>
               ))}
             </div>

@@ -1499,15 +1499,15 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
 
       {leaveModalOpen && (
         <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:15, borderBottom:'1px solid #f1f5f9', paddingBottom:12}}>
-              <h3 style={{ margin: 0, color: 'var(--brand)' }}>{modalTitle}</h3>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{padding:0, display:'flex', flexDirection:'column', maxHeight:'85vh'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 24px', borderBottom:'1px solid #e2e8f0', flexShrink:0}}>
+              <h3 style={{ margin: 0, fontSize:19, color: '#0f172a' }}>{modalTitle}</h3>
               <button
                 onClick={() => setLeaveModalOpen(false)}
-                style={{ background:'#f1f5f9', border:'none', cursor:'pointer', color:'#64748b', width:30, height:30, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}
-              ><FaTimes size={13} /></button>
+                style={{ background:'#f1f5f9', border:'none', cursor:'pointer', color:'#475569', width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}
+              ><FaTimes size={15} /></button>
             </div>
-            <div style={{overflowY:'auto', flex:1}}>
+            <div style={{overflowY:'auto', flex:1, padding:'8px 24px 20px'}}>
                {modalList.length === 0 ? (
                   <div style={{textAlign:'center', padding:'30px 0', color:'#94a3b8', fontSize:13}}>No records found.</div>
                ) : modalList.map((l) => (
