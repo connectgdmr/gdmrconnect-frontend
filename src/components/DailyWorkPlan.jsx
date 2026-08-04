@@ -33,6 +33,7 @@ export default function DailyWorkPlan({ token, user }) {
   const [msg, setMsg]           = useState("");
   const [clients, setClients]   = useState([]);
   const [workTypes, setWorkTypes] = useState(DEFAULT_WORK_TYPES);
+  const [customStatusIds, setCustomStatusIds] = useState(new Set());
   const [sharing, setSharing]   = useState(false);
 
   const department = Array.isArray(user?.department) ? user.department[0] : user?.department;
@@ -210,14 +211,36 @@ export default function DailyWorkPlan({ token, user }) {
                   </div>
                 </div>
                 {/* Status selector — change as you work */}
-                <select
-                  value={t.status || "Pending"}
-                  onChange={e => changeStatus(e.target.value)}
-                  title="Change status"
-                  style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, color: sm.color, background: sm.bg, border: `1px solid ${sm.color}33`, borderRadius: 99, padding: "5px 10px", cursor: "pointer", appearance: "none", textAlign: "center" }}
-                >
-                  {TASK_STATUSES.map(s => <option key={s.v} value={s.v} style={{ color: "#334155", background: "#fff" }}>{s.v}</option>)}
-                </select>
+                {(customStatusIds.has(t.id) || (t.status && !TASK_STATUSES.some(s => s.v === t.status))) ? (
+                  <input
+                    autoFocus
+                    defaultValue={t.status}
+                    placeholder="Type a status…"
+                    title="Custom status"
+                    onKeyDown={e => {
+                      if (e.key !== "Enter") return;
+                      const v = e.target.value.trim();
+                      setCustomStatusIds(s => { const n = new Set(s); n.delete(t.id); return n; });
+                      if (v) changeStatus(v);
+                    }}
+                    onBlur={e => {
+                      const v = e.target.value.trim();
+                      setCustomStatusIds(s => { const n = new Set(s); n.delete(t.id); return n; });
+                      if (v) changeStatus(v);
+                    }}
+                    style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, color: "#334155", background: "#fff", border: "1px solid #cbd5e1", borderRadius: 99, padding: "5px 10px", width: 120, textAlign: "center" }}
+                  />
+                ) : (
+                  <select
+                    value={t.status || "Pending"}
+                    onChange={e => { if (e.target.value === "__custom__") setCustomStatusIds(s => new Set(s).add(t.id)); else changeStatus(e.target.value); }}
+                    title="Change status"
+                    style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, color: sm.color, background: sm.bg, border: `1px solid ${sm.color}33`, borderRadius: 99, padding: "5px 10px", cursor: "pointer", appearance: "none", textAlign: "center" }}
+                  >
+                    {TASK_STATUSES.map(s => <option key={s.v} value={s.v} style={{ color: "#334155", background: "#fff" }}>{s.v}</option>)}
+                    <option value="__custom__" style={{ color: "#334155", background: "#fff" }}>Custom…</option>
+                  </select>
+                )}
               </div>
             );
           }
@@ -239,6 +262,25 @@ export default function DailyWorkPlan({ token, user }) {
                     {clients.map(c => <option key={c._id || c.name} value={c.name}>{c.name}</option>)}
                   </select>
                 ) : null}
+                {(customStatusIds.has(t.id) || (t.status && !TASK_STATUSES.some(s => s.v === t.status))) ? (
+                  <input
+                    className="modern-input" style={{ margin: 0, fontSize: 12.5 }} placeholder="Type a status…" autoFocus
+                    value={t.status}
+                    onChange={e => updateTask(t.id, { status: e.target.value })}
+                    onBlur={() => { if (!t.status.trim()) { updateTask(t.id, { status: "Pending" }); setCustomStatusIds(s => { const n = new Set(s); n.delete(t.id); return n; }); } }}
+                  />
+                ) : (
+                  <select
+                    className="modern-input" style={{ margin: 0, fontSize: 12.5 }} value={t.status || "Pending"}
+                    onChange={e => {
+                      if (e.target.value === "__custom__") { setCustomStatusIds(s => new Set(s).add(t.id)); updateTask(t.id, { status: "" }); }
+                      else updateTask(t.id, { status: e.target.value });
+                    }}
+                  >
+                    {TASK_STATUSES.map(s => <option key={s.v} value={s.v}>{s.v}</option>)}
+                    <option value="__custom__">Custom…</option>
+                  </select>
+                )}
               </div>
             </div>
           );

@@ -29,6 +29,7 @@ export default function WorkHistory({ token, user }) {
   const [typeF, setTypeF]     = useState("all");
   const [clientF, setClientF] = useState("all");
   const [toast, setToast]   = useState("");
+  const [customStatusIds, setCustomStatusIds] = useState(new Set());
 
   const toArr = (d) => Array.isArray(d) ? d : (d?.plans || d?.data || []);
 
@@ -46,6 +47,8 @@ export default function WorkHistory({ token, user }) {
 
   const typeOptions = useMemo(() => [...new Set(allRows.map(r => r.work_type).filter(Boolean))].sort(), [allRows]);
   const clientOptions = useMemo(() => [...new Set(allRows.map(r => r.client).filter(Boolean))].sort(), [allRows]);
+  // Custom (non-standard) statuses that show up in the data, so the filter can find them too
+  const customStatusOptions = useMemo(() => [...new Set(allRows.map(r => r.status).filter(s => s && !TASK_STATUSES.some(x => x.v === s)))].sort(), [allRows]);
 
   const rows = allRows
     .filter(r => !search || r.title.toLowerCase().includes(search.toLowerCase()))
@@ -166,6 +169,7 @@ export default function WorkHistory({ token, user }) {
         <select className="modern-input" value={statusF} onChange={e => setStatusF(e.target.value)} style={{ margin: 0, maxWidth: 160 }}>
           <option value="all">All Statuses</option>
           {TASK_STATUSES.map(s => <option key={s.v} value={s.v}>{s.v}</option>)}
+          {customStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
 
@@ -198,10 +202,30 @@ export default function WorkHistory({ token, user }) {
                     <td>{r.work_type ? <span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", borderRadius: 99, padding: "2px 9px" }}>{r.work_type}</span> : <span style={{ color: "#cbd5e1" }}>—</span>}</td>
                     <td style={{ fontSize: 12.5, color: "#0f766e", fontWeight: 600 }}>{r.client || <span style={{ color: "#cbd5e1", fontWeight: 400 }}>—</span>}</td>
                     <td>
-                      <select value={r.status} onChange={e => changeStatus(r.planId, r.taskId, e.target.value)} title="Change status"
-                        style={{ fontSize: 10.5, fontWeight: 700, color: sm.color, background: sm.bg, border: `1px solid ${sm.color}33`, borderRadius: 99, padding: "4px 9px", cursor: "pointer", appearance: "none", textAlign: "center" }}>
-                        {TASK_STATUSES.map(s => <option key={s.v} value={s.v} style={{ color: "#334155", background: "#fff" }}>{s.v}</option>)}
-                      </select>
+                      {(() => {
+                        const rowKey = `${r.planId}-${r.taskId}`;
+                        const isCustom = customStatusIds.has(rowKey) || (r.status && !TASK_STATUSES.some(s => s.v === r.status));
+                        if (isCustom) {
+                          return (
+                            <input
+                              autoFocus defaultValue={r.status} placeholder="Type a status…" title="Custom status"
+                              onKeyDown={e => { if (e.key !== "Enter") return; const v = e.target.value.trim(); setCustomStatusIds(s => { const n = new Set(s); n.delete(rowKey); return n; }); if (v) changeStatus(r.planId, r.taskId, v); }}
+                              onBlur={e => { const v = e.target.value.trim(); setCustomStatusIds(s => { const n = new Set(s); n.delete(rowKey); return n; }); if (v) changeStatus(r.planId, r.taskId, v); }}
+                              style={{ fontSize: 10.5, fontWeight: 700, color: "#334155", background: "#fff", border: "1px solid #cbd5e1", borderRadius: 99, padding: "4px 9px", width: 120, textAlign: "center" }}
+                            />
+                          );
+                        }
+                        return (
+                          <select
+                            value={r.status}
+                            onChange={e => { if (e.target.value === "__custom__") setCustomStatusIds(s => new Set(s).add(rowKey)); else changeStatus(r.planId, r.taskId, e.target.value); }}
+                            title="Change status"
+                            style={{ fontSize: 10.5, fontWeight: 700, color: sm.color, background: sm.bg, border: `1px solid ${sm.color}33`, borderRadius: 99, padding: "4px 9px", cursor: "pointer", appearance: "none", textAlign: "center" }}>
+                            {TASK_STATUSES.map(s => <option key={s.v} value={s.v} style={{ color: "#334155", background: "#fff" }}>{s.v}</option>)}
+                            <option value="__custom__" style={{ color: "#334155", background: "#fff" }}>Custom…</option>
+                          </select>
+                        );
+                      })()}
                     </td>
                     <td>
                       {r.status !== "Completed" && (
