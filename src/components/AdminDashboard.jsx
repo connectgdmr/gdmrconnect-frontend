@@ -44,9 +44,11 @@ import {
   FaPlus,
   FaEye,
   FaSitemap,
-  FaTasks
+  FaTasks,
+  FaCog
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
+import SettingsModal from "./SettingsModal";
 import AdminInsights from "./AdminInsights";
 import ErrorBoundary from "./ErrorBoundary";
 import useChatUnread from "./useChatUnread";
@@ -152,6 +154,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   const [subView, setSubView] = useState("list");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [todayBirthdays, setTodayBirthdays] = useState([]);
   const [birthdayDismissed, setBirthdayDismissed] = useState(false);
 
@@ -743,6 +746,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
             {view === "dashboard" ? "Admin Dashboard" : view.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
           </span>
           <div className="topbar-right">
+            <button className="topbar-action-btn" title="Settings" onClick={() => setSettingsOpen(true)} style={{ padding: "7px 10px" }}>
+              <FaCog size={14} />
+            </button>
             <button className="topbar-profile-btn" onClick={() => setProfileOpen(true)}>
               <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
               <span className="topbar-user-name">{user?.name}</span>
@@ -1592,6 +1598,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
     </div>
 
     <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
+    {settingsOpen && <SettingsModal token={token} api={api} onClose={() => setSettingsOpen(false)} />}
     <ChatBot token={token} user={user} role="admin" onNavigate={setView} />
     </>
   );

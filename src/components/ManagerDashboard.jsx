@@ -62,9 +62,11 @@ import {
   FaLaptop,
   FaBars,
   FaGift,
-  FaSave
+  FaSave,
+  FaCog
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
+import SettingsModal from "./SettingsModal";
 
 function QuickLaunchItem({ icon, label, onClick, color = "var(--red)", badgeCount = 0 }) {
   return (
@@ -231,6 +233,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   const [loadError, setLoadError] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [todayBirthdays, setTodayBirthdays] = useState([]);
   const [birthdayDismissed, setBirthdayDismissed] = useState(false);
 
@@ -1123,14 +1126,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             {view === "dashboard" ? "Manager Dashboard" : view.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
           </span>
           <div className="topbar-right">
-            {view === "dashboard" && (
-              <button
-                className="topbar-action-btn"
-                onClick={() => { setPassError(""); setOldPassword(""); setNewPassword(""); setConfirmPassword(""); setShowPasswordModal(true); }}
-              >
-                <FaLock /> Change Password
-              </button>
-            )}
+            <button className="topbar-action-btn" title="Settings" onClick={() => setSettingsOpen(true)} style={{ padding: "7px 10px" }}>
+              <FaCog size={14} />
+            </button>
             <button className="topbar-profile-btn" onClick={() => setProfileOpen(true)}>
               <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
               <span className="topbar-user-name">{user?.name}</span>
@@ -2671,6 +2669,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
     </div>
 
     <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
+    {settingsOpen && <SettingsModal token={token} api={api} onClose={() => setSettingsOpen(false)} />}
     <ChatBot token={token} user={user} role="manager" onNavigate={setView} />
     </>
   );

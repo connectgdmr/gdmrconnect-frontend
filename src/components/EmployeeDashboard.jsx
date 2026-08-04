@@ -9,6 +9,7 @@ import PasswordStrengthMeter from "./PasswordStrengthMeter";
 import { getCurrentLocation } from "../utils/geolocation";
 import { resolveAttachmentUrl } from "../utils/security";
 import LeaveCalendar from "./LeaveCalendar";
+import SettingsModal from "./SettingsModal";
 
 const Chat                = lazy(() => import("./Chat"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
@@ -46,6 +47,7 @@ import {
   FaGift,
   FaGraduationCap,
   FaBriefcase,
+  FaCog,
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 import DailyQuote from "./DailyQuote";
@@ -137,6 +139,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   const [loadError, setLoadError] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [todayBirthdays, setTodayBirthdays] = useState([]);
   const [birthdayDismissed, setBirthdayDismissed] = useState(false);
   
@@ -688,6 +691,9 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                 <FaShieldAlt /> Special Access Active
               </div>
             )}
+            <button className="topbar-action-btn" title="Settings" onClick={() => setSettingsOpen(true)} style={{ padding: "7px 10px" }}>
+              <FaCog size={14} />
+            </button>
             <button className="topbar-profile-btn" onClick={() => setProfileOpen(true)}>
               <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
               <span className="topbar-user-name">{user?.name}</span>
@@ -1762,6 +1768,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
     </div>
 
     <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
+    {settingsOpen && <SettingsModal token={token} api={api} onClose={() => setSettingsOpen(false)} />}
     <ChatBot token={token} user={user} role="employee" onNavigate={setView} />
     </>
   );
