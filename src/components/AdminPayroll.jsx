@@ -544,10 +544,10 @@ export default function AdminPayroll({ token, employees = [] }) {
 
             <form onSubmit={saveSalary}>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4, fontWeight: 600 }}>Employee Code</label>
+                <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4, fontWeight: 600 }}>Employee ID (override)</label>
                 <input
                   className="modern-input"
-                  placeholder="e.g. GDMR-001, EMP001"
+                  placeholder="Defaults to the Employee ID set on their profile"
                   value={salaryForm.employee_code || ""}
                   onChange={e => setSalaryForm(s => ({ ...s, employee_code: e.target.value }))}
                   style={{ margin: 0 }}
@@ -724,7 +724,7 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
 <h1>GDMR CONNECT — SALARY SLIP</h1>
 <div class="ref">${escHtml(period)}</div>
 <table style="margin:10px 0">
-  <tr><td class="lbl">Employee Name:</td><td>${escHtml(slip.employee_name || "")}</td><td class="lbl">Employee Code:</td><td>${escHtml(slip.employee_code || "")}</td></tr>
+  <tr><td class="lbl">Employee Name:</td><td>${escHtml(slip.employee_name || "")}</td><td class="lbl">Employee ID:</td><td>${escHtml(slip.employee_code || "")}</td></tr>
   <tr><td class="lbl">Designation:</td><td>${escHtml(slip.designation || "")}</td><td class="lbl">Grade &amp; Profile:</td><td>${escHtml(slip.grade_profile || "")}</td></tr>
   <tr><td class="lbl">Total days of work</td><td>${escHtml(slip.days_worked ?? "")}</td><td class="lbl">Salary Period:</td><td>${escHtml(period)}</td></tr>
 </table>
@@ -780,7 +780,7 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
             <tr>
               <TD style={lblStyle}>Employee Name:</TD>
               <TD style={valStyle}>{slip.employee_name || ""}</TD>
-              <TD style={lblStyle}>Employee Code:</TD>
+              <TD style={lblStyle}>Employee ID:</TD>
               <TD style={valStyle}>{slip.employee_code || ""}</TD>
             </tr>
             <tr>
