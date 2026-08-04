@@ -18,6 +18,7 @@ import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
 import useChatUnread from "./useChatUnread";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 import { getCurrentLocation } from "../utils/geolocation";
+import LeaveCalendar from "./LeaveCalendar";
 
 const EmployeeLMS         = lazy(() => import("./EmployeeLMS"));
 const ManagerLMS          = lazy(() => import("./ManagerLMS"));
@@ -236,7 +237,10 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   // Leave Form State Variables
   const [leaveDuration, setLeaveDuration] = useState("single");
   const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [selectedDates, setSelectedDates] = useState([]); // multi-day leave — individually clicked calendar days
+  const toggleLeaveDate = (dateStr) => {
+    setSelectedDates(prev => (prev.includes(dateStr) ? prev.filter(d => d !== dateStr) : [...prev, dateStr].sort()));
+  };
   const [reason, setReason] = useState("");
   const [type, setType] = useState("full");
   const [period, setPeriod] = useState("First Half");
@@ -874,27 +878,46 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
    */
   async function applyLeave(e) {
     e.preventDefault();
-    try {
-      let payload = { 
-          type, 
-          reason, 
-          period: type === 'half' ? period : null, 
-          from_date: startDate, 
-          to_date: leaveDuration === 'single' ? startDate : endDate 
-      };
-      
-      await api.applyLeaveWithFile(payload, file, token);
-      
-      setStartDate(""); 
-      setEndDate(""); 
-      setReason(""); 
+
+    if (leaveDuration === 'multiple') {
+      if (selectedDates.length === 0) { alert("Click at least one day on the calendar."); return; }
+      let failed = 0;
+      for (const dateStr of selectedDates) {
+        try {
+          await api.applyLeaveWithFile({ type: 'full', reason, period: null, from_date: dateStr, to_date: dateStr }, file, token);
+        } catch { failed++; }
+      }
+      setSelectedDates([]);
+      setReason("");
       setFile(null);
-      
-      await load(true); 
-      alert("Leave Applied Successfully!"); 
-      setView("my-leaves"); 
-    } catch (err) { 
-        alert(err.message); 
+
+      await load(true);
+      if (failed === 0) alert(`Leave applied for ${selectedDates.length} day${selectedDates.length > 1 ? "s" : ""}.`);
+      else alert(`${selectedDates.length - failed} of ${selectedDates.length} days applied. ${failed} failed — please retry those days.`);
+      setView("my-leaves");
+      return;
+    }
+
+    try {
+      let payload = {
+          type,
+          reason,
+          period: type === 'half' ? period : null,
+          from_date: startDate,
+          to_date: startDate
+      };
+
+      await api.applyLeaveWithFile(payload, file, token);
+
+      setStartDate("");
+      setReason("");
+      setFile(null);
+
+      await load(true);
+      alert("Leave Applied Successfully!");
+      setView("my-leaves");
+    } catch (err) {
+        alert(err.message);
     }
   }
 
@@ -2115,36 +2138,51 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                     <FaCalendarAlt style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Multiple Days</span>
                 </label>
             </div>
-            <div className="form-row">
-              <div style={{flex:1}}>
-                <label className="modern-label">{leaveDuration === 'single' ? 'Date' : 'Start Date'}</label>
-                <input className="modern-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
-              </div>
-              {leaveDuration === 'multiple' && (
+            {leaveDuration === 'single' && (
+              <div className="form-row">
+                <div style={{flex:1}}>
+                  <label className="modern-label">Date</label>
+                  <input className="modern-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+                </div>
+                <div style={{flex:1}}>
+                  <label className="modern-label">Leave Type</label>
+                  <select className="modern-input" value={type} onChange={(e) => setType(e.target.value)}>
+                    <option value="full">Full Day</option>
+                    <option value="half">Half Day</option>
+                  </select>
+                </div>
+                {type === 'half' && (
                   <div style={{flex:1}}>
-                    <label className="modern-label">End Date</label>
-                    <input className="modern-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
-                  </div>
-              )}
-              {leaveDuration === 'single' && (
-                  <div style={{flex:1}}>
-                    <label className="modern-label">Leave Type</label>
-                    <select className="modern-input" value={type} onChange={(e) => setType(e.target.value)}>
-                      <option value="full">Full Day</option>
-                      <option value="half">Half Day</option>
-                    </select>
-                  </div>
-              )}
-              {type === 'half' && leaveDuration === 'single' && (
-                  <div style={{flex:1, marginLeft:10}}>
                     <label className="modern-label">Period</label>
                     <select className="modern-input" value={period} onChange={(e) => setPeriod(e.target.value)}>
                       <option value="First Half">First Half</option>
                       <option value="Second Half">Second Half</option>
                     </select>
                   </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
+
+            {leaveDuration === 'multiple' && (
+              <div style={{ marginBottom: 15 }}>
+                <label className="modern-label">Select Days</label>
+                <LeaveCalendar selected={selectedDates} onToggle={toggleLeaveDate} />
+                {selectedDates.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                    {selectedDates.map(d => (
+                      <span key={d} style={{
+                        display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
+                        background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: 20, padding: "4px 10px",
+                      }}>
+                        {new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                        <button type="button" onClick={() => toggleLeaveDate(d)} style={{ border: "none", background: "none", cursor: "pointer", color: "#16a34a", fontWeight: 800, padding: 0, lineHeight: 1 }}>×</button>
+                      </span>
+                    ))}
+                    <span style={{ fontSize: 12, color: "#64748b", alignSelf: "center" }}>{selectedDates.length} day{selectedDates.length > 1 ? "s" : ""} selected</span>
+                  </div>
+                )}
+              </div>
+            )}
             <div style={{marginTop: 15}}>
               <label className="modern-label">Reason for Leave</label>
               <textarea className="modern-input" style={{minHeight: "100px", resize: "vertical"}} value={reason} onChange={handleReasonChange} required placeholder="Reason (Max 30 words)..." />
