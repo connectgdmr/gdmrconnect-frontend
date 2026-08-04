@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { FaTimes, FaSun, FaMoon, FaDesktop, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
-import { useTheme } from "./ThemeContext";
+import { FaTimes, FaSun, FaMoon, FaDesktop, FaLock, FaEye, FaEyeSlash, FaCheck } from "react-icons/fa";
+import { useTheme, ACCENTS } from "./ThemeContext";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 
 const THEME_OPTIONS = [
@@ -12,7 +12,7 @@ const THEME_OPTIONS = [
 const STRONG_PW = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
 export default function SettingsModal({ token, api, onClose }) {
-  const { mode, setMode } = useTheme();
+  const { mode, setMode, accent, setAccent } = useTheme();
 
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -80,6 +80,24 @@ export default function SettingsModal({ token, api, onClose }) {
               >
                 <Icon size={15} />
                 {label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 14, marginBottom: 4, fontSize: 12.5, fontWeight: 600, color: "var(--slate-600)" }}>Accent Color</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {ACCENTS.map(({ key, label, swatch }) => (
+              <button
+                key={key} type="button" title={label} onClick={() => setAccent(key)}
+                style={{
+                  width: 34, height: 34, borderRadius: "50%", cursor: "pointer",
+                  background: swatch, display: "flex", alignItems: "center", justifyContent: "center",
+                  border: accent === key ? "2.5px solid var(--slate-800)" : "2.5px solid transparent",
+                  outline: accent === key ? "2px solid " + swatch : "none",
+                  outlineOffset: 2,
+                }}
+              >
+                {accent === key && <FaCheck size={11} color="#fff" />}
               </button>
             ))}
           </div>

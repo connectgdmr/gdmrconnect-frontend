@@ -75,6 +75,102 @@
   --shadow-xl: 0 24px 48px rgba(0,0,0,0.55);
 }
 
+/* ── 1c. ACCENT COLOR THEMES ───────────────────────── */
+/* Applied via data-accent="..." on <html>, set by ThemeContext (Settings
+   panel). "green" restates the default :root values explicitly so
+   selecting it always behaves identically to no attribute at all.
+   Each color gets a light-mode value here, and a brightened variant
+   under the [data-theme="dark"] combination below for contrast on a
+   dark ground — same pattern already used for the brand green itself. */
+:root[data-accent="green"] {
+  --brand: #34a06a; --brand-hover: #2b885a; --brand-dark: #226e48;
+  --brand-light: rgba(52,160,106,0.10); --brand-ring: rgba(52,160,106,0.16);
+  --red: #34a06a; --dark-red: #226e48; --muted: #d6f0e2; --accent: #34a06a;
+}
+:root[data-accent="blue"] {
+  --brand: #2563eb; --brand-hover: #1d4ed8; --brand-dark: #1e40af;
+  --brand-light: rgba(37,99,235,0.10); --brand-ring: rgba(37,99,235,0.18);
+  --red: #2563eb; --dark-red: #1e40af; --muted: #dbeafe; --accent: #2563eb;
+}
+:root[data-accent="purple"] {
+  --brand: #7c3aed; --brand-hover: #6d28d9; --brand-dark: #5b21b6;
+  --brand-light: rgba(124,58,237,0.10); --brand-ring: rgba(124,58,237,0.18);
+  --red: #7c3aed; --dark-red: #5b21b6; --muted: #ede9fe; --accent: #7c3aed;
+}
+:root[data-accent="rose"] {
+  --brand: #e11d48; --brand-hover: #be123c; --brand-dark: #9f1239;
+  --brand-light: rgba(225,29,72,0.10); --brand-ring: rgba(225,29,72,0.18);
+  --red: #e11d48; --dark-red: #9f1239; --muted: #ffe4e6; --accent: #e11d48;
+}
+:root[data-accent="orange"] {
+  --brand: #ea580c; --brand-hover: #c2410c; --brand-dark: #9a3412;
+  --brand-light: rgba(234,88,12,0.10); --brand-ring: rgba(234,88,12,0.18);
+  --red: #ea580c; --dark-red: #9a3412; --muted: #ffedd5; --accent: #ea580c;
+}
+:root[data-accent="teal"] {
+  --brand: #0d9488; --brand-hover: #0f766e; --brand-dark: #115e59;
+  --brand-light: rgba(13,148,136,0.10); --brand-ring: rgba(13,148,136,0.18);
+  --red: #0d9488; --dark-red: #115e59; --muted: #ccfbf1; --accent: #0d9488;
+}
+
+:root[data-theme="dark"][data-accent="green"] {
+  --brand: #3fbf82; --brand-hover: #4fd192; --brand-dark: #34a06a;
+  --brand-light: rgba(63,191,130,0.14); --brand-ring: rgba(63,191,130,0.28);
+  --red: #3fbf82; --dark-red: #34a06a; --muted: #123330; --accent: #3fbf82;
+}
+:root[data-theme="dark"][data-accent="blue"] {
+  --brand: #5b93ff; --brand-hover: #7ba5ff; --brand-dark: #2563eb;
+  --brand-light: rgba(91,147,255,0.16); --brand-ring: rgba(91,147,255,0.28);
+  --red: #5b93ff; --dark-red: #2563eb; --muted: #16233a; --accent: #5b93ff;
+}
+:root[data-theme="dark"][data-accent="purple"] {
+  --brand: #a78bfa; --brand-hover: #b9a4fb; --brand-dark: #7c3aed;
+  --brand-light: rgba(167,139,250,0.16); --brand-ring: rgba(167,139,250,0.28);
+  --red: #a78bfa; --dark-red: #7c3aed; --muted: #241f38; --accent: #a78bfa;
+}
+:root[data-theme="dark"][data-accent="rose"] {
+  --brand: #fb7185; --brand-hover: #fda4af; --brand-dark: #e11d48;
+  --brand-light: rgba(251,113,133,0.16); --brand-ring: rgba(251,113,133,0.28);
+  --red: #fb7185; --dark-red: #e11d48; --muted: #34121a; --accent: #fb7185;
+}
+:root[data-theme="dark"][data-accent="orange"] {
+  --brand: #fb923c; --brand-hover: #fdba74; --brand-dark: #ea580c;
+  --brand-light: rgba(251,146,60,0.16); --brand-ring: rgba(251,146,60,0.28);
+  --red: #fb923c; --dark-red: #ea580c; --muted: #33220f; --accent: #fb923c;
+}
+:root[data-theme="dark"][data-accent="teal"] {
+  --brand: #2dd4bf; --brand-hover: #5eead4; --brand-dark: #0d9488;
+  --brand-light: rgba(45,212,191,0.16); --brand-ring: rgba(45,212,191,0.28);
+  --red: #2dd4bf; --dark-red: #0d9488; --muted: #0f2e2b; --accent: #2dd4bf;
+}
+
+/* Components that hardcode the brand green inline (color:#34a06a etc.)
+   instead of var(--brand) don't pick up the swap above — remap the three
+   literal brand-green rgb() values (see section 32 for why rgb(), not hex)
+   to the chosen accent so icons/badges re-theme too. Combined dark+accent
+   selectors carry higher specificity and correctly win over these. */
+:root[data-accent="blue"]   [style*="color: rgb(52, 160, 106)"] { color: #2563eb !important; }
+:root[data-accent="purple"] [style*="color: rgb(52, 160, 106)"] { color: #7c3aed !important; }
+:root[data-accent="rose"]   [style*="color: rgb(52, 160, 106)"] { color: #e11d48 !important; }
+:root[data-accent="orange"] [style*="color: rgb(52, 160, 106)"] { color: #ea580c !important; }
+:root[data-accent="teal"]   [style*="color: rgb(52, 160, 106)"] { color: #0d9488 !important; }
+:root[data-theme="dark"][data-accent="blue"]   [style*="color: rgb(52, 160, 106)"] { color: #5b93ff !important; }
+:root[data-theme="dark"][data-accent="purple"] [style*="color: rgb(52, 160, 106)"] { color: #a78bfa !important; }
+:root[data-theme="dark"][data-accent="rose"]   [style*="color: rgb(52, 160, 106)"] { color: #fb7185 !important; }
+:root[data-theme="dark"][data-accent="orange"] [style*="color: rgb(52, 160, 106)"] { color: #fb923c !important; }
+:root[data-theme="dark"][data-accent="teal"]   [style*="color: rgb(52, 160, 106)"] { color: #2dd4bf !important; }
+
+:root[data-accent="blue"]   [style*="background: rgb(52, 160, 106)"] { background: #2563eb !important; }
+:root[data-accent="purple"] [style*="background: rgb(52, 160, 106)"] { background: #7c3aed !important; }
+:root[data-accent="rose"]   [style*="background: rgb(52, 160, 106)"] { background: #e11d48 !important; }
+:root[data-accent="orange"] [style*="background: rgb(52, 160, 106)"] { background: #ea580c !important; }
+:root[data-accent="teal"]   [style*="background: rgb(52, 160, 106)"] { background: #0d9488 !important; }
+:root[data-theme="dark"][data-accent="blue"]   [style*="background: rgb(52, 160, 106)"] { background: #5b93ff !important; }
+:root[data-theme="dark"][data-accent="purple"] [style*="background: rgb(52, 160, 106)"] { background: #a78bfa !important; }
+:root[data-theme="dark"][data-accent="rose"]   [style*="background: rgb(52, 160, 106)"] { background: #fb7185 !important; }
+:root[data-theme="dark"][data-accent="orange"] [style*="background: rgb(52, 160, 106)"] { background: #fb923c !important; }
+:root[data-theme="dark"][data-accent="teal"]   [style*="background: rgb(52, 160, 106)"] { background: #2dd4bf !important; }
+
 /* ── 2. RESET & BASE ───────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 html { height: 100%; }
@@ -1016,48 +1112,55 @@ html, body { max-width: 100%; overflow-x: hidden; }
 /* ── 32. DARK MODE — INLINE STYLE OVERRIDES ────────────
    Most components set text/background colors via inline style={{...}}
    rather than the CSS custom properties above, so the token swap in
-   section 1b doesn't reach them. This remaps the ~25 most-repeated
-   hardcoded hex values (by usage count) to dark-safe equivalents.
-   Inline styles always beat CSS specificity, so !important is required
-   here — that's expected for this specific override, not a smell. */
+   section 1b doesn't reach them.
+
+   IMPORTANT: when React sets element.style.color = "#0f172a", the browser
+   reflects the *serialized* value back to the style="" attribute, and that
+   serialization is always rgb(r, g, b) — never the original hex string.
+   So [style*="#0f172a"] never matches anything real; these selectors must
+   target the rgb() form instead. Verified by dumping the live DOM.
+   Each rule is also qualified with the CSS property name (color: / border-color: /
+   background: ) so a hex reused for a different property doesn't get
+   mismatched (e.g. a value used as a border isn't overridden as text color).
+   Inline styles always beat CSS specificity, so !important is required. */
+
 /* text: near-black / dark slate → light */
-:root[data-theme="dark"] [style*="#0f172a"] { color: #eef2f7 !important; }
-:root[data-theme="dark"] [style*="#334155"] { color: #cbd5e1 !important; }
-:root[data-theme="dark"] [style*="#475569"] { color: #b3c0cd !important; }
-:root[data-theme="dark"] [style*="#1e293b"] { color: #e2e8f0 !important; }
-:root[data-theme="dark"] [style*="#333"]    { color: #e2e8f0 !important; }
-:root[data-theme="dark"] [style*="#0f766e"] { color: #2dd4bf !important; }
-:root[data-theme="dark"] [style*="#7c3aed"] { color: #b794f6 !important; }
-:root[data-theme="dark"] [style*="#b91c1c"] { color: #f87171 !important; }
-:root[data-theme="dark"] [style*="#15803d"] { color: #4ade80 !important; }
-:root[data-theme="dark"] [style*="#1d4ed8"] { color: #60a5fa !important; }
-:root[data-theme="dark"] [style*="#2563eb"] { color: #60a5fa !important; }
+:root[data-theme="dark"] [style*="color: rgb(15, 23, 42)"]    { color: #eef2f7 !important; }
+:root[data-theme="dark"] [style*="color: rgb(51, 65, 85)"]    { color: #cbd5e1 !important; }
+:root[data-theme="dark"] [style*="color: rgb(71, 85, 105)"]   { color: #b3c0cd !important; }
+:root[data-theme="dark"] [style*="color: rgb(30, 41, 59)"]    { color: #e2e8f0 !important; }
+:root[data-theme="dark"] [style*="color: rgb(51, 51, 51)"]    { color: #e2e8f0 !important; }
+:root[data-theme="dark"] [style*="color: rgb(15, 118, 110)"]  { color: #2dd4bf !important; }
+:root[data-theme="dark"] [style*="color: rgb(124, 58, 237)"]  { color: #b794f6 !important; }
+:root[data-theme="dark"] [style*="color: rgb(185, 28, 28)"]   { color: #f87171 !important; }
+:root[data-theme="dark"] [style*="color: rgb(21, 128, 61)"]   { color: #4ade80 !important; }
+:root[data-theme="dark"] [style*="color: rgb(29, 78, 216)"]   { color: #60a5fa !important; }
+:root[data-theme="dark"] [style*="color: rgb(37, 99, 235)"]   { color: #60a5fa !important; }
 
 /* text: muted slate — kept in the same family, slightly dimmer for dark */
-:root[data-theme="dark"] [style*="#64748b"] { color: #93a3b4 !important; }
-:root[data-theme="dark"] [style*="#94a3b8"] { color: #7c8da0 !important; }
+:root[data-theme="dark"] [style*="color: rgb(100, 116, 139)"] { color: #93a3b4 !important; }
+:root[data-theme="dark"] [style*="color: rgb(148, 163, 184)"] { color: #7c8da0 !important; }
 
 /* semantic accents (success/danger/warning) — brightened for dark contrast */
-:root[data-theme="dark"] [style*="#16a34a"] { color: #34d399 !important; }
-:root[data-theme="dark"] [style*="#dc2626"] { color: #f87171 !important; }
-:root[data-theme="dark"] [style*="#d97706"] { color: #fbbf24 !important; }
-:root[data-theme="dark"] [style*="#34a06a"] { color: #4ade80 !important; }
+:root[data-theme="dark"] [style*="color: rgb(22, 163, 74)"]   { color: #34d399 !important; }
+:root[data-theme="dark"] [style*="color: rgb(220, 38, 38)"]   { color: #f87171 !important; }
+:root[data-theme="dark"] [style*="color: rgb(217, 119, 6)"]   { color: #fbbf24 !important; }
+:root[data-theme="dark"] [style*="color: rgb(52, 160, 106)"]  { color: #4ade80 !important; }
 
-/* borders in the same hex families */
-:root[data-theme="dark"] [style*="#e2e8f0"] { border-color: #2c3644 !important; }
-:root[data-theme="dark"] [style*="#cbd5e1"] { border-color: #3a4653 !important; }
-:root[data-theme="dark"] [style*="#bbf7d0"] { border-color: #14532d !important; }
-:root[data-theme="dark"] [style*="#fecaca"] { border-color: #7f1d1d !important; }
-:root[data-theme="dark"] [style*="#fde68a"] { border-color: #78350f !important; }
+/* borders in the same rgb families */
+:root[data-theme="dark"] [style*="border-color: rgb(226, 232, 240)"] { border-color: #2c3644 !important; }
+:root[data-theme="dark"] [style*="border-color: rgb(203, 213, 225)"] { border-color: #3a4653 !important; }
+:root[data-theme="dark"] [style*="border-color: rgb(187, 247, 208)"] { border-color: #14532d !important; }
+:root[data-theme="dark"] [style*="border-color: rgb(254, 202, 202)"] { border-color: #7f1d1d !important; }
+:root[data-theme="dark"] [style*="border-color: rgb(253, 230, 138)"] { border-color: #78350f !important; }
+:root[data-theme="dark"] [style*="border: 1px solid rgb(226, 232, 240)"] { border-color: #2c3644 !important; }
+:root[data-theme="dark"] [style*="border: 1px solid rgb(203, 213, 225)"] { border-color: #3a4653 !important; }
 
 /* surfaces: white / light tint backgrounds → dark equivalents */
-:root[data-theme="dark"] [style*="background:#fff"],
-:root[data-theme="dark"] [style*="background: #fff"],
-:root[data-theme="dark"] [style*="background:white"],
-:root[data-theme="dark"] [style*="background: white"] { background: #151d27 !important; }
-:root[data-theme="dark"] [style*="#f1f5f9"] { background: #1a2330 !important; }
-:root[data-theme="dark"] [style*="#f8fafc"] { background: #121a24 !important; }
-:root[data-theme="dark"] [style*="#f0fdf4"] { background: #0f2a1e !important; }
-:root[data-theme="dark"] [style*="#fef2f2"] { background: #2a1616 !important; }
-:root[data-theme="dark"] [style*="#fffbeb"] { background: #2a2210 !important; }
-:root[data-theme="dark"] [style*="#f5f3ff"] { background: #201a35 !important; }
+:root[data-theme="dark"] [style*="background: rgb(255, 255, 255)"] { background: #151d27 !important; }
+:root[data-theme="dark"] [style*="background: rgb(241, 245, 249)"] { background: #1a2330 !important; }
+:root[data-theme="dark"] [style*="background: rgb(248, 250, 252)"] { background: #121a24 !important; }
+:root[data-theme="dark"] [style*="background: rgb(240, 253, 244)"] { background: #0f2a1e !important; }
+:root[data-theme="dark"] [style*="background: rgb(254, 242, 242)"] { background: #2a1616 !important; }
+:root[data-theme="dark"] [style*="background: rgb(255, 251, 235)"] { background: #2a2210 !important; }
+:root[data-theme="dark"] [style*="background: rgb(245, 243, 255)"] { background: #201a35 !important; }
