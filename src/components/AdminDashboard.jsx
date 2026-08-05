@@ -55,6 +55,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import useChatUnread from "./useChatUnread";
 import ChatBot from "./ChatBot";
 import WorkTypesManager from "./WorkTypesManager";
+import PMSWorkspace from "./PMSWorkspace";
 import { SkeletonTable, SkeletonCards } from "./Skeleton";
 
 const AdminAssessment = lazy(() => import("./AdminAssessment"));
@@ -1028,6 +1029,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
       {/* 9. PAYROLL */}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}><AdminPayroll token={token} employees={employees} /></ErrorBoundary>}
+
+      {/* 9b. PMS */}
+      {view === "pms" && <ErrorBoundary label="PMS" resetKey={view}><div style={{ marginTop: 16 }}><PMSWorkspace token={token} api={api} user={user} scope="admin" assignablePool={employees} /></div></ErrorBoundary>}
 
       {/* 10. WORK BY TEAM */}
       {view === "work-by-team" && <ErrorBoundary label="Work by Team" resetKey={view}><AdminWorkByTeam token={token} role="admin" /></ErrorBoundary>}
