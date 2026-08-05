@@ -882,9 +882,6 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         -----------------------------------------------------------------------
       */}
       <style>{`
-        .employee-chip { display: flex; align-items: center; gap: 8px; background: #f8fafc; padding: 8px 14px; border: 1.5px solid #e2e8f0; border-radius: 9999px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s; color: #475569; }
-        .employee-chip:hover { border-color: var(--brand); background: #fff; color: var(--brand); }
-        .employee-chip.selected { background: var(--brand); color: white; border-color: var(--brand); box-shadow: 0 2px 8px rgba(52,160,106,0.25); }
         .qa-box { margin-bottom: 12px; background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #e2e8f0; border-left: 4px solid var(--brand); transition: background 0.15s; }
         .qa-box:hover { background: #fff; }
         .inline-loader { display: flex; justify-content: center; align-items: center; padding: 40px; color: #64748b; font-weight: 500; gap: 10px; flex-direction: column; }

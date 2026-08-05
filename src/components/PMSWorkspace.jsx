@@ -182,6 +182,23 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
     finally { setSharing(false); }
   }
 
+  async function shareWithManager(id) {
+    setSharing(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/manager/pms/${id}/share-with-manager`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setSelectedPMS(p => p ? { ...p, shared_with_manager: true } : p);
+        setReviews(rs => rs.map(r => r._id === id ? { ...r, shared_with_manager: true } : r));
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.message || "Could not share this review — that endpoint may not be set up on the backend yet.");
+      }
+    } catch { alert("Network error while sharing."); }
+    finally { setSharing(false); }
+  }
+
   async function exportReport() {
     try {
       const res = await fetch(`${baseUrl}/api/admin/export-pms?month=${reportMonth}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -636,7 +653,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {!isAdmin && (
+                    {!isAdmin && !["admin", "owner"].includes(selectedPMS.owner_role) && (
                       selectedPMS.shared_with_admin ? (
                         <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 99, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
                           <FaCheckCircle size={10} /> Shared with Admin
@@ -645,6 +662,18 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                         <button disabled={sharing} onClick={() => shareWithAdmin(selectedPMS._id)}
                           style={{ fontSize: 11.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", border: "1px solid #bbf7d0", borderRadius: 99, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
                           <FaShareAlt size={10} /> {sharing ? "Sharing…" : "Share with Admin"}
+                        </button>
+                      )
+                    )}
+                    {isAdmin && ["admin", "owner"].includes(selectedPMS.owner_role) && (
+                      selectedPMS.shared_with_manager ? (
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 99, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
+                          <FaCheckCircle size={10} /> Shared with Manager
+                        </span>
+                      ) : (
+                        <button disabled={sharing} onClick={() => shareWithManager(selectedPMS._id)}
+                          style={{ fontSize: 11.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", border: "1px solid #bbf7d0", borderRadius: 99, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                          <FaShareAlt size={10} /> {sharing ? "Sharing…" : "Share with Manager"}
                         </button>
                       )
                     )}
