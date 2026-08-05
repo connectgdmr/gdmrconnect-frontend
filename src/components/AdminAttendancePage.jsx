@@ -136,7 +136,9 @@ export default function AdminAttendancePage({ token, api }) {
   // --- Modal State for Clickable Stats (NEWLY ADDED) ---
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailTitle, setDetailTitle] = useState("");
+  const [detailType, setDetailType] = useState("");
   const [detailList, setDetailList] = useState([]);
+  const [detailLeaves, setDetailLeaves] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
 
   // --- Analyzer State ---
@@ -257,32 +259,75 @@ export default function AdminAttendancePage({ token, api }) {
    */
   async function handleStatClick(type, title) {
     setDetailTitle(title);
+    setDetailType(type);
     setDetailModalOpen(true);
     setDetailLoading(true);
     setDetailList([]);
+    setDetailLeaves([]);
 
     try {
       const now = new Date();
-      const monthStr = now.toISOString().slice(0, 7); 
-      
+      const todayStr = now.toISOString().slice(0, 10);
+
+      if (type === 'leave') {
+        // Full leave records (department, half/full, manager+admin approval) rather
+        // than just name/email — same source and shape as the admin dashboard's
+        // "On Leave Today" card so delegated access sees the same detail.
+        const allLeaves = await api.adminLeaves(token);
+        const rawList = Array.isArray(allLeaves) ? allLeaves : (allLeaves?.leaves || []);
+        const todayLeaves = rawList.filter(l => {
+          if ((l.status || "").toLowerCase() === "rejected") return false;
+          if (l.from_date && l.to_date) return l.from_date <= todayStr && l.to_date >= todayStr;
+          return l.date === todayStr;
+        });
+
+        const leaveRows = todayLeaves.map(l => {
+          const emp = employees.find(e => String(e._id) === String(l.employee_id) || e.name === l.employee_name);
+          return { ...l, department: l.department || emp?.department || "—" };
+        });
+
+        const leaveEmpNames = new Set(leaveRows.map(r => r.employee_name));
+        employees.forEach(e => {
+          if (!e.resignation?.notice_date &&
+              e.extended_leaves?.some(lv => lv.from_date <= todayStr && lv.to_date >= todayStr) &&
+              !leaveEmpNames.has(e.name)) {
+            const lv = e.extended_leaves[e.extended_leaves.length - 1];
+            leaveRows.push({
+              _id: `ext_${e._id}`,
+              employee_name: e.name,
+              department: e.department || "—",
+              type: lv.type,
+              status: "Extended Leave",
+              manager_status: "N/A",
+              admin_status: "N/A",
+              _extLeave: true,
+            });
+          }
+        });
+
+        setDetailLeaves(leaveRows);
+        return;
+      }
+
+      const monthStr = now.toISOString().slice(0, 7);
+
       // Fetch the detailed summary for the current month
       const summaryData = await api.getAttendanceSummary(monthStr, token);
-      const todayStr = now.toISOString().slice(0, 10); 
       const todayData = summaryData.days && summaryData.days[todayStr];
 
       if (todayData && todayData[type]) {
         const listData = todayData[type];
-        
+
         // Enrich the IDs with actual employee details from our loaded employees list
         const enrichedList = listData.map(item => {
             const id = typeof item === 'object' ? item._id : item;
             const empDef = employees.find(e => e._id === id);
             return empDef || (typeof item === 'object' ? item : { name: "Unknown", _id: id, email: "N/A" });
         });
-        
+
         setDetailList(enrichedList);
       } else {
-        setDetailList([]); 
+        setDetailList([]);
       }
     } catch (err) {
       console.error("Error fetching details", err);
@@ -1045,6 +1090,61 @@ export default function AdminAttendancePage({ token, api }) {
                    <div className="loader" style={{margin: '0 auto'}}></div>
                    <p style={{color: '#64748b', marginTop: 15}}>Loading details...</p>
                 </div>
+              ) : detailType === 'leave' ? (
+                detailLeaves.length === 0 ? (
+                  <p style={{ textAlign: 'center', padding: '20px', color: '#999' }}>No leave applications found for today.</p>
+                ) : (
+                  detailLeaves.map((lv, idx) => {
+                    const overallStatus = lv._extLeave ? "Extended Leave" : (lv.status || "Pending");
+                    const statusColor = overallStatus.toLowerCase().includes("approved") ? "#16a34a"
+                      : overallStatus.toLowerCase().includes("rejected") ? "#dc2626"
+                      : overallStatus.toLowerCase().includes("extended") ? "#7c3aed"
+                      : "#d97706";
+                    const statusBg = overallStatus.toLowerCase().includes("approved") ? "#f0fdf4"
+                      : overallStatus.toLowerCase().includes("rejected") ? "#fef2f2"
+                      : overallStatus.toLowerCase().includes("extended") ? "#f5f3ff"
+                      : "#fffbeb";
+
+                    const managerSt = lv.manager_status || "Pending";
+                    const adminSt   = lv.admin_status   || "Pending";
+
+                    const stBadge = (label, val) => {
+                      const v = (val || "").toLowerCase();
+                      const c = v.includes("approved") ? "#16a34a" : v.includes("rejected") ? "#dc2626" : "#94a3b8";
+                      const b = v.includes("approved") ? "#f0fdf4" : v.includes("rejected") ? "#fef2f2" : "#f8fafc";
+                      return (
+                        <span style={{ fontSize: 10.5, fontWeight: 600, color: c, background: b, border: `1px solid ${c}30`, borderRadius: 4, padding: "1px 6px", marginRight: 4 }}>
+                          {label}: {val || "Pending"}
+                        </span>
+                      );
+                    };
+
+                    return (
+                      <div key={lv._id || idx} className="detail-item" style={{ alignItems: 'flex-start', gap: 12 }}>
+                        <div className="detail-avatar" style={{ marginTop: 2 }}>
+                          {(lv.employee_name || "?").charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{lv.employee_name || "Unknown"}</div>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: statusColor, background: statusBg, border: `1px solid ${statusColor}30`, borderRadius: 5, padding: "2px 8px", flexShrink: 0 }}>
+                              {overallStatus}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                            {lv.department} {lv.type ? <span style={{ color: "#475569", fontWeight: 600 }}>· {lv.type}</span> : null}
+                          </div>
+                          {!lv._extLeave && (
+                            <div style={{ marginTop: 5, display: "flex", flexWrap: "wrap", gap: 2 }}>
+                              {stBadge("Manager", managerSt)}
+                              {stBadge("Admin", adminSt)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )
               ) : detailList.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
                    <FaUserSlash size={30} style={{opacity: 0.2, marginBottom: 10}}/>
