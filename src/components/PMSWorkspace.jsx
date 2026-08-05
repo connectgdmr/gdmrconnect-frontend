@@ -39,6 +39,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const isAdmin = scope === "admin";
   const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
   const activePool = assignablePool.filter(e => !isOffboarded(e)); // never assign PMS to off-boarded staff
+  const empDept = (e) => Array.isArray(e.department) ? e.department[0] : (e.department || "");
   const [tab, setTab] = useState("reviews");
 
   const [reviews, setReviews] = useState([]);
@@ -48,6 +49,8 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   // ── Builder state ──────────────────────────────────────────────────────
   const [templateSessions, setTemplateSessions] = useState([]);
   const [assignedEmployees, setAssignedEmployees] = useState([]);
+  const [assignDeptFilter, setAssignDeptFilter] = useState("all");
+  const [assignSearch, setAssignSearch] = useState("");
   const [cycleName, setCycleName] = useState("");
   const [cycleDueDate, setCycleDueDate] = useState("");
 
@@ -97,8 +100,10 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const handleQuestionChange = (sIdx, qIdx, field, val) => { const s = [...templateSessions]; s[sIdx].questions[qIdx][field] = val; setTemplateSessions(s); };
 
   const toggleEmployeeAssignment = (empId) => setAssignedEmployees(a => a.includes(empId) ? a.filter(id => id !== empId) : [...a, empId]);
-  const selectAllEmployees = () => setAssignedEmployees(activePool.map(e => e._id));
-  const clearAllEmployees = () => setAssignedEmployees([]);
+  // "All" / "Clear" act on whatever the department + search filters currently show,
+  // so e.g. picking a department then "All" assigns just that department.
+  const selectAllEmployees = (visible) => setAssignedEmployees(a => [...new Set([...a, ...visible.map(e => e._id)])]);
+  const clearAllEmployees = (visible) => { const ids = new Set(visible.map(e => e._id)); setAssignedEmployees(a => a.filter(id => !ids.has(id))); };
 
   async function savePmsTemplate(e) {
     e.preventDefault();
@@ -403,40 +408,59 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
               </div>
             </div>
 
-            <form onSubmit={savePmsTemplate}>
-              <div className="card" style={{ marginBottom: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                  <div>
-                    <h4 style={{ margin: 0, color: "#0f172a" }}>Assign to Employees</h4>
-                    <p style={{ margin: "3px 0 0", fontSize: 13, color: "#64748b" }}>Select who should complete this evaluation</p>
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button type="button" style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }} onClick={selectAllEmployees}>
-                      <FaCheckSquare size={11} /> All
-                    </button>
-                    <button type="button" style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }} onClick={clearAllEmployees}>
-                      <FaRegSquare size={11} /> Clear
-                    </button>
-                  </div>
-                </div>
-                {activePool.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: 30, color: "#94a3b8", border: "1px dashed #e2e8f0", borderRadius: 8 }}>No employees found.</div>
-                ) : (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                    {[...activePool].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(emp => (
-                      <label key={emp._id} className={`employee-chip ${assignedEmployees.includes(emp._id) ? "selected" : ""}`}>
-                        <input type="checkbox" style={{ display: "none" }} checked={assignedEmployees.includes(emp._id)} onChange={() => toggleEmployeeAssignment(emp._id)} />
-                        <FaUserCheck style={{ opacity: assignedEmployees.includes(emp._id) ? 1 : 0.35 }} />
-                        {emp.name}
-                      </label>
-                    ))}
-                  </div>
-                )}
-                {assignedEmployees.length > 0 && (
-                  <div style={{ marginTop: 12, padding: "8px 14px", background: "#f0fdf4", borderRadius: 6, border: "1px solid #bbf7d0", fontSize: 13, color: "#166534", display: "flex", alignItems: "center", gap: 6 }}>
-                    <FaCheckCircle />{assignedEmployees.length} employee{assignedEmployees.length !== 1 ? "s" : ""} selected
-                  </div>
-                )}
+            {(() => {
+              const deptOptions = [...new Set(activePool.map(empDept).filter(Boolean))].sort();
+              const visiblePool = activePool
+                .filter(e => assignDeptFilter === "all" || empDept(e) === assignDeptFilter)
+                .filter(e => !assignSearch || (e.name || "").toLowerCase().includes(assignSearch.toLowerCase()))
+                .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+              return (
+                <form onSubmit={savePmsTemplate}>
+                  <div className="card" style={{ marginBottom: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+                      <div>
+                        <h4 style={{ margin: 0, color: "#0f172a" }}>Assign to Employees</h4>
+                        <p style={{ margin: "3px 0 0", fontSize: 13, color: "#64748b" }}>Select who should complete this evaluation</p>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button type="button" style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }} onClick={() => selectAllEmployees(visiblePool)}>
+                          <FaCheckSquare size={11} /> {assignDeptFilter === "all" && !assignSearch ? "All" : "Select Shown"}
+                        </button>
+                        <button type="button" style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }} onClick={() => clearAllEmployees(visiblePool)}>
+                          <FaRegSquare size={11} /> {assignDeptFilter === "all" && !assignSearch ? "Clear" : "Clear Shown"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+                      <select className="modern-input" style={{ margin: 0, maxWidth: 220 }} value={assignDeptFilter} onChange={e => setAssignDeptFilter(e.target.value)}>
+                        <option value="all">All Departments</option>
+                        {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                      <input className="modern-input" style={{ margin: 0, flex: 1, minWidth: 180 }} placeholder="Search employees…" value={assignSearch} onChange={e => setAssignSearch(e.target.value)} />
+                    </div>
+
+                    {activePool.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: 30, color: "#94a3b8", border: "1px dashed #e2e8f0", borderRadius: 8 }}>No employees found.</div>
+                    ) : visiblePool.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: 30, color: "#94a3b8", border: "1px dashed #e2e8f0", borderRadius: 8 }}>No employees match this filter.</div>
+                    ) : (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                        {visiblePool.map(emp => (
+                          <label key={emp._id} className={`employee-chip ${assignedEmployees.includes(emp._id) ? "selected" : ""}`}>
+                            <input type="checkbox" style={{ display: "none" }} checked={assignedEmployees.includes(emp._id)} onChange={() => toggleEmployeeAssignment(emp._id)} />
+                            <FaUserCheck style={{ opacity: assignedEmployees.includes(emp._id) ? 1 : 0.35 }} />
+                            {emp.name}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {assignedEmployees.length > 0 && (
+                      <div style={{ marginTop: 12, padding: "8px 14px", background: "#f0fdf4", borderRadius: 6, border: "1px solid #bbf7d0", fontSize: 13, color: "#166534", display: "flex", alignItems: "center", gap: 6 }}>
+                        <FaCheckCircle />{assignedEmployees.length} employee{assignedEmployees.length !== 1 ? "s" : ""} selected
+                      </div>
+                    )}
               </div>
 
               <div className="card" style={{ marginBottom: 16 }}>
@@ -521,7 +545,9 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                   <FaCheckCircle /> Assign & Save Template
                 </button>
               </div>
-            </form>
+                </form>
+              );
+            })()}
           </div>
         );
       })()}
