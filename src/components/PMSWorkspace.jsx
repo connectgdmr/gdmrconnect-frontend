@@ -11,6 +11,15 @@ const TABS = [
   { key: "calibration", label: "Calibration" },
 ];
 
+// Same "offboarded" rule used elsewhere in the app (AdminPayroll, AdminInsights, etc.):
+// notice given + last working day already passed.
+function isOffboarded(emp) {
+  const lwd = emp?.resignation?.last_working_day;
+  if (!emp?.resignation?.notice_date || !lwd) return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return new Date(lwd) < today;
+}
+
 /**
  * Unified PMS workspace — Build / Review / Calibrate in one page, shared between
  * ManagerDashboard (scope="manager") and AdminDashboard (scope="admin").
@@ -29,6 +38,7 @@ const TABS = [
 export default function PMSWorkspace({ token, api, scope, assignablePool = [] }) {
   const isAdmin = scope === "admin";
   const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+  const activePool = assignablePool.filter(e => !isOffboarded(e)); // never assign PMS to off-boarded staff
   const [tab, setTab] = useState("reviews");
 
   const [reviews, setReviews] = useState([]);
@@ -87,7 +97,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const handleQuestionChange = (sIdx, qIdx, field, val) => { const s = [...templateSessions]; s[sIdx].questions[qIdx][field] = val; setTemplateSessions(s); };
 
   const toggleEmployeeAssignment = (empId) => setAssignedEmployees(a => a.includes(empId) ? a.filter(id => id !== empId) : [...a, empId]);
-  const selectAllEmployees = () => setAssignedEmployees(assignablePool.map(e => e._id));
+  const selectAllEmployees = () => setAssignedEmployees(activePool.map(e => e._id));
   const clearAllEmployees = () => setAssignedEmployees([]);
 
   async function savePmsTemplate(e) {
@@ -409,11 +419,11 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                     </button>
                   </div>
                 </div>
-                {assignablePool.length === 0 ? (
+                {activePool.length === 0 ? (
                   <div style={{ textAlign: "center", padding: 30, color: "#94a3b8", border: "1px dashed #e2e8f0", borderRadius: 8 }}>No employees found.</div>
                 ) : (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                    {[...assignablePool].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(emp => (
+                    {[...activePool].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(emp => (
                       <label key={emp._id} className={`employee-chip ${assignedEmployees.includes(emp._id) ? "selected" : ""}`}>
                         <input type="checkbox" style={{ display: "none" }} checked={assignedEmployees.includes(emp._id)} onChange={() => toggleEmployeeAssignment(emp._id)} />
                         <FaUserCheck style={{ opacity: assignedEmployees.includes(emp._id) ? 1 : 0.35 }} />
