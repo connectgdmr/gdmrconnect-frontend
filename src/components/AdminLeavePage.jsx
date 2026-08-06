@@ -231,6 +231,62 @@ export default function AdminLeavePage({ token, api }) {
           color: #64748b;
           font-size: 12px;
         }
+
+        /* ---------------- MOBILE CARD LAYOUT ---------------- */
+        .leave-cards { display: none; }
+
+        @media (max-width: 768px) {
+          .leave-header-bar { padding: 16px; border-radius: 12px 12px 0 0; }
+          .filter-container { flex-direction: column; gap: 10px; padding: 12px 16px; }
+          .search-wrapper, .filter-wrapper { flex: 1 1 auto; }
+
+          /* Hide the desktop table entirely on mobile */
+          .styled-table-wrap { display: none; }
+
+          .leave-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 0 0 12px 12px;
+          }
+          .leave-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px;
+          }
+          .leave-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 10px;
+          }
+          .leave-card-name { font-weight: 700; color: #0f172a; font-size: 15px; }
+          .leave-card-type { color: #64748b; font-size: 11px; margin-top: 2px; text-transform: uppercase; font-weight: 600; }
+          .leave-card-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 7px 0;
+            border-top: 1px solid #f1f5f9;
+            font-size: 13px;
+          }
+          .leave-card-row:first-of-type { border-top: none; }
+          .leave-card-label { color: #94a3b8; font-weight: 600; font-size: 11.5px; text-transform: uppercase; flex-shrink: 0; }
+          .leave-card-value { color: #334155; text-align: right; }
+          .leave-card-statuses {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 10px 0;
+          }
+          .leave-card-statuses .status-badge { flex: 1; min-width: 0; }
+          .leave-card .action-btn-group { margin-top: 10px; }
+          .leave-card .action-btn { flex: 1; padding: 10px 8px; }
+        }
       `}</style>
 
       {/* ---------------- HEADER ---------------- */}
@@ -285,6 +341,8 @@ export default function AdminLeavePage({ token, api }) {
                   <p style={{ fontSize: 15, margin: 0, fontWeight: 500 }}>No leave requests found matching your criteria.</p>
                 </div>
              ) : (
+              <>
+                <div className="styled-table-wrap">
                 <table className="styled-table">
                   <thead>
                     <tr>
@@ -381,6 +439,88 @@ export default function AdminLeavePage({ token, api }) {
                     )})}
                   </tbody>
                 </table>
+                </div>
+
+                {/* ---------------- MOBILE CARD LIST ---------------- */}
+                <div className="leave-cards">
+                  {filteredLeaves.map((l) => {
+                    const { date, time } = formatDateTime(l.applied_at || l.created_at);
+                    const attachUrl = resolveAttachmentUrl(l.attachment_url, api.baseUrl);
+                    return (
+                      <div className="leave-card" key={l._id}>
+                        <div className="leave-card-top">
+                          <div>
+                            <div className="leave-card-name">{l.employee_name}</div>
+                            <div className="leave-card-type">
+                              {l.type === 'half' ? `Half Day (${l.period || 'Any'})` : 'Full Day'}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>{date}</div>
+                            <div style={{ fontSize: 11, color: "#94a3b8" }}>{time}</div>
+                          </div>
+                        </div>
+
+                        <div className="leave-card-row">
+                          <span className="leave-card-label">Leave Period</span>
+                          <span className="leave-card-value">
+                            {l.from_date && l.to_date && l.from_date !== l.to_date
+                              ? `${new Date(l.from_date).toLocaleDateString('en-GB')} → ${new Date(l.to_date).toLocaleDateString('en-GB')}`
+                              : (l.date ? new Date(l.date).toLocaleDateString('en-GB') : '-')}
+                          </span>
+                        </div>
+
+                        <div className="leave-card-row">
+                          <span className="leave-card-label">Reason</span>
+                          <span className="leave-card-value">
+                            {l.reason || <span style={{ fontStyle: 'italic', color: '#cbd5e1' }}>No reason</span>}
+                          </span>
+                        </div>
+
+                        {attachUrl && (
+                          <div className="leave-card-row">
+                            <span className="leave-card-label">Attachment</span>
+                            <a
+                              href={attachUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 4, color: "var(--red)",
+                                fontSize: "12px", textDecoration: "none", fontWeight: 600,
+                              }}
+                            >
+                              <FaFileDownload /> View Doc
+                            </a>
+                          </div>
+                        )}
+
+                        <div className="leave-card-statuses">
+                          <span className={`status-badge ${getStatusClass(l.manager_status)}`}>Mgr: {l.manager_status || 'Pending'}</span>
+                          <span className={`status-badge ${getStatusClass(l.admin_status)}`}>HR: {l.admin_status || 'Pending'}</span>
+                          <span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span>
+                        </div>
+
+                        <div className="action-btn-group">
+                          <button
+                            className="action-btn btn-approve"
+                            onClick={() => updateStatus(l._id, "Approved")}
+                            disabled={saving || (l.status || "").toLowerCase().includes("approved")}
+                          >
+                            <FaCheckCircle /> Approve
+                          </button>
+                          <button
+                            className="action-btn btn-reject"
+                            onClick={() => updateStatus(l._id, "Rejected")}
+                            disabled={saving || (l.status || "").toLowerCase().includes("rejected")}
+                          >
+                            <FaTimesCircle /> Reject
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
              )}
           </div>
       )}
