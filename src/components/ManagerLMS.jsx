@@ -204,25 +204,25 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
   const visibleCourses = (() => {
     const q = search.toLowerCase();
     let list = courses.filter(c => {
-      const code = (c.course_code || c.courseCode || "").toLowerCase();
-      const matchSearch = !q || (c.title || "").toLowerCase().includes(q) || code.includes(q);
+      const code = String(c.course_code || c.courseCode || "").toLowerCase();
+      const matchSearch = !q || String(c.title || "").toLowerCase().includes(q) || code.includes(q);
       const matchCat = filterCat === "all" || c.category === filterCat;
       return matchSearch && matchCat;
     });
-    if (sortBy === "az") list = [...list].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
-    else if (sortBy === "za") list = [...list].sort((a, b) => (b.title || "").localeCompare(a.title || ""));
+    if (sortBy === "az") list = [...list].sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
+    else if (sortBy === "za") list = [...list].sort((a, b) => String(b.title || "").localeCompare(String(a.title || "")));
     else if (sortBy === "oldest") { /* keep original order */ }
     else list = [...list].reverse();
     return list;
   })();
 
   const filteredEmps = myEmployees
-    .filter(e => !empSearch || (e.name || "").toLowerCase().includes(empSearch.toLowerCase()))
-    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    .filter(e => !empSearch || String(e.name || "").toLowerCase().includes(empSearch.toLowerCase()))
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
   const filteredProgress = progress.filter(p => {
     const matchCourse = progCourse === "all" || p.course_id === progCourse;
-    const matchSearch = !progSearch || (p.employee_name || "").toLowerCase().includes(progSearch.toLowerCase());
+    const matchSearch = !progSearch || String(p.employee_name || "").toLowerCase().includes(progSearch.toLowerCase());
     return matchCourse && matchSearch;
   });
 

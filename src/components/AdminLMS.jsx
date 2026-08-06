@@ -222,13 +222,13 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
   const visibleCourses = (() => {
     const q = search.toLowerCase();
     let list = courses.filter(c => {
-      const code = (c.course_code || c.courseCode || "").toLowerCase();
-      const matchSearch = !q || (c.title || "").toLowerCase().includes(q) || code.includes(q);
+      const code = String(c.course_code || c.courseCode || "").toLowerCase();
+      const matchSearch = !q || String(c.title || "").toLowerCase().includes(q) || code.includes(q);
       const matchCat = filterCat === "all" || c.category === filterCat;
       return matchSearch && matchCat;
     });
-    if (sortBy === "az") list = [...list].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
-    else if (sortBy === "za") list = [...list].sort((a, b) => (b.title || "").localeCompare(a.title || ""));
+    if (sortBy === "az") list = [...list].sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
+    else if (sortBy === "za") list = [...list].sort((a, b) => String(b.title || "").localeCompare(String(a.title || "")));
     else if (sortBy === "oldest") { /* keep original order */ }
     else list = [...list].reverse();
     return list;
@@ -252,7 +252,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
   const filteredProgress = progress.filter(p => {
     const matchCourse = progCourse === "all" || p.course_id === progCourse;
     const matchDept   = progDept   === "all" || p.department === progDept;
-    const matchSearch = !progSearch || p.employee_name?.toLowerCase().includes(progSearch.toLowerCase());
+    const matchSearch = !progSearch || String(p.employee_name || "").toLowerCase().includes(progSearch.toLowerCase());
     return matchCourse && matchDept && matchSearch;
   });
 
@@ -502,7 +502,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
             </div>
 
             {assignTarget === "department" ? (() => {
-              const allDepts = [...new Set(employees.map(e => e.department).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+              const allDepts = [...new Set(employees.map(e => e.department).filter(Boolean))].map(String).sort((a, b) => a.localeCompare(b));
               const allSel = allDepts.length > 0 && allDepts.every(d => assignDepts.includes(d));
               return (
               <div style={{ marginBottom: 18 }}>
@@ -535,7 +535,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
                   </label>
                 </div>
                 <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8, padding: 8 }}>
-                  {[...employees].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(emp => (
+                  {[...employees].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))).map(emp => (
                     <label key={emp._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 4px", cursor: "pointer" }}>
                       <input type="checkbox" checked={assignEmpIds.includes(emp._id)} onChange={e => setAssignEmpIds(e.target.checked ? [...assignEmpIds, emp._id] : assignEmpIds.filter(id => id !== emp._id))} />
                       <span style={{ fontSize: 13 }}>{emp.name}</span>
