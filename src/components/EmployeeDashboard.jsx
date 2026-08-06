@@ -603,6 +603,17 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
     }
   }
 
+  async function handleRevokeLeave(leaveId) {
+    if (!window.confirm("Revoke this leave request? This cannot be undone.")) return;
+    try {
+      await api.revokeLeave(leaveId, token);
+      alert("Leave revoked.");
+      load();
+    } catch (err) {
+      alert("Error revoking leave: " + (err.message || "An unknown error occurred."));
+    }
+  }
+
   const handleReasonChange = (e) => {
     const val = e.target.value;
     const words = val.trim().split(/\s+/).filter(w => w.length > 0);
@@ -1447,10 +1458,10 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
           </div>
           <div style={{overflowX: 'auto'}}>
             <table className="styled-table">
-              <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Attachment</th></tr></thead>
+              <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Attachment</th><th>Action</th></tr></thead>
               <tbody>
                 {leaves.length === 0 ? (
-                  <tr><td colSpan="4" style={{textAlign:"center", padding:20, color:"#999"}}>No leaves found.</td></tr>
+                  <tr><td colSpan="5" style={{textAlign:"center", padding:20, color:"#999"}}>No leaves found.</td></tr>
                 ) : (
                   leaves.map((l) => (
                     <tr key={l._id}>
@@ -1458,6 +1469,13 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                       <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
                       <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
                       <td>{resolveAttachmentUrl(l.attachment_url, api.baseUrl) ? <a href={resolveAttachmentUrl(l.attachment_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>
+                        {(l.status === "Pending" || l.status === "Approved") && (
+                          <button className="btn ghost" style={{fontSize:12, padding:'5px 12px', color:'#dc2626', borderColor:'#fecaca'}} onClick={() => handleRevokeLeave(l._id)}>
+                            Revoke
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))
                 )}

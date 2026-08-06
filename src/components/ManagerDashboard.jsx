@@ -612,8 +612,19 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
        }
   }
 
+  async function handleRevokeLeave(leaveId) {
+    if (!window.confirm("Revoke this leave request? This cannot be undone.")) return;
+    try {
+      await api.revokeLeave(leaveId, token);
+      alert("Leave revoked.");
+      await load(true);
+    } catch (err) {
+      alert("Error revoking leave: " + (err.message || "An unknown error occurred."));
+    }
+  }
+
   /**
-   * Submits a new leave request. If an attachment is present, 
+   * Submits a new leave request. If an attachment is present,
    * the underlying api object will use FormData instead of standard JSON.
    */
   async function applyLeave(e) {
@@ -1363,18 +1374,27 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                                 {/* Action Buttons - Always Visible & Forced Stacked */}
                                 <td>
                                     <div className="action-btn-group">
-                                        <button 
-                                            className="action-btn btn-approve" 
+                                        <button
+                                            className="action-btn btn-approve"
                                             onClick={() => updateLeaveStatus(l._id, "Approved")}
                                         >
                                             <FaCheckCircle /> Approve
                                         </button>
-                                        <button 
-                                            className="action-btn btn-reject" 
+                                        <button
+                                            className="action-btn btn-reject"
                                             onClick={() => updateLeaveStatus(l._id, "Rejected")}
                                         >
                                             <FaTimesCircle /> Reject
                                         </button>
+                                        {(l.status === "Pending" || l.status === "Approved") && (
+                                            <button
+                                                className="action-btn"
+                                                style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                                                onClick={() => handleRevokeLeave(l._id)}
+                                            >
+                                                Revoke
+                                            </button>
+                                        )}
                                     </div>
                                 </td>
                             </tr>
@@ -1652,10 +1672,10 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           </div>
           <div style={{overflowX: 'auto'}}>
             <table className="styled-table">
-              <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Attachment</th></tr></thead>
+              <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Attachment</th><th>Action</th></tr></thead>
               <tbody>
                 {myLeaves.length === 0 ? (
-                  <tr><td colSpan="4" style={{textAlign:"center", padding:20, color:"#999"}}>No leaves found.</td></tr>
+                  <tr><td colSpan="5" style={{textAlign:"center", padding:20, color:"#999"}}>No leaves found.</td></tr>
                 ) : (
                   myLeaves.map((l) => (
                     <tr key={l._id}>
@@ -1663,6 +1683,13 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                       <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
                       <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
                       <td>{resolveAttachmentUrl(l.attachment_url, api.baseUrl) ? <a href={resolveAttachmentUrl(l.attachment_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td>
+                        {(l.status === "Pending" || l.status === "Approved") && (
+                          <button className="btn ghost" style={{fontSize:12, padding:'5px 12px', color:'#dc2626', borderColor:'#fecaca'}} onClick={() => handleRevokeLeave(l._id)}>
+                            Revoke
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))
                 )}

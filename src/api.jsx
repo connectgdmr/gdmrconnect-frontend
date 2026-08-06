@@ -163,6 +163,7 @@ export default {
   adminLeaves: (token) => request("/admin/leaves", "GET", null, token),
   updateLeave: (id, payload, token) => request(`/admin/leaves/${id}`, "PUT", payload, token),
   myLeaves: (token) => request("/my/leaves", "GET", null, token),
+  revokeLeave: (id, token) => request(`/leaves/${id}/revoke`, "POST", null, token),
 
   // Leave with file (UPDATED FOR DATE RANGES)
   applyLeaveWithFile: async (payload, file, token) => {

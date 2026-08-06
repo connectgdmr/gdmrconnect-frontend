@@ -519,9 +519,10 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
   font-size: 11.5px; font-weight: 600; letter-spacing: 0.1px;
   text-transform: capitalize; white-space: nowrap;
 }
-.status-badge.approved { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
-.status-badge.rejected { background: var(--error-bg); color: var(--error); border: 1px solid var(--error-border); }
-.status-badge.pending  { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
+.status-badge.approved  { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+.status-badge.rejected  { background: var(--error-bg); color: var(--error); border: 1px solid var(--error-border); }
+.status-badge.pending   { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
+.status-badge.cancelled { background: var(--slate-100); color: var(--slate-500); border: 1px solid var(--slate-200); }
 
 .attendance-indicator {
   padding: 3px 9px; border-radius: var(--radius-full);
