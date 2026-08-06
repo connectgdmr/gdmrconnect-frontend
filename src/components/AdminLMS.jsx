@@ -85,25 +85,33 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
 
   // Normalize whatever shape the backend returns into the builder's expected structure
   const normalizeModules = (raw) => {
-    const mods = Array.isArray(raw) ? raw : [];
+    const mods = (Array.isArray(raw) ? raw : []).filter(m => m && typeof m === "object");
     if (mods.length === 0) return [blankModule()];
     return mods.map(m => ({
       title: m.title || m.name || m.module_title || "",
-      lessons: (Array.isArray(m.lessons) ? m.lessons : (m.module_lessons || [])).map(l => ({
-        title:   l.title || l.name || l.lesson_title || "",
-        type:    l.type || l.lesson_type || "Video",
-        url:     l.url || l.resource_url || l.link || "",
-        content: l.content || l.text || "",
-        _id:     l._id || l.id,
-      })),
+      lessons: (Array.isArray(m.lessons) ? m.lessons : (m.module_lessons || []))
+        .filter(l => l && typeof l === "object")
+        .map(l => ({
+          title:   l.title || l.name || l.lesson_title || "",
+          type:    l.type || l.lesson_type || "Video",
+          url:     l.url || l.resource_url || l.link || "",
+          content: l.content || l.text || "",
+          _id:     l._id || l.id,
+        })),
     })).map(m => m.lessons.length ? m : { ...m, lessons: [blankLesson()] });
   };
+
+  // Guards against any malformed/null entry in the API response — visibleCourses
+  // and filteredProgress below run unconditionally on every render (not gated by
+  // tab), so a single bad entry here previously crashed the whole section on
+  // mount, before any tab content ever showed.
+  const cleanArr = (d) => toArr(d).filter(x => x && typeof x === "object");
 
   async function loadCourses() {
     setLoading(true);
     try {
       const r = await fetch(`${BASE}/admin/lms/courses`, { headers: { Authorization: `Bearer ${token}` } });
-      setCourses(r.ok ? toArr(await r.json()) : []);
+      setCourses(r.ok ? cleanArr(await r.json()) : []);
     } catch { setCourses([]); } finally { setLoading(false); }
   }
 
@@ -111,7 +119,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
     setProgLoading(true);
     try {
       const r = await fetch(`${BASE}/admin/lms/progress`, { headers: { Authorization: `Bearer ${token}` } });
-      setProgress(r.ok ? toArr(await r.json()) : []);
+      setProgress(r.ok ? cleanArr(await r.json()) : []);
     } catch { setProgress([]); } finally { setProgLoading(false); }
   }
 
@@ -338,7 +346,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
                         </div>
                       )}
                       {c.description && <p style={{ margin: "0 0 8px", fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{c.description.slice(0, 70)}{c.description.length > 70 ? "…" : ""}</p>}
-                      <div style={{ fontSize: 12, color: "#94a3b8" }}>{c.modules?.length || 0} modules · {c.modules?.reduce((s, m) => s + (m.lessons?.length || 0), 0) || 0} lessons</div>
+                      <div style={{ fontSize: 12, color: "#94a3b8" }}>{c.modules?.length || 0} modules · {c.modules?.reduce((s, m) => s + (m?.lessons?.length || 0), 0) || 0} lessons</div>
                       {(c.expiry_date || c.expiryDate) && (() => {
                         const exp = new Date((c.expiry_date || c.expiryDate)); const expired = exp < new Date();
                         return <div style={{ fontSize: 11, fontWeight: 600, marginTop: 5, color: expired ? "#dc2626" : "#0f766e" }}>
@@ -559,7 +567,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
         const c = previewCourse;
         const cat = CAT_COLORS[c.category] || CAT_COLORS.Other;
         const code = c.course_code || c.courseCode;
-        const mods = c.modules || c.course_modules || [];
+        const mods = (c.modules || c.course_modules || []).filter(m => m && typeof m === "object");
         const totalLessons = mods.reduce((s, m) => s + ((m.lessons || m.module_lessons || []).length), 0);
         return (
           <div className="modal-overlay" onClick={() => setPreviewCourse(null)}>
@@ -592,7 +600,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {mods.map((mod, mi) => {
-                  const lessons = mod.lessons || mod.module_lessons || [];
+                  const lessons = (mod.lessons || mod.module_lessons || []).filter(l => l && typeof l === "object");
                   const [open, setOpen] = [expandedMod === `pv${mi}`, (v) => setExpandedMod(v ? `pv${mi}` : null)];
                   return (
                     <div key={mi} style={{ border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden" }}>

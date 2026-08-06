@@ -74,11 +74,13 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
   const toArr = d => Array.isArray(d) ? d : (d?.courses || d?.progress || d?.data || []);
 
   const normalizeModules = raw => {
-    const mods = Array.isArray(raw) ? raw : [];
+    const mods = (Array.isArray(raw) ? raw : []).filter(m => m && typeof m === "object");
     if (mods.length === 0) return [blankModule()];
     return mods.map(m => ({
       title: m.title || m.name || m.module_title || "",
-      lessons: (Array.isArray(m.lessons) ? m.lessons : (m.module_lessons || [])).map(l => ({
+      lessons: (Array.isArray(m.lessons) ? m.lessons : (m.module_lessons || []))
+        .filter(l => l && typeof l === "object")
+        .map(l => ({
         title: l.title || l.name || l.lesson_title || "",
         type: l.type || l.lesson_type || "Video",
         url: l.url || l.resource_url || l.link || "",
@@ -88,11 +90,17 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
     })).map(m => m.lessons.length ? m : { ...m, lessons: [blankLesson()] });
   };
 
+  // Guards against any malformed/null entry in the API response — the courses-
+  // and progress-derived lists below run unconditionally on every render (not
+  // gated by tab), so a single bad entry here previously crashed the whole
+  // section on mount, before any tab content ever showed.
+  const cleanArr = (d) => toArr(d).filter(x => x && typeof x === "object");
+
   async function loadCourses() {
     setLoading(true);
     try {
       const r = await fetch(`${BASE}/manager/lms/courses`, { headers: { Authorization: `Bearer ${token}` } });
-      setCourses(r.ok ? toArr(await r.json()) : []);
+      setCourses(r.ok ? cleanArr(await r.json()) : []);
     } catch { setCourses([]); } finally { setLoading(false); }
   }
 
@@ -100,7 +108,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
     setProgLoading(true);
     try {
       const r = await fetch(`${BASE}/manager/lms/progress`, { headers: { Authorization: `Bearer ${token}` } });
-      setProgress(r.ok ? toArr(await r.json()) : []);
+      setProgress(r.ok ? cleanArr(await r.json()) : []);
     } catch { setProgress([]); } finally { setProgLoading(false); }
   }
 
@@ -330,7 +338,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
                         </div>
                       )}
                       {c.description && <p style={{ margin: "0 0 6px", fontSize: 11.5, color: "#64748b" }}>{c.description.slice(0, 60)}{c.description.length > 60 ? "…" : ""}</p>}
-                      <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8 }}>{c.modules?.length || 0} modules · {c.modules?.reduce((s, m) => s + (m.lessons?.length || 0), 0) || 0} lessons</div>
+                      <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8 }}>{c.modules?.length || 0} modules · {c.modules?.reduce((s, m) => s + (m?.lessons?.length || 0), 0) || 0} lessons</div>
                       <button className="btn ghost" style={{ fontSize: 12, width: "100%" }} onClick={() => { setAssignCourseId(c._id); setTab("assign"); }}>
                         <FaUsers size={11} /> Assign to My Team
                       </button>
@@ -566,7 +574,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
         const c = previewCourse;
         const cat = CAT_COLORS[c.category] || CAT_COLORS.Other;
         const code = c.course_code || c.courseCode;
-        const mods = c.modules || c.course_modules || [];
+        const mods = (c.modules || c.course_modules || []).filter(m => m && typeof m === "object");
         const totalLessons = mods.reduce((s, m) => s + ((m.lessons || m.module_lessons || []).length), 0);
         let pExpanded = null;
         const setPExp = v => { pExpanded = v; };
@@ -609,7 +617,7 @@ function PreviewModules({ mods }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {mods.map((mod, mi) => {
-        const lessons = mod.lessons || mod.module_lessons || [];
+        const lessons = (mod.lessons || mod.module_lessons || []).filter(l => l && typeof l === "object");
         const open = expanded === mi;
         return (
           <div key={mi} style={{ border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden" }}>
