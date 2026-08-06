@@ -20,6 +20,15 @@ import {
   FaBuilding,
 } from "react-icons/fa";
 
+// Same "offboarded" rule used elsewhere in the app (AdminPayroll, AdminInsights,
+// PMSWorkspace, etc.): notice given + last working day already passed.
+function isOffboarded(emp) {
+  const lwd = emp?.resignation?.last_working_day;
+  if (!emp?.resignation?.notice_date || !lwd) return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return new Date(lwd) < today;
+}
+
 // Resolve the geo-coordinates (or a place name) from various backend shapes.
 // Shows lat,lng as the primary value; falls back to a place name only if no
 // coordinates are present.
@@ -149,6 +158,13 @@ export default function AdminAttendancePage({ token, api }) {
   const [analyzerEmpDeptMap, setAnalyzerEmpDeptMap] = useState({}); // id -> dept
   const [expandedDay, setExpandedDay] = useState(null);
 
+  // Roster used for anything the admin "browses" (Grid cards, dept dropdown,
+  // Analyzer zero-attendance rows) — excludes off-boarded staff. The raw
+  // `employees` list is kept around unfiltered so historical attendance
+  // records (id → name/dept lookups) still resolve correctly for people who
+  // have since left.
+  const activeEmployees = useMemo(() => employees.filter(e => !isOffboarded(e)), [employees]);
+
   // ============================================================================
   // API DATA FETCHING
   // ============================================================================
@@ -197,12 +213,14 @@ export default function AdminAttendancePage({ token, api }) {
   async function loadEmployees() {
     setLoading(true);
     try {
-      const list = await api.listEmployees(token); 
+      const list = await api.listEmployees(token);
       setEmployees(list);
-      setFilteredEmployees(list);
-      
-      // Extract unique departments for the dropdown filter dynamically
-      const deptNames = [...new Set(list.map(e => e.department).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+
+      // Extract unique departments for the dropdown filter dynamically —
+      // active staff only, so off-boarded employees' departments don't
+      // clutter the filter once nobody active remains in them.
+      const activeList = list.filter(e => !isOffboarded(e));
+      const deptNames = [...new Set(activeList.map(e => e.department).filter(Boolean))].sort((a, b) => a.localeCompare(b));
       setDepartments(["All", ...deptNames]);
     } catch (err) {
       console.error("Error loading employees", err);
@@ -381,22 +399,22 @@ export default function AdminAttendancePage({ token, api }) {
     if (viewMode === "analyzer") loadAnalyzerData(analyzerMonth);
   }, [viewMode, analyzerMonth]);
 
-  // Filter Logic for Employee Grid View
+  // Filter Logic for Employee Grid View — active (non-off-boarded) staff only
   useEffect(() => {
-    let result = employees;
+    let result = activeEmployees;
 
     if (selectedDept !== "All") {
       result = result.filter(e => e.department === selectedDept);
     }
 
     if (searchTerm) {
-      result = result.filter(e => 
+      result = result.filter(e =>
         e.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     setFilteredEmployees([...result].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
-  }, [searchTerm, selectedDept, employees]);
+  }, [searchTerm, selectedDept, activeEmployees]);
 
   // Filter Logic for Complete Logs View
   const filteredLogs = allAttendanceLogs.filter(log => {
@@ -491,8 +509,12 @@ export default function AdminAttendancePage({ token, api }) {
       });
     });
 
-    // Enrich from employee roster (adds people with zero attendance)
-    employees.forEach(e => {
+    // Enrich from the active employee roster (adds current staff with zero
+    // attendance for the month). Off-boarded staff are NOT force-added here —
+    // if they already have real attendance records for this month (from the
+    // dayEntries loop above) those are kept, but we don't clutter the table
+    // with zero-attendance rows for people who no longer work here.
+    activeEmployees.forEach(e => {
       const id = String(e._id || "");
       if (!id) return;
       if (!empStats[id]) empStats[id] = {
@@ -515,7 +537,7 @@ export default function AdminAttendancePage({ token, api }) {
     const totalPresent = dayEntries.reduce((s, [, d]) => s + cnt(d.present), 0);
     const totalAbsent  = dayEntries.reduce((s, [, d]) => s + cnt(d.absent), 0);
     const totalLeave   = dayEntries.reduce((s, [, d]) => s + cnt(d.leave), 0);
-    const totalEmp = analyzerSummary.total_employees || employees.length || 1;
+    const totalEmp = analyzerSummary.total_employees || activeEmployees.length || 1;
     const avgRate = workingDays > 0 ? Math.round((totalPresent / (workingDays * totalEmp)) * 100) : 0;
 
     // Department breakdown
@@ -548,7 +570,7 @@ export default function AdminAttendancePage({ token, api }) {
     }));
 
     return { empList, deptList, dayDetails, workingDays, totalPresent, totalAbsent, totalLeave, totalEmp, avgRate };
-  }, [analyzerSummary, analyzerIdMap, analyzerEmpDeptMap, employees]);
+  }, [analyzerSummary, analyzerIdMap, analyzerEmpDeptMap, activeEmployees]);
 
   // ============================================================================
   // COMPONENT RENDER
