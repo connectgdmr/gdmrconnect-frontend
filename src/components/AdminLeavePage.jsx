@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { resolveAttachmentUrl } from "../utils/security";
+import { ymd } from "../utils/dateUtils";
 import { SkeletonTable } from "./Skeleton";
 import {
   FaSearch,
@@ -9,7 +10,8 @@ import {
   FaFileDownload,
   FaCalendarAlt,
   FaClock,
-  FaSortAmountDown
+  FaSortAmountDown,
+  FaTimes
 } from "react-icons/fa";
 
 // ============================================================================
@@ -29,6 +31,7 @@ export default function AdminLeavePage({ token, api }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [sortBy, setSortBy] = useState("applied_desc");
+  const [dateFilter, setDateFilter] = useState(""); // "YYYY-MM-DD" — show only leaves covering this date
 
   // ============================================================================
   // 2. DATA FETCHING LOGIC
@@ -102,6 +105,14 @@ export default function AdminLeavePage({ token, api }) {
   const leaveStartDate = (l) => new Date(l.from_date || l.date || l.applied_at || l.created_at || 0);
   const appliedDate    = (l) => new Date(l.applied_at || l.created_at || 0);
 
+  // Does this leave's period cover the given "YYYY-MM-DD" date?
+  const coversDate = (l, dateStr) => {
+    if (l.from_date && l.to_date) {
+      return String(l.from_date).slice(0, 10) <= dateStr && String(l.to_date).slice(0, 10) >= dateStr;
+    }
+    return String(l.date || "").slice(0, 10) === dateStr;
+  };
+
   const filteredLeaves = leaves
     .filter(l => {
       const matchesSearch = l.employee_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -113,7 +124,9 @@ export default function AdminLeavePage({ token, api }) {
                             (statusFilter === "Approved" && currentOverallStatus.includes("Approved")) ||
                             (statusFilter === "Rejected" && currentOverallStatus.includes("Rejected"));
 
-      return matchesSearch && matchesStatus;
+      const matchesDate = !dateFilter || coversDate(l, dateFilter);
+
+      return matchesSearch && matchesStatus && matchesDate;
     })
     .sort((a, b) => {
       switch (sortBy) {
@@ -168,7 +181,40 @@ export default function AdminLeavePage({ token, api }) {
           transition: border-color 0.2s;
         }
         .styled-input:focus { border-color: var(--red); }
-        
+
+        .date-filter-wrapper { display: flex; align-items: center; gap: 6px; }
+        .date-filter-wrapper .styled-input { width: auto; flex: 1; }
+        .date-filter-clear {
+          flex-shrink: 0;
+          background: #f1f5f9;
+          border: none;
+          border-radius: 50%;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #64748b;
+          padding: 0;
+        }
+        .date-filter-clear:hover { background: #e2e8f0; color: #334155; }
+
+        .today-quick-btn {
+          flex-shrink: 0;
+          padding: 8px 16px;
+          border: 1px solid var(--red);
+          background: #fff;
+          color: var(--red);
+          border-radius: 6px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: background 0.2s, color 0.2s;
+        }
+        .today-quick-btn:hover { background: var(--red); color: #fff; }
+
         /* Status Badges - Reduced padding to save width */
         .status-badge { 
           padding: 4px 8px; 
@@ -248,6 +294,7 @@ export default function AdminLeavePage({ token, api }) {
           .leave-header-bar { padding: 16px; border-radius: 12px 12px 0 0; }
           .filter-container { flex-direction: column; gap: 10px; padding: 12px 16px; }
           .search-wrapper, .filter-wrapper { flex: 1 1 auto; }
+          .today-quick-btn { width: 100%; }
 
           /* Hide the desktop table entirely on mobile */
           .styled-table-wrap { display: none; }
@@ -344,6 +391,34 @@ export default function AdminLeavePage({ token, api }) {
                   <option value="leave_desc">Leave Date: Latest First</option>
               </select>
           </div>
+          <div className="filter-wrapper date-filter-wrapper">
+              <FaCalendarAlt className="search-icon" />
+              <input
+                  type="date"
+                  className="styled-input"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  title="Show only leaves covering this date"
+              />
+              {dateFilter && (
+                  <button
+                      type="button"
+                      className="date-filter-clear"
+                      onClick={() => setDateFilter("")}
+                      title="Clear date filter"
+                  >
+                      <FaTimes size={11} />
+                  </button>
+              )}
+          </div>
+          <button
+              type="button"
+              className="today-quick-btn"
+              onClick={() => setDateFilter(ymd())}
+              title="Show leave requests covering today"
+          >
+              Today
+          </button>
       </div>
 
       {error && (
