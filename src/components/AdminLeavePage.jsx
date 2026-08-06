@@ -4,11 +4,12 @@ import { SkeletonTable } from "./Skeleton";
 import {
   FaSearch,
   FaFilter,
-  FaCheckCircle, 
-  FaTimesCircle, 
+  FaCheckCircle,
+  FaTimesCircle,
   FaFileDownload,
   FaCalendarAlt,
-  FaClock
+  FaClock,
+  FaSortAmountDown
 } from "react-icons/fa";
 
 // ============================================================================
@@ -27,6 +28,7 @@ export default function AdminLeavePage({ token, api }) {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("applied_desc");
 
   // ============================================================================
   // 2. DATA FETCHING LOGIC
@@ -37,14 +39,6 @@ export default function AdminLeavePage({ token, api }) {
     setError("");
     try {
       const list = await api.adminLeaves(token);
-      
-      // Sort chronologically (newest applied first) safely
-      list.sort((a, b) => {
-          const dateA = new Date(a.applied_at || a.created_at);
-          const dateB = new Date(b.applied_at || b.created_at);
-          return dateB - dateA;
-      });
-      
       setLeaves(list);
     } catch (err) {
       console.error("Failed to load leaves:", err);
@@ -103,18 +97,33 @@ export default function AdminLeavePage({ token, api }) {
       };
   };
 
-  const filteredLeaves = leaves.filter(l => {
-      const matchesSearch = l.employee_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  // Leave-period start date used for date-wise sorting — falls back to the
+  // legacy single "date" field when from_date isn't set.
+  const leaveStartDate = (l) => new Date(l.from_date || l.date || l.applied_at || l.created_at || 0);
+  const appliedDate    = (l) => new Date(l.applied_at || l.created_at || 0);
+
+  const filteredLeaves = leaves
+    .filter(l => {
+      const matchesSearch = l.employee_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             l.reason?.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       const currentOverallStatus = l.status || 'Pending';
-      const matchesStatus = statusFilter === "All" || 
+      const matchesStatus = statusFilter === "All" ||
                             (statusFilter === "Pending" && currentOverallStatus.includes("Pending")) ||
                             (statusFilter === "Approved" && currentOverallStatus.includes("Approved")) ||
                             (statusFilter === "Rejected" && currentOverallStatus.includes("Rejected"));
-                            
+
       return matchesSearch && matchesStatus;
-  });
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "applied_asc":  return appliedDate(a) - appliedDate(b);
+        case "leave_asc":    return leaveStartDate(a) - leaveStartDate(b);
+        case "leave_desc":   return leaveStartDate(b) - leaveStartDate(a);
+        case "applied_desc":
+        default:             return appliedDate(b) - appliedDate(a);
+      }
+    });
 
   // ============================================================================
   // 5. RENDER TEMPLATE
@@ -311,8 +320,8 @@ export default function AdminLeavePage({ token, api }) {
           </div>
           <div className="filter-wrapper">
               <FaFilter className="search-icon" />
-              <select 
-                  className="styled-input" 
+              <select
+                  className="styled-input"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
               >
@@ -320,6 +329,19 @@ export default function AdminLeavePage({ token, api }) {
                   <option value="Pending">Pending Only</option>
                   <option value="Approved">Approved</option>
                   <option value="Rejected">Rejected</option>
+              </select>
+          </div>
+          <div className="filter-wrapper">
+              <FaSortAmountDown className="search-icon" />
+              <select
+                  className="styled-input"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+              >
+                  <option value="applied_desc">Applied: Newest First</option>
+                  <option value="applied_asc">Applied: Oldest First</option>
+                  <option value="leave_asc">Leave Date: Earliest First</option>
+                  <option value="leave_desc">Leave Date: Latest First</option>
               </select>
           </div>
       </div>
