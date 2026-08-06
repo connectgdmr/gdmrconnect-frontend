@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { resolveAttachmentUrl } from "../utils/security";
+import { ymd, ym } from "../utils/dateUtils";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 import {
   FaSearch,
@@ -151,7 +152,7 @@ export default function AdminAttendancePage({ token, api }) {
   const [detailLoading, setDetailLoading] = useState(false);
 
   // --- Analyzer State ---
-  const [analyzerMonth, setAnalyzerMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [analyzerMonth, setAnalyzerMonth] = useState(ym());
   const [analyzerSummary, setAnalyzerSummary] = useState(null);
   const [analyzerLoading, setAnalyzerLoading] = useState(false);
   const [analyzerIdMap, setAnalyzerIdMap] = useState({});   // id -> { name, dept }
@@ -189,8 +190,8 @@ export default function AdminAttendancePage({ token, api }) {
       // today-stats came back empty/unauthorized — derive the same four
       // numbers from the monthly attendance summary instead, which is
       // already accessible under delegated access (used by the Analyzer tab).
-      const monthStr = new Date().toISOString().slice(0, 7);
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const monthStr = ym();
+      const todayStr = ymd();
       const summary = await api.getAttendanceSummary(monthStr, token);
       const day = summary?.days?.[todayStr] || {};
       const cnt = (v) => Array.isArray(v) ? v.length : (Number(v) || 0);
@@ -285,7 +286,7 @@ export default function AdminAttendancePage({ token, api }) {
 
     try {
       const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
+      const todayStr = ymd(now);
 
       if (type === 'leave') {
         // Full leave records (department, half/full, manager+admin approval) rather
@@ -294,9 +295,10 @@ export default function AdminAttendancePage({ token, api }) {
         const allLeaves = await api.adminLeaves(token);
         const rawList = Array.isArray(allLeaves) ? allLeaves : (allLeaves?.leaves || []);
         const todayLeaves = rawList.filter(l => {
-          if ((l.status || "").toLowerCase() === "rejected") return false;
-          if (l.from_date && l.to_date) return l.from_date <= todayStr && l.to_date >= todayStr;
-          return l.date === todayStr;
+          const st = (l.status || "").toLowerCase();
+          if (st === "rejected" || st === "cancelled") return false;
+          if (l.from_date && l.to_date) return String(l.from_date).slice(0, 10) <= todayStr && String(l.to_date).slice(0, 10) >= todayStr;
+          return String(l.date || "").slice(0, 10) === todayStr;
         });
 
         const leaveRows = todayLeaves.map(l => {
@@ -327,7 +329,7 @@ export default function AdminAttendancePage({ token, api }) {
         return;
       }
 
-      const monthStr = now.toISOString().slice(0, 7);
+      const monthStr = ym(now);
 
       // Fetch the detailed summary for the current month
       const summaryData = await api.getAttendanceSummary(monthStr, token);
@@ -469,7 +471,7 @@ export default function AdminAttendancePage({ token, api }) {
   // ============================================================================
   const analyzerData = useMemo(() => {
     if (!analyzerSummary?.days) return null;
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = ymd();
     const dayEntries = Object.entries(analyzerSummary.days)
       .filter(([d]) => d <= todayStr)
       .sort(([a], [b]) => a.localeCompare(b));

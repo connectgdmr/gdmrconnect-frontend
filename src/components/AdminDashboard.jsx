@@ -57,6 +57,7 @@ import ChatBot from "./ChatBot";
 import WorkTypesManager from "./WorkTypesManager";
 import PMSWorkspace from "./PMSWorkspace";
 import { SkeletonTable, SkeletonCards } from "./Skeleton";
+import { ymd } from "../utils/dateUtils";
 
 const AdminAssessment = lazy(() => import("./AdminAssessment"));
 const AdminLMS        = lazy(() => import("./AdminLMS"));
@@ -222,15 +223,16 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
   // Builds today's leave roster — same dedup logic as the modal so KPI ↔ modal are always in sync.
   async function loadTodayLeaves(empList) {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = ymd();
     const src = empList || employees;
     try {
       const allLeaves = await api.adminLeaves(token);
       const rawList = Array.isArray(allLeaves) ? allLeaves : (allLeaves?.leaves || []);
       const leaveList = rawList.filter(l => {
-        if ((l.status || "").toLowerCase() === "rejected") return false;
-        if (l.from_date && l.to_date) return l.from_date <= todayStr && l.to_date >= todayStr;
-        return l.date === todayStr;
+        const st = (l.status || "").toLowerCase();
+        if (st === "rejected" || st === "cancelled") return false;
+        if (l.from_date && l.to_date) return String(l.from_date).slice(0, 10) <= todayStr && String(l.to_date).slice(0, 10) >= todayStr;
+        return String(l.date || "").slice(0, 10) === todayStr;
       });
 
       const leaveRows = leaveList.map(l => {
@@ -657,7 +659,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
     try {
       const now     = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
+      const todayStr = ymd(now);
 
       if (type === 'leave') {
         // Use the pre-loaded roster (same source as KPI) for instant, consistent results
@@ -668,9 +670,10 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           const allLeaves = await api.adminLeaves(token);
           const rawList = Array.isArray(allLeaves) ? allLeaves : (allLeaves?.leaves || []);
           const todayLeaves = rawList.filter(l => {
-            if ((l.status || "").toLowerCase() === "rejected") return false;
-            if (l.from_date && l.to_date) return l.from_date <= todayStr && l.to_date >= todayStr;
-            return l.date === todayStr;
+            const st = (l.status || "").toLowerCase();
+            if (st === "rejected" || st === "cancelled") return false;
+            if (l.from_date && l.to_date) return String(l.from_date).slice(0, 10) <= todayStr && String(l.to_date).slice(0, 10) >= todayStr;
+            return String(l.date || "").slice(0, 10) === todayStr;
           });
 
           const leaveRows = todayLeaves.map(l => {
@@ -814,7 +817,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {/* DASHBOARD HOME VIEW (WIDGETS) */}
       {/* ============================================================================ */}
       {view === "dashboard" && (() => {
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = ymd();
 
         // Active workforce: excludes fully offboarded employees (LWD passed), includes notice-period
         const activeEmps = employees.filter(e => empExitStatus(e) !== "offboarded");

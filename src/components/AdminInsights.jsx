@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { ymd, ym } from "../utils/dateUtils";
 
 // Green-family palette to match the dashboard theme
 const DEPT_PALETTE = [
@@ -254,11 +255,11 @@ function isOffboarded(emp) {
 export default function AdminInsights({ stats, employees = [], api, token }) {
   const [chartData, setChartData] = useState([]);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = ymd();
 
   useEffect(() => {
     if (!api || !token) return;
-    const monthStr = new Date().toISOString().slice(0, 7);
+    const monthStr = ym();
     api.getAttendanceSummary(monthStr, token)
       .then((summary) => {
         const days = summary?.days || {};
