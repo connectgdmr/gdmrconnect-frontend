@@ -148,6 +148,11 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   const [voiceLang, setVoiceLang] = useState("en"); // "en" | "ml"
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef(null);
+  // Rolling voice-conversation memory, sent with each turn so follow-ups
+  // ("what about the design team?") resolve naturally instead of every
+  // question being answered as if asked in isolation. Reset whenever the
+  // panel closes — a fresh open starts a fresh conversation.
+  const voiceHistoryRef = useRef([]);
   const SpeechRecognitionAPI = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
   const voiceSupported = isAdmin && !!SpeechRecognitionAPI;
   const vs = VOICE_STRINGS[voiceLang];
@@ -163,14 +168,14 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     window.speechSynthesis.speak(utter);
   }
 
-  async function askVoiceAssistant(q, lang) {
+  async function askVoiceAssistant(q, lang, history) {
     if (!token) return null;
     try {
       const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
       const res = await fetch(`${baseUrl}/api/assistant/voice`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message: q, lang }),
+        body: JSON.stringify({ message: q, lang, history }),
       });
       if (!res.ok) return null;
       const data = await res.json();
@@ -186,10 +191,19 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     if (!open) setOpen(true);
     setMessages((m) => [...m, { from: "user", text: q }]);
     setTyping(true);
-    const reply = await askVoiceAssistant(q, voiceLang);
+    const reply = await askVoiceAssistant(q, voiceLang, voiceHistoryRef.current);
     setTyping(false);
     const replyText = reply || vs.fallback;
     setMessages((m) => [...m, { from: "bot", text: replyText }]);
+    // Only remember real turns (not the fallback error line) — keep the
+    // last 8 so the prompt stays small and stays on the current topic.
+    if (reply) {
+      voiceHistoryRef.current = [
+        ...voiceHistoryRef.current,
+        { role: "user", content: q },
+        { role: "assistant", content: replyText },
+      ].slice(-8);
+    }
     speak(replyText, voiceLang);
   }
 
@@ -227,6 +241,9 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   useEffect(() => {
     if (open && messages.length === 0) {
       setMessages([{ from: "bot", text: `Hi ${firstName}! 👋 I'm **${BOT_NAME}**, your GDMR Connect assistant. Ask me anything about leaves, attendance, payslips, courses or careers — or tap a suggestion below.` }]);
+    }
+    if (!open) {
+      voiceHistoryRef.current = []; // fresh conversation memory next time it's opened
     }
   }, [open]);
 
