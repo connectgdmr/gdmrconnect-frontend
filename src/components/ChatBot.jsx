@@ -10,9 +10,9 @@ import { getNextHoliday } from "../data/holidays";
 //  handed to a small LLM fallback (/api/assistant/chat) if the backend has
 //  one configured — otherwise it just says so, no backend/API key required.
 //
-//  Admin/owner also get voice mode: tap the launcher and it opens straight
-//  into listening, greets out loud, then talks back — see the "Voice mode"
-//  section below.
+//  Admin/owner get a second skin: a HUD-style voice console (see "Voice
+//  mode" below) that opens straight into listening. Everyone else keeps the
+//  original friendly light chat panel, unchanged.
 // ════════════════════════════════════════════════════════════════════════════
 
 const BOT_NAME = "Rexor";
@@ -113,15 +113,16 @@ function renderText(text) {
 }
 
 // ── Voice mode (admin/owner only) ────────────────────────────────────────────
-// Tap the launcher and it opens straight into listening — Rexor greets out
-// loud, then listens for the question. No manual language toggle: the Web
-// Speech API only accepts one recognizer language at a time, so we start on
-// a broad Indian-English locale (which in practice also picks up a lot of
-// spoken Malayalam on Chrome/Android) and then auto-detect which language
-// was actually spoken from the SCRIPT of the returned transcript — Malayalam
-// Unicode block present → reply in Malayalam; otherwise English. That
-// detected language is then "sticky" for the next turn's recognizer locale,
-// so a Malayalam conversation stays more accurately recognized as it goes.
+// Tap the launcher and it opens straight into a HUD-style listening console —
+// Rexor greets out loud, then listens for the question. No manual language
+// toggle: the Web Speech API only accepts one recognizer language at a time,
+// so we start on a broad Indian-English locale (which in practice also
+// picks up a lot of spoken Malayalam on Chrome/Android) and then auto-detect
+// which language was actually spoken from the SCRIPT of the returned
+// transcript — Malayalam Unicode block present → reply in Malayalam;
+// otherwise English. That detected language is then "sticky" for the next
+// turn's recognizer locale, so a Malayalam conversation stays more
+// accurately recognized as it goes.
 const EN_FALLBACK      = "Sorry, I couldn't get that answer right now.";
 const ML_FALLBACK      = "ക്ഷമിക്കണം, ഇപ്പോൾ ഉത്തരം നൽകാൻ കഴിയുന്നില്ല.";
 const UNSUPPORTED_MSG  = "Voice isn't supported in this browser — try Chrome.";
@@ -143,6 +144,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   const isAdmin = role === "admin" || role === "owner";
   const [panelMode, setPanelMode] = useState("chat"); // "voice" | "chat"
   const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const [detectedLang, setDetectedLang] = useState("en"); // last-detected spoken language
   const recognitionRef = useRef(null);
   // Rolling voice-conversation memory, sent with each turn so follow-ups
@@ -152,6 +154,8 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   const voiceHistoryRef = useRef([]);
   const SpeechRecognitionAPI = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
   const voiceSupported = isAdmin && !!SpeechRecognitionAPI;
+  // Idle / listening / speaking / thinking — drives the HUD orb + caption.
+  const hudState = listening ? "listening" : speaking ? "speaking" : typing ? "thinking" : "idle";
 
   function speak(text, lang, onEnd) {
     if (typeof window === "undefined" || !window.speechSynthesis) { onEnd?.(); return; }
@@ -161,7 +165,9 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     const voices = window.speechSynthesis.getVoices();
     const match = voices.find(v => v.lang === utter.lang) || voices.find(v => v.lang?.startsWith(lang === "ml" ? "ml" : "en"));
     if (match) utter.voice = match;
-    if (onEnd) utter.onend = onEnd;
+    setSpeaking(true);
+    utter.onend = () => { setSpeaking(false); onEnd?.(); };
+    utter.onerror = () => setSpeaking(false);
     window.speechSynthesis.speak(utter);
   }
 
@@ -344,6 +350,8 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     setPanelMode("chat");
   }
 
+  const hudCaption = { idle: "TAP TO SPEAK", listening: "LISTENING", speaking: "SPEAKING", thinking: "THINKING" }[hudState];
+
   return (
     <>
       {/* Launcher — compact glowing orb. For admin/owner this goes straight
@@ -358,100 +366,151 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
       {/* Popup — centered modal */}
       {open && (
         <div className="genie-overlay" onClick={closePanel}>
-          <div className="genie-panel" onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <div className="genie-header">
-              <div className="genie-avatar"><GiLion size={22} /></div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: 0.2 }}>{BOT_NAME}</div>
-                <div style={{ fontSize: 10.5, opacity: 0.9, display: "flex", alignItems: "center", gap: 5 }}>
-                  <span className="genie-dot" /> {listening ? "Listening…" : "GDMR Connect Assistant"}
+          {voiceSupported ? (
+            /* ═══════════════════ HUD voice console (admin/owner) ═══════════════════ */
+            <div className="hud-panel" onClick={(e) => e.stopPropagation()}>
+              <div className="hud-topbar">
+                <div className="hud-wordmark">
+                  REX<span>OR</span>
+                  <small>GDMR CONNECT · AI ASSISTANT</small>
+                </div>
+                <div className="hud-topbar-right">
+                  <span className="hud-status-chip"><span className="hud-led" />ONLINE</span>
+                  <button onClick={closePanel} className="hud-close"><FaTimes size={12} /></button>
                 </div>
               </div>
-              <button onClick={closePanel} className="genie-close"><FaTimes size={13} /></button>
-            </div>
 
-            {/* Voice / Chat mode toggle (admin/owner only) */}
-            {voiceSupported && (
-              <div className="genie-mode-toggle">
-                <button
-                  type="button"
-                  className={panelMode === "voice" ? "active" : ""}
-                  onClick={() => setPanelMode("voice")}
-                >
-                  <FaMicrophone size={11} /> Voice
-                </button>
-                <button
-                  type="button"
-                  className={panelMode === "chat" ? "active" : ""}
-                  onClick={switchToChat}
-                >
-                  <FaCommentDots size={11} /> Chat
-                </button>
+              <div className="hud-readout-row">
+                <div>MODE&nbsp;<span className="hud-val">{panelMode === "voice" ? "VOICE" : "TEXT"}</span></div>
+                <div className="hud-lang-pair">
+                  <span className={`hud-lang-pill ${detectedLang === "en" ? "active" : ""}`}>EN</span>
+                  <span className={`hud-lang-pill ${detectedLang === "ml" ? "active" : ""}`}>ML</span>
+                </div>
               </div>
-            )}
 
-            {/* Messages */}
-            <div ref={scrollRef} className="genie-body">
-              {messages.map((m, i) => (
-                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.from === "user" ? "flex-end" : "flex-start" }}>
-                  {m.from === "bot" && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0 4px 4px" }}>
-                      <span className="genie-mini"><GiLion size={11} /></span>
-                      <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0f766e" }}>{BOT_NAME}</span>
+              {panelMode === "voice" ? (
+                <div className="hud-stage" data-state={hudState}>
+                  <div className="hud-orb-wrap">
+                    <div className="hud-ring r1" />
+                    <div className="hud-ring r2" />
+                    <div className="hud-ring r3" />
+                    <div className="hud-orb-core"><GiLion size={30} /></div>
+                  </div>
+                  <div className="hud-caption">{hudCaption}</div>
+                  <div className="hud-waveform">
+                    {Array.from({ length: 8 }).map((_, i) => <i key={i} />)}
+                  </div>
+                </div>
+              ) : (
+                <div ref={scrollRef} className="hud-transcript">
+                  {messages.map((m, i) => (
+                    <div key={i} className={`hud-row ${m.from}`}>
+                      <span className="hud-tag">{m.from === "user" ? "YOU" : "REXOR"}</span>
+                      <span className="hud-txt">
+                        {renderText(m.text)}
+                        {m.action && (
+                          <button className="hud-action" onClick={() => { onNavigate?.(m.action.view); closePanel(); }}>
+                            → {m.action.label}
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                  {typing && (
+                    <div className="hud-row bot">
+                      <span className="hud-tag">REXOR</span>
+                      <span className="hud-txt hud-thinking">···</span>
                     </div>
                   )}
-                  <div className={`genie-bubble ${m.from}`}>{renderText(m.text)}</div>
-                  {m.action && (
-                    <button className="genie-action" onClick={() => { onNavigate?.(m.action.view); closePanel(); }}>
-                      → {m.action.label}
-                    </button>
-                  )}
-                </div>
-              ))}
-              {typing && (
-                <div className="genie-bubble bot" style={{ display: "flex", gap: 4, width: "fit-content" }}>
-                  {[0, 1, 2].map((i) => <span key={i} className="genie-typing" style={{ animationDelay: `${i * 0.15}s` }} />)}
                 </div>
               )}
-            </div>
 
-            {panelMode === "voice" && voiceSupported ? (
-              /* Voice dock — big tap-to-speak mic, no typing needed */
-              <div className="genie-voice-dock">
-                <button
-                  type="button"
-                  className={`genie-voice-btn ${listening ? "live" : ""}`}
-                  onClick={listening ? stopListening : startListening}
-                  title={listening ? "Stop listening" : "Tap to speak"}
-                >
-                  {listening ? <FaStop size={20} /> : <FaMicrophone size={22} />}
-                </button>
-                <div className="genie-voice-hint">{listening ? "Listening… tap to stop" : "Tap to speak — English or Malayalam"}</div>
+              <div className="hud-bottombar">
+                <div className="hud-mode-toggle">
+                  <button
+                    type="button"
+                    className={panelMode === "voice" ? "active" : ""}
+                    onClick={() => setPanelMode("voice")}
+                  ><FaMicrophone size={10} /> VOICE</button>
+                  <button
+                    type="button"
+                    className={panelMode === "chat" ? "active" : ""}
+                    onClick={switchToChat}
+                  ><FaCommentDots size={10} /> TEXT</button>
+                </div>
+
+                {panelMode === "voice" ? (
+                  <button
+                    type="button"
+                    className={`hud-talk-btn ${listening ? "live" : ""}`}
+                    onClick={listening ? stopListening : startListening}
+                  >
+                    {listening ? "■ STOP" : "● TALK"}
+                  </button>
+                ) : (
+                  <form onSubmit={(e) => { e.preventDefault(); send(); }} className="hud-input-row">
+                    <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type a message…" className="hud-input" />
+                    <button type="submit" disabled={!input.trim()} className="hud-send"><FaPaperPlane size={11} /></button>
+                  </form>
+                )}
               </div>
-            ) : (
-              <>
-                {/* Suggestion chips */}
-                {showChips && (
-                  <div className="genie-chips">
-                    {suggestions.map((s) => (
-                      <button key={s} onClick={() => send(s)} className="genie-chip">
-                        <FaRegLightbulb size={10} style={{ opacity: 0.7 }} /> {s}
+            </div>
+          ) : (
+            /* ═══════════════════ Original light chat panel (everyone else) ═══════════════════ */
+            <div className="genie-panel" onClick={(e) => e.stopPropagation()}>
+              <div className="genie-header">
+                <div className="genie-avatar"><GiLion size={22} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: 0.2 }}>{BOT_NAME}</div>
+                  <div style={{ fontSize: 10.5, opacity: 0.9, display: "flex", alignItems: "center", gap: 5 }}>
+                    <span className="genie-dot" /> GDMR Connect Assistant
+                  </div>
+                </div>
+                <button onClick={closePanel} className="genie-close"><FaTimes size={13} /></button>
+              </div>
+
+              <div ref={scrollRef} className="genie-body">
+                {messages.map((m, i) => (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.from === "user" ? "flex-end" : "flex-start" }}>
+                    {m.from === "bot" && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0 4px 4px" }}>
+                        <span className="genie-mini"><GiLion size={11} /></span>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0f766e" }}>{BOT_NAME}</span>
+                      </div>
+                    )}
+                    <div className={`genie-bubble ${m.from}`}>{renderText(m.text)}</div>
+                    {m.action && (
+                      <button className="genie-action" onClick={() => { onNavigate?.(m.action.view); closePanel(); }}>
+                        → {m.action.label}
                       </button>
-                    ))}
+                    )}
+                  </div>
+                ))}
+                {typing && (
+                  <div className="genie-bubble bot" style={{ display: "flex", gap: 4, width: "fit-content" }}>
+                    {[0, 1, 2].map((i) => <span key={i} className="genie-typing" style={{ animationDelay: `${i * 0.15}s` }} />)}
                   </div>
                 )}
+              </div>
 
-                {/* Input */}
-                <form onSubmit={(e) => { e.preventDefault(); send(); }} className="genie-input-row">
-                  <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={`Ask ${BOT_NAME} anything…`} className="genie-input" />
-                  <button type="submit" disabled={!input.trim()} className="genie-send" style={{ background: input.trim() ? "var(--brand)" : "#cbd5e1" }}>
-                    <FaPaperPlane size={13} />
-                  </button>
-                </form>
-              </>
-            )}
-          </div>
+              {showChips && (
+                <div className="genie-chips">
+                  {suggestions.map((s) => (
+                    <button key={s} onClick={() => send(s)} className="genie-chip">
+                      <FaRegLightbulb size={10} style={{ opacity: 0.7 }} /> {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={(e) => { e.preventDefault(); send(); }} className="genie-input-row">
+                <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={`Ask ${BOT_NAME} anything…`} className="genie-input" />
+                <button type="submit" disabled={!input.trim()} className="genie-send" style={{ background: input.trim() ? "var(--brand)" : "#cbd5e1" }}>
+                  <FaPaperPlane size={13} />
+                </button>
+              </form>
+            </div>
+          )}
         </div>
       )}
 
@@ -481,6 +540,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
         }
         @keyframes genieFade { from { opacity: 0; } to { opacity: 1; } }
 
+        /* ═══════════════════ Light chat panel (non-admin) ═══════════════════ */
         .genie-panel {
           width: 400px; max-width: 100%;
           height: 620px; max-height: calc(100vh - 40px);
@@ -507,17 +567,6 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
         }
         .genie-dot { width: 7px; height: 7px; border-radius: 50%; background: #86efac; display: inline-block; box-shadow: 0 0 0 0 rgba(134,239,172,0.7); animation: genieGlow 2s infinite; }
         .genie-close { background: rgba(255,255,255,0.16); border: none; color: #fff; cursor: pointer; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-
-        .genie-mode-toggle {
-          display: flex; gap: 6px; padding: 10px 14px; background: #fff;
-          border-bottom: 1px solid #eef2f0; flex-shrink: 0;
-        }
-        .genie-mode-toggle button {
-          flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
-          border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 700;
-          padding: 8px 10px; border-radius: 9px; cursor: pointer; transition: all 0.15s;
-        }
-        .genie-mode-toggle button.active { background: var(--brand); border-color: var(--brand); color: #fff; }
 
         .genie-body { flex: 1; overflow-y: auto; padding: 16px 14px; background: #f4f8f6; display: flex; flex-direction: column; gap: 12px; }
         .genie-body::-webkit-scrollbar { width: 4px; }
@@ -553,27 +602,154 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
           font-size: 13px; outline: none; font-family: var(--font); background: #fff;
         }
         .genie-input:focus { border-color: var(--brand); }
-        .genie-send { width: 44px; height: 44px; border-radius: 50%; border: none; color: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; }
+        .genie-send { width: 44px; height: 44px; border-radius: 50%; border: none; color: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; background: var(--brand); }
 
-        .genie-voice-dock {
-          flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 10px;
-          padding: 20px 16px 26px; background: #f4f8f6; border-top: 1px solid #e9eef0;
+        /* ═══════════════════ HUD voice console (admin/owner) ═══════════════════ */
+        .hud-panel {
+          --void:       #050b09;
+          --void-2:     #081310;
+          --panel:      #0a1815;
+          --line:       #16332a;
+          --mint:       #3ddc97;
+          --mint-dim:   #1f6b4d;
+          --mint-glow:  rgba(61,220,151,0.5);
+          --amber:      #f2b155;
+          --amber-glow: rgba(242,177,85,0.45);
+          --ink:        #eafff2;
+          --ink-dim:    #6d9686;
+          --ink-faint:  #3d5c50;
+          --mono: ui-monospace, "JetBrains Mono", "SF Mono", "Cascadia Code", Consolas, monospace;
+
+          width: 400px; max-width: 100%;
+          height: 620px; max-height: calc(100vh - 40px);
+          background: linear-gradient(180deg, var(--panel) 0%, var(--void-2) 100%);
+          border: 1px solid var(--line);
+          border-radius: 22px; overflow: hidden;
+          display: flex; flex-direction: column;
+          font-family: var(--mono);
+          color: var(--ink);
+          box-shadow: 0 0 0 1px rgba(61,220,151,0.06), 0 28px 70px -14px rgba(0,0,0,0.85), 0 0 60px -24px var(--mint-glow);
+          animation: geniePop 0.22s cubic-bezier(.2,.8,.2,1);
         }
-        .genie-voice-btn {
-          width: 64px; height: 64px; border-radius: 50%; border: none; cursor: pointer;
-          display: flex; align-items: center; justify-content: center; color: #fff;
-          background: linear-gradient(135deg, var(--brand), var(--teal-800));
-          box-shadow: 0 8px 22px rgba(52,160,106,0.4); transition: transform 0.15s;
+
+        .hud-topbar {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 14px 16px 12px; border-bottom: 1px solid var(--line); flex-shrink: 0;
+          background: radial-gradient(120px 60px at 10% 0%, rgba(61,220,151,0.14), transparent 70%);
         }
-        .genie-voice-btn:hover { transform: scale(1.05); }
-        .genie-voice-btn.live { background: linear-gradient(135deg, #ef4444, #b91c1c); animation: genieMicPulse 1.2s infinite; }
-        @keyframes genieMicPulse { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.55); } 70% { box-shadow: 0 0 0 14px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
-        .genie-voice-hint { font-size: 12px; color: #64748b; font-weight: 600; text-align: center; }
+        .hud-wordmark { font-family: -apple-system, "Segoe UI", sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 0.2em; color: var(--ink); }
+        .hud-wordmark span { color: var(--mint); }
+        .hud-wordmark small { display: block; font-family: var(--mono); font-weight: 400; font-size: 8.5px; letter-spacing: 0.08em; color: var(--ink-faint); margin-top: 3px; }
+        .hud-topbar-right { display: flex; align-items: center; gap: 8px; }
+        .hud-status-chip {
+          display: flex; align-items: center; gap: 6px; font-size: 9.5px; letter-spacing: 0.08em;
+          color: var(--ink-dim); border: 1px solid var(--line); border-radius: 999px;
+          padding: 4px 9px 4px 7px; background: rgba(61,220,151,0.04);
+        }
+        .hud-led { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 8px 1px var(--mint-glow); animation: hudLed 2.2s ease-in-out infinite; }
+        @keyframes hudLed { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+        .hud-close { background: rgba(255,255,255,0.06); border: 1px solid var(--line); color: var(--ink-dim); cursor: pointer; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+        .hud-readout-row {
+          display: flex; justify-content: space-between; padding: 9px 16px;
+          border-bottom: 1px solid var(--line); font-size: 9px; letter-spacing: 0.1em; color: var(--ink-faint); flex-shrink: 0;
+        }
+        .hud-val { color: var(--ink-dim); }
+        .hud-lang-pair { display: flex; gap: 6px; }
+        .hud-lang-pill { padding: 2px 7px; border-radius: 5px; border: 1px solid var(--line); color: var(--ink-faint); transition: all 0.35s ease; }
+        .hud-lang-pill.active { color: var(--void); background: var(--mint); border-color: var(--mint); box-shadow: 0 0 12px -2px var(--mint-glow); }
+
+        .hud-stage { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 20px; }
+        .hud-orb-wrap { position: relative; width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; }
+        .hud-ring { position: absolute; border-radius: 50%; border: 1px solid var(--mint-dim); opacity: 0.55; }
+        .hud-ring.r1 { inset: 0; }
+        .hud-ring.r2 { inset: 17px; }
+        .hud-ring.r3 { inset: 34px; }
+        .hud-orb-core {
+          position: relative; width: 74px; height: 74px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          background: radial-gradient(circle at 35% 30%, #123b2c, #06120d 72%);
+          border: 1px solid var(--mint); color: var(--mint);
+          box-shadow: inset 0 0 24px rgba(61,220,151,0.18), 0 0 30px -4px var(--mint-glow);
+          z-index: 2; transition: box-shadow 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+        }
+
+        .hud-stage[data-state="idle"] .hud-ring.r1 { animation: hudBreathe 3.6s ease-in-out infinite; }
+        .hud-stage[data-state="idle"] .hud-ring.r2 { animation: hudBreathe 3.6s ease-in-out infinite 0.3s; }
+        .hud-stage[data-state="idle"] .hud-ring.r3 { animation: hudBreathe 3.6s ease-in-out infinite 0.6s; }
+        @keyframes hudBreathe { 0%,100% { transform: scale(1); opacity: 0.4; } 50% { transform: scale(1.03); opacity: 0.7; } }
+
+        .hud-stage[data-state="listening"] .hud-ring { animation: hudSweep 1.6s cubic-bezier(.2,.7,.3,1) infinite; border-color: var(--mint); }
+        .hud-stage[data-state="listening"] .hud-ring.r2 { animation-delay: 0.35s; }
+        .hud-stage[data-state="listening"] .hud-ring.r3 { animation-delay: 0.7s; }
+        @keyframes hudSweep { 0% { transform: scale(0.82); opacity: 0.9; } 100% { transform: scale(1.28); opacity: 0; } }
+        .hud-stage[data-state="listening"] .hud-orb-core { box-shadow: inset 0 0 28px rgba(61,220,151,0.32), 0 0 46px -2px var(--mint-glow); }
+
+        .hud-stage[data-state="speaking"] .hud-ring { animation: hudSpeak 0.85s ease-in-out infinite; border-color: var(--mint); }
+        .hud-stage[data-state="speaking"] .hud-ring.r2 { animation-delay: 0.1s; }
+        .hud-stage[data-state="speaking"] .hud-ring.r3 { animation-delay: 0.2s; }
+        @keyframes hudSpeak { 0%,100% { transform: scale(1); opacity: 0.55; } 50% { transform: scale(1.07); opacity: 0.9; } }
+        .hud-stage[data-state="speaking"] .hud-orb-core { box-shadow: inset 0 0 26px rgba(61,220,151,0.28), 0 0 40px -2px var(--mint-glow); }
+
+        .hud-stage[data-state="thinking"] .hud-ring.r1 { border-style: dashed; border-color: var(--amber); animation: hudSpin 2.4s linear infinite; opacity: 0.85; }
+        .hud-stage[data-state="thinking"] .hud-ring.r2 { border-color: var(--amber-glow); opacity: 0.3; animation: hudBreathe 2s ease-in-out infinite; }
+        .hud-stage[data-state="thinking"] .hud-ring.r3 { opacity: 0; }
+        @keyframes hudSpin { to { transform: rotate(360deg); } }
+        .hud-stage[data-state="thinking"] .hud-orb-core { border-color: var(--amber); color: var(--amber); box-shadow: inset 0 0 24px rgba(242,177,85,0.22), 0 0 34px -4px var(--amber-glow); }
+
+        .hud-caption { font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); }
+        .hud-stage[data-state="listening"] .hud-caption,
+        .hud-stage[data-state="speaking"] .hud-caption { color: var(--mint); }
+        .hud-stage[data-state="thinking"] .hud-caption { color: var(--amber); }
+
+        .hud-waveform { display: flex; align-items: flex-end; gap: 3px; height: 22px; opacity: 0.25; transition: opacity 0.3s ease; }
+        .hud-stage[data-state="listening"] .hud-waveform,
+        .hud-stage[data-state="speaking"] .hud-waveform { opacity: 1; }
+        .hud-waveform i { width: 3px; background: var(--mint); border-radius: 2px; height: 4px; }
+        .hud-stage[data-state="listening"] .hud-waveform i,
+        .hud-stage[data-state="speaking"] .hud-waveform i { animation: hudWave 0.9s ease-in-out infinite; }
+        .hud-waveform i:nth-child(1) { animation-delay: 0s; } .hud-waveform i:nth-child(2) { animation-delay: 0.1s; }
+        .hud-waveform i:nth-child(3) { animation-delay: 0.2s; } .hud-waveform i:nth-child(4) { animation-delay: 0.3s; }
+        .hud-waveform i:nth-child(5) { animation-delay: 0.15s; } .hud-waveform i:nth-child(6) { animation-delay: 0.25s; }
+        .hud-waveform i:nth-child(7) { animation-delay: 0.05s; } .hud-waveform i:nth-child(8) { animation-delay: 0.35s; }
+        @keyframes hudWave { 0%,100% { height: 4px; } 50% { height: 20px; } }
+
+        .hud-transcript { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; background: var(--void-2); font-size: 11.5px; line-height: 1.6; }
+        .hud-transcript::-webkit-scrollbar { width: 4px; }
+        .hud-transcript::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+        .hud-row { display: flex; gap: 8px; }
+        .hud-tag { color: var(--ink-faint); flex-shrink: 0; width: 46px; font-size: 10px; padding-top: 1px; }
+        .hud-row.user .hud-tag { color: var(--mint); }
+        .hud-txt { color: var(--ink-dim); }
+        .hud-row.user .hud-txt { color: var(--ink); }
+        .hud-thinking { animation: hudDots 1.2s steps(3,end) infinite; }
+        @keyframes hudDots { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+        .hud-action { display: block; margin-top: 6px; font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--mint); background: rgba(61,220,151,0.08); border: 1px solid var(--mint-dim); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+
+        .hud-bottombar { display: flex; align-items: center; gap: 10px; padding: 12px 16px 16px; border-top: 1px solid var(--line); flex-shrink: 0; }
+        .hud-mode-toggle { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+        .hud-mode-toggle button { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; background: transparent; color: var(--ink-faint); border: none; padding: 7px 9px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+        .hud-mode-toggle button.active { background: var(--mint-dim); color: var(--ink); }
+
+        .hud-talk-btn {
+          margin-left: auto; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+          color: var(--void); background: var(--mint); border: none; border-radius: 999px;
+          padding: 9px 18px; cursor: pointer; box-shadow: 0 0 24px -6px var(--mint-glow); transition: transform 0.15s ease;
+        }
+        .hud-talk-btn:hover { transform: translateY(-1px); }
+        .hud-talk-btn.live { background: var(--amber); box-shadow: 0 0 24px -6px var(--amber-glow); }
+
+        .hud-input-row { display: flex; gap: 8px; flex: 1; }
+        .hud-input { flex: 1; border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; font-size: 12px; outline: none; font-family: var(--mono); background: var(--void-2); color: var(--ink); }
+        .hud-input:focus { border-color: var(--mint); }
+        .hud-input::placeholder { color: var(--ink-faint); }
+        .hud-send { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--mint-dim); color: var(--mint); background: rgba(61,220,151,0.08); flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .hud-send:disabled { opacity: 0.4; cursor: default; }
 
         @media (max-width: 520px) {
           .genie-launcher { bottom: 16px; right: 16px; }
           .genie-overlay { padding: 0; align-items: flex-end; }
-          .genie-panel { width: 100%; max-width: none; height: 92vh; max-height: none; border-radius: 22px 22px 0 0; }
+          .genie-panel, .hud-panel { width: 100%; max-width: none; height: 92vh; max-height: none; border-radius: 22px 22px 0 0; }
         }
       `}</style>
     </>
