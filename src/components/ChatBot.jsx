@@ -157,13 +157,65 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   // Idle / listening / speaking / thinking — drives the HUD orb + caption.
   const hudState = listening ? "listening" : speaking ? "speaking" : typing ? "thinking" : "idle";
 
+  // Continuous conversation: after Rexor answers, it keeps listening for the
+  // next question automatically — no re-tap needed — until the admin taps
+  // Stop, switches to Text mode, or closes the panel. voiceActiveRef (not
+  // state) so async callbacks (speech onend, recognition onend) always read
+  // the latest value instead of a stale render's closure.
+  const voiceActiveRef = useRef(false);
+  const panelModeRef = useRef(panelMode);
+  useEffect(() => { panelModeRef.current = panelMode; }, [panelMode]);
+
+  // ── Voice picker — up to 3 selectable English voices (Indian-accented
+  // ones surface first when installed), persisted across sessions. Web
+  // Speech only exposes whatever voices the OS/browser actually has, so
+  // this can't guarantee 3 or a specific accent exists on every device —
+  // it just ranks and exposes what's really there. Malayalam replies keep
+  // auto-picking whatever Malayalam voice is installed, since substituting
+  // an English voice for Malayalam script wouldn't read correctly anyway.
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const [voiceURI, setVoiceURI] = useState(() => {
+    try { return localStorage.getItem("rexor_voice_uri") || ""; } catch { return ""; }
+  });
+
+  function rankEnglishVoices(all) {
+    const en = all.filter(v => v.lang?.toLowerCase().startsWith("en"));
+    const isIndian = (v) => v.lang?.toLowerCase() === "en-in" || /india/i.test(v.name);
+    return [...en].sort((a, b) => (isIndian(b) ? 1 : 0) - (isIndian(a) ? 1 : 0)).slice(0, 3);
+  }
+
+  function refreshVoiceList() {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const ranked = rankEnglishVoices(window.speechSynthesis.getVoices());
+    setAvailableVoices(ranked);
+    setVoiceURI(prev => {
+      if (prev && ranked.some(v => v.voiceURI === prev)) return prev;
+      const fallback = ranked[0]?.voiceURI || "";
+      try { localStorage.setItem("rexor_voice_uri", fallback); } catch { /* ignore */ }
+      return fallback;
+    });
+  }
+
+  function cycleVoice() {
+    if (availableVoices.length < 2) return;
+    const idx = availableVoices.findIndex(v => v.voiceURI === voiceURI);
+    const next = availableVoices[(idx + 1) % availableVoices.length];
+    setVoiceURI(next.voiceURI);
+    try { localStorage.setItem("rexor_voice_uri", next.voiceURI); } catch { /* ignore */ }
+  }
+
   function speak(text, lang, onEnd) {
     if (typeof window === "undefined" || !window.speechSynthesis) { onEnd?.(); return; }
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = lang === "ml" ? "ml-IN" : "en-IN";
     const voices = window.speechSynthesis.getVoices();
-    const match = voices.find(v => v.lang === utter.lang) || voices.find(v => v.lang?.startsWith(lang === "ml" ? "ml" : "en"));
+    // English replies honor the admin's chosen voice when available;
+    // Malayalam always auto-picks a Malayalam-capable voice.
+    const chosen = lang === "en" ? voices.find(v => v.voiceURI === voiceURI) : null;
+    const match = chosen
+      || voices.find(v => v.lang === utter.lang)
+      || voices.find(v => v.lang?.startsWith(lang === "ml" ? "ml" : "en"));
     if (match) utter.voice = match;
     setSpeaking(true);
     utter.onend = () => { setSpeaking(false); onEnd?.(); };
@@ -209,7 +261,16 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
         { role: "assistant", content: replyText },
       ].slice(-8);
     }
-    speak(replyText, lang);
+    // Keep the conversation going: once Rexor finishes speaking, start
+    // listening again automatically — as long as the admin hasn't tapped
+    // Stop / switched to Text / closed the panel in the meantime. A short
+    // delay after the utterance ends avoids the mic catching the tail of
+    // Rexor's own voice through the speaker.
+    speak(replyText, lang, () => {
+      if (voiceActiveRef.current && panelModeRef.current === "voice") {
+        setTimeout(() => { if (voiceActiveRef.current) startListening(); }, 400);
+      }
+    });
   }
 
   function startListening() {
@@ -225,22 +286,33 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     recog.lang = detectedLang === "ml" ? "ml-IN" : "en-IN";
     recog.interimResults = false;
     recog.maxAlternatives = 1;
+    let gotResult = false;
     recog.onresult = (e) => {
+      gotResult = true;
       const transcript = e.results?.[0]?.[0]?.transcript;
       if (transcript) sendVoice(transcript);
     };
-    recog.onerror = () => setListening(false);
-    recog.onend = () => setListening(false);
+    recog.onerror = () => { setListening(false); };
+    recog.onend = () => {
+      setListening(false);
+      // Recognizer timed out on silence with nothing heard — retry once so
+      // a brief pause mid-conversation doesn't silently end the loop.
+      if (!gotResult && voiceActiveRef.current && panelModeRef.current === "voice") {
+        setTimeout(() => { if (voiceActiveRef.current) startListening(); }, 500);
+      }
+    };
     recognitionRef.current = recog;
     try {
       recog.start();
       setListening(true);
+      voiceActiveRef.current = true;
     } catch {
       setListening(false);
     }
   }
 
   function stopListening() {
+    voiceActiveRef.current = false;
     recognitionRef.current?.stop();
     setListening(false);
   }
@@ -273,18 +345,19 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, typing]);
 
-  // Chrome loads TTS voices asynchronously — prime the list so the first
-  // speak() call has a chance of finding a matching-language voice.
+  // Chrome loads TTS voices asynchronously — prime the list (and build the
+  // ranked voice picker) so the first speak() call has a chance of finding
+  // a matching-language voice.
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
-    window.speechSynthesis.getVoices();
-    const onVoices = () => window.speechSynthesis.getVoices();
-    window.speechSynthesis.addEventListener?.("voiceschanged", onVoices);
+    refreshVoiceList();
+    window.speechSynthesis.addEventListener?.("voiceschanged", refreshVoiceList);
     return () => {
-      window.speechSynthesis.removeEventListener?.("voiceschanged", onVoices);
+      window.speechSynthesis.removeEventListener?.("voiceschanged", refreshVoiceList);
       window.speechSynthesis.cancel();
       recognitionRef.current?.stop();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const FALLBACK_TEXT = "I'm still learning that one! 🌱 But I can instantly help with **leaves, attendance, payslips, courses, careers, announcements, holidays, password help** and more. Try one of these, or reach HR at info@gdmrfoundation.com.";
@@ -387,6 +460,22 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
                   <span className={`hud-lang-pill ${detectedLang === "ml" ? "active" : ""}`}>ML</span>
                 </div>
               </div>
+
+              {availableVoices.length > 0 && (
+                <div className="hud-voice-row">
+                  <span>VOICE</span>
+                  <button
+                    type="button"
+                    className="hud-voice-picker"
+                    onClick={cycleVoice}
+                    disabled={availableVoices.length < 2}
+                    title="Cycle voice (English replies only — Malayalam auto-picks its own)"
+                  >
+                    {(availableVoices.find(v => v.voiceURI === voiceURI)?.name || "Default").replace(/^Google\s*/i, "")}
+                    {availableVoices.length > 1 && <span className="hud-voice-next">›</span>}
+                  </button>
+                </div>
+              )}
 
               {panelMode === "voice" ? (
                 <div className="hud-stage" data-state={hudState}>
@@ -658,6 +747,20 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
         .hud-lang-pair { display: flex; gap: 6px; }
         .hud-lang-pill { padding: 2px 7px; border-radius: 5px; border: 1px solid var(--line); color: var(--ink-faint); transition: all 0.35s ease; }
         .hud-lang-pill.active { color: var(--void); background: var(--mint); border-color: var(--mint); box-shadow: 0 0 12px -2px var(--mint-glow); }
+
+        .hud-voice-row {
+          display: flex; align-items: center; gap: 8px; padding: 7px 16px;
+          border-bottom: 1px solid var(--line); font-size: 9px; letter-spacing: 0.1em; color: var(--ink-faint); flex-shrink: 0;
+        }
+        .hud-voice-picker {
+          display: flex; align-items: center; gap: 4px;
+          background: transparent; border: none; color: var(--ink-dim);
+          font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em;
+          cursor: pointer; padding: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .hud-voice-picker:disabled { cursor: default; }
+        .hud-voice-picker:not(:disabled):hover { color: var(--mint); }
+        .hud-voice-next { color: var(--mint); flex-shrink: 0; }
 
         .hud-stage { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 20px; }
         .hud-orb-wrap { position: relative; width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; }
