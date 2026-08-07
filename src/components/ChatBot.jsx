@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FaTimes, FaPaperPlane, FaRegLightbulb, FaMicrophone, FaStop } from "react-icons/fa";
+import { FaTimes, FaPaperPlane, FaRegLightbulb, FaMicrophone, FaStop, FaCommentDots } from "react-icons/fa";
 import { GiLion } from "react-icons/gi";
 import { getNextHoliday } from "../data/holidays";
 
@@ -9,6 +9,10 @@ import { getNextHoliday } from "../data/holidays";
 //  keyword matching + one-tap navigation. Anything it doesn't recognize is
 //  handed to a small LLM fallback (/api/assistant/chat) if the backend has
 //  one configured — otherwise it just says so, no backend/API key required.
+//
+//  Admin/owner also get voice mode: tap the launcher and it opens straight
+//  into listening, greets out loud, then talks back — see the "Voice mode"
+//  section below.
 // ════════════════════════════════════════════════════════════════════════════
 
 const BOT_NAME = "Rexor";
@@ -109,31 +113,23 @@ function renderText(text) {
 }
 
 // ── Voice mode (admin/owner only) ────────────────────────────────────────────
-// Click-to-talk: tap the mic, ask a question about live company data (e.g.
-// "who is on leave today?"), Rexor answers out loud via SpeechSynthesis in
-// whichever of English / Malayalam is selected. Uses the Web Speech API
-// (SpeechRecognition + SpeechSynthesis) — Chrome only; other browsers fall
-// back to text chat automatically since the mic button just doesn't render.
-const VOICE_STRINGS = {
-  en: {
-    listening: "Listening…",
-    thinking: "Thinking…",
-    micTitle: "Ask Rexor by voice",
-    stopTitle: "Stop listening",
-    unsupported: "Voice isn't supported in this browser — try Chrome.",
-    noSpeech: "Didn't catch that — try again.",
-    fallback: "Sorry, I couldn't get that answer right now.",
-  },
-  ml: {
-    listening: "കേൾക്കുന്നു…",
-    thinking: "ചിന്തിക്കുന്നു…",
-    micTitle: "ശബ്ദത്തിലൂടെ Rexor-നോട് ചോദിക്കുക",
-    stopTitle: "നിർത്തുക",
-    unsupported: "ഈ ബ്രൗസറിൽ വോയ്സ് പിന്തുണയില്ല — Chrome ഉപയോഗിക്കുക.",
-    noSpeech: "മനസ്സിലായില്ല — വീണ്ടും ശ്രമിക്കുക.",
-    fallback: "ക്ഷമിക്കണം, ഇപ്പോൾ ഉത്തരം നൽകാൻ കഴിയുന്നില്ല.",
-  },
-};
+// Tap the launcher and it opens straight into listening — Rexor greets out
+// loud, then listens for the question. No manual language toggle: the Web
+// Speech API only accepts one recognizer language at a time, so we start on
+// a broad Indian-English locale (which in practice also picks up a lot of
+// spoken Malayalam on Chrome/Android) and then auto-detect which language
+// was actually spoken from the SCRIPT of the returned transcript — Malayalam
+// Unicode block present → reply in Malayalam; otherwise English. That
+// detected language is then "sticky" for the next turn's recognizer locale,
+// so a Malayalam conversation stays more accurately recognized as it goes.
+const EN_FALLBACK      = "Sorry, I couldn't get that answer right now.";
+const ML_FALLBACK      = "ക്ഷമിക്കണം, ഇപ്പോൾ ഉത്തരം നൽകാൻ കഴിയുന്നില്ല.";
+const UNSUPPORTED_MSG  = "Voice isn't supported in this browser — try Chrome.";
+const GREETING_TEXT    = "Hi, I'm Rexor, GDMR's AI assistant. How may I help you?";
+
+function detectLangFromText(text) {
+  return /[ഀ-ൿ]/.test(text) ? "ml" : "en";
+}
 
 export default function ChatBot({ user, role = "employee", onNavigate, token, api }) {
   const [open, setOpen] = useState(false);
@@ -145,8 +141,9 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
 
   // Voice mode state
   const isAdmin = role === "admin" || role === "owner";
-  const [voiceLang, setVoiceLang] = useState("en"); // "en" | "ml"
+  const [panelMode, setPanelMode] = useState("chat"); // "voice" | "chat"
   const [listening, setListening] = useState(false);
+  const [detectedLang, setDetectedLang] = useState("en"); // last-detected spoken language
   const recognitionRef = useRef(null);
   // Rolling voice-conversation memory, sent with each turn so follow-ups
   // ("what about the design team?") resolve naturally instead of every
@@ -155,16 +152,16 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   const voiceHistoryRef = useRef([]);
   const SpeechRecognitionAPI = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
   const voiceSupported = isAdmin && !!SpeechRecognitionAPI;
-  const vs = VOICE_STRINGS[voiceLang];
 
-  function speak(text, lang) {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
+  function speak(text, lang, onEnd) {
+    if (typeof window === "undefined" || !window.speechSynthesis) { onEnd?.(); return; }
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = lang === "ml" ? "ml-IN" : "en-IN";
     const voices = window.speechSynthesis.getVoices();
     const match = voices.find(v => v.lang === utter.lang) || voices.find(v => v.lang?.startsWith(lang === "ml" ? "ml" : "en"));
     if (match) utter.voice = match;
+    if (onEnd) utter.onend = onEnd;
     window.speechSynthesis.speak(utter);
   }
 
@@ -188,12 +185,14 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   async function sendVoice(transcript) {
     const q = transcript.trim();
     if (!q) return;
+    const lang = detectLangFromText(q);
+    setDetectedLang(lang);
     if (!open) setOpen(true);
     setMessages((m) => [...m, { from: "user", text: q }]);
     setTyping(true);
-    const reply = await askVoiceAssistant(q, voiceLang, voiceHistoryRef.current);
+    const reply = await askVoiceAssistant(q, lang, voiceHistoryRef.current);
     setTyping(false);
-    const replyText = reply || vs.fallback;
+    const replyText = reply || (lang === "ml" ? ML_FALLBACK : EN_FALLBACK);
     setMessages((m) => [...m, { from: "bot", text: replyText }]);
     // Only remember real turns (not the fallback error line) — keep the
     // last 8 so the prompt stays small and stays on the current topic.
@@ -204,18 +203,20 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
         { role: "assistant", content: replyText },
       ].slice(-8);
     }
-    speak(replyText, voiceLang);
+    speak(replyText, lang);
   }
 
   function startListening() {
     if (!SpeechRecognitionAPI) {
-      alert(vs.unsupported);
+      alert(UNSUPPORTED_MSG);
       return;
     }
     if (!open) setOpen(true);
     window.speechSynthesis?.cancel();
     const recog = new SpeechRecognitionAPI();
-    recog.lang = voiceLang === "ml" ? "ml-IN" : "en-IN";
+    // Sticks to whatever language was last detected, so a Malayalam
+    // conversation gets progressively better recognized turn to turn.
+    recog.lang = detectedLang === "ml" ? "ml-IN" : "en-IN";
     recog.interimResults = false;
     recog.maxAlternatives = 1;
     recog.onresult = (e) => {
@@ -238,10 +239,25 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     setListening(false);
   }
 
+  // Single entry point for the launcher — admins go straight into voice
+  // mode; everyone else (or unsupported browsers) gets text chat.
+  function openAssistant() {
+    setOpen(true);
+    setPanelMode(voiceSupported ? "voice" : "chat");
+  }
+
   useEffect(() => {
-    if (open && messages.length === 0) {
+    if (!open || messages.length > 0) return;
+    if (voiceSupported && panelMode === "voice") {
+      setMessages([{ from: "bot", text: GREETING_TEXT }]);
+      speak(GREETING_TEXT, "en", () => startListening());
+    } else {
       setMessages([{ from: "bot", text: `Hi ${firstName}! 👋 I'm **${BOT_NAME}**, your GDMR Connect assistant. Ask me anything about leaves, attendance, payslips, courses or careers — or tap a suggestion below.` }]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
     if (!open) {
       voiceHistoryRef.current = []; // fresh conversation memory next time it's opened
     }
@@ -317,110 +333,125 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   const suggestions = SUGGESTIONS[role] || SUGGESTIONS.employee;
   const showChips = messages.length <= 1 || messages[messages.length - 1]?.reshow;
 
+  function closePanel() {
+    stopListening();
+    window.speechSynthesis?.cancel();
+    setOpen(false);
+  }
+
+  function switchToChat() {
+    stopListening();
+    setPanelMode("chat");
+  }
+
   return (
     <>
-      {/* Launcher — compact glowing orb */}
+      {/* Launcher — compact glowing orb. For admin/owner this goes straight
+          into voice mode; everyone else gets the text panel. */}
       {!open && (
-        <button onClick={() => setOpen(true)} title={`Ask ${BOT_NAME}`} className="genie-launcher">
+        <button onClick={openAssistant} title={`Ask ${BOT_NAME}`} className="genie-launcher">
           <span className="genie-launcher-glow" />
           <GiLion size={24} />
         </button>
       )}
 
-      {/* Standalone voice launcher (admin/owner only) — one click straight into
-          listening mode, no need to open the text panel first. */}
-      {!open && voiceSupported && (
-        <button
-          onClick={startListening}
-          title={vs.micTitle}
-          className={`genie-voice-launcher ${listening ? "live" : ""}`}
-        >
-          <FaMicrophone size={17} />
-        </button>
-      )}
-
-      {/* Panel */}
+      {/* Popup — centered modal */}
       {open && (
-        <div className="genie-panel">
-          {/* Header */}
-          <div className="genie-header">
-            <div className="genie-avatar"><GiLion size={22} /></div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: 0.2 }}>{BOT_NAME}</div>
-              <div style={{ fontSize: 10.5, opacity: 0.9, display: "flex", alignItems: "center", gap: 5 }}>
-                <span className="genie-dot" /> {listening ? vs.listening : "GDMR Connect Assistant"}
+        <div className="genie-overlay" onClick={closePanel}>
+          <div className="genie-panel" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="genie-header">
+              <div className="genie-avatar"><GiLion size={22} /></div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: 0.2 }}>{BOT_NAME}</div>
+                <div style={{ fontSize: 10.5, opacity: 0.9, display: "flex", alignItems: "center", gap: 5 }}>
+                  <span className="genie-dot" /> {listening ? "Listening…" : "GDMR Connect Assistant"}
+                </div>
               </div>
+              <button onClick={closePanel} className="genie-close"><FaTimes size={13} /></button>
             </div>
+
+            {/* Voice / Chat mode toggle (admin/owner only) */}
             {voiceSupported && (
-              <div className="genie-lang-toggle">
+              <div className="genie-mode-toggle">
                 <button
                   type="button"
-                  className={voiceLang === "en" ? "active" : ""}
-                  onClick={() => setVoiceLang("en")}
-                >EN</button>
+                  className={panelMode === "voice" ? "active" : ""}
+                  onClick={() => setPanelMode("voice")}
+                >
+                  <FaMicrophone size={11} /> Voice
+                </button>
                 <button
                   type="button"
-                  className={voiceLang === "ml" ? "active" : ""}
-                  onClick={() => setVoiceLang("ml")}
-                >മല</button>
+                  className={panelMode === "chat" ? "active" : ""}
+                  onClick={switchToChat}
+                >
+                  <FaCommentDots size={11} /> Chat
+                </button>
               </div>
             )}
-            {voiceSupported && (
-              <button
-                type="button"
-                onClick={listening ? stopListening : startListening}
-                title={listening ? vs.stopTitle : vs.micTitle}
-                className={`genie-mic ${listening ? "live" : ""}`}
-              >
-                {listening ? <FaStop size={12} /> : <FaMicrophone size={13} />}
-              </button>
-            )}
-            <button onClick={() => setOpen(false)} className="genie-close"><FaTimes size={13} /></button>
-          </div>
 
-          {/* Messages */}
-          <div ref={scrollRef} className="genie-body">
-            {messages.map((m, i) => (
-              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.from === "user" ? "flex-end" : "flex-start" }}>
-                {m.from === "bot" && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0 4px 4px" }}>
-                    <span className="genie-mini"><GiLion size={11} /></span>
-                    <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0f766e" }}>{BOT_NAME}</span>
+            {/* Messages */}
+            <div ref={scrollRef} className="genie-body">
+              {messages.map((m, i) => (
+                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.from === "user" ? "flex-end" : "flex-start" }}>
+                  {m.from === "bot" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0 4px 4px" }}>
+                      <span className="genie-mini"><GiLion size={11} /></span>
+                      <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0f766e" }}>{BOT_NAME}</span>
+                    </div>
+                  )}
+                  <div className={`genie-bubble ${m.from}`}>{renderText(m.text)}</div>
+                  {m.action && (
+                    <button className="genie-action" onClick={() => { onNavigate?.(m.action.view); closePanel(); }}>
+                      → {m.action.label}
+                    </button>
+                  )}
+                </div>
+              ))}
+              {typing && (
+                <div className="genie-bubble bot" style={{ display: "flex", gap: 4, width: "fit-content" }}>
+                  {[0, 1, 2].map((i) => <span key={i} className="genie-typing" style={{ animationDelay: `${i * 0.15}s` }} />)}
+                </div>
+              )}
+            </div>
+
+            {panelMode === "voice" && voiceSupported ? (
+              /* Voice dock — big tap-to-speak mic, no typing needed */
+              <div className="genie-voice-dock">
+                <button
+                  type="button"
+                  className={`genie-voice-btn ${listening ? "live" : ""}`}
+                  onClick={listening ? stopListening : startListening}
+                  title={listening ? "Stop listening" : "Tap to speak"}
+                >
+                  {listening ? <FaStop size={20} /> : <FaMicrophone size={22} />}
+                </button>
+                <div className="genie-voice-hint">{listening ? "Listening… tap to stop" : "Tap to speak — English or Malayalam"}</div>
+              </div>
+            ) : (
+              <>
+                {/* Suggestion chips */}
+                {showChips && (
+                  <div className="genie-chips">
+                    {suggestions.map((s) => (
+                      <button key={s} onClick={() => send(s)} className="genie-chip">
+                        <FaRegLightbulb size={10} style={{ opacity: 0.7 }} /> {s}
+                      </button>
+                    ))}
                   </div>
                 )}
-                <div className={`genie-bubble ${m.from}`}>{renderText(m.text)}</div>
-                {m.action && (
-                  <button className="genie-action" onClick={() => { onNavigate?.(m.action.view); setOpen(false); }}>
-                    → {m.action.label}
+
+                {/* Input */}
+                <form onSubmit={(e) => { e.preventDefault(); send(); }} className="genie-input-row">
+                  <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={`Ask ${BOT_NAME} anything…`} className="genie-input" />
+                  <button type="submit" disabled={!input.trim()} className="genie-send" style={{ background: input.trim() ? "var(--brand)" : "#cbd5e1" }}>
+                    <FaPaperPlane size={13} />
                   </button>
-                )}
-              </div>
-            ))}
-            {typing && (
-              <div className="genie-bubble bot" style={{ display: "flex", gap: 4, width: "fit-content" }}>
-                {[0, 1, 2].map((i) => <span key={i} className="genie-typing" style={{ animationDelay: `${i * 0.15}s` }} />)}
-              </div>
+                </form>
+              </>
             )}
           </div>
-
-          {/* Suggestion chips */}
-          {showChips && (
-            <div className="genie-chips">
-              {suggestions.map((s) => (
-                <button key={s} onClick={() => send(s)} className="genie-chip">
-                  <FaRegLightbulb size={10} style={{ opacity: 0.7 }} /> {s}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Input */}
-          <form onSubmit={(e) => { e.preventDefault(); send(); }} className="genie-input-row">
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={`Ask ${BOT_NAME} anything…`} className="genie-input" />
-            <button type="submit" disabled={!input.trim()} className="genie-send" style={{ background: input.trim() ? "var(--brand)" : "#cbd5e1" }}>
-              <FaPaperPlane size={13} />
-            </button>
-          </form>
         </div>
       )}
 
@@ -442,20 +473,28 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
         }
         @keyframes genieGlow { 0% { box-shadow: 0 0 0 0 rgba(52,160,106,0.45);} 70% { box-shadow: 0 0 0 16px rgba(52,160,106,0);} 100% { box-shadow: 0 0 0 0 rgba(52,160,106,0);} }
 
+        .genie-overlay {
+          position: fixed; inset: 0; z-index: 4000;
+          background: rgba(15,23,42,0.5);
+          display: flex; align-items: center; justify-content: center;
+          padding: 20px; animation: genieFade 0.18s ease-out;
+        }
+        @keyframes genieFade { from { opacity: 0; } to { opacity: 1; } }
+
         .genie-panel {
-          position: fixed; bottom: 22px; right: 22px; z-index: 4000;
-          width: 376px; max-width: calc(100vw - 28px);
-          height: 560px; max-height: calc(100vh - 90px);
+          width: 400px; max-width: 100%;
+          height: 620px; max-height: calc(100vh - 40px);
           background: #fff; border-radius: 22px; overflow: hidden;
           display: flex; flex-direction: column;
-          box-shadow: 0 28px 70px rgba(16,40,30,0.32);
-          animation: geniePop 0.24s cubic-bezier(.2,.8,.2,1);
+          box-shadow: 0 28px 70px rgba(16,40,30,0.4);
+          animation: geniePop 0.22s cubic-bezier(.2,.8,.2,1);
         }
-        @keyframes geniePop { from { opacity: 0; transform: translateY(20px) scale(0.96);} to { opacity: 1; transform: translateY(0) scale(1);} }
+        @keyframes geniePop { from { opacity: 0; transform: scale(0.94);} to { opacity: 1; transform: scale(1);} }
 
         .genie-header {
           background: linear-gradient(135deg, var(--brand) 0%, var(--teal-800) 100%);
           color: #fff; padding: 15px 16px; display: flex; align-items: center; gap: 12px; position: relative;
+          flex-shrink: 0;
         }
         .genie-header::after {
           content: ""; position: absolute; top: -40px; right: -30px; width: 130px; height: 130px;
@@ -467,35 +506,18 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
           box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25);
         }
         .genie-dot { width: 7px; height: 7px; border-radius: 50%; background: #86efac; display: inline-block; box-shadow: 0 0 0 0 rgba(134,239,172,0.7); animation: genieGlow 2s infinite; }
-        .genie-close { background: rgba(255,255,255,0.16); border: none; color: #fff; cursor: pointer; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .genie-close { background: rgba(255,255,255,0.16); border: none; color: #fff; cursor: pointer; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
-        .genie-lang-toggle { display: flex; background: rgba(255,255,255,0.16); border-radius: 999px; padding: 2px; flex-shrink: 0; }
-        .genie-lang-toggle button {
-          border: none; background: transparent; color: rgba(255,255,255,0.75); font-size: 10.5px; font-weight: 700;
-          padding: 5px 8px; border-radius: 999px; cursor: pointer; transition: background 0.15s, color 0.15s;
+        .genie-mode-toggle {
+          display: flex; gap: 6px; padding: 10px 14px; background: #fff;
+          border-bottom: 1px solid #eef2f0; flex-shrink: 0;
         }
-        .genie-lang-toggle button.active { background: #fff; color: var(--brand); }
-
-        .genie-mic {
-          background: rgba(255,255,255,0.16); border: none; color: #fff; cursor: pointer;
-          width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0; transition: background 0.15s;
+        .genie-mode-toggle button {
+          flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+          border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 700;
+          padding: 8px 10px; border-radius: 9px; cursor: pointer; transition: all 0.15s;
         }
-        .genie-mic:hover { background: rgba(255,255,255,0.28); }
-        .genie-mic.live { background: #ef4444; animation: genieMicPulse 1.2s infinite; }
-        @keyframes genieMicPulse { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.55); } 70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
-
-        .genie-voice-launcher {
-          position: fixed; bottom: 22px; right: 82px; z-index: 4000;
-          width: 44px; height: 44px; padding: 0; border: none; cursor: pointer;
-          border-radius: 50%; display: flex; align-items: center; justify-content: center;
-          background: linear-gradient(135deg, #ef4444, #b91c1c);
-          color: #fff; box-shadow: 0 8px 22px rgba(185,28,28,0.4);
-          transition: transform 0.2s;
-        }
-        .genie-voice-launcher:hover { transform: translateY(-2px); }
-        .genie-voice-launcher.live { animation: genieMicPulse 1.2s infinite; }
-        @media (max-width: 520px) { .genie-voice-launcher { bottom: 16px; right: 72px; width: 40px; height: 40px; } }
+        .genie-mode-toggle button.active { background: var(--brand); border-color: var(--brand); color: #fff; }
 
         .genie-body { flex: 1; overflow-y: auto; padding: 16px 14px; background: #f4f8f6; display: flex; flex-direction: column; gap: 12px; }
         .genie-body::-webkit-scrollbar { width: 4px; }
@@ -517,7 +539,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
         }
         .genie-action:hover { background: #dcfce7; }
 
-        .genie-chips { display: flex; flex-wrap: wrap; gap: 7px; padding: 10px 12px 2px; background: #f4f8f6; }
+        .genie-chips { display: flex; flex-wrap: wrap; gap: 7px; padding: 10px 12px 2px; background: #f4f8f6; flex-shrink: 0; }
         .genie-chip {
           display: inline-flex; align-items: center; gap: 5px;
           font-size: 11.5px; color: #475569; background: #fff; border: 1px solid #e2e8f0;
@@ -525,7 +547,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
         }
         .genie-chip:hover { border-color: var(--brand); color: var(--brand); }
 
-        .genie-input-row { display: flex; gap: 8px; padding: 12px; background: #f4f8f6; border-top: 1px solid #e9eef0; }
+        .genie-input-row { display: flex; gap: 8px; padding: 12px; background: #f4f8f6; border-top: 1px solid #e9eef0; flex-shrink: 0; }
         .genie-input {
           flex: 1; border: 1px solid #e2e8f0; border-radius: 999px; padding: 11px 16px;
           font-size: 13px; outline: none; font-family: var(--font); background: #fff;
@@ -533,9 +555,25 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
         .genie-input:focus { border-color: var(--brand); }
         .genie-send { width: 44px; height: 44px; border-radius: 50%; border: none; color: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; }
 
+        .genie-voice-dock {
+          flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 10px;
+          padding: 20px 16px 26px; background: #f4f8f6; border-top: 1px solid #e9eef0;
+        }
+        .genie-voice-btn {
+          width: 64px; height: 64px; border-radius: 50%; border: none; cursor: pointer;
+          display: flex; align-items: center; justify-content: center; color: #fff;
+          background: linear-gradient(135deg, var(--brand), var(--teal-800));
+          box-shadow: 0 8px 22px rgba(52,160,106,0.4); transition: transform 0.15s;
+        }
+        .genie-voice-btn:hover { transform: scale(1.05); }
+        .genie-voice-btn.live { background: linear-gradient(135deg, #ef4444, #b91c1c); animation: genieMicPulse 1.2s infinite; }
+        @keyframes genieMicPulse { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.55); } 70% { box-shadow: 0 0 0 14px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
+        .genie-voice-hint { font-size: 12px; color: #64748b; font-weight: 600; text-align: center; }
+
         @media (max-width: 520px) {
           .genie-launcher { bottom: 16px; right: 16px; }
-          .genie-panel { right: 12px; left: 12px; bottom: 12px; width: auto; max-width: none; height: calc(100vh - 80px); }
+          .genie-overlay { padding: 0; align-items: flex-end; }
+          .genie-panel { width: 100%; max-width: none; height: 92vh; max-height: none; border-radius: 22px 22px 0 0; }
         }
       `}</style>
     </>
