@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FaTimes, FaPaperPlane, FaRegLightbulb } from "react-icons/fa";
+import { FaTimes, FaPaperPlane, FaRegLightbulb, FaMicrophone, FaStop } from "react-icons/fa";
 import { GiLion } from "react-icons/gi";
 import { getNextHoliday } from "../data/holidays";
 
@@ -108,6 +108,33 @@ function renderText(text) {
   );
 }
 
+// ── Voice mode (admin/owner only) ────────────────────────────────────────────
+// Click-to-talk: tap the mic, ask a question about live company data (e.g.
+// "who is on leave today?"), Rexor answers out loud via SpeechSynthesis in
+// whichever of English / Malayalam is selected. Uses the Web Speech API
+// (SpeechRecognition + SpeechSynthesis) — Chrome only; other browsers fall
+// back to text chat automatically since the mic button just doesn't render.
+const VOICE_STRINGS = {
+  en: {
+    listening: "Listening…",
+    thinking: "Thinking…",
+    micTitle: "Ask Rexor by voice",
+    stopTitle: "Stop listening",
+    unsupported: "Voice isn't supported in this browser — try Chrome.",
+    noSpeech: "Didn't catch that — try again.",
+    fallback: "Sorry, I couldn't get that answer right now.",
+  },
+  ml: {
+    listening: "കേൾക്കുന്നു…",
+    thinking: "ചിന്തിക്കുന്നു…",
+    micTitle: "ശബ്ദത്തിലൂടെ Rexor-നോട് ചോദിക്കുക",
+    stopTitle: "നിർത്തുക",
+    unsupported: "ഈ ബ്രൗസറിൽ വോയ്സ് പിന്തുണയില്ല — Chrome ഉപയോഗിക്കുക.",
+    noSpeech: "മനസ്സിലായില്ല — വീണ്ടും ശ്രമിക്കുക.",
+    fallback: "ക്ഷമിക്കണം, ഇപ്പോൾ ഉത്തരം നൽകാൻ കഴിയുന്നില്ല.",
+  },
+};
+
 export default function ChatBot({ user, role = "employee", onNavigate, token, api }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -115,6 +142,87 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   const [messages, setMessages] = useState([]);
   const scrollRef = useRef(null);
   const firstName = user?.name?.split(" ")[0] || "there";
+
+  // Voice mode state
+  const isAdmin = role === "admin" || role === "owner";
+  const [voiceLang, setVoiceLang] = useState("en"); // "en" | "ml"
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef(null);
+  const SpeechRecognitionAPI = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+  const voiceSupported = isAdmin && !!SpeechRecognitionAPI;
+  const vs = VOICE_STRINGS[voiceLang];
+
+  function speak(text, lang) {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang === "ml" ? "ml-IN" : "en-IN";
+    const voices = window.speechSynthesis.getVoices();
+    const match = voices.find(v => v.lang === utter.lang) || voices.find(v => v.lang?.startsWith(lang === "ml" ? "ml" : "en"));
+    if (match) utter.voice = match;
+    window.speechSynthesis.speak(utter);
+  }
+
+  async function askVoiceAssistant(q, lang) {
+    if (!token) return null;
+    try {
+      const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+      const res = await fetch(`${baseUrl}/api/assistant/voice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: q, lang }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.reply || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function sendVoice(transcript) {
+    const q = transcript.trim();
+    if (!q) return;
+    if (!open) setOpen(true);
+    setMessages((m) => [...m, { from: "user", text: q }]);
+    setTyping(true);
+    const reply = await askVoiceAssistant(q, voiceLang);
+    setTyping(false);
+    const replyText = reply || vs.fallback;
+    setMessages((m) => [...m, { from: "bot", text: replyText }]);
+    speak(replyText, voiceLang);
+  }
+
+  function startListening() {
+    if (!SpeechRecognitionAPI) {
+      alert(vs.unsupported);
+      return;
+    }
+    if (!open) setOpen(true);
+    window.speechSynthesis?.cancel();
+    const recog = new SpeechRecognitionAPI();
+    recog.lang = voiceLang === "ml" ? "ml-IN" : "en-IN";
+    recog.interimResults = false;
+    recog.maxAlternatives = 1;
+    recog.onresult = (e) => {
+      const transcript = e.results?.[0]?.[0]?.transcript;
+      if (transcript) sendVoice(transcript);
+    };
+    recog.onerror = () => setListening(false);
+    recog.onend = () => setListening(false);
+    recognitionRef.current = recog;
+    try {
+      recog.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
+  }
+
+  function stopListening() {
+    recognitionRef.current?.stop();
+    setListening(false);
+  }
 
   useEffect(() => {
     if (open && messages.length === 0) {
@@ -125,6 +233,20 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, typing]);
+
+  // Chrome loads TTS voices asynchronously — prime the list so the first
+  // speak() call has a chance of finding a matching-language voice.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.getVoices();
+    const onVoices = () => window.speechSynthesis.getVoices();
+    window.speechSynthesis.addEventListener?.("voiceschanged", onVoices);
+    return () => {
+      window.speechSynthesis.removeEventListener?.("voiceschanged", onVoices);
+      window.speechSynthesis.cancel();
+      recognitionRef.current?.stop();
+    };
+  }, []);
 
   const FALLBACK_TEXT = "I'm still learning that one! 🌱 But I can instantly help with **leaves, attendance, payslips, courses, careers, announcements, holidays, password help** and more. Try one of these, or reach HR at info@gdmrfoundation.com.";
 
@@ -188,6 +310,18 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
         </button>
       )}
 
+      {/* Standalone voice launcher (admin/owner only) — one click straight into
+          listening mode, no need to open the text panel first. */}
+      {!open && voiceSupported && (
+        <button
+          onClick={startListening}
+          title={vs.micTitle}
+          className={`genie-voice-launcher ${listening ? "live" : ""}`}
+        >
+          <FaMicrophone size={17} />
+        </button>
+      )}
+
       {/* Panel */}
       {open && (
         <div className="genie-panel">
@@ -197,9 +331,33 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: 0.2 }}>{BOT_NAME}</div>
               <div style={{ fontSize: 10.5, opacity: 0.9, display: "flex", alignItems: "center", gap: 5 }}>
-                <span className="genie-dot" /> GDMR Connect Assistant
+                <span className="genie-dot" /> {listening ? vs.listening : "GDMR Connect Assistant"}
               </div>
             </div>
+            {voiceSupported && (
+              <div className="genie-lang-toggle">
+                <button
+                  type="button"
+                  className={voiceLang === "en" ? "active" : ""}
+                  onClick={() => setVoiceLang("en")}
+                >EN</button>
+                <button
+                  type="button"
+                  className={voiceLang === "ml" ? "active" : ""}
+                  onClick={() => setVoiceLang("ml")}
+                >മല</button>
+              </div>
+            )}
+            {voiceSupported && (
+              <button
+                type="button"
+                onClick={listening ? stopListening : startListening}
+                title={listening ? vs.stopTitle : vs.micTitle}
+                className={`genie-mic ${listening ? "live" : ""}`}
+              >
+                {listening ? <FaStop size={12} /> : <FaMicrophone size={13} />}
+              </button>
+            )}
             <button onClick={() => setOpen(false)} className="genie-close"><FaTimes size={13} /></button>
           </div>
 
@@ -293,6 +451,34 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
         }
         .genie-dot { width: 7px; height: 7px; border-radius: 50%; background: #86efac; display: inline-block; box-shadow: 0 0 0 0 rgba(134,239,172,0.7); animation: genieGlow 2s infinite; }
         .genie-close { background: rgba(255,255,255,0.16); border: none; color: #fff; cursor: pointer; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+        .genie-lang-toggle { display: flex; background: rgba(255,255,255,0.16); border-radius: 999px; padding: 2px; flex-shrink: 0; }
+        .genie-lang-toggle button {
+          border: none; background: transparent; color: rgba(255,255,255,0.75); font-size: 10.5px; font-weight: 700;
+          padding: 5px 8px; border-radius: 999px; cursor: pointer; transition: background 0.15s, color 0.15s;
+        }
+        .genie-lang-toggle button.active { background: #fff; color: var(--brand); }
+
+        .genie-mic {
+          background: rgba(255,255,255,0.16); border: none; color: #fff; cursor: pointer;
+          width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0; transition: background 0.15s;
+        }
+        .genie-mic:hover { background: rgba(255,255,255,0.28); }
+        .genie-mic.live { background: #ef4444; animation: genieMicPulse 1.2s infinite; }
+        @keyframes genieMicPulse { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.55); } 70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
+
+        .genie-voice-launcher {
+          position: fixed; bottom: 22px; right: 82px; z-index: 4000;
+          width: 44px; height: 44px; padding: 0; border: none; cursor: pointer;
+          border-radius: 50%; display: flex; align-items: center; justify-content: center;
+          background: linear-gradient(135deg, #ef4444, #b91c1c);
+          color: #fff; box-shadow: 0 8px 22px rgba(185,28,28,0.4);
+          transition: transform 0.2s;
+        }
+        .genie-voice-launcher:hover { transform: translateY(-2px); }
+        .genie-voice-launcher.live { animation: genieMicPulse 1.2s infinite; }
+        @media (max-width: 520px) { .genie-voice-launcher { bottom: 16px; right: 72px; width: 40px; height: 40px; } }
 
         .genie-body { flex: 1; overflow-y: auto; padding: 16px 14px; background: #f4f8f6; display: flex; flex-direction: column; gap: 12px; }
         .genie-body::-webkit-scrollbar { width: 4px; }
