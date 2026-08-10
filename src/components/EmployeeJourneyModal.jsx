@@ -3,8 +3,9 @@ import {
   FaTimes, FaTrophy, FaMedal, FaStar, FaPlus, FaTrash,
   FaCalendarAlt, FaUserTimes, FaPlane, FaRocket,
   FaChevronDown, FaChevronUp, FaArrowUp, FaChartLine,
-  FaBolt, FaClock, FaUserPlus, FaClipboardList,
-  FaCheckCircle, FaExclamationTriangle,
+  FaBolt, FaClock, FaUserPlus,
+  FaCheckCircle, FaEdit, FaSave,
+  FaFileAlt, FaFileUpload, FaExternalLinkAlt, FaBriefcase,
 } from "react-icons/fa";
 
 // ─── ACHIEVEMENT TYPE CONFIG (FA icons only — no emojis) ─────────────────────
@@ -15,6 +16,12 @@ const ACH_TYPES = [
   { value: "salary_hike", label: "Salary Hike",             Icon: FaArrowUp,      color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
   { value: "promotion",   label: "Promotion",               Icon: FaChartLine,    color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe" },
   { value: "custom",      label: "Custom Award",            Icon: FaBolt,         color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
+];
+
+const SHIFT_OPTIONS = [
+  { key: "general", label: "General Shift (9 AM – 6 PM)" },
+  { key: "morning", label: "Morning Shift (10 AM – 7 PM)" },
+  { key: "night",   label: "Night Shift (7 PM – 4 AM)" },
 ];
 
 const C_BRAND = "#34a06a";
@@ -28,6 +35,13 @@ function fmtDate(dateStr) {
   try {
     return new Date(dateStr + (dateStr.length === 10 ? "T00:00:00" : ""))
       .toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  } catch { return dateStr; }
+}
+
+function fmtDateTime(dateStr) {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   } catch { return dateStr; }
 }
 
@@ -100,7 +114,13 @@ function MiniBar({ value, max, color }) {
 }
 
 // ─── MAIN MODAL ──────────────────────────────────────────────────────────────
-export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, month, onClose, api, token }) {
+// `allLeaves` / `monthAttendance` / `month` are optional — when the caller
+// already has them loaded (e.g. AdminAttendanceSummary's report view) they're
+// used as-is; otherwise the modal fetches its own, which is what lets it be
+// dropped in anywhere just from `emp` + `api` + `token` (e.g. clicking a row
+// in the plain Employee List).
+export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, month, onClose, api, token, onRefresh, departments = [] }) {
+  const [empData, setEmpData] = useState(emp); // local mutable copy — edits/doc changes update this in place
   const [achievements, setAchievements] = useState([]);
   const [loadingAch, setLoadingAch] = useState(false);
   const [showAwardForm, setShowAwardForm] = useState(false);
@@ -113,19 +133,65 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
   const [saving, setSaving] = useState(false);
   const [leavesExpanded, setLeavesExpanded] = useState(true);
 
+  // Self-fetched fallbacks when the caller doesn't already have this data.
+  const [selfLeaves, setSelfLeaves] = useState(null);
+  const [selfMonthAtt, setSelfMonthAtt] = useState(null);
+  const effectiveMonth = month || new Date().toISOString().slice(0, 7);
+
+  // ── Edit mode ───────────────────────────────────────────────────────────────
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [managers, setManagers] = useState([]);
+  const [deptList, setDeptList] = useState(departments);
+
+  // ── Documents ────────────────────────────────────────────────────────────────
+  const [newDocName, setNewDocName] = useState("");
+  const [newDocFile, setNewDocFile] = useState(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+
   const todayStr = new Date().toISOString().slice(0, 10);
 
+  useEffect(() => { setEmpData(emp); }, [emp]);
+
+  useEffect(() => {
+    if (allLeaves || !api || !token) return;
+    api.adminLeaves(token).then(setSelfLeaves).catch(() => setSelfLeaves([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (monthAttendance || !api || !token) return;
+    api.getAttendanceSummary(effectiveMonth, token).then(summary => {
+      const days = summary?.days || {};
+      const idStr = String(empData._id);
+      const inBucket = (arr) => Array.isArray(arr) && arr.some(x => String(typeof x === "object" ? (x._id || x.id) : x) === idStr);
+      let present = 0, absent = 0, leave = 0, nci = 0;
+      Object.values(days).forEach(d => {
+        if (inBucket(d.present)) present++;
+        else if (inBucket(d.leave)) leave++;
+        else if (inBucket(d.absent)) absent++;
+        else if (inBucket(d.not_checked_in)) nci++;
+      });
+      setSelfMonthAtt({ present, absent, leave, nci });
+    }).catch(() => setSelfMonthAtt({}));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveMonth]);
+
+  const finalLeaves    = allLeaves || selfLeaves || [];
+  const finalMonthAtt  = monthAttendance || selfMonthAtt || {};
+
   // ── Employee meta ──────────────────────────────────────────────────────────
-  const joinDate = emp.joined_at || emp.join_date || emp.created_at;
-  const dept = Array.isArray(emp.department) ? emp.department.join(", ") : (emp.department || "—");
+  const joinDate = empData.joined_at || empData.join_date || empData.doj || empData.created_at;
+  const dept = Array.isArray(empData.department) ? empData.department.join(", ") : (empData.department || "—");
   const tenureStr = tenure(joinDate) || "—";
 
   // ── Status ────────────────────────────────────────────────────────────────
-  const isOffboarded = emp.resignation?.notice_date &&
-    emp.resignation.last_working_day &&
-    new Date(emp.resignation.last_working_day) < new Date();
-  const isInNotice = emp.resignation?.notice_date && !isOffboarded;
-  const isOnExtLeave = !isOffboarded && emp.extended_leaves?.some(
+  const isOffboarded = empData.resignation?.notice_date &&
+    empData.resignation.last_working_day &&
+    new Date(empData.resignation.last_working_day) < new Date();
+  const isInNotice = empData.resignation?.notice_date && !isOffboarded;
+  const isOnExtLeave = !isOffboarded && empData.extended_leaves?.some(
     lv => lv.from_date <= todayStr && lv.to_date >= todayStr
   );
   const statusBadge = isOffboarded
@@ -137,21 +203,21 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
     : { label: "Active",          color: "#16a34a", bg: "#f0fdf4" };
 
   // ── Leaves for this employee ───────────────────────────────────────────────
-  const empLeaves = (allLeaves || [])
-    .filter(l => l.employee_name === emp.name || String(l.employee_id) === String(emp._id))
+  const empLeaves = (finalLeaves || [])
+    .filter(l => l.employee_name === empData.name || String(l.employee_id) === String(empData._id) || String(l.user_id) === String(empData._id))
     .sort((a, b) => new Date(b.from_date || b.date || 0) - new Date(a.from_date || a.date || 0));
 
   // ── Attendance this month ──────────────────────────────────────────────────
-  const att = monthAttendance || {};
+  const att = finalMonthAtt || {};
   const attTotal = (att.present || 0) + (att.absent || 0) + (att.leave || 0) + (att.nci || 0);
   const attRate = attTotal > 0 ? Math.round((att.present / attTotal) * 100) : (att.rate ?? 0);
 
-  // ── API calls ──────────────────────────────────────────────────────────────
+  // ── API calls: achievements ──────────────────────────────────────────────────
   async function loadAchievements() {
     setLoadingAch(true);
     try {
       const baseUrl = api.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
-      const res = await fetch(`${baseUrl}/api/admin/achievements?employee_id=${emp._id}`, {
+      const res = await fetch(`${baseUrl}/api/admin/achievements?employee_id=${empData._id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setAchievements(await res.json());
@@ -167,7 +233,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
       const res = await fetch(`${baseUrl}/api/admin/achievements`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ employee_id: emp._id, employee_name: emp.name, ...awardForm }),
+        body: JSON.stringify({ employee_id: empData._id, employee_name: empData.name, ...awardForm }),
       });
       if (res.ok) {
         setShowAwardForm(false);
@@ -192,17 +258,93 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
     } catch { alert("Failed to remove."); }
   }
 
-  useEffect(() => { loadAchievements(); }, [emp._id]);
+  useEffect(() => { loadAchievements(); }, [empData._id]);
+
+  // ── Edit details ─────────────────────────────────────────────────────────────
+  async function startEdit() {
+    setEditForm({
+      name: empData.name || "",
+      email: empData.email || "",
+      position: empData.position || "",
+      employee_code: empData.employee_code || "",
+      department: empData.department || "",
+      shift: empData.shift || "morning",
+      doj: (empData.doj || "").slice(0, 10),
+      manager_id: empData.manager_id || "",
+    });
+    setEditMode(true);
+    if (managers.length === 0) {
+      try { setManagers(await api.getManagers(token)); } catch { /* silent */ }
+    }
+    if (deptList.length === 0) {
+      try {
+        const baseUrl = api.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+        const res = await fetch(`${baseUrl}/api/admin/departments`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) setDeptList(await res.json());
+      } catch { /* silent */ }
+    }
+  }
+
+  async function saveEdit() {
+    setSavingEdit(true);
+    try {
+      await api.editEmployee(empData._id, editForm, token);
+      setEmpData(prev => ({ ...prev, ...editForm }));
+      setEditMode(false);
+      onRefresh?.();
+    } catch {
+      alert("Failed to save changes.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  // ── Documents ────────────────────────────────────────────────────────────────
+  async function uploadDoc(e) {
+    e.preventDefault();
+    if (!newDocName.trim() || !newDocFile) return;
+    setUploadingDoc(true);
+    try {
+      const doc = await api.uploadEmployeeDocument(empData._id, newDocName.trim(), newDocFile, token);
+      setEmpData(prev => ({ ...prev, documents: [...(prev.documents || []), doc] }));
+      setNewDocName("");
+      setNewDocFile(null);
+      onRefresh?.();
+    } catch {
+      alert("Failed to upload document.");
+    } finally {
+      setUploadingDoc(false);
+    }
+  }
+
+  async function removeDoc(docId) {
+    if (!window.confirm("Remove this document?")) return;
+    try {
+      await api.deleteEmployeeDocument(empData._id, docId, token);
+      setEmpData(prev => ({ ...prev, documents: (prev.documents || []).filter(d => d.id !== docId) }));
+      onRefresh?.();
+    } catch {
+      alert("Failed to remove document.");
+    }
+  }
 
   // ── Build career timeline ──────────────────────────────────────────────────
   const timeline = [];
 
-  if (joinDate) {
+  if (empData.source_candidate_id) {
+    timeline.push({
+      date: (joinDate || todayStr).slice(0, 10),
+      Icon: FaBriefcase,
+      title: "Onboarded from Recruitment",
+      sub: "Hired through the ATS pipeline — documents carried over automatically",
+      color: "#2563eb",
+    });
+  } else if (joinDate) {
     timeline.push({
       date: joinDate.slice(0, 10),
       Icon: FaUserPlus,
       title: "Joined GDMR Connect",
-      sub: `Started as ${emp.position || "team member"} · ${dept}`,
+      sub: `Started as ${empData.position || "team member"} · ${dept}`,
       color: C_BRAND,
     });
   }
@@ -218,7 +360,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
     });
   });
 
-  (emp.extended_leaves || []).forEach(lv => {
+  (empData.extended_leaves || []).forEach(lv => {
     timeline.push({
       date: lv.from_date || "2020-01-01",
       Icon: FaPlane,
@@ -228,13 +370,13 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
     });
   });
 
-  if (emp.resignation?.notice_date) {
+  if (empData.resignation?.notice_date) {
     timeline.push({
-      date: emp.resignation.notice_date,
+      date: empData.resignation.notice_date,
       Icon: FaUserTimes,
       title: isOffboarded ? "Offboarded" : "Resignation Notice",
-      sub: emp.resignation.last_working_day
-        ? `Last working day: ${fmtDate(emp.resignation.last_working_day)}`
+      sub: empData.resignation.last_working_day
+        ? `Last working day: ${fmtDate(empData.resignation.last_working_day)}`
         : "LWD not set",
       color: "#dc2626",
     });
@@ -251,6 +393,10 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
     if (v.includes("rejected")) return { color: "#dc2626", bg: "#fef2f2" };
     return { color: "#d97706", bg: "#fffbeb" };
   };
+
+  const docSourceBadge = (source) => source === "ats"
+    ? { label: "From Recruitment", color: "#2563eb", bg: "#eff6ff" }
+    : { label: "Manual", color: "#64748b", bg: "#f1f5f9" };
 
   return (
     <div
@@ -276,22 +422,36 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
           .award-form-row label { font-size: 12px; font-weight: 600; color: #334155; }
           .award-form-row select, .award-form-row input, .award-form-row textarea { border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: inherit; color: #0f172a; outline: none; transition: border-color 0.15s; width: 100%; box-sizing: border-box; background: #f8fafc; }
           .award-form-row select:focus, .award-form-row input:focus, .award-form-row textarea:focus { border-color: #34a06a; background: #fff; }
+          .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+          .doc-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+          .doc-row:last-child { border-bottom: none; }
         `}</style>
 
         {/* ─── HERO HEADER ──────────────────────────────────────────────── */}
         <div style={{ background: "linear-gradient(135deg, #1c5249 0%, #34a06a 100%)", padding: "28px 20px 22px", position: "relative", flexShrink: 0 }}>
-          <button
-            onClick={onClose}
-            style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}
-          >
-            <FaTimes size={14} />
-          </button>
+          <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8 }}>
+            {api && token && (
+              <button
+                onClick={() => editMode ? setEditMode(false) : startEdit()}
+                title={editMode ? "Cancel editing" : "Edit employee details"}
+                style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}
+              >
+                {editMode ? <FaTimes size={13} /> : <FaEdit size={13} />}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}
+            >
+              <FaTimes size={14} />
+            </button>
+          </div>
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-            <Avatar name={emp.name} size={64} />
+            <Avatar name={empData.name} size={64} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 3, lineHeight: 1.2 }}>{emp.name}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 3, lineHeight: 1.2 }}>{empData.name}</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.80)", marginBottom: 8 }}>
-                {emp.position || "—"} · {dept}
+                {empData.position || "—"} · {dept}
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <span style={{ fontSize: 11.5, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: statusBadge.bg, color: statusBadge.color }}>
@@ -305,6 +465,11 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                 {joinDate && (
                   <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.65)" }}>
                     Joined {fmtDate(joinDate.slice(0, 10))}
+                  </span>
+                )}
+                {empData.source_candidate_id && (
+                  <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.90)" }}>
+                    <FaBriefcase size={9} /> Recruitment Hire
                   </span>
                 )}
               </div>
@@ -328,10 +493,71 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
           )}
         </div>
 
+        {/* ─── EDIT DETAILS ────────────────────────────────────────────── */}
+        {editMode && editForm && (
+          <div style={{ margin: "12px 16px 0" }}>
+            <div className="journey-section" style={{ margin: 0 }}>
+              <div className="journey-section-title"><FaEdit size={10} /> Edit Employee Details</div>
+              <div className="edit-grid">
+                <div className="award-form-row">
+                  <label>Full Name</label>
+                  <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div className="award-form-row">
+                  <label>Email</label>
+                  <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div className="award-form-row">
+                  <label>Position</label>
+                  <input value={editForm.position} onChange={e => setEditForm(f => ({ ...f, position: e.target.value }))} />
+                </div>
+                <div className="award-form-row">
+                  <label>Employee ID</label>
+                  <input value={editForm.employee_code} onChange={e => setEditForm(f => ({ ...f, employee_code: e.target.value }))} />
+                </div>
+                <div className="award-form-row">
+                  <label>Department</label>
+                  <select value={editForm.department} onChange={e => setEditForm(f => ({ ...f, department: e.target.value }))}>
+                    <option value={editForm.department}>{editForm.department || "— Select —"}</option>
+                    {[...deptList].filter(d => d.name !== editForm.department).sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(d => (
+                      <option key={d._id || d.name} value={d.name}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="award-form-row">
+                  <label>Shift</label>
+                  <select value={editForm.shift} onChange={e => setEditForm(f => ({ ...f, shift: e.target.value }))}>
+                    {SHIFT_OPTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  </select>
+                </div>
+                <div className="award-form-row">
+                  <label>Date of Joining</label>
+                  <input type="date" value={editForm.doj} onChange={e => setEditForm(f => ({ ...f, doj: e.target.value }))} />
+                </div>
+                <div className="award-form-row">
+                  <label>Manager</label>
+                  <select value={editForm.manager_id || ""} onChange={e => setEditForm(f => ({ ...f, manager_id: e.target.value || null }))}>
+                    <option value="">No Manager / Self-Managed</option>
+                    {[...managers].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(m => (
+                      <option key={m._id} value={m._id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+                <button onClick={() => setEditMode(false)} style={{ background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+                <button onClick={saveEdit} disabled={savingEdit} style={{ display: "flex", alignItems: "center", gap: 6, background: C_BRAND, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", opacity: savingEdit ? 0.7 : 1 }}>
+                  <FaSave size={11} /> {savingEdit ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ─── ATTENDANCE QUICK STATS ──────────────────────────────────── */}
         <div style={{ margin: "12px 16px 0" }}>
           <div className="journey-section" style={{ margin: 0 }}>
-            <div className="journey-section-title"><FaCheckCircle size={10} /> Attendance — {month}</div>
+            <div className="journey-section-title"><FaCheckCircle size={10} /> Attendance — {effectiveMonth}</div>
             <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid #f1f5f9" }}>
               {[
                 { label: "Rate",    val: `${attRate}%`,       color: attRate >= 80 ? "#16a34a" : attRate >= 65 ? "#d97706" : "#dc2626", bg: attRate >= 80 ? "#f0fdf4" : attRate >= 65 ? "#fffbeb" : "#fef2f2" },
@@ -358,6 +584,65 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                   ))}
                 </div>
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* ─── DOCUMENTS ───────────────────────────────────────────────── */}
+        <div style={{ margin: "12px 16px 0" }}>
+          <div className="journey-section" style={{ margin: 0 }}>
+            <div className="journey-section-title"><FaFileAlt size={10} /> Documents ({(empData.documents || []).length})</div>
+
+            {(empData.documents || []).length === 0 ? (
+              <div style={{ textAlign: "center", padding: "12px 0", color: "#94a3b8", fontSize: 12.5 }}>No documents on file yet.</div>
+            ) : (
+              <div>
+                {empData.documents.map(d => {
+                  const b = docSourceBadge(d.source);
+                  return (
+                    <div key={d.id || d.url} className="doc-row">
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <FaFileAlt size={13} color="#64748b" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{d.name}</div>
+                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
+                          {fmtDateTime(d.uploaded_at)}
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: b.bg, color: b.color }}>{b.label}</span>
+                        </div>
+                      </div>
+                      <a href={d.url} target="_blank" rel="noreferrer" title="View" style={{ color: C_BRAND, padding: 6, display: "flex" }}>
+                        <FaExternalLinkAlt size={13} />
+                      </a>
+                      {api && token && (
+                        <button onClick={() => removeDoc(d.id)} title="Remove" style={{ background: "none", border: "none", color: "#cbd5e1", cursor: "pointer", padding: 6, display: "flex" }}>
+                          <FaTrash size={12} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {api && token && (
+              <form onSubmit={uploadDoc} style={{ display: "flex", gap: 8, marginTop: 14, paddingTop: 14, borderTop: "1px solid #f1f5f9", flexWrap: "wrap", alignItems: "center" }}>
+                <input
+                  value={newDocName}
+                  onChange={e => setNewDocName(e.target.value)}
+                  placeholder="Document name (e.g. Offer Letter)"
+                  style={{ flex: "1 1 180px", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", fontSize: 12.5, outline: "none" }}
+                />
+                <input
+                  type="file"
+                  onChange={e => setNewDocFile(e.target.files?.[0] || null)}
+                  style={{ flex: "1 1 160px", fontSize: 12 }}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                />
+                <button type="submit" disabled={uploadingDoc || !newDocName.trim() || !newDocFile} style={{ display: "flex", alignItems: "center", gap: 6, background: C_BRAND, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", opacity: (uploadingDoc || !newDocName.trim() || !newDocFile) ? 0.6 : 1 }}>
+                  <FaFileUpload size={11} /> {uploadingDoc ? "Uploading…" : "Add"}
+                </button>
+              </form>
             )}
           </div>
         </div>
@@ -497,11 +782,11 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         </div>
 
         {/* ─── EXTENDED LEAVES ─────────────────────────────────────────── */}
-        {emp.extended_leaves?.length > 0 && (
+        {empData.extended_leaves?.length > 0 && (
           <div style={{ margin: "0 16px 16px" }}>
             <div className="journey-section" style={{ margin: 0 }}>
               <div className="journey-section-title"><FaPlane size={10} /> Extended Leaves / Sabbaticals</div>
-              {emp.extended_leaves.map((lv, i) => (
+              {empData.extended_leaves.map((lv, i) => (
                 <div key={i} className="leave-row">
                   <div>
                     <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0f172a" }}>{fmtDate(lv.from_date)} → {fmtDate(lv.to_date)}</div>
@@ -515,19 +800,19 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         )}
 
         {/* ─── RESIGNATION INFO ─────────────────────────────────────────── */}
-        {emp.resignation?.notice_date && (
+        {empData.resignation?.notice_date && (
           <div style={{ margin: "0 16px 24px" }}>
             <div className="journey-section" style={{ margin: 0, background: "#fef2f2", border: "1px solid #fecaca" }}>
               <div className="journey-section-title" style={{ color: "#dc2626" }}><FaUserTimes size={10} /> Resignation Details</div>
               <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
                 <div>
                   <div style={{ fontSize: 10.5, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase" }}>Notice Date</div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#dc2626" }}>{fmtDate(emp.resignation.notice_date)}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#dc2626" }}>{fmtDate(empData.resignation.notice_date)}</div>
                 </div>
-                {emp.resignation.last_working_day && (
+                {empData.resignation.last_working_day && (
                   <div>
                     <div style={{ fontSize: 10.5, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase" }}>Last Working Day</div>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "#dc2626" }}>{fmtDate(emp.resignation.last_working_day)}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "#dc2626" }}>{fmtDate(empData.resignation.last_working_day)}</div>
                   </div>
                 )}
                 <div>

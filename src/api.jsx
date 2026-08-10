@@ -136,6 +136,21 @@ export default {
   deleteEmployee: (id, token) => request(`/admin/employees/${id}`, "DELETE", null, token),
   editEmployee: (id, payload, token) => request(`/admin/employees/${id}`, "PUT", payload, token),
 
+  uploadEmployeeDocument: async (empId, name, file, token) => {
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("file", file);
+    const res = await fetch(`${FETCH_BASE}/admin/employees/${empId}/documents`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw data;
+    return data;
+  },
+  deleteEmployeeDocument: (empId, docId, token) => request(`/admin/employees/${empId}/documents/${docId}`, "DELETE", null, token),
+
   // Managers
   getManagers: (token) => request("/admin/managers", "GET", null, token),
   editManager: (id, payload, token) => request(`/admin/managers/${id}`, "PUT", payload, token),

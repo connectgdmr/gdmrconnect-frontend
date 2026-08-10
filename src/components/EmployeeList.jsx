@@ -5,6 +5,7 @@ import {
   FaSun, FaMoon, FaRegClock,
 } from "react-icons/fa";
 import { SkeletonTable } from "./Skeleton";
+import EmployeeJourneyModal from "./EmployeeJourneyModal";
 
 const SHIFTS = [
   { key: "general", label: "General Shift", hours: "9 AM – 6 PM",  icon: <FaRegClock size={11} />, color: "#0f766e", bg: "#effdf8", border: "#b6e6d6" },
@@ -386,6 +387,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [managers, setManagers]             = useState([]);
   const [statusEmployee, setStatusEmployee] = useState(null);
+  const [profileEmp, setProfileEmp]         = useState(null); // full-detail profile (click a row)
 
   useEffect(() => {
     if (!showEditModal || !api || !token) return;
@@ -486,7 +488,12 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
               filtered.map((emp) => {
                 const isResigned = !!emp.resignation?.notice_date;
                 return (
-                <tr key={emp._id} style={isResigned ? { opacity: 0.45, background: "#f8fafc", filter: "grayscale(30%)" } : {}}>
+                <tr
+                  key={emp._id}
+                  onClick={() => setProfileEmp(emp)}
+                  title="Click for full profile, history & documents"
+                  style={isResigned ? { opacity: 0.45, background: "#f8fafc", filter: "grayscale(30%)", cursor: "pointer" } : { cursor: "pointer" }}
+                >
                   <td>
                     <div className="emp-name">{emp.name}{emp.employee_code && <span style={{ color: "#94a3b8", fontWeight: 500 }}> · {emp.employee_code}</span>}</div>
                     <div className="emp-email">{emp.email}</div>
@@ -515,7 +522,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                       </span>
                     )}
                   </td>
-                  <td>
+                  <td onClick={e => e.stopPropagation()}>
                     <div className="action-btn-group">
                       <button className="btn-action btn-edit" onClick={() => handleEditClick(emp)} title="Edit employee details">
                         <FaEdit />
@@ -540,6 +547,18 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
           </tbody>
         </table>
       </div>
+
+      {/* Full Employee Profile — click a row (history, edit, documents) */}
+      {profileEmp && (
+        <EmployeeJourneyModal
+          emp={profileEmp}
+          departments={departments}
+          onClose={() => setProfileEmp(null)}
+          onRefresh={onRefresh}
+          api={api}
+          token={token}
+        />
+      )}
 
       {/* Employment Status Modal */}
       {statusEmployee && (
