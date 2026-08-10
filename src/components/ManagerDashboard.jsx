@@ -1672,16 +1672,18 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           </div>
           <div style={{overflowX: 'auto'}}>
             <table className="styled-table">
-              <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Attachment</th><th>Action</th></tr></thead>
+              <thead><tr><th>Date</th><th>Type</th><th style={{textAlign:'center'}}>Manager</th><th style={{textAlign:'center'}}>HR</th><th style={{textAlign:'center'}}>Overall</th><th>Attachment</th><th>Action</th></tr></thead>
               <tbody>
                 {myLeaves.length === 0 ? (
-                  <tr><td colSpan="5" style={{textAlign:"center", padding:20, color:"#999"}}>No leaves found.</td></tr>
+                  <tr><td colSpan="7" style={{textAlign:"center", padding:20, color:"#999"}}>No leaves found.</td></tr>
                 ) : (
                   myLeaves.map((l) => (
                     <tr key={l._id}>
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
                       <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
-                      <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
+                      <td style={{textAlign:'center'}}><span className={`status-badge ${getStatusClass(l.manager_status)}`}>{l.manager_status || 'Pending'}</span></td>
+                      <td style={{textAlign:'center'}}><span className={`status-badge ${getStatusClass(l.admin_status)}`}>{l.admin_status || 'Pending'}</span></td>
+                      <td style={{textAlign:'center'}}><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
                       <td>{resolveAttachmentUrl(l.attachment_url, api.baseUrl) ? <a href={resolveAttachmentUrl(l.attachment_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                       <td>
                         {(l.status === "Pending" || l.status === "Approved") && (
