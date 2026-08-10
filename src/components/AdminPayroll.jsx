@@ -111,8 +111,12 @@ export default function AdminPayroll({ token, employees = [] }) {
   const [viewSlip, setViewSlip]       = useState(null);
   const [slipSearch, setSlipSearch]   = useState("");
 
-  const [historyModal, setHistoryModal] = useState(null); // { emp, history[] }
+  // Employee Payroll Profile popup — opened by clicking a name anywhere in
+  // Payroll (Salary Setup or Payslips). Shows salary-change history AND
+  // every payslip ever generated for that person, each downloadable.
+  const [historyModal, setHistoryModal] = useState(null); // { emp, history[], slips[] }
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [runSearch, setRunSearch] = useState("");
 
   const [exporting, setExporting] = useState(false);
 
@@ -157,13 +161,18 @@ export default function AdminPayroll({ token, employees = [] }) {
   }
 
   async function openHistory(row) {
+    const empId = row.employee_id || row._id;
     setHistoryLoading(true);
-    setHistoryModal({ emp: row, history: [] });
+    setHistoryModal({ emp: row, history: [], slips: [] });
     try {
-      const r = await fetch(`${BASE}/admin/payroll/salaries/${row.employee_id || row._id}/history`, { headers: { Authorization: `Bearer ${token}` } });
-      const history = r.ok ? toArr(await r.json()) : [];
-      setHistoryModal({ emp: row, history });
-    } catch { setHistoryModal(m => m ? { ...m, history: [] } : null); } finally { setHistoryLoading(false); }
+      const [hRes, sRes] = await Promise.all([
+        fetch(`${BASE}/admin/payroll/salaries/${empId}/history`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${BASE}/admin/payroll/payslips?employee_id=${empId}`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      const history = hRes.ok ? toArr(await hRes.json()) : [];
+      const slips   = sRes.ok ? toArr(await sRes.json()) : [];
+      setHistoryModal({ emp: row, history, slips });
+    } catch { setHistoryModal(m => m ? { ...m, history: [], slips: [] } : null); } finally { setHistoryLoading(false); }
   }
 
   async function saveSalary(e) {
@@ -208,6 +217,7 @@ export default function AdminPayroll({ token, employees = [] }) {
             lop: Number(a.lop) || 0,
             tds: Number(a.tds) || 0,
             other_deductions: Number(a.other_deductions) || 0,
+            remark: a.remark || "",
           };
         });
       const r = await fetch(`${BASE}/admin/payroll/run`, {
@@ -327,7 +337,12 @@ export default function AdminPayroll({ token, employees = [] }) {
                     const configured = row.salary && grossOf(row.salary) > 0;
                     return (
                       <tr key={row.employee_id || row._id}>
-                        <td style={{ fontWeight: 600 }}>{row.employee_name}</td>
+                        <td>
+                          <button type="button" onClick={() => openHistory(row)} title="View pay history, payslips & downloads"
+                            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontWeight: 600, color: "var(--red)", textAlign: "left" }}>
+                            {row.employee_name}
+                          </button>
+                        </td>
                         <td style={{ fontSize: 13, color: "#64748b" }}>{String(row.department || "") || "—"}</td>
                         <td>{configured ? inr(grossOf(row.salary)) : <span style={{ color: "#94a3b8", fontSize: 12 }}>Not set</span>}</td>
                         <td style={{ fontWeight: 700, color: configured ? "#16a34a" : "#94a3b8" }}>{configured ? inr(netOf(row.salary)) : "—"}</td>
@@ -356,25 +371,41 @@ export default function AdminPayroll({ token, employees = [] }) {
 
       {/* ── Run Payroll ── */}
       {tab === "run" && (() => {
-        const runSalaries = salaries.filter(s => s.salary && grossOf(s.salary) > 0)
+        const allRunSalaries = salaries.filter(s => s.salary && grossOf(s.salary) > 0)
           .sort((a, b) => String(a.employee_name || "").localeCompare(String(b.employee_name || "")));
+        const runSalaries = allRunSalaries.filter(s =>
+          !runSearch ||
+          String(s.employee_name || "").toLowerCase().includes(runSearch.toLowerCase()) ||
+          String(s.department   || "").toLowerCase().includes(runSearch.toLowerCase())
+        );
         const netPreviewOf = (s) => {
           const id = s.employee_id || s._id;
           const a = runAdjustments[id] || {};
           const monthlyDed = MONTHLY_DEDUCTIONS.reduce((sum, d) => sum + (Number(a[d.key]) || 0), 0);
           return grossOf(s.salary) + (Number(s.salary.bonus) || 0) - structureDedOf(s.salary) - monthlyDed;
         };
-        const estimatedPayout = runSalaries.reduce((sum, s) => sum + netPreviewOf(s), 0);
+        const estimatedPayout = allRunSalaries.reduce((sum, s) => sum + netPreviewOf(s), 0);
+        const runBtn = (
+          <button className="btn" onClick={runPayroll} disabled={running || allRunSalaries.length === 0}
+            style={{ justifyContent: "center", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", flexShrink: 0 }}>
+            <FaPlay size={11} /> {running ? "Generating…" : `Generate Payslips — ${MONTHS[runMonth]} ${runYear}`}
+          </button>
+        );
 
         return (
         <div>
           <div className="card" style={{ marginBottom: 16 }}>
-            <h4 style={{ margin: "0 0 6px", color: "#0f172a" }}>Run Monthly Payroll</h4>
-            <p style={{ margin: "0 0 20px", fontSize: 13, color: "#64748b" }}>
-              Set this month's ESI, LOP, TDS and Other Deductions per employee, then generate payslips.
-              Base salary stays untouched — these values apply only to this run.
-            </p>
-            <div style={{ display: "flex", gap: 12, marginBottom: 20, maxWidth: 560 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+              <div>
+                <h4 style={{ margin: "0 0 6px", color: "#0f172a" }}>Run Monthly Payroll</h4>
+                <p style={{ margin: 0, fontSize: 13, color: "#64748b", maxWidth: 480 }}>
+                  Set this month's ESI, LOP, TDS, Other Deductions and a remark per employee, then generate payslips.
+                  Base salary stays untouched — these values apply only to this run.
+                </p>
+              </div>
+              {runBtn}
+            </div>
+            <div style={{ display: "flex", gap: 12, margin: "20px 0", maxWidth: 560 }}>
               <div style={{ flex: 1 }}>
                 <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Month</label>
                 <select className="modern-input" value={runMonth} onChange={e => setRunMonth(+e.target.value)}>
@@ -390,7 +421,7 @@ export default function AdminPayroll({ token, employees = [] }) {
             </div>
             <div style={{ background: "#f8fafc", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: "#475569", maxWidth: 560 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span>Employees with salary configured</span><span style={{ fontWeight: 700 }}>{runSalaries.length}</span>
+                <span>Employees with salary configured</span><span style={{ fontWeight: 700 }}>{allRunSalaries.length}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>Estimated net payout</span><span style={{ fontWeight: 700, color: "var(--red)" }}>{inr(estimatedPayout)}</span>
@@ -398,55 +429,72 @@ export default function AdminPayroll({ token, employees = [] }) {
             </div>
           </div>
 
-          {runSalaries.length === 0 ? (
+          {allRunSalaries.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8" }}>
               No employees have a configured salary yet — set one up in Salary Setup first.
             </div>
           ) : (
-            <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
-              <div style={{ overflowX: "auto" }}>
-                <table className="styled-table-global">
-                  <thead>
-                    <tr>
-                      <th>Employee</th>
-                      {MONTHLY_DEDUCTIONS.map(d => <th key={d.key}>{d.label}</th>)}
-                      <th>Net Preview</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {runSalaries.map(row => {
-                      const id = row.employee_id || row._id;
-                      const a = runAdjustments[id] || {};
-                      return (
-                        <tr key={id}>
-                          <td style={{ fontWeight: 600 }}>
-                            {row.employee_name}
-                            <div style={{ fontSize: 11.5, color: "#94a3b8", fontWeight: 500 }}>{row.department || "—"}</div>
-                          </td>
-                          {MONTHLY_DEDUCTIONS.map(d => (
-                            <td key={d.key}>
+            <>
+              <div style={{ position: "relative", marginBottom: 14, maxWidth: 360 }}>
+                <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+                <input className="modern-input" placeholder="Search employee or department…" value={runSearch} onChange={e => setRunSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
+              </div>
+
+              <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
+                <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "60vh" }}>
+                  <table className="styled-table-global">
+                    <thead>
+                      <tr>
+                        <th style={{ position: "sticky", top: 0, background: "#f8fafc", zIndex: 1 }}>Employee</th>
+                        {MONTHLY_DEDUCTIONS.map(d => <th key={d.key} style={{ position: "sticky", top: 0, background: "#f8fafc", zIndex: 1 }}>{d.label}</th>)}
+                        <th style={{ position: "sticky", top: 0, background: "#f8fafc", zIndex: 1, minWidth: 180 }}>Remark</th>
+                        <th style={{ position: "sticky", top: 0, background: "#f8fafc", zIndex: 1 }}>Net Preview</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {runSalaries.length === 0 ? (
+                        <tr><td colSpan={MONTHLY_DEDUCTIONS.length + 3} style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>No employees match "{runSearch}".</td></tr>
+                      ) : runSalaries.map(row => {
+                        const id = row.employee_id || row._id;
+                        const a = runAdjustments[id] || {};
+                        return (
+                          <tr key={id}>
+                            <td style={{ fontWeight: 600 }}>
+                              {row.employee_name}
+                              <div style={{ fontSize: 11.5, color: "#94a3b8", fontWeight: 500 }}>{row.department || "—"}</div>
+                            </td>
+                            {MONTHLY_DEDUCTIONS.map(d => (
+                              <td key={d.key}>
+                                <input
+                                  className="modern-input" type="number" min="0" step="0.01" placeholder="0"
+                                  value={a[d.key] ?? ""}
+                                  onChange={e => setRunAdjField(id, d.key, e.target.value)}
+                                  style={{ margin: 0, width: 100 }}
+                                />
+                              </td>
+                            ))}
+                            <td>
                               <input
-                                className="modern-input" type="number" min="0" step="0.01" placeholder="0"
-                                value={a[d.key] ?? ""}
-                                onChange={e => setRunAdjField(id, d.key, e.target.value)}
-                                style={{ margin: 0, width: 100 }}
+                                className="modern-input" type="text" placeholder="e.g. 2 days LOP — unplanned leave"
+                                value={a.remark ?? ""}
+                                onChange={e => setRunAdjField(id, "remark", e.target.value)}
+                                style={{ margin: 0, minWidth: 170 }}
                               />
                             </td>
-                          ))}
-                          <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(netPreviewOf(row))}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(netPreviewOf(row))}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            </>
           )}
 
-          <button className="btn" onClick={runPayroll} disabled={running || runSalaries.length === 0}
-            style={{ width: "100%", maxWidth: 560, justifyContent: "center", display: "flex", alignItems: "center", gap: 8 }}>
-            <FaPlay size={11} /> {running ? "Generating…" : `Generate Payslips for ${MONTHS[runMonth]} ${runYear}`}
-          </button>
+          {allRunSalaries.length > 0 && (
+            <div style={{ display: "flex", justifyContent: "flex-end", maxWidth: 560 }}>{runBtn}</div>
+          )}
         </div>
         );
       })()}
@@ -495,7 +543,13 @@ export default function AdminPayroll({ token, employees = [] }) {
                       const totalDed = (p.total_deductions ?? dedOf(p)) + (Number(p.loan_emi) || 0) + (Number(p.advance_recovery) || 0);
                       return (
                         <tr key={String(p._id || p.employee_id || Math.random())}>
-                          <td style={{ fontWeight: 600 }}>{String(p.employee_name || "")}</td>
+                          <td>
+                            <button type="button" onClick={() => openHistory({ employee_id: p.employee_id, employee_name: p.employee_name, department: p.department })}
+                              title="View pay history, payslips & downloads"
+                              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontWeight: 600, color: "var(--red)", textAlign: "left" }}>
+                              {String(p.employee_name || "")}
+                            </button>
+                          </td>
                           <td style={{ fontSize: 13, color: "#64748b" }}>{String(p.department || "") || "—"}</td>
                           <td>{inr(p.gross ?? grossOf(p))}</td>
                           <td style={{ color: "#dc2626" }}>−{inr(totalDed)}</td>
@@ -509,6 +563,10 @@ export default function AdminPayroll({ token, employees = [] }) {
                           <td>
                             <div style={{ display: "flex", gap: 6 }}>
                               <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => setViewSlip(p)}>View</button>
+                              <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px", display: "flex", alignItems: "center", gap: 5 }}
+                                onClick={() => printPayslip(p, `${MONTHS[slipMonth]} ${slipYear}`)} title="Download as PDF">
+                                <FaDownload size={10} />
+                              </button>
                               {!paid && <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px", color: "#16a34a", borderColor: "#bbf7d0" }} onClick={() => markPaid(p._id)}>Mark Paid</button>}
                             </div>
                           </td>
@@ -633,44 +691,99 @@ export default function AdminPayroll({ token, employees = [] }) {
         </div>
       )}
 
-      {/* ── Salary History Modal ── */}
+      {/* ── Employee Payroll Profile (name click) — salary history + payslip history ── */}
       {historyModal && (
         <div className="modal-overlay" onClick={() => setHistoryModal(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: "100%", maxHeight: "85vh", overflowY: "auto" }}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 720, width: "100%", maxHeight: "88vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid #e2e8f0", paddingBottom: 12 }}>
               <div>
-                <h3 style={{ margin: 0, color: "#7c3aed", fontSize: 15, display: "flex", alignItems: "center", gap: 7 }}><FaHistory size={13} /> Salary History</h3>
+                <h3 style={{ margin: 0, color: "var(--red)", fontSize: 15, display: "flex", alignItems: "center", gap: 7 }}><FaFileInvoiceDollar size={13} /> Payroll Profile</h3>
                 <div style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>{historyModal.emp.employee_name}{historyModal.emp.department && <span style={{ color: "#94a3b8" }}> · {historyModal.emp.department}</span>}</div>
               </div>
               <button onClick={() => setHistoryModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><FaTimes size={15} /></button>
             </div>
-            {historyLoading ? <div className="loader" style={{ margin: "30px auto" }} /> :
-            historyModal.history.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "48px 20px", color: "#94a3b8" }}>
-                <FaHistory size={32} style={{ opacity: 0.2, marginBottom: 12 }} />
-                <p style={{ margin: 0, fontSize: 14 }}>No salary history found yet.</p>
-                <p style={{ margin: "6px 0 0", fontSize: 12 }}>Salary changes with effective dates will appear here.</p>
-              </div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table className="styled-table-global">
-                  <thead>
-                    <tr><th>Effective Date</th><th>Type</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Reason</th></tr>
-                  </thead>
-                  <tbody>
-                    {historyModal.history.slice().reverse().map((h, i) => (
-                      <tr key={i}>
-                        <td style={{ fontWeight: 600 }}>{h.effective_date ? new Date(h.effective_date).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }) : "—"}</td>
-                        <td><span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "#f5f3ff", color: "#7c3aed" }}>{h.increment_type || "Update"}</span></td>
-                        <td>{inr(grossOf(h))}</td>
-                        <td style={{ color: "#dc2626" }}>−{inr(dedOf(h))}</td>
-                        <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(netOf(h))}</td>
-                        <td style={{ fontSize: 12.5, color: "#64748b" }}>{h.increment_reason || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+
+            {historyLoading ? <div className="loader" style={{ margin: "30px auto" }} /> : (
+              <>
+                {/* Salary History */}
+                <div style={{ marginBottom: 22 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                    <FaHistory size={11} /> Salary History
+                  </div>
+                  {historyModal.history.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8", fontSize: 13, background: "#f8fafc", borderRadius: 8 }}>
+                      No salary changes on record yet.
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: "auto" }}>
+                      <table className="styled-table-global">
+                        <thead>
+                          <tr><th>Effective Date</th><th>Type</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Reason</th></tr>
+                        </thead>
+                        <tbody>
+                          {historyModal.history.slice().reverse().map((h, i) => (
+                            <tr key={i}>
+                              <td style={{ fontWeight: 600 }}>{h.effective_date ? new Date(h.effective_date).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }) : "—"}</td>
+                              <td><span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "#f5f3ff", color: "#7c3aed" }}>{h.increment_type || "Update"}</span></td>
+                              <td>{inr(grossOf(h))}</td>
+                              <td style={{ color: "#dc2626" }}>−{inr(dedOf(h))}</td>
+                              <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(netOf(h))}</td>
+                              <td style={{ fontSize: 12.5, color: "#64748b" }}>{h.increment_reason || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Payslip History — every payslip ever generated, downloadable */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                    <FaFileInvoiceDollar size={11} /> Payslip History ({historyModal.slips.length})
+                  </div>
+                  {historyModal.slips.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8", fontSize: 13, background: "#f8fafc", borderRadius: 8 }}>
+                      No payslips generated for this employee yet.
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: "auto" }}>
+                      <table className="styled-table-global">
+                        <thead><tr><th>Period</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th></tr></thead>
+                        <tbody>
+                          {historyModal.slips.map((p, i) => {
+                            const totalDed = (p.total_deductions ?? dedOf(p)) + (Number(p.loan_emi) || 0) + (Number(p.advance_recovery) || 0);
+                            const paid = (String(p.status || "")).toLowerCase() === "paid";
+                            return (
+                              <tr key={p._id || i}>
+                                <td style={{ fontWeight: 600 }}>{p.period || `${MONTHS[(p.month || 1) - 1]} ${p.year}`}</td>
+                                <td>{inr(p.gross ?? grossOf(p))}</td>
+                                <td style={{ color: "#dc2626" }}>−{inr(totalDed)}</td>
+                                <td style={{ fontWeight: 700, color: "#16a34a" }}>{inr(p.net ?? netOf(p))}</td>
+                                <td>
+                                  <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
+                                    color: paid ? "#16a34a" : "#d97706", background: paid ? "#f0fdf4" : "#fffbeb", border: `1px solid ${paid ? "#bbf7d0" : "#fde68a"}` }}>
+                                    {p.status || "Pending"}
+                                  </span>
+                                </td>
+                                <td>
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => setViewSlip(p)}>View</button>
+                                    <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px", display: "flex", alignItems: "center", gap: 5 }}
+                                      onClick={() => printPayslip(p, p.period)} title="Download as PDF">
+                                      <FaDownload size={10} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -682,25 +795,24 @@ export default function AdminPayroll({ token, employees = [] }) {
   );
 }
 
-// ── Shared printable payslip modal ──────────────────────────────────────────
-export function PayslipModal({ slip, onClose, monthLabel }) {
-  const gross    = slip.gross  ?? grossOf(slip);
-  const loanEmi  = Number(slip.loan_emi) || 0;
-  const advRec   = Number(slip.advance_recovery) || 0;
-  const baseDed  = slip.total_deductions ?? dedOf(slip);
-  const ded      = baseDed + loanEmi + advRec;
-  const bonus    = Number(slip.bonus) || 0;
-  const net      = slip.net ?? (gross + bonus - ded);
-  const period = slip.period || monthLabel || "";
+// Opens a print-ready payslip in a new tab and triggers Print/Save-as-PDF —
+// used by the payslip table's Download action, the Employee Payroll Profile
+// popup's payslip history, and PayslipModal's own button. Standalone (not a
+// hook) so it can be called directly from a table row without opening the
+// full modal first.
+function printPayslip(slip, monthLabel) {
+  const gross   = slip.gross ?? grossOf(slip);
+  const loanEmi = Number(slip.loan_emi) || 0;
+  const advRec  = Number(slip.advance_recovery) || 0;
+  const baseDed = slip.total_deductions ?? dedOf(slip);
+  const ded     = baseDed + loanEmi + advRec;
+  const bonus   = Number(slip.bonus) || 0;
+  const net     = slip.net ?? (gross + bonus - ded);
+  const period  = slip.period || monthLabel || "";
 
-  const TD = ({ children, style = {} }) => (
-    <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontSize: 12.5, ...style }}>{children}</td>
-  );
-
-  const printSlip = () => {
-    const w = window.open("", "_blank", "width=800,height=1000");
-    if (!w) return;
-    const extraDedRows = [
+  const w = window.open("", "_blank", "width=800,height=1000");
+  if (!w) return;
+  const extraDedRows = [
       loanEmi > 0 ? `<tr><td></td><td></td><td class="lbl">Loan EMI</td><td class="val">${fmt2(loanEmi)}</td></tr>` : "",
       advRec  > 0 ? `<tr><td></td><td></td><td class="lbl">Advance Recovery</td><td class="val">${fmt2(advRec)}</td></tr>` : "",
     ].join("");
@@ -727,6 +839,7 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
   <tr><td class="lbl">Employee Name:</td><td>${escHtml(slip.employee_name || "")}</td><td class="lbl">Employee ID:</td><td>${escHtml(slip.employee_code || "")}</td></tr>
   <tr><td class="lbl">Designation:</td><td>${escHtml(slip.designation || "")}</td><td class="lbl">Grade &amp; Profile:</td><td>${escHtml(slip.grade_profile || "")}</td></tr>
   <tr><td class="lbl">Total days of work</td><td>${escHtml(slip.days_worked ?? "")}</td><td class="lbl">Salary Period:</td><td>${escHtml(period)}</td></tr>
+  ${slip.remark ? `<tr><td class="lbl">Remark</td><td colspan="3">${escHtml(slip.remark)}</td></tr>` : ""}
 </table>
 <table style="margin-bottom:0">
   <thead><tr><th class="hdr" colspan="2">Earnings</th><th class="hdr" colspan="2">Deduction</th></tr></thead>
@@ -749,9 +862,24 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
 </table>
 <div class="foot"><span>This is a computer-generated payslip.</span><span>GDMR Connect</span></div>
 </body></html>`);
-    w.document.close();
-    setTimeout(() => w.print(), 300);
-  };
+  w.document.close();
+  setTimeout(() => w.print(), 300);
+}
+
+// ── Shared printable payslip modal ──────────────────────────────────────────
+export function PayslipModal({ slip, onClose, monthLabel }) {
+  const gross    = slip.gross  ?? grossOf(slip);
+  const loanEmi  = Number(slip.loan_emi) || 0;
+  const advRec   = Number(slip.advance_recovery) || 0;
+  const baseDed  = slip.total_deductions ?? dedOf(slip);
+  const ded      = baseDed + loanEmi + advRec;
+  const bonus    = Number(slip.bonus) || 0;
+  const net      = slip.net ?? (gross + bonus - ded);
+  const period = slip.period || monthLabel || "";
+
+  const TD = ({ children, style = {} }) => (
+    <td style={{ border: "1px solid #cbd5e1", padding: "5px 8px", fontSize: 12.5, ...style }}>{children}</td>
+  );
 
   const cellStyle = { border: "1px solid #cbd5e1", padding: "5px 8px", fontSize: 12.5 };
   const lblStyle  = { ...cellStyle, fontWeight: 600, background: "#f8fafc", width: "26%" };
@@ -795,6 +923,12 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
               <TD style={lblStyle}>Salary Period:</TD>
               <TD style={valStyle}>{period}</TD>
             </tr>
+            {slip.remark && (
+              <tr>
+                <TD style={lblStyle}>Remark</TD>
+                <TD style={{ ...cellStyle }} colSpan={3}>{slip.remark}</TD>
+              </tr>
+            )}
           </tbody>
         </table>
 
@@ -884,7 +1018,7 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
           </tbody>
         </table>
 
-        <button className="btn" onClick={printSlip} style={{ width: "100%", justifyContent: "center", display: "flex", alignItems: "center", gap: 8 }}>
+        <button className="btn" onClick={() => printPayslip(slip, monthLabel)} style={{ width: "100%", justifyContent: "center", display: "flex", alignItems: "center", gap: 8 }}>
           <FaPrint size={12} /> Print / Download PDF
         </button>
       </div>

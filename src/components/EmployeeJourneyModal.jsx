@@ -26,6 +26,19 @@ const SHIFT_OPTIONS = [
 
 const C_BRAND = "#34a06a";
 
+// Mirrors backend's RECRUITMENT_PROFILE_FIELDS (routes/ats.py) — recruitment
+// detail carried onto the employee record at onboarding and kept in sync.
+const RECRUITMENT_PROFILE_LABELS = {
+  education:          "Education",
+  experience:         "Experience",
+  current_ctc:        "Current CTC",
+  expected_ctc:       "Expected CTC",
+  current_location:   "Current Location",
+  preferred_location: "Preferred Location",
+  notice_period:      "Notice Period",
+  campaign:            "Recruitment Campaign",
+};
+
 function achConfig(type) {
   return ACH_TYPES.find(a => a.value === type) || ACH_TYPES[ACH_TYPES.length - 1];
 }
@@ -331,15 +344,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
   // ── Build career timeline ──────────────────────────────────────────────────
   const timeline = [];
 
-  if (empData.source_candidate_id) {
-    timeline.push({
-      date: (joinDate || todayStr).slice(0, 10),
-      Icon: FaBriefcase,
-      title: "Onboarded from Recruitment",
-      sub: "Hired through the ATS pipeline — documents carried over automatically",
-      color: "#2563eb",
-    });
-  } else if (joinDate) {
+  if (joinDate) {
     timeline.push({
       date: joinDate.slice(0, 10),
       Icon: FaUserPlus,
@@ -348,6 +353,22 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
       color: C_BRAND,
     });
   }
+
+  // Recruitment sync log — the initial onboarding event plus any later edits
+  // to the candidate profile (job role, CTC, etc.) that got pushed onto this
+  // employee record. See _auto_onboard_employee / _sync_candidate_to_employee
+  // on the backend.
+  (empData.profile_history || []).forEach((h, i) => {
+    let dateStr = joinDate ? joinDate.slice(0, 10) : todayStr;
+    try { dateStr = new Date(h.at).toISOString().slice(0, 10); } catch { /* keep fallback */ }
+    timeline.push({
+      date: dateStr,
+      Icon: FaBriefcase,
+      title: i === 0 ? "Onboarded from Recruitment" : "Profile Synced from Recruitment",
+      sub: h.summary || "",
+      color: "#2563eb",
+    });
+  });
 
   achievements.forEach(a => {
     const cfg = achConfig(a.type);
@@ -646,6 +667,26 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
             )}
           </div>
         </div>
+
+        {/* ─── RECRUITMENT PROFILE (carried over from the ATS candidate record) ─── */}
+        {empData.recruitment_profile && Object.values(empData.recruitment_profile).some(Boolean) && (
+          <div style={{ margin: "12px 16px 0" }}>
+            <div className="journey-section" style={{ margin: 0 }}>
+              <div className="journey-section-title"><FaBriefcase size={10} /> Recruitment Profile</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
+                {Object.entries(RECRUITMENT_PROFILE_LABELS).map(([key, label]) => (
+                  empData.recruitment_profile[key] ? (
+                    <div key={key}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
+                      <div style={{ fontSize: 13.5, color: "#0f172a", marginTop: 2 }}>{empData.recruitment_profile[key]}</div>
+                    </div>
+                  ) : null
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 12 }}>Kept in sync automatically when this person's recruitment record is edited.</div>
+            </div>
+          </div>
+        )}
 
         {/* ─── CAREER TIMELINE ─────────────────────────────────────────── */}
         <div style={{ margin: "12px 16px 0" }}>

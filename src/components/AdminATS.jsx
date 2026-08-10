@@ -4,6 +4,7 @@ import {
   FaUserPlus, FaSearch, FaTimes, FaUsers, FaCheckCircle, FaHandshake, FaPercent,
   FaFilePdf, FaLink, FaVideo, FaFolderOpen, FaPaperPlane, FaTrash, FaPlus, FaHistory,
   FaBriefcase, FaEnvelopeOpenText, FaIdBadge, FaEye, FaDownload, FaEnvelope, FaFileExport,
+  FaCloudUploadAlt,
 } from "react-icons/fa";
 import { BarChart, DonutChart } from "./Charts";
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
@@ -28,6 +29,9 @@ const RECORDING_TYPES = ["Screening Call", "Technical Interview", "HR Interview"
 const DOC_TYPES = ["Educational Certificate", "Passport Copy", "Visa Copy", "Aadhaar Card", "PAN Card", "Photograph", "Experience Certificate", "Salary Certificate", "Payslip - Last Month", "Payslip - 2nd Last Month", "Payslip - 3rd Last Month", "Reference Document", "Medical Report"];
 const SOURCE_OPTIONS = ["LinkedIn", "Job Board", "References", "Internal", "Other"];
 
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const PHONE_RE = /^(?:\+?\d{1,3}[\s-]?)?\d{10}$/;
+
 const blankCandidate = () => ({
   name: "", email: "", phone: "", source: "", source_other: "", sourced_by: "", job_role: "", skills: "", department: "", campaign: "",
   education: "", experience: "", current_company: "", current_ctc: "", expected_ctc: "",
@@ -41,6 +45,21 @@ function exportCandidateCSV(cand) {
   const csv = [headers, vals].map(r => r.map(v => `"${String(v||"").replace(/"/g,'""')}"`).join(",")).join("\n");
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([csv],{type:"text/csv"})), download: `${(cand.name||"candidate").replace(/\s+/g,"_")}.csv` });
   a.click(); URL.revokeObjectURL(a.href);
+}
+
+// Forces a real download instead of opening in a new tab — a plain
+// `<a download>` on a cross-origin (Cloudinary) URL just navigates to it in
+// most browsers rather than saving it, so fetch the bytes and save as a blob.
+async function downloadFile(url, filename) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: filename || "document" });
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+  } catch {
+    window.open(url, "_blank"); // fallback — at least gets them to the file
+  }
 }
 
 function exportCandidatePDF(cand) {
@@ -72,7 +91,7 @@ function exportCandidatePDF(cand) {
   w.document.close(); setTimeout(()=>w.print(),300);
 }
 
-export default function AdminATS({ token, role = "admin", employees = [] }) {
+export default function AdminATS({ token, role = "admin", employees = [], departments = [] }) {
   const [tab, setTab] = useState("dashboard");
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -84,7 +103,9 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
 
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(blankCandidate());
+  const [formErrors, setFormErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [uploadingResume, setUploadingResume] = useState(false);
   const [detail, setDetail] = useState(null); // selected candidate
   const [pendingDelete, setPendingDelete] = useState(null); // candidate awaiting delete confirmation
   const [deleting, setDeleting] = useState(false);
@@ -115,6 +136,14 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
 
   const safe = Array.isArray(candidates) ? candidates : [];
   const depts = [...new Set(safe.map(c => c.department).filter(Boolean))];
+  // Job roles seen on existing candidates — feeds the Add Candidate form's
+  // role combobox (pick an existing one, or just type a new one).
+  const jobRoles = [...new Set(safe.map(c => c.job_role).filter(Boolean))].sort();
+  // Company departments for the form's Department dropdown — falls back to
+  // whatever's shown up on candidates so far if the company list isn't loaded.
+  const formDepartments = departments.length
+    ? [...new Set(departments.map(d => d.name).filter(Boolean))].sort()
+    : depts.slice().sort();
 
   const filtered = safe.filter(c => {
     const q = search.toLowerCase();
@@ -135,9 +164,18 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
   const joined = count("Joined");
   const joiningRatio = offersAccepted > 0 ? Math.round((joined / offersAccepted) * 100) : 0;
 
+  function validateForm() {
+    const errs = {};
+    if (form.email && !EMAIL_RE.test(form.email.trim())) errs.email = "Enter a valid email address.";
+    if (form.phone && !PHONE_RE.test(form.phone.trim().replace(/\s/g, ""))) errs.phone = "Enter a valid 10-digit phone number.";
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
   async function addCandidate(e) {
     e.preventDefault();
     if (!form.name.trim()) return flash("Candidate name is required.", "error");
+    if (!validateForm()) return flash("Please fix the highlighted fields.", "error");
     setSaving(true);
     try {
       const resolvedSource = form.source === "Other" ? (form.source_other || "Other") : form.source;
@@ -146,9 +184,38 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
       const r = await fetch(`${BASE}/admin/ats/candidates`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload),
       });
-      if (r.ok) { flash("Candidate added."); setShowAdd(false); setForm(blankCandidate()); loadCandidates(); loadStats(); }
+      if (r.ok) { flash("Candidate added."); setShowAdd(false); setForm(blankCandidate()); setFormErrors({}); loadCandidates(); loadStats(); }
       else { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to add.", "error"); }
     } catch { flash("Network error.", "error"); } finally { setSaving(false); }
+  }
+
+  // Upload a resume file straight from the Add Candidate form — populates
+  // resume_url (and fills in name/email/phone if the admin hasn't typed
+  // them yet) so admins don't have to paste an external URL by hand.
+  async function uploadResumeFile(file) {
+    if (!file) return;
+    setUploadingResume(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch(`${BASE}/admin/ats/candidates/upload`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd,
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.resume_url) {
+        setForm(f => ({
+          ...f,
+          resume_url: d.resume_url,
+          name:  f.name  || d.parsed?.name  || f.name,
+          email: f.email || d.parsed?.email || f.email,
+          phone: f.phone || d.parsed?.phone || f.phone,
+        }));
+        flash("Resume uploaded.");
+      } else {
+        flash(d.message || "Resume upload failed.", "error");
+      }
+    } catch { flash("Network error during upload.", "error"); }
+    finally { setUploadingResume(false); }
   }
 
   async function sendDocRequest(c) {
@@ -323,14 +390,25 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
             <form onSubmit={addCandidate}>
               {(() => {
                 const lbl = { fontSize: 12, fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 };
+                const errStyle = { fontSize: 11, color: "#dc2626", marginTop: 3 };
                 const inp = (key, type = "text", req = false) => (
-                  <input className="modern-input" type={type} value={form[key] || ""} onChange={e => setForm({ ...form, [key]: e.target.value })} style={{ margin: 0 }} required={req} />
+                  <input
+                    className="modern-input" type={type} value={form[key] || ""}
+                    onChange={e => { setForm({ ...form, [key]: e.target.value }); if (formErrors[key]) setFormErrors({ ...formErrors, [key]: undefined }); }}
+                    style={{ margin: 0, borderColor: formErrors[key] ? "#dc2626" : undefined }} required={req}
+                  />
                 );
                 return (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div><label style={lbl}>Full Name *</label>{inp("name","text",true)}</div>
-                    <div><label style={lbl}>Email</label>{inp("email","email")}</div>
-                    <div><label style={lbl}>Phone</label>{inp("phone","tel")}</div>
+                    <div>
+                      <label style={lbl}>Email</label>{inp("email","email")}
+                      {formErrors.email && <div style={errStyle}>{formErrors.email}</div>}
+                    </div>
+                    <div>
+                      <label style={lbl}>Phone</label>{inp("phone","tel")}
+                      {formErrors.phone && <div style={errStyle}>{formErrors.phone}</div>}
+                    </div>
 
                     {/* Source — dropdown */}
                     <div>
@@ -358,9 +436,28 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
                       </select>
                     </div>
 
-                    <div><label style={lbl}>Job Role</label>{inp("job_role")}</div>
+                    {/* Department — dropdown of the company's actual departments */}
+                    <div>
+                      <label style={lbl}>Department</label>
+                      <select className="modern-input" value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} style={{ margin: 0 }}>
+                        <option value="">— Select Department —</option>
+                        {formDepartments.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Job Role — pick an existing one or type a new one */}
+                    <div>
+                      <label style={lbl}>Job Role</label>
+                      <input
+                        className="modern-input" list="ats-job-roles" placeholder="e.g. Frontend Developer"
+                        value={form.job_role || ""} onChange={e => setForm({ ...form, job_role: e.target.value })} style={{ margin: 0 }}
+                      />
+                      <datalist id="ats-job-roles">
+                        {jobRoles.map(r => <option key={r} value={r} />)}
+                      </datalist>
+                    </div>
+
                     <div style={{ gridColumn: "span 2" }}><label style={lbl}>Skills (comma-separated)</label>{inp("skills")}</div>
-                    <div><label style={lbl}>Department</label>{inp("department")}</div>
                     <div><label style={lbl}>Recruitment Campaign</label>{inp("campaign")}</div>
                     <div><label style={lbl}>Highest Education</label>{inp("education")}</div>
                     <div><label style={lbl}>Years of Experience</label>{inp("experience","number")}</div>
@@ -370,7 +467,33 @@ export default function AdminATS({ token, role = "admin", employees = [] }) {
                     <div><label style={lbl}>Current Location</label>{inp("current_location")}</div>
                     <div><label style={lbl}>Preferred Location</label>{inp("preferred_location")}</div>
                     <div><label style={lbl}>Notice Period</label>{inp("notice_period")}</div>
-                    <div style={{ gridColumn: "span 2" }}><label style={lbl}>Resume URL</label>{inp("resume_url","url")}</div>
+
+                    {/* Resume — upload a file OR paste a URL, either fills resume_url */}
+                    <div style={{ gridColumn: "span 2" }}>
+                      <label style={lbl}>Resume</label>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <label style={{
+                          display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600,
+                          background: "var(--brand-light)", color: "var(--brand)", border: "1px solid #bbf7d0",
+                          borderRadius: 8, padding: "8px 14px", cursor: uploadingResume ? "default" : "pointer", flexShrink: 0,
+                        }}>
+                          <FaCloudUploadAlt size={13} /> {uploadingResume ? "Uploading…" : "Upload Resume"}
+                          <input type="file" accept=".pdf,.doc,.docx" hidden disabled={uploadingResume}
+                            onChange={e => { const f = e.target.files?.[0]; if (f) uploadResumeFile(f); e.target.value = ""; }} />
+                        </label>
+                        <input
+                          className="modern-input" type="url" placeholder="…or paste a resume URL"
+                          value={form.resume_url || ""} onChange={e => setForm({ ...form, resume_url: e.target.value })}
+                          style={{ margin: 0, flex: 1, minWidth: 160 }}
+                        />
+                      </div>
+                      {form.resume_url && (
+                        <a href={form.resume_url} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, color: "var(--brand)", marginTop: 5, display: "inline-block" }}>
+                          View current resume
+                        </a>
+                      )}
+                    </div>
+
                     <div style={{ gridColumn: "span 2" }}>
                       <label style={lbl}>Remarks</label>
                       <textarea className="modern-input" value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} style={{ minHeight: 60 }} />
@@ -553,7 +676,15 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
         </div>
         {skills.length > 0 && <div style={{ marginBottom: 16 }}><div style={{ fontSize: 10.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 6 }}>Skills</div><div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{skills.map((s, i) => <span key={i} style={{ fontSize: 12, padding: "3px 10px", background: "var(--brand-light)", color: "var(--brand)", borderRadius: 99, fontWeight: 600 }}>{s}</span>)}</div></div>}
         {c.remarks && <div style={{ marginBottom: 16, padding: "10px 14px", background: "#f8fafc", borderRadius: 8, fontSize: 13, color: "#475569" }}><b>Remarks:</b> {c.remarks}</div>}
-        {c.resume_url && <a href={c.resume_url} target="_blank" rel="noreferrer" className="btn ghost" style={{ fontSize: 12.5, marginBottom: 16, display: "inline-flex" }}><FaFilePdf /> View Resume</a>}
+        {c.resume_url && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <a href={c.resume_url} target="_blank" rel="noreferrer" className="btn ghost" style={{ fontSize: 12.5, display: "inline-flex" }}><FaFilePdf /> View Resume</a>
+            <button type="button" onClick={() => downloadFile(c.resume_url, `${(c.name || "candidate").replace(/\s+/g, "_")}_Resume.pdf`)}
+              className="btn ghost" style={{ fontSize: 12.5, display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <FaDownload size={11} /> Download
+            </button>
+          </div>
+        )}
 
         {/* Recordings */}
         <Section title="Interview & Assessment Recordings" icon={<FaVideo />}>
@@ -589,7 +720,15 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
             return (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid #f8fafc" }}>
                 <span style={{ fontSize: 13, flex: 1 }}>{d.name}</span>
-                {d.url && <a href={d.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#3b82f6" }}>View</a>}
+                {d.url && (
+                  <>
+                    <a href={d.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#3b82f6" }}>View</a>
+                    <button type="button" onClick={() => downloadFile(d.url, `${d.name || "document"}.pdf`)}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--brand)", padding: 0, display: "flex", alignItems: "center" }} title="Download">
+                      <FaDownload size={12} />
+                    </button>
+                  </>
+                )}
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: col }}>{dc}</span>
               </div>
             );
