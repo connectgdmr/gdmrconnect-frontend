@@ -230,7 +230,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalList, setModalList] = useState([]);
-  
+  const [viewLeave, setViewLeave] = useState(null); // full-detail modal for a single row in "My Leaves"
+
   // ============================================================================
   // 5. CAMERA & HARDWARE STATES
   // ============================================================================
@@ -1678,14 +1679,14 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                   <tr><td colSpan="7" style={{textAlign:"center", padding:20, color:"#999"}}>No leaves found.</td></tr>
                 ) : (
                   myLeaves.map((l) => (
-                    <tr key={l._id}>
+                    <tr key={l._id} onClick={() => setViewLeave(l)} style={{cursor:'pointer'}} title="Click for full details">
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
                       <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
                       <td style={{textAlign:'center'}}><span className={`status-badge ${getStatusClass(l.manager_status)}`}>{l.manager_status || 'Pending'}</span></td>
                       <td style={{textAlign:'center'}}><span className={`status-badge ${getStatusClass(l.admin_status)}`}>{l.admin_status || 'Pending'}</span></td>
                       <td style={{textAlign:'center'}}><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
-                      <td>{resolveAttachmentUrl(l.attachment_url, api.baseUrl) ? <a href={resolveAttachmentUrl(l.attachment_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
-                      <td>
+                      <td onClick={e => e.stopPropagation()}>{resolveAttachmentUrl(l.attachment_url, api.baseUrl) ? <a href={resolveAttachmentUrl(l.attachment_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
+                      <td onClick={e => e.stopPropagation()}>
                         {(l.status === "Pending" || l.status === "Approved") && (
                           <button className="btn ghost" style={{fontSize:12, padding:'5px 12px', color:'#dc2626', borderColor:'#fecaca'}} onClick={() => handleRevokeLeave(l._id)}>
                             Revoke
@@ -1797,6 +1798,92 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                     <span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span>
                   </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* — Leave Full-Detail Modal (click a row in "My Leaves") — */}
+      {viewLeave && (
+        <div className="modal-overlay" onClick={() => setViewLeave(null)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{padding:0, display:'flex', flexDirection:'column', maxHeight:'85vh', width:480}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 24px', borderBottom:'1px solid #e2e8f0', flexShrink:0}}>
+              <h3 style={{ margin: 0, fontSize:19, color: '#0f172a' }}>Leave Details</h3>
+              <button
+                onClick={() => setViewLeave(null)}
+                style={{ background:'#f1f5f9', border:'none', cursor:'pointer', color:'#475569', width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}
+              ><FaTimes size={15} /></button>
+            </div>
+            <div style={{overflowY:'auto', flex:1, padding:'20px 24px 24px', display:'flex', flexDirection:'column', gap:16}}>
+              <div>
+                <div style={{fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:0.4, marginBottom:4}}>Leave Period</div>
+                <div style={{fontSize:15, fontWeight:600, color:'#0f172a'}}>
+                  {viewLeave.from_date && viewLeave.to_date && viewLeave.from_date !== viewLeave.to_date
+                    ? `${viewLeave.from_date} → ${viewLeave.to_date}`
+                    : (viewLeave.from_date || viewLeave.date)}
+                </div>
+                <div style={{fontSize:13, color:'#64748b', marginTop:2, textTransform:'capitalize'}}>
+                  {viewLeave.type === 'half' ? `Half Day (${viewLeave.period || 'Any'})` : 'Full Day'}
+                </div>
+              </div>
+
+              <div>
+                <div style={{fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:0.4, marginBottom:4}}>Reason</div>
+                <div style={{fontSize:14, color:'#334155', lineHeight:1.5}}>
+                  {viewLeave.reason || <span style={{fontStyle:'italic', color:'#cbd5e1'}}>No reason provided</span>}
+                </div>
+              </div>
+
+              <div>
+                <div style={{fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:0.4, marginBottom:4}}>Applied On</div>
+                <div style={{fontSize:14, color:'#334155'}}>
+                  {viewLeave.applied_at ? new Date(viewLeave.applied_at).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—'}
+                </div>
+              </div>
+
+              {viewLeave.attachment_url && (
+                <div>
+                  <div style={{fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:0.4, marginBottom:4}}>Attachment</div>
+                  {resolveAttachmentUrl(viewLeave.attachment_url, api.baseUrl) ? (
+                    <a href={resolveAttachmentUrl(viewLeave.attachment_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:'var(--red)', fontSize:13, fontWeight:600}}>View Document</a>
+                  ) : <span style={{fontSize:13, color:'#94a3b8'}}>—</span>}
+                </div>
+              )}
+
+              <div>
+                <div style={{fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:0.4, marginBottom:8}}>Approval Status</div>
+                <div style={{display:'flex', gap:20}}>
+                  <div>
+                    <div style={{fontSize:11, color:'#94a3b8', marginBottom:4}}>Manager</div>
+                    <span className={`status-badge ${getStatusClass(viewLeave.manager_status)}`}>{viewLeave.manager_status || 'Pending'}</span>
+                  </div>
+                  <div>
+                    <div style={{fontSize:11, color:'#94a3b8', marginBottom:4}}>HR</div>
+                    <span className={`status-badge ${getStatusClass(viewLeave.admin_status)}`}>{viewLeave.admin_status || 'Pending'}</span>
+                  </div>
+                  <div>
+                    <div style={{fontSize:11, color:'#94a3b8', marginBottom:4}}>Overall</div>
+                    <span className={`status-badge ${getStatusClass(viewLeave.status)}`}>{viewLeave.status || 'Pending'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {viewLeave.status === "Cancelled" && viewLeave.cancelled_at && (
+                <div style={{fontSize:12.5, color:'#64748b', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8, padding:'10px 12px'}}>
+                  Revoked on {new Date(viewLeave.cancelled_at).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}
+                  {viewLeave.cancelled_by_role ? ` by ${viewLeave.cancelled_by_role}` : ''}.
+                </div>
+              )}
+
+              {(viewLeave.status === "Pending" || viewLeave.status === "Approved") && (
+                <button
+                  className="btn ghost"
+                  style={{alignSelf:'flex-start', fontSize:13, padding:'8px 16px', color:'#dc2626', borderColor:'#fecaca'}}
+                  onClick={() => { handleRevokeLeave(viewLeave._id); setViewLeave(null); }}
+                >
+                  Revoke This Leave
+                </button>
+              )}
             </div>
           </div>
         </div>
