@@ -171,8 +171,13 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
     : depts.slice().sort();
   // "Sourced By" only makes sense as an HR team member — recruiters, not
   // whoever happens to be granted Recruitment access for other reasons.
+  // department can be a plain string OR an array (multi-department
+  // managers), so normalize to an array before checking either shape.
   const hrEmployees = [...employees]
-    .filter(e => { const d = (e.department || "").toLowerCase(); return d.includes("hr") || d.includes("human resource"); })
+    .filter(e => {
+      const depts = Array.isArray(e.department) ? e.department : [e.department];
+      return depts.some(d => { const s = (d || "").toLowerCase(); return s.includes("hr") || s.includes("human resource"); });
+    })
     .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   const filtered = safe.filter(c => {
@@ -478,7 +483,10 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                       <label style={lbl}>Sourced By *</label>
                       <select className="modern-input" value={form.sourced_by} onChange={e => setForm({ ...form, sourced_by: e.target.value })} style={{ margin: 0 }} required>
                         <option value="">— Select Employee —</option>
-                        {hrEmployees.map(e => <option key={e._id} value={e._id}>{e.name}{e.department ? ` (${e.department})` : ""}</option>)}
+                        {hrEmployees.map(e => {
+                          const deptLabel = Array.isArray(e.department) ? e.department.join(", ") : e.department;
+                          return <option key={e._id} value={e._id}>{e.name}{deptLabel ? ` (${deptLabel})` : ""}</option>;
+                        })}
                       </select>
                     </div>
 
