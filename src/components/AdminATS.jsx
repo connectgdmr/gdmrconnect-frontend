@@ -41,8 +41,8 @@ const blankCandidate = () => ({
 
 // ── Module-level export helpers (used by both list and detail) ──────────────
 function exportCandidateCSV(cand) {
-  const headers = ["Name","Email","Phone","Source","Job Role","Department","Status","Experience (yrs)","Current Company","Current CTC","Expected CTC","Current Location","Preferred Location","Notice Period","Skills","Campaign","Education","Resume URL","Remarks","Employment Type","Contract Duration (months)"];
-  const vals = [cand.name,cand.email,cand.phone,cand.source,cand.job_role,cand.department,cand.status,cand.experience,cand.current_company,cand.current_ctc,cand.expected_ctc,cand.current_location,cand.preferred_location,cand.notice_period,Array.isArray(cand.skills)?cand.skills.join("; "):(cand.skills||""),cand.campaign,cand.education,cand.resume_url,cand.remarks,cand.employment_type||"Permanent",cand.employment_type==="Contract"?(cand.contract_months||""):""];
+  const headers = ["Applicant Code","Name","Email","Phone","Source","Job Role","Department","Status","Experience (yrs)","Current Company","Current CTC","Expected CTC","Current Location","Preferred Location","Notice Period","Skills","Campaign","Education","Resume URL","Remarks","Employment Type","Contract Duration (months)"];
+  const vals = [cand.applicant_code,cand.name,cand.email,cand.phone,cand.source,cand.job_role,cand.department,cand.status,cand.experience,cand.current_company,cand.current_ctc,cand.expected_ctc,cand.current_location,cand.preferred_location,cand.notice_period,Array.isArray(cand.skills)?cand.skills.join("; "):(cand.skills||""),cand.campaign,cand.education,cand.resume_url,cand.remarks,cand.employment_type||"Permanent",cand.employment_type==="Contract"?(cand.contract_months||""):""];
   const csv = [headers, vals].map(r => r.map(v => `"${String(v||"").replace(/"/g,'""')}"`).join(",")).join("\n");
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([csv],{type:"text/csv"})), download: `${(cand.name||"candidate").replace(/\s+/g,"_")}.csv` });
   a.click(); URL.revokeObjectURL(a.href);
@@ -81,6 +81,7 @@ function exportCandidatePDF(cand) {
   <style>body{font-family:Arial,sans-serif;padding:40px;color:#0f172a}h1{color:#34a06a;margin:0 0 4px}h2{margin:0 0 20px;font-size:16px;color:#334155}
   table{width:100%;border-collapse:collapse;margin-bottom:16px}td{padding:7px 10px;border-bottom:1px solid #e6eaef;font-size:13px}td:first-child{color:#64748b;font-weight:600;width:42%}</style>
   </head><body><h1>GDMR CONNECT</h1><h2>Candidate Profile</h2><table>
+  <tr><td>Applicant Code</td><td><b>${escHtml(cand.applicant_code||"—")}</b></td></tr>
   <tr><td>Full Name</td><td><b>${escHtml(cand.name||"—")}</b></td></tr>
   <tr><td>Email</td><td>${escHtml(cand.email||"—")}</td></tr>
   <tr><td>Phone</td><td>${escHtml(cand.phone||"—")}</td></tr>
@@ -130,8 +131,8 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
 
   function exportAllCSV() {
     const data = filtered.length ? filtered : safe;
-    const headers = ["Name","Email","Phone","Source","Job Role","Department","Status","Experience (yrs)","Current Company","Current CTC","Expected CTC","Current Location","Notice Period","Skills","Employment Type","Contract Duration (months)"];
-    const rows = data.map(c => [c.name,c.email,c.phone,c.source,c.job_role,c.department,c.status,c.experience,c.current_company,c.current_ctc,c.expected_ctc,c.current_location,c.notice_period,Array.isArray(c.skills)?c.skills.join("; "):(c.skills||""),c.employment_type||"Permanent",c.employment_type==="Contract"?(c.contract_months||""):""]);
+    const headers = ["Applicant Code","Name","Email","Phone","Source","Job Role","Department","Status","Experience (yrs)","Current Company","Current CTC","Expected CTC","Current Location","Notice Period","Skills","Employment Type","Contract Duration (months)"];
+    const rows = data.map(c => [c.applicant_code,c.name,c.email,c.phone,c.source,c.job_role,c.department,c.status,c.experience,c.current_company,c.current_ctc,c.expected_ctc,c.current_location,c.notice_period,Array.isArray(c.skills)?c.skills.join("; "):(c.skills||""),c.employment_type||"Permanent",c.employment_type==="Contract"?(c.contract_months||""):""]);
     const csv = [headers,...rows].map(r=>r.map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(",")).join("\n");
     const a = Object.assign(document.createElement("a"),{href:URL.createObjectURL(new Blob([csv],{type:"text/csv"})),download:`recruitment-${new Date().toISOString().slice(0,10)}.csv`});
     a.click(); URL.revokeObjectURL(a.href);
@@ -354,7 +355,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
             </button>
           </div>
 
-          {loading ? <SkeletonTable rows={7} cols={6} />
+          {loading ? <SkeletonTable rows={7} cols={7} />
           : filtered.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "50px 20px", color: "#94a3b8" }}>
               <FaIdBadge size={34} style={{ opacity: 0.2, marginBottom: 10 }} />
@@ -364,12 +365,13 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
               <div style={{ overflowX: "auto" }}>
                 <table className="styled-table-global">
-                  <thead><tr><th>Candidate</th><th>Role / Skills</th><th>Experience</th><th>Location</th><th>Employment</th><th>Status</th><th style={{ textAlign: "center" }}>Actions</th></tr></thead>
+                  <thead><tr><th>Code</th><th>Candidate</th><th>Role / Skills</th><th>Experience</th><th>Location</th><th>Employment</th><th>Status</th><th style={{ textAlign: "center" }}>Actions</th></tr></thead>
                   <tbody>
                     {filtered.map(c => {
                       const sc = STATUS_COLOR(c.status);
                       return (
                         <tr key={c._id} style={{ cursor: "pointer" }} onClick={() => setDetail(c)}>
+                          <td style={{ fontSize: 12, color: "#64748b", fontWeight: 600, whiteSpace: "nowrap" }}>{c.applicant_code || "—"}</td>
                           <td><div style={{ fontWeight: 600 }}>{c.name}</div><div style={{ fontSize: 12, color: "#64748b" }}>{c.email}</div></td>
                           <td style={{ fontSize: 13 }}>{c.job_role || "—"}<div style={{ fontSize: 11, color: "#94a3b8" }}>{Array.isArray(c.skills) ? c.skills.join(", ") : c.skills}</div></td>
                           <td style={{ fontSize: 13 }}>{c.experience ? `${c.experience} yrs` : "—"}</td>
@@ -678,7 +680,10 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
             <div style={{ width: 50, height: 50, borderRadius: "50%", background: "linear-gradient(135deg,var(--brand),var(--teal-800))", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 18, flexShrink: 0 }}>{c.name?.[0]?.toUpperCase() || "?"}</div>
             <div>
-              <h3 style={{ margin: 0, color: "#0f172a", fontSize: 17 }}>{c.name}</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <h3 style={{ margin: 0, color: "#0f172a", fontSize: 17 }}>{c.name}</h3>
+                {c.applicant_code && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "2px 8px", borderRadius: 99 }}>{c.applicant_code}</span>}
+              </div>
               <div style={{ fontSize: 13, color: "#64748b" }}>{c.job_role || "—"} {c.department && `· ${c.department}`}</div>
             </div>
           </div>
