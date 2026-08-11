@@ -242,8 +242,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionType, setActionType] = useState(null); 
   const [previewImage, setPreviewImage] = useState(null);
-  const [submittingPhoto, setSubmittingPhoto] = useState(false); 
-  
+  const [submittingPhoto, setSubmittingPhoto] = useState(false);
+  const [employmentEnded, setEmploymentEnded] = useState(false); // offboarded — blocks attendance actions
+
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null); 
@@ -292,7 +293,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         fetch(`${baseUrl}/api/announcements`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
         fetch(`${baseUrl}/api/admin/pms-dashboard?month=${dashboardMonth}`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
         fetch(`${baseUrl}/api/my/delegated-access`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
-        fetch(`${baseUrl}/api/manager/assets`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status))
+        fetch(`${baseUrl}/api/manager/assets`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch(`${baseUrl}/api/my/profile`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status))
       ]);
 
       // Map results to state safely avoiding any undefined crashes
@@ -334,6 +336,11 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       // Map Team Asset Requests
       if (results[9].status === 'fulfilled' && Array.isArray(results[9].value)) {
           setTeamAssets(results[9].value);
+      }
+
+      // Employment status — offboarded managers can't clock in/out
+      if (results[10].status === 'fulfilled' && results[10].value) {
+          setEmploymentEnded(!!results[10].value.offboarded);
       }
 
     } catch (err) {
@@ -434,6 +441,10 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
    * Renders the video feed inline inside the application modal.
    */
   async function openCamera(type) {
+    if (employmentEnded) {
+      alert("Your employment has ended. Attendance is no longer available.");
+      return;
+    }
     setActionType(type);
     setCameraOpen(true);
     setPreviewImage(null);

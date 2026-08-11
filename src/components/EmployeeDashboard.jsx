@@ -142,6 +142,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [todayBirthdays, setTodayBirthdays] = useState([]);
   const [birthdayDismissed, setBirthdayDismissed] = useState(false);
+  const [employmentEnded, setEmploymentEnded] = useState(false); // offboarded — blocks attendance actions
   
   // ============================================================================
   // 7. FORM STATES (LEAVES & CORRECTIONS)
@@ -216,7 +217,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
     try {
       const [
         attData, leaveData, pmsData, corrData,
-        templateData, annData, assetsData, grantsData,
+        templateData, annData, assetsData, grantsData, profileData,
       ] = await Promise.all([
         safeFetch(`${baseUrl}/api/my/attendance`),
         safeFetch(`${baseUrl}/api/my/leaves`),
@@ -226,6 +227,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         safeFetch(`${baseUrl}/api/announcements`),
         safeFetch(`${baseUrl}/api/assets/my-requests`),
         safeFetch(`${baseUrl}/api/my/delegated-access`),
+        safeFetch(`${baseUrl}/api/my/profile`),
       ]);
 
       if (attData)      setAttendance(attData);
@@ -236,6 +238,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       if (annData)      setAnnouncements([...annData].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
       if (assetsData)   setMyAssets(assetsData);
       setDelegatedGrants(Array.isArray(grantsData) ? grantsData : []);
+      setEmploymentEnded(!!profileData?.offboarded);
 
     } catch (err) {
       // silent fail — dashboard shows stale/empty state
@@ -357,6 +360,10 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
    * The browser location-permission popup fires immediately on all devices.
    */
   async function openCamera(type) {
+    if (employmentEnded) {
+      alert("Your employment has ended. Attendance is no longer available.");
+      return;
+    }
     setActionType(type);
     setPreviewImage(null);
     setSubmittingPhoto(false);
