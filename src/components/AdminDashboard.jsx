@@ -193,9 +193,10 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
   // — Grant Access States —
   const [accessGrants, setAccessGrants] = useState([]);
+  const [grantableModules, setGrantableModules] = useState([]); // [{key, label}] from backend — single source of truth
   const [grantData, setGrantData] = useState({
       employeeId: "",
-      module: "attendance",
+      modules: [],
       accessLevel: "view_only",
       scope: "today",
       customDate: "",
@@ -304,10 +305,12 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   async function loadAccessGrants() {
       try {
           const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-          const res = await fetch(`${baseUrl}/api/admin/active-grants`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (res.ok) setAccessGrants(await res.json());
+          const [grantsRes, modulesRes] = await Promise.all([
+              fetch(`${baseUrl}/api/admin/active-grants`, { headers: { 'Authorization': `Bearer ${token}` } }),
+              fetch(`${baseUrl}/api/admin/grantable-modules`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          ]);
+          if (grantsRes.ok) setAccessGrants(await grantsRes.json());
+          if (modulesRes.ok) setGrantableModules(await modulesRes.json());
       } catch (err) {
           // silent fail
       }
@@ -582,9 +585,17 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
   // — Grant Access Actions —
   
+  function toggleGrantModule(key) {
+      setGrantData(g => ({
+          ...g,
+          modules: g.modules.includes(key) ? g.modules.filter(m => m !== key) : [...g.modules, key],
+      }));
+  }
+
   async function handleGrantAccessSubmit(e) {
       e.preventDefault();
       if (!grantData.employeeId) return alert("Please select an employee.");
+      if (grantData.modules.length === 0) return alert("Please select at least one feature to grant access to.");
       if (grantData.scope === "custom_date" && !grantData.customDate) return alert("Please select a custom date scope.");
       if (grantData.expiry === "custom_time" && !grantData.customExpiryTime) return alert("Please select a custom expiration time.");
 
@@ -597,8 +608,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           });
           if (res.ok) {
               alert("Temporary Access Granted Successfully!");
-              setGrantData({ employeeId: "", module: "attendance", accessLevel: "view_only", scope: "today", customDate: "", expiry: "end_of_day", customExpiryTime: "" });
-              loadAccessGrants(); 
+              setGrantData({ employeeId: "", modules: [], accessLevel: "view_only", scope: "today", customDate: "", expiry: "end_of_day", customExpiryTime: "" });
+              loadAccessGrants();
           } else {
               const errData = await res.json(); alert(`Failed to grant access: ${errData.message}`);
           }
@@ -1116,23 +1127,32 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {view === "grant-access" && (
         <div className="card" style={{ marginTop: "16px" }}>
             <h3>Grant Temporary Admin Access</h3>
-            <p className="small" style={{marginBottom: 25}}>Assign another employee temporary permissions to view or edit attendance data.</p>
-            
+            <p className="small" style={{marginBottom: 25}}>Assign another employee temporary permissions to view or edit specific admin features — pick any combination.</p>
+
             <form onSubmit={handleGrantAccessSubmit} className="grant-form-section">
                 <div className="grant-form-row">
-                    <div className="grant-form-col">
+                    <div className="grant-form-col" style={{flex: 1}}>
                         <label style={{fontWeight: 600, fontSize: '14px', color: '#333'}}>Select Employee</label>
                         <select className="modern-input" style={{marginTop: 8}} value={grantData.employeeId} onChange={(e) => setGrantData({...grantData, employeeId: e.target.value})} required>
                             <option value="">-- Choose Employee --</option>
                             {[...employees].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(emp => <option key={emp._id} value={emp._id}>{emp.name} ({emp.department})</option>)}
                         </select>
                     </div>
-                    <div className="grant-form-col">
-                        <label style={{fontWeight: 600, fontSize: '14px', color: '#333'}}>Access Module</label>
-                        <select className="modern-input" style={{marginTop: 8}} value={grantData.module} onChange={(e) => setGrantData({...grantData, module: e.target.value})}>
-                            <option value="attendance">Attendance &amp; Leaves</option>
-                            <option value="lms">LMS — Courses</option>
-                        </select>
+                </div>
+
+                <div className="grant-form-row">
+                    <div className="grant-form-col" style={{flex: 1}}>
+                        <label style={{fontWeight: 600, fontSize: '14px', color: '#333'}}>Admin Features to Grant</label>
+                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '8px 14px', marginTop: 10, padding: '12px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0'}}>
+                            {grantableModules.length === 0 ? (
+                                <span className="small" style={{color: '#94a3b8'}}>Loading features…</span>
+                            ) : grantableModules.map(m => (
+                                <label key={m.key} style={{display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: '#334155', cursor: 'pointer', fontWeight: grantData.modules.includes(m.key) ? 700 : 400}}>
+                                    <input type="checkbox" checked={grantData.modules.includes(m.key)} onChange={() => toggleGrantModule(m.key)} />
+                                    {m.label}
+                                </label>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -1176,7 +1196,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                     <thead>
                         <tr>
                             <th>Employee</th>
-                            <th>Module</th>
+                            <th>Features</th>
                             <th>Permission</th>
                             <th>Scope</th>
                             <th>Expires At</th>
@@ -1187,16 +1207,20 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                         {accessGrants.length === 0 ? (
                             <tr><td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>No active access grants.</td></tr>
                         ) : (
-                            accessGrants.map(grant => (
+                            accessGrants.map(grant => {
+                                const grantModules = grant.modules && grant.modules.length ? grant.modules : (grant.module ? [grant.module] : []);
+                                const moduleLabels = grantModules.map(k => grantableModules.find(m => m.key === k)?.label || k).join(", ") || "—";
+                                return (
                                 <tr key={grant._id}>
                                     <td style={{ fontWeight: 'bold' }}>{grant.employee_name}</td>
-                                    <td>{(grant.module || "attendance") === "lms" ? "LMS — Courses" : "Attendance & Leaves"}</td>
+                                    <td style={{ maxWidth: 220 }}>{moduleLabels}</td>
                                     <td><span style={{ backgroundColor: grant.access_level === 'view_edit' ? '#dcfce7' : '#e0e7ff', color: grant.access_level === 'view_edit' ? '#16a34a' : '#4f46e5', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>{grant.access_level === 'view_edit' ? 'View & Edit' : 'View Only'}</span></td>
                                     <td>{grant.scope === 'today' ? 'Today' : grant.custom_date}</td>
                                     <td style={{ color: '#666' }}>{grant.expiry === 'end_of_day' ? 'End of Day' : new Date(grant.custom_expiry_time).toLocaleString()}</td>
                                     <td><button className="btn-small ghost" style={{ color: 'var(--red)', border: '1px solid var(--red)' }} onClick={() => revokeAccess(grant._id)}><FaTrash style={{ marginRight: 5 }} /> Revoke</button></td>
                                 </tr>
-                            ))
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

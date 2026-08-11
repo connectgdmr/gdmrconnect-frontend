@@ -27,6 +27,12 @@ const AdminPayroll        = lazy(() => import("./AdminPayroll"));
 const AdminLeavePage      = lazy(() => import("./AdminLeavePage"));
 const AdminAttendancePage = lazy(() => import("./AdminAttendancePage"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
+const AdminLMS               = lazy(() => import("./AdminLMS"));
+const AdminCareer            = lazy(() => import("./AdminCareer"));
+const AdminAssessment        = lazy(() => import("./AdminAssessment"));
+const AdminAttendanceSummary = lazy(() => import("./AdminAttendanceSummary"));
+const EmployeeList           = lazy(() => import("./EmployeeList"));
+const RegisterManager        = lazy(() => import("./RegisterManager"));
 import {
   FaCamera, 
   FaSignOutAlt, 
@@ -63,7 +69,14 @@ import {
   FaGift,
   FaSave,
   FaCog,
-  FaTags
+  FaTags,
+  FaMoneyBillWave,
+  FaUserTag,
+  FaFolderOpen,
+  FaTasks,
+  FaGraduationCap,
+  FaBriefcase,
+  FaChartPie,
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 import SettingsModal from "./SettingsModal";
@@ -91,6 +104,62 @@ function StatItem({ icon, label, count, colorClass, onClick }) {
     </div>
   );
 }
+
+// ── Delegated (Grant Access) admin sub-views ─────────────────────────────────
+// Same config as EmployeeDashboard.jsx — module keys match backend's
+// GRANTABLE_MODULES (helpers.py) and Sidebar.jsx's admin view keys.
+const DELEGATED_MODULES = [
+  { key: "attendance", label: "Manage Daily Attendance", Icon: FaHistory,
+    alert: "You are viewing the Daily Attendance Logs using temporary Delegated Access.",
+    render: (ctx) => <AdminAttendancePage token={ctx.token} api={ctx.api} /> },
+  { key: "leaves", label: "Manage Leave Approvals", Icon: FaClipboardList,
+    alert: "You are viewing the Leave Approval interface using temporary Delegated Access.",
+    render: (ctx) => <AdminLeavePage token={ctx.token} api={ctx.api} /> },
+  { key: "lms", label: "Manage LMS Courses", Icon: FaGraduationCap,
+    alert: "You are managing LMS Courses using temporary Delegated Access — you can create courses and assign them.",
+    render: (ctx) => <AdminLMS token={ctx.token} employees={[]} departments={[]} /> },
+  { key: "payroll", label: "Manage Payroll", Icon: FaMoneyBillWave,
+    alert: "You are managing Payroll using temporary Delegated Access.",
+    render: (ctx) => <AdminPayroll token={ctx.token} employees={[]} /> },
+  { key: "ats", label: "Manage Recruitment", Icon: FaUserTag,
+    alert: "You are managing Recruitment using temporary Delegated Access.",
+    render: (ctx) => <AdminATS token={ctx.token} role={ctx.user?.role || "manager"} employees={[]} departments={[]} /> },
+  { key: "career", label: "Manage Jobs", Icon: FaBriefcase,
+    alert: "You are managing Job Postings using temporary Delegated Access.",
+    render: (ctx) => <AdminCareer token={ctx.token} employees={[]} /> },
+  { key: "clients", label: "Manage Clients", Icon: FaFolderOpen,
+    alert: "You are managing Clients using temporary Delegated Access.",
+    render: (ctx) => <AdminClients token={ctx.token} /> },
+  { key: "work-by-team", label: "Work by Team (All Depts)", Icon: FaTasks,
+    alert: "You are viewing Work by Team (all departments) using temporary Delegated Access.",
+    render: (ctx) => <AdminWorkByTeam token={ctx.token} role="admin" /> },
+  { key: "assessment", label: "Manage Assessments", Icon: FaClipboardList,
+    alert: "You are managing Assessments using temporary Delegated Access.",
+    render: (ctx) => <AdminAssessment token={ctx.token} /> },
+  { key: "pms", label: "Manage PMS (All Depts)", Icon: FaChartLine,
+    alert: "You are viewing PMS (all departments) using temporary Delegated Access.",
+    render: (ctx) => <PMSWorkspace token={ctx.token} api={ctx.api} user={ctx.user} scope="admin" assignablePool={[]} /> },
+  { key: "summary", label: "View Reports", Icon: FaChartPie,
+    alert: "You are viewing company Reports using temporary Delegated Access.",
+    render: (ctx) => <AdminAttendanceSummary token={ctx.token} api={ctx.api} /> },
+  { key: "employees", label: "Manage Employees", Icon: FaUsers,
+    alert: "You are managing Employees using temporary Delegated Access.",
+    render: (ctx) => (
+      <EmployeeList
+        employees={ctx.delegatedEmployees}
+        departments={[]}
+        onDelete={ctx.deleteDelegatedEmployee}
+        onRefresh={ctx.loadDelegatedEmployees}
+        onPatch={ctx.patchDelegatedEmployee}
+        onPromote={ctx.promoteDelegatedEmployee}
+        api={ctx.api}
+        token={ctx.token}
+      />
+    ) },
+  { key: "manager", label: "Manage Managers", Icon: FaUserShield,
+    alert: "You are managing Managers using temporary Delegated Access.",
+    render: (ctx) => <RegisterManager token={ctx.token} api={ctx.api} /> },
+];
 
 export default function ManagerDashboard({ token, api, user, onLogout, passwordChanged = true }) {
 
@@ -189,10 +258,15 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   // 4. DELEGATED ADMIN & DASHBOARD STATES
   // ============================================================================
   
-  /** 
-   * Stores temporary access permissions granted by the master admin 
+  /**
+   * Stores temporary access permissions granted by the master admin
    */
   const [delegatedGrants, setDelegatedGrants] = useState([]);
+  // Employee directory, fetched on-demand only when the delegated "Employees"
+  // sub-view is opened — mirrors AdminDashboard's own loadEmployees/patch/
+  // delete/promote so the reused EmployeeList component behaves identically.
+  const [delegatedEmployees, setDelegatedEmployees] = useState([]);
+  const [delegatedEmployeesLoading, setDelegatedEmployeesLoading] = useState(false);
   
   /** 
    * Stores aggregated performance metrics for the department 
@@ -381,6 +455,48 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       .then(data => { if (Array.isArray(data) && data.length > 0) setTodayBirthdays(data); })
       .catch(() => {});
   }, [token, api]);
+
+  // Fetch the employee directory only when the delegated "Employees" sub-view
+  // is actually opened, not eagerly on every dashboard load.
+  useEffect(() => {
+    if (view === "delegated-employees" && delegatedEmployees.length === 0 && !delegatedEmployeesLoading) {
+      loadDelegatedEmployees();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  // Which modules has this manager been granted, and with what access level?
+  const grantModulesOf = (g) => (g.modules && g.modules.length ? g.modules : (g.module ? [g.module] : ["attendance"]));
+  const grantedModule = (mod) => Array.isArray(delegatedGrants) && delegatedGrants.some(g => grantModulesOf(g).includes(mod));
+  const grantedModuleWrite = (mod) => Array.isArray(delegatedGrants) && delegatedGrants.some(g => grantModulesOf(g).includes(mod) && g.access_level === "view_edit");
+
+  // — Delegated "Employees" sub-view — mirrors AdminDashboard's own
+  // loadEmployees/patchEmployee/deleteEmployee/promoteToManager.
+  async function loadDelegatedEmployees() {
+      setDelegatedEmployeesLoading(true);
+      try { setDelegatedEmployees(await api.listEmployees(token)); }
+      catch { /* silent — UI shows stale/empty data */ }
+      finally { setDelegatedEmployeesLoading(false); }
+  }
+  function patchDelegatedEmployee(id, updates) {
+      setDelegatedEmployees(prev => prev.map(e => e._id === id ? { ...e, ...updates } : e));
+  }
+  async function deleteDelegatedEmployee(id) {
+      if (!window.confirm("Are you sure you want to completely remove this employee?")) return;
+      try { await api.deleteEmployee(id, token); await loadDelegatedEmployees(); }
+      catch { alert("Failed to delete employee. Please try again."); }
+  }
+  async function promoteDelegatedEmployee(empId) {
+      if (!window.confirm("Are you sure you want to promote this employee to Manager?")) return;
+      try {
+          const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+          const res = await fetch(`${baseUrl}/api/admin/employees/${empId}/promote`, {
+              method: 'PUT', headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (res.ok) await loadDelegatedEmployees();
+          else alert("Failed to promote employee.");
+      } catch { alert("Failed to promote employee."); }
+  }
 
   // ============================================================================
   // PASSWORD MANAGEMENT
@@ -1098,7 +1214,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} badgeCount={notificationCounts?.announcements || 0} />
               <QuickLaunchItem icon={<FaLaptop />} label="Team Assets" onClick={() => setView("team-assets")} badgeCount={notificationCounts?.assets || 0} />
               {delegatedGrants.length > 0 && (
-                <QuickLaunchItem icon={<FaUserShield />} label="Admin Portal (Special Access)" onClick={() => setView("delegated-admin-portal")} badgeCount={delegatedGrants.length} />
+                <QuickLaunchItem icon={<FaUserShield />} label="Admin Portal (Special Access)" onClick={() => setView("special-access")} badgeCount={delegatedGrants.length} />
               )}
             </div>
           </div>
@@ -1115,7 +1231,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       )}
 
       {/* — Delegated Admin Portal — */}
-      {view === "delegated-admin-portal" && (
+      {view === "special-access" && (
          <div className="card" style={{ marginTop: "16px" }}>
             <h2 style={{ color: 'var(--red)', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <FaUserShield /> Temporary Admin Portal
@@ -1125,32 +1241,32 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             </p>
 
             <div className="quick-launch-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                <QuickLaunchItem icon={<FaClipboardList />} label="Manage Leave Approvals" onClick={() => setView("delegated-leaves")} />
-                <QuickLaunchItem icon={<FaHistory />} label="Manage Daily Attendance" onClick={() => setView("delegated-attendance")} />
+                {DELEGATED_MODULES.filter(m => grantedModule(m.key)).map(m => (
+                    <QuickLaunchItem key={m.key} icon={<m.Icon />} label={m.label} onClick={() => setView(`delegated-${m.key}`)} />
+                ))}
             </div>
          </div>
       )}
 
       {/* --- SUB-VIEWS FOR DELEGATED ADMIN --- */}
-      {view === "delegated-leaves" && (
-         <div style={{ marginTop: "16px" }}>
-            <div className="delegation-alert">
-               🛡️ You are currently viewing the Leave Approval interface using temporary Delegated Access. 
-               Please follow all company guidelines when approving or viewing these records.
-            </div>
-            <AdminLeavePage token={token} api={api} />
-         </div>
-      )}
-
-      {view === "delegated-attendance" && (
-         <div style={{ marginTop: "16px" }}>
-            <div className="delegation-alert">
-               🛡️ You are currently viewing the Daily Attendance Logs using temporary Delegated Access. 
-               Please follow all company guidelines when modifying or viewing these records.
-            </div>
-            <AdminAttendancePage token={token} api={api} />
-         </div>
-      )}
+      {DELEGATED_MODULES.filter(m => view === `delegated-${m.key}`).map(m => {
+          const ctx = {
+              token, api, user, delegatedEmployees,
+              loadDelegatedEmployees, patchDelegatedEmployee, deleteDelegatedEmployee, promoteDelegatedEmployee,
+          };
+          return (
+              <div key={m.key} style={{ marginTop: "16px" }}>
+                  <div className="delegation-alert">
+                      🛡️ {m.alert}{!grantedModuleWrite(m.key) ? " (View Only)" : ""}
+                  </div>
+                  <ErrorBoundary label={m.label} resetKey={view}>
+                      <Suspense fallback={<SkeletonTable rows={6} cols={4} />}>
+                          {m.render(ctx)}
+                      </Suspense>
+                  </ErrorBoundary>
+              </div>
+          );
+      })}
 
       {/* — Announcements — */}
       {view === "announcements" && (

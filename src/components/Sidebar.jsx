@@ -94,7 +94,7 @@ const NAV_ITEMS = {
 };
 
 function getActiveItem(view) {
-  if (view === "delegated-leaves" || view === "delegated-attendance") return "special-access";
+  if (view && view.startsWith("delegated-")) return "special-access";
   return view;
 }
 
