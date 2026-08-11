@@ -15,6 +15,8 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
   const [doj, setDoj] = useState("");
   const [managerId, setManagerId] = useState("");
   const [shift, setShift] = useState("morning");
+  const [employmentType, setEmploymentType] = useState("Permanent");
+  const [contractMonths, setContractMonths] = useState("");
   const [managers, setManagers] = useState([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -37,6 +39,10 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
 
   async function handle(e) {
     e.preventDefault();
+    if (employmentType === "Contract" && !contractMonths) {
+      setMsg("Please enter the contract duration in months.");
+      return;
+    }
     setSaving(true);
     setMsg("");
     try {
@@ -48,10 +54,12 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
         employee_code: employeeCode,
         doj,
         shift,
-        manager_id: managerId || undefined
+        manager_id: managerId || undefined,
+        employment_type: employmentType,
+        contract_months: employmentType === "Contract" ? Number(contractMonths) : undefined,
       });
-      setMsg("Employee added — credentials sent by email.");
-      setName(""); setEmail(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setEmployeeCode(""); setDoj(""); setManagerId(""); setShift("morning");
+      setMsg(employmentType === "Contract" ? "Employee added — no login access (contract)." : "Employee added — credentials sent by email.");
+      setName(""); setEmail(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setEmployeeCode(""); setDoj(""); setManagerId(""); setShift("morning"); setEmploymentType("Permanent"); setContractMonths("");
     } catch (err) {
       setMsg(err.message || "Error");
     } finally { setSaving(false); }
@@ -120,6 +128,28 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
             <input className="input" type="date" value={doj} onChange={e=>setDoj(e.target.value)} />
           </div>
         </div>
+
+        {/* Row 5: Employment Type and Contract Duration */}
+        <div className="form-row">
+          <div style={{flex: 1}}>
+            <label>Employment Type</label>
+            <select className="input" value={employmentType} onChange={e=>setEmploymentType(e.target.value)}>
+              <option value="Permanent">Permanent</option>
+              <option value="Contract">Contract</option>
+            </select>
+          </div>
+          {employmentType === "Contract" && (
+            <div style={{flex: 1}}>
+              <label>Contract Duration (months)</label>
+              <input className="input" type="number" min="1" placeholder="e.g. 6" value={contractMonths} onChange={e=>setContractMonths(e.target.value)} required />
+            </div>
+          )}
+        </div>
+        {employmentType === "Contract" && (
+          <div className="small" style={{color: "var(--muted, #64748b)", marginTop: -4, marginBottom: 8}}>
+            Contract employees are stored as records only — no login/portal access or welcome email is created for them.
+          </div>
+        )}
 
         <div style={{marginTop:10}}>
           <button className="btn" disabled={saving}>{saving ? "Adding..." : "Add employee"}</button>
