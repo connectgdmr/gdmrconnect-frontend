@@ -48,6 +48,17 @@ function exportCandidateCSV(cand) {
   a.click(); URL.revokeObjectURL(a.href);
 }
 
+// Images and PDFs render natively in a new tab. Everything else — Office
+// docs, or an older Cloudinary "raw" upload with no file extension at all —
+// gets routed through Google's document viewer instead of just handing the
+// browser a file it can only download.
+function cloudinaryViewUrl(url) {
+  if (!url) return url;
+  if (/\.(jpe?g|png|gif|webp|bmp)(\?|$)/i.test(url)) return url;
+  if (/\.pdf(\?|$)/i.test(url)) return url;
+  return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+}
+
 // Forces a real download instead of opening in a new tab — a plain
 // `<a download>` on a cross-origin (Cloudinary) URL just navigates to it in
 // most browsers rather than saving it, so fetch the bytes and save as a blob.
@@ -699,7 +710,7 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
         {c.remarks && <div style={{ marginBottom: 16, padding: "10px 14px", background: "#f8fafc", borderRadius: 8, fontSize: 13, color: "#475569" }}><b>Remarks:</b> {c.remarks}</div>}
         {c.resume_url && (
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-            <a href={c.resume_url} target="_blank" rel="noreferrer" className="btn ghost" style={{ fontSize: 12.5, display: "inline-flex" }}><FaFilePdf /> View Resume</a>
+            <a href={cloudinaryViewUrl(c.resume_url)} target="_blank" rel="noreferrer" className="btn ghost" style={{ fontSize: 12.5, display: "inline-flex" }}><FaFilePdf /> View Resume</a>
             <button type="button" onClick={() => downloadFile(c.resume_url, `${(c.name || "candidate").replace(/\s+/g, "_")}_Resume.pdf`)}
               className="btn ghost" style={{ fontSize: 12.5, display: "inline-flex", alignItems: "center", gap: 6 }}>
               <FaDownload size={11} /> Download
@@ -743,7 +754,7 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
                 <span style={{ fontSize: 13, flex: 1 }}>{d.name}</span>
                 {d.url && (
                   <>
-                    <a href={d.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#3b82f6" }}>View</a>
+                    <a href={cloudinaryViewUrl(d.url)} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#3b82f6" }}>View</a>
                     <button type="button" onClick={() => downloadFile(d.url, `${d.name || "document"}.pdf`)}
                       style={{ background: "none", border: "none", cursor: "pointer", color: "var(--brand)", padding: 0, display: "flex", alignItems: "center" }} title="Download">
                       <FaDownload size={12} />

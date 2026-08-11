@@ -9,22 +9,37 @@ import {
   FaEnvelope, FaPhoneAlt, FaDownload, FaMoneyBillWave,
 } from "react-icons/fa";
 
-// "View" just opens the original file URL — the browser previews it inline
-// when it can (PDF, images) and downloads it when it can't (docx, xlsx —
-// no browser renders those, so that's unavoidable either way).
-//
-// "Download" adds Cloudinary's fl_attachment flag to force a save-to-disk
-// with a clean suggested filename. NOTE: fl_attachment's presence is what
-// forces the download — passing "false" after the colon does NOT disable
-// it, it's taken as the literal filename (that was the earlier bug here:
-// View was using fl_attachment:false, which downloaded a file named
-// "false"). The filename also can't contain "/", ":" or "," — those are
-// Cloudinary transformation delimiters and break the URL (e.g. a doc named
-// "Resume / CV" produced fl_attachment:Resume%20%2F%20CV → HTTP 400).
-function cloudinaryDownloadUrl(url, name) {
-  if (!url || !url.includes("/upload/")) return url;
-  const safe = String(name || "document").replace(/[^a-zA-Z0-9 _.-]+/g, "").trim().replace(/\s+/g, "_") || "document";
-  return url.replace("/upload/", `/upload/fl_attachment:${encodeURIComponent(safe)}/`);
+// "View" opens a URL the browser can actually render inline. Images and
+// PDFs render natively; anything else (docx/xlsx/pptx, or — very common
+// here — an older Cloudinary "raw" upload with no file extension at all,
+// so the browser has no idea what it even is) gets routed through Google's
+// document viewer instead of just handing the browser a file it can only
+// download.
+function cloudinaryViewUrl(url) {
+  if (!url) return url;
+  if (/\.(jpe?g|png|gif|webp|bmp)(\?|$)/i.test(url)) return url;
+  if (/\.pdf(\?|$)/i.test(url)) return url;
+  return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+}
+
+// "Download" fetches the bytes and saves them as a blob instead of relying
+// on Cloudinary's fl_attachment URL flag — that flag's syntax turned out to
+// be a repeated source of bugs (its mere presence forces a download
+// regardless of the value after the colon, so fl_attachment:false actually
+// downloaded a file named "false"; and a doc name containing "/" like
+// "Resume / CV" broke the URL outright with an HTTP 400). Fetching the
+// bytes directly sidesteps all of that — same pattern already used in
+// AdminATS.jsx's document downloads.
+async function downloadDocument(url, filename) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: filename || "document" });
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+  } catch {
+    window.open(url, "_blank"); // fallback — at least gets them to the file
+  }
 }
 
 // ─── ACHIEVEMENT TYPE CONFIG (FA icons only — no emojis) ─────────────────────
@@ -672,12 +687,12 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                           <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: b.bg, color: b.color }}>{b.label}</span>
                         </div>
                       </div>
-                      <a href={d.url} target="_blank" rel="noreferrer" title="View" style={{ color: C_BRAND, padding: 6, display: "flex" }}>
+                      <a href={cloudinaryViewUrl(d.url)} target="_blank" rel="noreferrer" title="View" style={{ color: C_BRAND, padding: 6, display: "flex" }}>
                         <FaExternalLinkAlt size={13} />
                       </a>
-                      <a href={cloudinaryDownloadUrl(d.url, d.name)} title="Download" style={{ color: "#64748b", padding: 6, display: "flex" }}>
+                      <button type="button" onClick={() => downloadDocument(d.url, d.name)} title="Download" style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: 6, display: "flex" }}>
                         <FaDownload size={12} />
-                      </a>
+                      </button>
                       {api && token && (
                         <button onClick={() => removeDoc(d.id)} title="Remove" style={{ background: "none", border: "none", color: "#cbd5e1", cursor: "pointer", padding: 6, display: "flex" }}>
                           <FaTrash size={12} />
