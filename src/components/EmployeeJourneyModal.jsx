@@ -9,14 +9,22 @@ import {
   FaEnvelope, FaPhoneAlt, FaDownload, FaMoneyBillWave,
 } from "react-icons/fa";
 
-// Cloudinary serves "raw" resource types (docx, xlsx, etc.) with
-// Content-Disposition: attachment by default, which forces a hard OS
-// download/"Open With" prompt instead of letting the browser preview it.
-// Inserting a delivery flag right after "/upload/" overrides that per-link
-// without needing to touch how the file was uploaded.
-function cloudinaryFlagUrl(url, flag) {
+// "View" just opens the original file URL — the browser previews it inline
+// when it can (PDF, images) and downloads it when it can't (docx, xlsx —
+// no browser renders those, so that's unavoidable either way).
+//
+// "Download" adds Cloudinary's fl_attachment flag to force a save-to-disk
+// with a clean suggested filename. NOTE: fl_attachment's presence is what
+// forces the download — passing "false" after the colon does NOT disable
+// it, it's taken as the literal filename (that was the earlier bug here:
+// View was using fl_attachment:false, which downloaded a file named
+// "false"). The filename also can't contain "/", ":" or "," — those are
+// Cloudinary transformation delimiters and break the URL (e.g. a doc named
+// "Resume / CV" produced fl_attachment:Resume%20%2F%20CV → HTTP 400).
+function cloudinaryDownloadUrl(url, name) {
   if (!url || !url.includes("/upload/")) return url;
-  return url.replace("/upload/", `/upload/${flag}/`);
+  const safe = String(name || "document").replace(/[^a-zA-Z0-9 _.-]+/g, "").trim().replace(/\s+/g, "_") || "document";
+  return url.replace("/upload/", `/upload/fl_attachment:${encodeURIComponent(safe)}/`);
 }
 
 // ─── ACHIEVEMENT TYPE CONFIG (FA icons only — no emojis) ─────────────────────
@@ -664,10 +672,10 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                           <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: b.bg, color: b.color }}>{b.label}</span>
                         </div>
                       </div>
-                      <a href={cloudinaryFlagUrl(d.url, "fl_attachment:false")} target="_blank" rel="noreferrer" title="View" style={{ color: C_BRAND, padding: 6, display: "flex" }}>
+                      <a href={d.url} target="_blank" rel="noreferrer" title="View" style={{ color: C_BRAND, padding: 6, display: "flex" }}>
                         <FaExternalLinkAlt size={13} />
                       </a>
-                      <a href={cloudinaryFlagUrl(d.url, `fl_attachment:${encodeURIComponent(d.name || "document")}`)} title="Download" style={{ color: "#64748b", padding: 6, display: "flex" }}>
+                      <a href={cloudinaryDownloadUrl(d.url, d.name)} title="Download" style={{ color: "#64748b", padding: 6, display: "flex" }}>
                         <FaDownload size={12} />
                       </a>
                       {api && token && (

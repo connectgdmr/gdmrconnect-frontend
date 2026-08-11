@@ -515,10 +515,6 @@ export default function AdminPayroll({ token, employees = [] }) {
               </div>
             </>
           )}
-
-          {allRunSalaries.length > 0 && (
-            <div style={{ display: "flex", justifyContent: "flex-end", maxWidth: 560 }}>{runBtn}</div>
-          )}
         </div>
         );
       })()}
