@@ -33,7 +33,7 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const PHONE_RE = /^(?:\+?\d{1,3}[\s-]?)?\d{10}$/;
 
 const blankCandidate = () => ({
-  name: "", email: "", phone: "", source: "", source_other: "", sourced_by: "", job_role: "", skills: "", department: "", campaign: "",
+  name: "", email: "", phone: "", source: "", source_other: "", sourced_by: "", job_role: "", job_role_other: "", skills: "", department: "", campaign: "",
   education: "", experience: "", current_company: "", current_ctc: "", expected_ctc: "",
   current_location: "", preferred_location: "", notice_period: "", resume_url: "", remarks: "", status: "New Application",
   employment_type: "Permanent", contract_months: "",
@@ -123,6 +123,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
   const [pendingDelete, setPendingDelete] = useState(null); // candidate awaiting delete confirmation
   const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState({ text: "", type: "" });
+  const [openJobs, setOpenJobs] = useState([]); // open postings from Jobs — feeds the Job Role picker
 
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3500); };
   const toArr = (d) => Array.isArray(d) ? d : (d?.candidates || d?.data || []);
@@ -145,18 +146,33 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
     fetch(`${BASE}/admin/ats/stats`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null).then(d => setStats(d)).catch(() => {});
   }
-  useEffect(() => { loadCandidates(); loadStats(); }, []);
+  function loadOpenJobs() {
+    // Public endpoint (no auth) — same one the careers page uses — so this
+    // works regardless of whether this user has "career" module access too.
+    fetch(`${BASE}/career/jobs`)
+      .then(r => r.ok ? r.json() : []).then(d => setOpenJobs(Array.isArray(d) ? d : [])).catch(() => {});
+  }
+  useEffect(() => { loadCandidates(); loadStats(); loadOpenJobs(); }, []);
 
   const safe = Array.isArray(candidates) ? candidates : [];
   const depts = [...new Set(safe.map(c => c.department).filter(Boolean))];
-  // Job roles seen on existing candidates — feeds the Add Candidate form's
-  // role combobox (pick an existing one, or just type a new one).
-  const jobRoles = [...new Set(safe.map(c => c.job_role).filter(Boolean))].sort();
+  // Job Role options for the Add Candidate form — open postings from Jobs
+  // plus whatever roles have been used on existing candidates, so the list
+  // stays useful even before any job postings exist.
+  const jobRoles = [...new Set([
+    ...openJobs.map(j => j.title).filter(Boolean),
+    ...safe.map(c => c.job_role).filter(Boolean),
+  ])].sort();
   // Company departments for the form's Department dropdown — falls back to
   // whatever's shown up on candidates so far if the company list isn't loaded.
   const formDepartments = departments.length
     ? [...new Set(departments.map(d => d.name).filter(Boolean))].sort()
     : depts.slice().sort();
+  // "Sourced By" only makes sense as an HR team member — recruiters, not
+  // whoever happens to be granted Recruitment access for other reasons.
+  const hrEmployees = [...employees]
+    .filter(e => { const d = (e.department || "").toLowerCase(); return d.includes("hr") || d.includes("human resource"); })
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   const filtered = safe.filter(c => {
     const q = search.toLowerCase();
@@ -193,8 +209,9 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
     setSaving(true);
     try {
       const resolvedSource = form.source === "Other" ? (form.source_other || "Other") : form.source;
-      const { source_other, ...rest } = form;
-      const payload = { ...rest, source: resolvedSource, skills: form.skills.split(",").map(s => s.trim()).filter(Boolean) };
+      const resolvedJobRole = form.job_role === "Other" ? (form.job_role_other || "") : form.job_role;
+      const { source_other, job_role_other, ...rest } = form;
+      const payload = { ...rest, source: resolvedSource, job_role: resolvedJobRole, skills: form.skills.split(",").map(s => s.trim()).filter(Boolean) };
       const r = await fetch(`${BASE}/admin/ats/candidates`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload),
       });
@@ -442,12 +459,12 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                       </div>
                     )}
 
-                    {/* Sourced By — employee dropdown */}
+                    {/* Sourced By — HR team members only */}
                     <div>
                       <label style={lbl}>Sourced By</label>
                       <select className="modern-input" value={form.sourced_by} onChange={e => setForm({ ...form, sourced_by: e.target.value })} style={{ margin: 0 }}>
                         <option value="">— Select Employee —</option>
-                        {[...employees].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(e => <option key={e._id} value={e._id}>{e.name}{e.department ? ` (${e.department})` : ""}</option>)}
+                        {hrEmployees.map(e => <option key={e._id} value={e._id}>{e.name}{e.department ? ` (${e.department})` : ""}</option>)}
                       </select>
                     </div>
 
@@ -460,17 +477,23 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                       </select>
                     </div>
 
-                    {/* Job Role — pick an existing one or type a new one */}
+                    {/* Job Role — open postings from Jobs, or Other + type your own */}
                     <div>
                       <label style={lbl}>Job Role</label>
-                      <input
-                        className="modern-input" list="ats-job-roles" placeholder="e.g. Frontend Developer"
-                        value={form.job_role || ""} onChange={e => setForm({ ...form, job_role: e.target.value })} style={{ margin: 0 }}
-                      />
-                      <datalist id="ats-job-roles">
-                        {jobRoles.map(r => <option key={r} value={r} />)}
-                      </datalist>
+                      <select className="modern-input" value={form.job_role || ""} onChange={e => setForm({ ...form, job_role: e.target.value })} style={{ margin: 0 }}>
+                        <option value="">— Select Job Role —</option>
+                        {jobRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                        <option value="Other">Other</option>
+                      </select>
                     </div>
+
+                    {/* "Other" free-text only when Other is chosen */}
+                    {form.job_role === "Other" && (
+                      <div>
+                        <label style={lbl}>Specify Job Role (Other)</label>
+                        <input className="modern-input" placeholder="e.g. Frontend Developer" value={form.job_role_other || ""} onChange={e => setForm({ ...form, job_role_other: e.target.value })} style={{ margin: 0 }} />
+                      </div>
+                    )}
 
                     <div style={{ gridColumn: "span 2" }}><label style={lbl}>Skills (comma-separated)</label>{inp("skills")}</div>
                     <div><label style={lbl}>Recruitment Campaign</label>{inp("campaign")}</div>
