@@ -205,6 +205,18 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
   async function addCandidate(e) {
     e.preventDefault();
     if (!form.name.trim()) return flash("Candidate name is required.", "error");
+    const required = {
+      email: "Email", phone: "Phone", source: "Source", sourced_by: "Sourced By",
+      department: "Department", job_role: "Job Role", skills: "Skills",
+      education: "Highest Education", experience: "Years of Experience",
+      current_location: "Current Location", preferred_location: "Preferred Location",
+      notice_period: "Notice Period", resume_url: "Resume",
+    };
+    for (const [key, label] of Object.entries(required)) {
+      if (!String(form[key] || "").trim()) return flash(`${label} is required.`, "error");
+    }
+    if (form.source === "Other" && !form.source_other?.trim()) return flash("Please specify the source.", "error");
+    if (form.job_role === "Other" && !form.job_role_other?.trim()) return flash("Please specify the job role.", "error");
     if (form.employment_type === "Contract" && !form.contract_months) return flash("Please enter the contract duration in months.", "error");
     if (!validateForm()) return flash("Please fix the highlighted fields.", "error");
     setSaving(true);
@@ -436,18 +448,18 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div><label style={lbl}>Full Name *</label>{inp("name","text",true)}</div>
                     <div>
-                      <label style={lbl}>Email</label>{inp("email","email")}
+                      <label style={lbl}>Email *</label>{inp("email","email",true)}
                       {formErrors.email && <div style={errStyle}>{formErrors.email}</div>}
                     </div>
                     <div>
-                      <label style={lbl}>Phone</label>{inp("phone","tel")}
+                      <label style={lbl}>Phone *</label>{inp("phone","tel",true)}
                       {formErrors.phone && <div style={errStyle}>{formErrors.phone}</div>}
                     </div>
 
                     {/* Source — dropdown */}
                     <div>
-                      <label style={lbl}>Source</label>
-                      <select className="modern-input" value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} style={{ margin: 0 }}>
+                      <label style={lbl}>Source *</label>
+                      <select className="modern-input" value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} style={{ margin: 0 }} required>
                         <option value="">— Select Source —</option>
                         {SOURCE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
@@ -456,15 +468,15 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                     {/* "Other" free-text only when Other is chosen */}
                     {form.source === "Other" && (
                       <div style={{ gridColumn: "span 2" }}>
-                        <label style={lbl}>Specify Source (Other)</label>
-                        <input className="modern-input" placeholder="Please specify…" value={form.source_other || ""} onChange={e => setForm({ ...form, source_other: e.target.value })} style={{ margin: 0 }} />
+                        <label style={lbl}>Specify Source (Other) *</label>
+                        <input className="modern-input" placeholder="Please specify…" value={form.source_other || ""} onChange={e => setForm({ ...form, source_other: e.target.value })} style={{ margin: 0 }} required />
                       </div>
                     )}
 
                     {/* Sourced By — HR team members only */}
                     <div>
-                      <label style={lbl}>Sourced By</label>
-                      <select className="modern-input" value={form.sourced_by} onChange={e => setForm({ ...form, sourced_by: e.target.value })} style={{ margin: 0 }}>
+                      <label style={lbl}>Sourced By *</label>
+                      <select className="modern-input" value={form.sourced_by} onChange={e => setForm({ ...form, sourced_by: e.target.value })} style={{ margin: 0 }} required>
                         <option value="">— Select Employee —</option>
                         {hrEmployees.map(e => <option key={e._id} value={e._id}>{e.name}{e.department ? ` (${e.department})` : ""}</option>)}
                       </select>
@@ -472,8 +484,8 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
 
                     {/* Department — dropdown of the company's actual departments */}
                     <div>
-                      <label style={lbl}>Department</label>
-                      <select className="modern-input" value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} style={{ margin: 0 }}>
+                      <label style={lbl}>Department *</label>
+                      <select className="modern-input" value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} style={{ margin: 0 }} required>
                         <option value="">— Select Department —</option>
                         {formDepartments.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
@@ -481,8 +493,8 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
 
                     {/* Job Role — open postings from Jobs, or Other + type your own */}
                     <div>
-                      <label style={lbl}>Job Role</label>
-                      <select className="modern-input" value={form.job_role || ""} onChange={e => setForm({ ...form, job_role: e.target.value })} style={{ margin: 0 }}>
+                      <label style={lbl}>Job Role *</label>
+                      <select className="modern-input" value={form.job_role || ""} onChange={e => setForm({ ...form, job_role: e.target.value })} style={{ margin: 0 }} required>
                         <option value="">— Select Job Role —</option>
                         {jobRoles.map(r => <option key={r} value={r}>{r}</option>)}
                         <option value="Other">Other</option>
@@ -492,26 +504,26 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                     {/* "Other" free-text only when Other is chosen */}
                     {form.job_role === "Other" && (
                       <div>
-                        <label style={lbl}>Specify Job Role (Other)</label>
-                        <input className="modern-input" placeholder="e.g. Frontend Developer" value={form.job_role_other || ""} onChange={e => setForm({ ...form, job_role_other: e.target.value })} style={{ margin: 0 }} />
+                        <label style={lbl}>Specify Job Role (Other) *</label>
+                        <input className="modern-input" placeholder="e.g. Frontend Developer" value={form.job_role_other || ""} onChange={e => setForm({ ...form, job_role_other: e.target.value })} style={{ margin: 0 }} required />
                       </div>
                     )}
 
-                    <div style={{ gridColumn: "span 2" }}><label style={lbl}>Skills (comma-separated)</label>{inp("skills")}</div>
+                    <div style={{ gridColumn: "span 2" }}><label style={lbl}>Skills (comma-separated) *</label>{inp("skills","text",true)}</div>
                     <div><label style={lbl}>Recruitment Campaign</label>{inp("campaign")}</div>
-                    <div><label style={lbl}>Highest Education</label>{inp("education")}</div>
-                    <div><label style={lbl}>Years of Experience</label>{inp("experience","number")}</div>
+                    <div><label style={lbl}>Highest Education *</label>{inp("education","text",true)}</div>
+                    <div><label style={lbl}>Years of Experience *</label>{inp("experience","number",true)}</div>
                     <div><label style={lbl}>Current / Last Company</label>{inp("current_company")}</div>
                     <div><label style={lbl}>Current / Last CTC</label>{inp("current_ctc")}</div>
                     <div><label style={lbl}>Expected CTC</label>{inp("expected_ctc")}</div>
-                    <div><label style={lbl}>Current Location</label>{inp("current_location")}</div>
-                    <div><label style={lbl}>Preferred Location</label>{inp("preferred_location")}</div>
-                    <div><label style={lbl}>Notice Period</label>{inp("notice_period")}</div>
+                    <div><label style={lbl}>Current Location *</label>{inp("current_location","text",true)}</div>
+                    <div><label style={lbl}>Preferred Location *</label>{inp("preferred_location","text",true)}</div>
+                    <div><label style={lbl}>Notice Period *</label>{inp("notice_period","text",true)}</div>
 
                     {/* Employment Type — Permanent gets a portal login; Contract is data-only */}
                     <div>
-                      <label style={lbl}>Employment Type</label>
-                      <select className="modern-input" value={form.employment_type || "Permanent"} onChange={e => setForm({ ...form, employment_type: e.target.value })} style={{ margin: 0 }}>
+                      <label style={lbl}>Employment Type *</label>
+                      <select className="modern-input" value={form.employment_type || "Permanent"} onChange={e => setForm({ ...form, employment_type: e.target.value })} style={{ margin: 0 }} required>
                         <option value="Permanent">Permanent</option>
                         <option value="Contract">Contract</option>
                       </select>
@@ -525,7 +537,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
 
                     {/* Resume — upload a file OR paste a URL, either fills resume_url */}
                     <div style={{ gridColumn: "span 2" }}>
-                      <label style={lbl}>Resume</label>
+                      <label style={lbl}>Resume *</label>
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                         <label style={{
                           display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600,
@@ -539,7 +551,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                         <input
                           className="modern-input" type="url" placeholder="…or paste a resume URL"
                           value={form.resume_url || ""} onChange={e => setForm({ ...form, resume_url: e.target.value })}
-                          style={{ margin: 0, flex: 1, minWidth: 160 }}
+                          style={{ margin: 0, flex: 1, minWidth: 160 }} required
                         />
                       </div>
                       {form.resume_url && (
