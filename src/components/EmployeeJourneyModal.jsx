@@ -6,7 +6,18 @@ import {
   FaBolt, FaClock, FaUserPlus,
   FaCheckCircle, FaEdit, FaSave,
   FaFileAlt, FaFileUpload, FaExternalLinkAlt, FaBriefcase,
+  FaEnvelope, FaPhoneAlt, FaDownload, FaMoneyBillWave,
 } from "react-icons/fa";
+
+// Cloudinary serves "raw" resource types (docx, xlsx, etc.) with
+// Content-Disposition: attachment by default, which forces a hard OS
+// download/"Open With" prompt instead of letting the browser preview it.
+// Inserting a delivery flag right after "/upload/" overrides that per-link
+// without needing to touch how the file was uploaded.
+function cloudinaryFlagUrl(url, flag) {
+  if (!url || !url.includes("/upload/")) return url;
+  return url.replace("/upload/", `/upload/${flag}/`);
+}
 
 // ─── ACHIEVEMENT TYPE CONFIG (FA icons only — no emojis) ─────────────────────
 const ACH_TYPES = [
@@ -278,6 +289,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
     setEditForm({
       name: empData.name || "",
       email: empData.email || "",
+      phone: empData.phone || "",
       position: empData.position || "",
       employee_code: empData.employee_code || "",
       department: empData.department || "",
@@ -354,20 +366,24 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
     });
   }
 
-  // Recruitment sync log — the initial onboarding event plus any later edits
-  // to the candidate profile (job role, CTC, etc.) that got pushed onto this
-  // employee record. See _auto_onboard_employee / _sync_candidate_to_employee
-  // on the backend.
+  // Generic profile audit log — onboarding / recruitment sync events (see
+  // _auto_onboard_employee / _sync_candidate_to_employee in routes/ats.py)
+  // plus salary changes (routes/payroll.py's upsert_salary) all push entries
+  // here, tagged with a "type" so they render with the right icon/title.
   (empData.profile_history || []).forEach((h, i) => {
     let dateStr = joinDate ? joinDate.slice(0, 10) : todayStr;
     try { dateStr = new Date(h.at).toISOString().slice(0, 10); } catch { /* keep fallback */ }
-    timeline.push({
-      date: dateStr,
-      Icon: FaBriefcase,
-      title: i === 0 ? "Onboarded from Recruitment" : "Profile Synced from Recruitment",
-      sub: h.summary || "",
-      color: "#2563eb",
-    });
+    let Icon = FaBriefcase, title = "Profile Updated", color = "#2563eb";
+    if (h.type === "salary_change") {
+      Icon = FaMoneyBillWave;
+      title = h.increment_type || "Salary Updated";
+      color = "#16a34a";
+    } else if (h.type === "onboarding" || (!h.type && i === 0)) {
+      title = "Onboarded from Recruitment";
+    } else if (h.type === "recruitment_sync" || !h.type) {
+      title = "Profile Synced from Recruitment";
+    }
+    timeline.push({ date: dateStr, Icon, title, sub: h.summary || "", color });
   });
 
   achievements.forEach(a => {
@@ -471,8 +487,20 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
             <Avatar name={empData.name} size={64} />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 3, lineHeight: 1.2 }}>{empData.name}</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.80)", marginBottom: 8 }}>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.80)", marginBottom: 6 }}>
                 {empData.position || "—"} · {dept}
+              </div>
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
+                {empData.email && (
+                  <a href={`mailto:${empData.email}`} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "rgba(255,255,255,0.85)", textDecoration: "none" }}>
+                    <FaEnvelope size={10} /> {empData.email}
+                  </a>
+                )}
+                {empData.phone && (
+                  <a href={`tel:${empData.phone}`} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "rgba(255,255,255,0.85)", textDecoration: "none" }}>
+                    <FaPhoneAlt size={10} /> {empData.phone}
+                  </a>
+                )}
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <span style={{ fontSize: 11.5, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: statusBadge.bg, color: statusBadge.color }}>
@@ -527,6 +555,10 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                 <div className="award-form-row">
                   <label>Email</label>
                   <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div className="award-form-row">
+                  <label>Phone</label>
+                  <input type="tel" value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} />
                 </div>
                 <div className="award-form-row">
                   <label>Position</label>
@@ -632,8 +664,11 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                           <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: b.bg, color: b.color }}>{b.label}</span>
                         </div>
                       </div>
-                      <a href={d.url} target="_blank" rel="noreferrer" title="View" style={{ color: C_BRAND, padding: 6, display: "flex" }}>
+                      <a href={cloudinaryFlagUrl(d.url, "fl_attachment:false")} target="_blank" rel="noreferrer" title="View" style={{ color: C_BRAND, padding: 6, display: "flex" }}>
                         <FaExternalLinkAlt size={13} />
+                      </a>
+                      <a href={cloudinaryFlagUrl(d.url, `fl_attachment:${encodeURIComponent(d.name || "document")}`)} title="Download" style={{ color: "#64748b", padding: 6, display: "flex" }}>
+                        <FaDownload size={12} />
                       </a>
                       {api && token && (
                         <button onClick={() => removeDoc(d.id)} title="Remove" style={{ background: "none", border: "none", color: "#cbd5e1", cursor: "pointer", padding: 6, display: "flex" }}>

@@ -59,6 +59,8 @@ const blankSalary = () => ({
   effective_date: new Date().toISOString().slice(0, 10),
   increment_type: "Annual Increment",
   increment_reason: "",
+  increment_amount: "",
+  new_gross: "",
 });
 
 function numberToWords(n) {
@@ -89,6 +91,11 @@ export default function AdminPayroll({ token, employees = [] }) {
   const [editEmp, setEditEmp]     = useState(null);
   const [salaryForm, setSalaryForm] = useState(blankSalary());
   const [savingSalary, setSavingSalary] = useState(false);
+  // Baseline captured when the modal opens — lets "Increment Amount" and
+  // "New Gross Salary" stay in sync with each other and with Basic Pay,
+  // without compounding on every keystroke.
+  const [prevGross, setPrevGross]       = useState(0);
+  const [baselineBasic, setBaselineBasic] = useState(0);
 
   // Run payroll — per-employee monthly deductions (ESI/LOP/TDS/Other), entered
   // fresh for each run. Keyed by employee id: { [id]: { esi, lop, tds, other_deductions } }
@@ -158,6 +165,22 @@ export default function AdminPayroll({ token, employees = [] }) {
   function openEdit(row) {
     setEditEmp(row);
     setSalaryForm({ ...blankSalary(), ...(row.salary || {}) });
+    setPrevGross(grossOf(row.salary || {}));
+    setBaselineBasic(Number(row.salary?.basic) || 0);
+  }
+
+  // "Increment Amount" and "New Gross Salary" are two views of the same
+  // change — typing either one derives the other, and the delta is applied
+  // to Basic Pay so it's actually reflected in the earnings breakdown (and
+  // therefore the Gross/Net totals) rather than just being a cosmetic note.
+  function applyIncrementAmount(val) {
+    const amt = Number(val) || 0;
+    setSalaryForm(s => ({ ...s, increment_amount: val, new_gross: String(prevGross + amt), basic: String(baselineBasic + amt) }));
+  }
+  function applyNewGross(val) {
+    const target = Number(val) || 0;
+    const amt = target - prevGross;
+    setSalaryForm(s => ({ ...s, new_gross: val, increment_amount: String(amt), basic: String(baselineBasic + amt) }));
   }
 
   async function openHistory(row) {
@@ -190,6 +213,7 @@ export default function AdminPayroll({ token, employees = [] }) {
       effective_date: salaryForm.effective_date || new Date().toISOString().slice(0, 10),
       increment_type: salaryForm.increment_type || "Annual Increment",
       increment_reason: salaryForm.increment_reason || "",
+      increment_amount: Number(salaryForm.increment_amount) || 0,
     };
     try {
       const r = await fetch(`${BASE}/admin/payroll/salaries/${editEmp.employee_id || editEmp._id}`, {
@@ -664,6 +688,31 @@ export default function AdminPayroll({ token, employees = [] }) {
               {/* Increment details */}
               <div style={{ background: "#f8fafc", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Increment / Change Details</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>Previous Gross</label>
+                    <input className="modern-input" value={inr(prevGross)} readOnly disabled style={{ margin: 0, background: "#f1f5f9", color: "#64748b" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>Increment Amount</label>
+                    <div style={{ position: "relative" }}>
+                      <FaRupeeSign size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
+                      <input className="modern-input" type="number" step="0.01" placeholder="0" value={salaryForm.increment_amount}
+                        onChange={e => applyIncrementAmount(e.target.value)} style={{ margin: 0, paddingLeft: 26 }} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>New Gross Salary</label>
+                    <div style={{ position: "relative" }}>
+                      <FaRupeeSign size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
+                      <input className="modern-input" type="number" step="0.01" placeholder="0" value={salaryForm.new_gross}
+                        onChange={e => applyNewGross(e.target.value)} style={{ margin: 0, paddingLeft: 26 }} />
+                    </div>
+                  </div>
+                </div>
+                <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 12px", lineHeight: 1.5 }}>
+                  Type either box — the other fills in automatically. The difference is added to Basic Pay above, so it's reflected in Gross/Net Pay and saved to this person's Career Journey history.
+                </p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
                     <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>Effective Date</label>

@@ -9,6 +9,7 @@ const SHIFTS = [
 export default function EmployeeForm({ onAdd, api, token, departments: deptList = [] }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [department, setDepartment] = useState(deptList[0]?.name || "");
   const [position, setPosition] = useState("");
   const [employeeCode, setEmployeeCode] = useState("");
@@ -49,6 +50,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
       await onAdd({
         name,
         email,
+        phone,
         department,
         position,
         employee_code: employeeCode,
@@ -59,7 +61,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
         contract_months: employmentType === "Contract" ? Number(contractMonths) : undefined,
       });
       setMsg(employmentType === "Contract" ? "Employee added — no login access (contract)." : "Employee added — credentials sent by email.");
-      setName(""); setEmail(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setEmployeeCode(""); setDoj(""); setManagerId(""); setShift("morning"); setEmploymentType("Permanent"); setContractMonths("");
+      setName(""); setEmail(""); setPhone(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setEmployeeCode(""); setDoj(""); setManagerId(""); setShift("morning"); setEmploymentType("Permanent"); setContractMonths("");
     } catch (err) {
       setMsg(err.message || "Error");
     } finally { setSaving(false); }
@@ -77,7 +79,12 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
           <input className="input" placeholder="Full name" value={name} onChange={e=>setName(e.target.value)} required />
           <input className="input" placeholder="Email" type="email" value={email} onChange={e=>setEmail(e.target.value.toLowerCase())} required />
         </div>
-        
+
+        {/* Row 1b: Phone */}
+        <div className="form-row">
+          <input className="input" placeholder="Phone (optional)" type="tel" value={phone} onChange={e=>setPhone(e.target.value)} />
+        </div>
+
         {/* Row 2: Department and Position (Fixed layout) */}
         <div className="form-row">
           <div style={{ flex: 1 }}>
