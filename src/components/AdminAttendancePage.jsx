@@ -111,7 +111,7 @@ function StatItem({ icon, label, count, colorClass, onClick, statsLoading }) {
   );
 }
 
-export default function AdminAttendancePage({ token, api }) {
+export default function AdminAttendancePage({ token, api, delegated = false }) {
   // --- Employee Data States ---
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
@@ -661,9 +661,11 @@ export default function AdminAttendancePage({ token, api }) {
               <p className="small">Monitor complete employee check-ins and check-outs</p>
           </div>
           
-          {/* View Mode Toggle Switch */}
+          {/* View Mode Toggle Switch — the roster/logs/analyzer views below it
+              aren't shown under delegated access, so there's nothing to toggle. */}
+          {!delegated && (
           <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '8px' }}>
-              <button 
+              <button
                   onClick={() => setViewMode("grid")}
                   style={{
                       display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', border: 'none', 
@@ -703,6 +705,7 @@ export default function AdminAttendancePage({ token, api }) {
                   <FaChartBar /> Analyzer
               </button>
           </div>
+          )}
       </div>
 
       {/* ========================================================= */}
@@ -715,6 +718,11 @@ export default function AdminAttendancePage({ token, api }) {
           <StatItem statsLoading={statsLoading} icon={<FaUserSlash />}   label="Not Checked In"   count={stats.not_checked_in} colorClass="text-orange"   onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
       </div>
 
+      {/* Employee roster / logs / analyzer — not needed under delegated
+          access, which only needs the summary tiles above and their
+          click-through detail modals (still rendered below). */}
+      {!delegated && (
+      <>
       {/* Global Filter Bar */}
       <div className="filter-bar" style={{ marginTop: '15px' }}>
         {/* Search Input */}
@@ -1093,6 +1101,8 @@ export default function AdminAttendancePage({ token, api }) {
             </>
           )}
         </div>
+      )}
+      </>
       )}
 
       {/* ========================================================= */}

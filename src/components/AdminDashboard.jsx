@@ -282,15 +282,19 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   }
 
   async function loadTodayStats() {
+    let res = null;
     try {
-      const res = await api.todayStats(token);
-      const total = (res?.present || 0) + (res?.absent || 0) + (res?.leave || 0) + (res?.not_checked_in || 0);
-      if (res && total > 0) { setStats(res); return; }
+      res = await api.todayStats(token);
+    } catch { /* today-stats failed outright — fall back below instead of leaving stats at 0 */ }
 
-      // today-stats came back empty/falsy (transient failure, cold start,
-      // etc.) — derive the same four numbers from the monthly attendance
-      // summary instead of leaving the KPI tiles stuck at 0. Same fallback
-      // AdminAttendancePage.jsx already uses for delegated (non-admin) access.
+    const total = (res?.present || 0) + (res?.absent || 0) + (res?.leave || 0) + (res?.not_checked_in || 0);
+    if (res && total > 0) { setStats(res); return; }
+
+    // today-stats came back empty/falsy/threw — derive the same four
+    // numbers from the monthly attendance summary instead of leaving the
+    // KPI tiles stuck at 0. Same fallback AdminAttendancePage.jsx already
+    // uses for delegated (non-admin) access.
+    try {
       const summary = await api.getAttendanceSummary(ym(), token);
       const day = summary?.days?.[ymd()] || {};
       const cnt = (v) => Array.isArray(v) ? v.length : (Number(v) || 0);

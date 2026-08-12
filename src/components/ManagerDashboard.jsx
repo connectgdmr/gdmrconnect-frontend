@@ -111,7 +111,7 @@ function StatItem({ icon, label, count, colorClass, onClick }) {
 const DELEGATED_MODULES = [
   { key: "attendance", label: "Manage Daily Attendance", Icon: FaHistory,
     alert: "You are viewing the Daily Attendance Logs using temporary Delegated Access.",
-    render: (ctx) => <AdminAttendancePage token={ctx.token} api={ctx.api} /> },
+    render: (ctx) => <AdminAttendancePage token={ctx.token} api={ctx.api} delegated /> },
   { key: "leaves", label: "Manage Leave Approvals", Icon: FaClipboardList,
     alert: "You are viewing the Leave Approval interface using temporary Delegated Access.",
     render: (ctx) => <AdminLeavePage token={ctx.token} api={ctx.api} /> },
