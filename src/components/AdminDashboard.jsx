@@ -57,7 +57,7 @@ import ChatBot from "./ChatBot";
 import WorkTypesManager from "./WorkTypesManager";
 import PMSWorkspace from "./PMSWorkspace";
 import { SkeletonTable, SkeletonCards } from "./Skeleton";
-import { ymd } from "../utils/dateUtils";
+import { ymd, ym } from "../utils/dateUtils";
 
 const AdminAssessment = lazy(() => import("./AdminAssessment"));
 const AdminLMS        = lazy(() => import("./AdminLMS"));
@@ -284,7 +284,17 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   async function loadTodayStats() {
     try {
       const res = await api.todayStats(token);
-      setStats(res);
+      const total = (res?.present || 0) + (res?.absent || 0) + (res?.leave || 0) + (res?.not_checked_in || 0);
+      if (res && total > 0) { setStats(res); return; }
+
+      // today-stats came back empty/falsy (transient failure, cold start,
+      // etc.) — derive the same four numbers from the monthly attendance
+      // summary instead of leaving the KPI tiles stuck at 0. Same fallback
+      // AdminAttendancePage.jsx already uses for delegated (non-admin) access.
+      const summary = await api.getAttendanceSummary(ym(), token);
+      const day = summary?.days?.[ymd()] || {};
+      const cnt = (v) => Array.isArray(v) ? v.length : (Number(v) || 0);
+      setStats({ present: cnt(day.present), absent: cnt(day.absent), leave: cnt(day.leave), not_checked_in: cnt(day.not_checked_in) });
     } catch { /* stats silent fail */ }
   }
 
