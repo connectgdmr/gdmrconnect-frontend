@@ -190,6 +190,7 @@ export default {
     
     formData.append("type", payload.type);
     formData.append("reason", payload.reason);
+    if (payload.period) formData.append("period", payload.period);
     if (file) formData.append("attachment", file);
 
     const res = await fetch(`${FETCH_BASE}/leaves`, {

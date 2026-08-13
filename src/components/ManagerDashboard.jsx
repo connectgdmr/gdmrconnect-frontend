@@ -755,13 +755,40 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
    * Submits a new leave request. If an attachment is present,
    * the underlying api object will use FormData instead of standard JSON.
    */
+  // Mirrors the backend's overlap rule (routes/leaves.py::apply_leave) — the
+  // only two records allowed to share a date are a half-day "First Half"
+  // and a half-day "Second Half" leave on that exact day; anything else
+  // overlapping an existing Pending/Approved request is a duplicate.
+  function findLeaveConflict(fromDate, toDate, leaveType, leavePeriod) {
+    return (myLeaves || []).find(l => {
+      if (l.status === "Rejected" || l.status === "Cancelled") return false;
+      const exFrom = l.from_date || l.date;
+      const exTo = l.to_date || l.date;
+      if (!exFrom || !exTo) return false;
+      if (exFrom > toDate || exTo < fromDate) return false; // no date overlap
+      const sameSingleDay = fromDate === toDate && exFrom === exTo && exFrom === fromDate;
+      const distinctHalfDayPair = sameSingleDay && leaveType === "half" && l.type === "half" && leavePeriod && l.period && leavePeriod !== l.period;
+      return !distinctHalfDayPair;
+    });
+  }
+  function conflictMessage(conflict) {
+    const exFrom = conflict.from_date || conflict.date;
+    const exTo = conflict.to_date || conflict.date;
+    const range = exTo && exTo !== exFrom ? `${exFrom} to ${exTo}` : exFrom;
+    return `You already have a ${(conflict.status || "Pending").toLowerCase()} leave request covering ${range}.`;
+  }
+
   async function applyLeave(e) {
     e.preventDefault();
 
     if (leaveDuration === 'multiple') {
       if (selectedDates.length === 0) { alert("Click at least one day on the calendar."); return; }
+      const conflictDates = selectedDates.filter(d => findLeaveConflict(d, d, 'full', null));
+      const datesToSubmit = selectedDates.filter(d => !conflictDates.includes(d));
+      if (datesToSubmit.length === 0) { alert("All selected days already have a leave request."); return; }
+
       let failed = 0;
-      for (const dateStr of selectedDates) {
+      for (const dateStr of datesToSubmit) {
         try {
           await api.applyLeaveWithFile({ type: 'full', reason, period: null, from_date: dateStr, to_date: dateStr }, file, token);
         } catch { failed++; }
@@ -771,11 +798,15 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       setFile(null);
 
       await load(true);
-      if (failed === 0) alert(`Leave applied for ${selectedDates.length} day${selectedDates.length > 1 ? "s" : ""}.`);
-      else alert(`${selectedDates.length - failed} of ${selectedDates.length} days applied. ${failed} failed — please retry those days.`);
+      const skippedMsg = conflictDates.length ? ` (${conflictDates.length} day${conflictDates.length > 1 ? "s" : ""} skipped — already requested.)` : "";
+      if (failed === 0) alert(`Leave applied for ${datesToSubmit.length} day${datesToSubmit.length > 1 ? "s" : ""}.${skippedMsg}`);
+      else alert(`${datesToSubmit.length - failed} of ${datesToSubmit.length} days applied. ${failed} failed — please retry those days.${skippedMsg}`);
       setView("my-leaves");
       return;
     }
+
+    const conflict = findLeaveConflict(startDate, startDate, type, type === 'half' ? period : null);
+    if (conflict) { alert(conflictMessage(conflict)); return; }
 
     try {
       let payload = {
