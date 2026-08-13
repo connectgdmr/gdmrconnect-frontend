@@ -351,38 +351,40 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
     setDeptLoading(true);
     // Use the freshest employee list available (passed-in or from state)
     const source = empList || employees;
-    // Always derive base departments from employee records first
-    const map = {};
-    source.forEach((emp) => {
-      const deptVal = emp.department;
-      const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
-      depts.forEach(d => {
-        if (!map[d]) map[d] = { _id: d, name: d, description: "", head_id: null };
-      });
-    });
-    const derived = Object.values(map);
-
-    // Try to enrich with saved metadata (description, explicit head_id) from API
     try {
       const baseUrl = api.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
       const res = await fetch(`${baseUrl}/api/admin/departments`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const saved = await res.json();
-        const enriched = derived.map(d => {
-          const s = saved.find(s => s.name === d.name);
-          return s ? { ...d, ...s } : d;
+      // departments_col is the source of truth for names. An employee's
+      // cached `department` string can briefly go stale right after a
+      // rename (until the employee list itself next refreshes) — it must
+      // never shadow or duplicate the real, current department record, or
+      // a rename looks like it "reverts" whenever this list re-renders.
+      const saved  = res.ok ? await res.json() : [];
+      const byName = {};
+      saved.forEach(s => { byName[s.name] = { ...s }; });
+
+      // Also surface any department only known via employee records (not
+      // yet formalized as its own departments_col document).
+      source.forEach((emp) => {
+        const deptVal = emp.department;
+        const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
+        depts.forEach(d => {
+          if (!byName[d]) byName[d] = { _id: d, name: d, description: "", head_id: null };
         });
-        // Include any API-only departments not yet in employee records
-        const names = new Set(derived.map(d => d.name));
-        saved.forEach(s => { if (!names.has(s.name)) enriched.push(s); });
-        setDepartments(enriched);
-      } else {
-        setDepartments(derived);
-      }
+      });
+      setDepartments(Object.values(byName));
     } catch {
-      setDepartments(derived);
+      // Network error — fall back to whatever employee records show so the
+      // page isn't left blank.
+      const map = {};
+      source.forEach((emp) => {
+        const deptVal = emp.department;
+        const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
+        depts.forEach(d => { if (!map[d]) map[d] = { _id: d, name: d, description: "", head_id: null }; });
+      });
+      setDepartments(Object.values(map));
     } finally {
       setDeptLoading(false);
     }
@@ -407,7 +409,14 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         setDeptModal(false);
         setDeptEditId(null);
         setDeptForm({ name: "", description: "", head_id: "" });
-        loadDepartments();
+        // Refetch employees too, not just departments — a rename propagates
+        // to every affected employee's `department` field server-side, and
+        // the in-memory `employees` array (loaded once on mount) would
+        // otherwise keep the old name indefinitely. That stale value is
+        // exactly what re-appears on the Departments page later, and worse,
+        // gets silently re-saved over the rename the next time anyone edits
+        // one of those employees for an unrelated reason.
+        loadEmployees();
       } else {
         // Backend not ready yet — apply change locally
         setDepartments(prev => {

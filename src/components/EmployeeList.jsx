@@ -385,6 +385,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
   const [selectedId, setSelectedId]         = useState(null);
   const [showEditModal, setShowEditModal]   = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
+  const [editingOriginal, setEditingOriginal] = useState(null); // snapshot at modal-open, for diffing on save
   const [managers, setManagers]             = useState([]);
   const [statusEmployee, setStatusEmployee] = useState(null);
   const [profileEmp, setProfileEmp]         = useState(null); // full-detail profile (click a row)
@@ -396,16 +397,28 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
 
   const handleDeleteClick = (id)  => { setSelectedId(id); setShowDeleteModal(true); };
   const confirmDelete     = ()    => { onDelete(selectedId); setShowDeleteModal(false); setSelectedId(null); };
-  const handleEditClick   = (emp) => { setEditingEmployee({ ...emp }); setShowEditModal(true); };
+  const handleEditClick   = (emp) => { setEditingEmployee({ ...emp }); setEditingOriginal({ ...emp }); setShowEditModal(true); };
 
   const handleEditSave = async (e) => {
     e.preventDefault();
     try {
-      await api.editEmployee(editingEmployee._id, editingEmployee, token);
-      onPatch?.(editingEmployee._id, editingEmployee);
-      onRefresh?.();
+      // Only send fields actually changed in this session — this object was
+      // cloned from `employees` when the modal opened, which can be stale
+      // (e.g. a department got renamed elsewhere and this list hasn't
+      // refetched yet). Sending the whole clone would silently overwrite
+      // the current, correct value with this stale snapshot's old one.
+      const changed = {};
+      Object.keys(editingEmployee).forEach(k => {
+        if (editingEmployee[k] !== editingOriginal?.[k]) changed[k] = editingEmployee[k];
+      });
+      if (Object.keys(changed).length > 0) {
+        await api.editEmployee(editingEmployee._id, changed, token);
+        onPatch?.(editingEmployee._id, changed);
+        onRefresh?.();
+      }
       setShowEditModal(false);
       setEditingEmployee(null);
+      setEditingOriginal(null);
     } catch {
       alert("Error updating employee profile.");
     }
