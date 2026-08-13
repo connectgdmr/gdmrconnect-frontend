@@ -718,11 +718,11 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
           <StatItem statsLoading={statsLoading} icon={<FaUserSlash />}   label="Not Checked In"   count={stats.not_checked_in} colorClass="text-orange"   onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
       </div>
 
-      {/* Employee roster / logs / analyzer — not needed under delegated
-          access, which only needs the summary tiles above and their
-          click-through detail modals (still rendered below). */}
-      {!delegated && (
-      <>
+      {/* Employee roster grid is still shown under delegated access — only
+          the view-mode toggle (Complete Logs / Analyzer) is hidden above,
+          so viewMode can never leave "grid" for a delegate and those two
+          sections below are simply unreachable rather than needing their
+          own guard here. */}
       {/* Global Filter Bar */}
       <div className="filter-bar" style={{ marginTop: '15px' }}>
         {/* Search Input */}
@@ -1101,8 +1101,6 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
             </>
           )}
         </div>
-      )}
-      </>
       )}
 
       {/* ========================================================= */}
