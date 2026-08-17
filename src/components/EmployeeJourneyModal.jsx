@@ -344,6 +344,8 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
       department: empData.department || "",
       shift: empData.shift || "morning",
       doj: (empData.doj || "").slice(0, 10),
+      confirmation_date: (empData.confirmation_date || "").slice(0, 10),
+      promotion_date: (empData.promotion_date || "").slice(0, 10),
       manager_id: empData.manager_id || "",
     });
     setEditMode(true);
@@ -671,6 +673,14 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                 <div className="award-form-row">
                   <label>Date of Joining</label>
                   <input type="date" value={editForm.doj} onChange={e => setEditForm(f => ({ ...f, doj: e.target.value }))} />
+                </div>
+                <div className="award-form-row">
+                  <label>Confirmation Date</label>
+                  <input type="date" value={editForm.confirmation_date} onChange={e => setEditForm(f => ({ ...f, confirmation_date: e.target.value }))} />
+                </div>
+                <div className="award-form-row">
+                  <label>Promotion Date</label>
+                  <input type="date" value={editForm.promotion_date} onChange={e => setEditForm(f => ({ ...f, promotion_date: e.target.value }))} />
                 </div>
                 <div className="award-form-row">
                   <label>Manager</label>
