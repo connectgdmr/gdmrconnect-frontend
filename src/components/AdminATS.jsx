@@ -105,6 +105,16 @@ function exportCandidatePDF(cand) {
   w.document.close(); setTimeout(()=>w.print(),300);
 }
 
+// Same "offboarded" rule used elsewhere in the app (AdminAttendancePage,
+// AdminPayroll, AdminDashboard's empExitStatus, etc.): notice given + last
+// working day already passed.
+function isOffboarded(emp) {
+  const lwd = emp?.resignation?.last_working_day;
+  if (!emp?.resignation?.notice_date || !lwd) return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return new Date(lwd) < today;
+}
+
 export default function AdminATS({ token, role = "admin", employees = [], departments = [] }) {
   const [tab, setTab] = useState("dashboard");
   const [candidates, setCandidates] = useState([]);
@@ -174,6 +184,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
   // department can be a plain string OR an array (multi-department
   // managers), so normalize to an array before checking either shape.
   const hrEmployees = [...employees]
+    .filter(e => !isOffboarded(e))
     .filter(e => {
       const depts = Array.isArray(e.department) ? e.department : [e.department];
       return depts.some(d => { const s = (d || "").toLowerCase(); return s.includes("hr") || s.includes("human resource"); });
