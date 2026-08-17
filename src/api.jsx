@@ -136,10 +136,12 @@ export default {
   deleteEmployee: (id, token) => request(`/admin/employees/${id}`, "DELETE", null, token),
   editEmployee: (id, payload, token) => request(`/admin/employees/${id}`, "PUT", payload, token),
 
-  uploadEmployeeDocument: async (empId, name, file, token) => {
+  uploadEmployeeDocument: async (empId, name, file, token, type, expiryDate) => {
     const formData = new FormData();
     formData.append("name", name);
     formData.append("file", file);
+    if (type) formData.append("type", type);
+    if (expiryDate) formData.append("expiry_date", expiryDate);
     const res = await fetch(`${FETCH_BASE}/admin/employees/${empId}/documents`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
@@ -150,6 +152,19 @@ export default {
     return data;
   },
   deleteEmployeeDocument: (empId, docId, token) => request(`/admin/employees/${empId}/documents/${docId}`, "DELETE", null, token),
+  replaceEmployeeDocument: async (empId, docId, file, expiryDate, token) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (expiryDate) formData.append("expiry_date", expiryDate);
+    const res = await fetch(`${FETCH_BASE}/admin/employees/${empId}/documents/${docId}/replace`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw data;
+    return data;
+  },
 
   // Managers
   getManagers: (token) => request("/admin/managers", "GET", null, token),
@@ -165,6 +180,11 @@ export default {
   adminAttendance: (token) => request("/admin/attendance", "GET", null, token),
   employeeAttendance: (id, token) => request(`/admin/attendance/${id}`, "GET", null, token),
   todayStats: (token) => request("/admin/today-stats", "GET", null, token),
+
+  // Monthly Attendance Calendar
+  getMyAttendanceCalendar: (month, token) => request(`/my/attendance/calendar?month=${month}`, "GET", null, token),
+  getManagerAttendanceCalendar: (employeeId, month, token) => request(`/manager/attendance/calendar?employee_id=${employeeId}&month=${month}`, "GET", null, token),
+  getAdminAttendanceCalendar: (employeeId, month, token) => request(`/admin/attendance/calendar?employee_id=${employeeId}&month=${month}`, "GET", null, token),
 
   // Attendance with Photo (+ optional geo-location captured at check-in/out)
   checkinWithPhoto: (token, imageData, location = null) =>

@@ -33,12 +33,14 @@ const AdminAssessment        = lazy(() => import("./AdminAssessment"));
 const AdminAttendanceSummary = lazy(() => import("./AdminAttendanceSummary"));
 const EmployeeList           = lazy(() => import("./EmployeeList"));
 const RegisterManager        = lazy(() => import("./RegisterManager"));
+const AttendanceCalendar     = lazy(() => import("./AttendanceCalendar"));
 import {
   FaCamera, 
   FaSignOutAlt, 
-  FaCalendarPlus, 
-  FaCalendarCheck, 
-  FaHistory, 
+  FaCalendarPlus,
+  FaCalendarCheck,
+  FaCalendarWeek,
+  FaHistory,
   FaArrowLeft, 
   FaCheckCircle, 
   FaHourglassHalf, 
@@ -1242,6 +1244,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
+              <QuickLaunchItem icon={<FaCalendarWeek />} label="Team Calendar" onClick={() => setView("team-calendar")} />
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} badgeCount={notificationCounts?.announcements || 0} />
               <QuickLaunchItem icon={<FaLaptop />} label="Team Assets" onClick={() => setView("team-assets")} badgeCount={notificationCounts?.assets || 0} />
               {delegatedGrants.length > 0 && (
@@ -1913,6 +1916,17 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                   </tbody>
                 </table>
             </div>
+        </div>
+      )}
+
+      {/* — Team Calendar (Department → Employee → Month attendance review) — */}
+      {view === "team-calendar" && (
+        <div style={{ marginTop: 16 }}>
+          <ErrorBoundary label="Team Calendar" resetKey={view}>
+            <Suspense fallback={<div />}>
+              <AttendanceCalendar token={token} api={api} mode="manager" employees={teamMembers} />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       )}
 

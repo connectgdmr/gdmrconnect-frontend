@@ -8,6 +8,7 @@ import useChatUnread from "./useChatUnread";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 import { getCurrentLocation } from "../utils/geolocation";
 import { resolveAttachmentUrl } from "../utils/security";
+import { ym } from "../utils/dateUtils";
 import LeaveCalendar from "./LeaveCalendar";
 import SettingsModal from "./SettingsModal";
 import InsightsBanner from "./InsightsBanner";
@@ -30,12 +31,14 @@ const AdminWorkByTeam         = lazy(() => import("./AdminWorkByTeam"));
 const AdminAssessment         = lazy(() => import("./AdminAssessment"));
 const AdminAttendanceSummary  = lazy(() => import("./AdminAttendanceSummary"));
 const PMSWorkspace            = lazy(() => import("./PMSWorkspace"));
+const AttendanceCalendar      = lazy(() => import("./AttendanceCalendar"));
 
 import {
   FaCamera,
   FaSignOutAlt,
   FaCalendarPlus,
   FaCalendarCheck,
+  FaCalendarWeek,
   FaHistory,
   FaArrowLeft,
   FaCheckCircle,
@@ -186,7 +189,12 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   const [leaves, setLeaves] = useState([]);
   const [pmsHistory, setPmsHistory] = useState([]);
   const [correctionHistory, setCorrectionHistory] = useState([]);
-  const [announcements, setAnnouncements] = useState([]); 
+  const [announcements, setAnnouncements] = useState([]);
+  // This month's attendance-calendar summary (Present/Approved Leave/LOP
+  // counts) for the compact dashboard-home stat card — kept separate from
+  // the big Promise.allSettled loader below so a problem here can't affect
+  // any of that existing data.
+  const [monthCalendarSummary, setMonthCalendarSummary] = useState(null);
   
   // ============================================================================
   // 2. ASSET MANAGEMENT STATES (NEW)
@@ -368,6 +376,14 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       .then(r => r.ok ? r.json() : [])
       .then(data => { if (Array.isArray(data) && data.length > 0) setTodayBirthdays(data); })
       .catch(() => {});
+  }, [token, api]);
+
+  // Current month's attendance-calendar summary for the dashboard-home stat card.
+  useEffect(() => {
+    if (!token || !api?.getMyAttendanceCalendar) return;
+    api.getMyAttendanceCalendar(ym(), token)
+      .then(res => setMonthCalendarSummary(res?.summary || null))
+      .catch(() => setMonthCalendarSummary(null));
   }, [token, api]);
 
   // Fetch the employee directory only when a delegated sub-view that needs it
@@ -1105,6 +1121,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
               <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
+              <QuickLaunchItem icon={<FaCalendarWeek />} label="Attendance Calendar" onClick={() => setView("attendance-calendar")} />
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
               <QuickLaunchItem icon={<FaLaptop />} label="Request Asset" onClick={() => setView("assets")} />
@@ -1133,6 +1150,18 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
               <StatItem icon={<FaHourglassHalf />} label="Pending Requests" count={pendingLeaves.length} colorClass="text-orange" onClick={() => handleStatClick("Pending Requests", pendingLeaves)} />
               <StatItem icon={<FaCheckCircle />} label="Approved Leaves" count={approvedLeaves.length} colorClass="text-green" onClick={() => handleStatClick("Approved Leaves", approvedLeaves)} />
               <StatItem icon={<FaTimesCircle />} label="Rejected Leaves" count={rejectedLeaves.length} colorClass="text-red" onClick={() => handleStatClick("Rejected Leaves", rejectedLeaves)} />
+            </div>
+          </div>
+
+          <div className="card dashboard-widget">
+            <h4 className="widget-title">This Month's Attendance</h4>
+            <div className="stats-list">
+              <StatItem icon={<FaCheckCircle />} label="Present" count={monthCalendarSummary?.present ?? "—"} colorClass="text-green" onClick={() => setView("attendance-calendar")} />
+              <StatItem icon={<FaCalendarCheck />} label="Approved Leave" count={monthCalendarSummary?.approved_leave ?? "—"} colorClass="text-orange" onClick={() => setView("attendance-calendar")} />
+              <StatItem icon={<FaTimesCircle />} label="LOP" count={monthCalendarSummary?.lop ?? "—"} colorClass="text-red" onClick={() => setView("attendance-calendar")} />
+            </div>
+            <div style={{ marginTop: 10, fontSize: 12.5, color: "#64748b", display: "flex", alignItems: "center", gap: 6 }}>
+              🛠 Attendance Corrections: <strong style={{ color: "#0f172a" }}>{correctionHistory.filter(c => c.month === ym()).length} / 3 Used</strong> this month
             </div>
           </div>
         </div>
@@ -1709,6 +1738,17 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
               </tbody>
             </table>
            )}
+        </div>
+      )}
+
+      {/* — Attendance Calendar — */}
+      {view === "attendance-calendar" && (
+        <div style={{ marginTop: 16 }}>
+          <ErrorBoundary label="Attendance Calendar" resetKey={view}>
+            <Suspense fallback={<SkeletonTable rows={6} cols={7} />}>
+              <AttendanceCalendar token={token} api={api} mode="self" employeeId={user?._id} />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       )}
 

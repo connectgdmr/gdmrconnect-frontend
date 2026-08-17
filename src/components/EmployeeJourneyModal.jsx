@@ -6,7 +6,7 @@ import {
   FaBolt, FaClock, FaUserPlus,
   FaCheckCircle, FaEdit, FaSave,
   FaFileAlt, FaFileUpload, FaExternalLinkAlt, FaBriefcase,
-  FaEnvelope, FaPhoneAlt, FaDownload, FaMoneyBillWave,
+  FaEnvelope, FaPhoneAlt, FaDownload, FaMoneyBillWave, FaSyncAlt,
 } from "react-icons/fa";
 
 // "View" opens a URL the browser can actually render inline. Images and
@@ -41,6 +41,23 @@ async function downloadDocument(url, filename) {
     window.open(url, "_blank"); // fallback — at least gets them to the file
   }
 }
+
+// Employee document taxonomy — mirrors DOCUMENT_TYPES in routes/employees.py exactly.
+const DOCUMENT_TYPES = [
+  "Personal / ID Proof",
+  "Educational Certificate",
+  "Professional Certificate",
+  "Previous Company Payslip",
+  "Experience Certificate",
+  "Offer Letter",
+  "Appointment Letter",
+  "Confirmation Letter",
+  "Increment / Salary Revision Letter",
+  "Promotion Letter",
+  "Warning / Memo Letter",
+  "Training Certificate",
+  "Other",
+];
 
 // ─── ACHIEVEMENT TYPE CONFIG (FA icons only — no emojis) ─────────────────────
 const ACH_TYPES = [
@@ -195,7 +212,16 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
   // ── Documents ────────────────────────────────────────────────────────────────
   const [newDocName, setNewDocName] = useState("");
   const [newDocFile, setNewDocFile] = useState(null);
+  const [newDocType, setNewDocType] = useState("");
+  const [newDocExpiry, setNewDocExpiry] = useState("");
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  // Inline "Replace" mini-form — only one document's replace form is open at a time.
+  const [replacingDocId, setReplacingDocId] = useState(null);
+  const [replaceFile, setReplaceFile] = useState(null);
+  const [replaceExpiry, setReplaceExpiry] = useState("");
+  const [replacingUpload, setReplacingUpload] = useState(false);
+  // Which document's version history is expanded.
+  const [expandedHistoryId, setExpandedHistoryId] = useState(null);
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -350,13 +376,15 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
   // ── Documents ────────────────────────────────────────────────────────────────
   async function uploadDoc(e) {
     e.preventDefault();
-    if (!newDocName.trim() || !newDocFile) return;
+    if (!newDocName.trim() || !newDocFile || !newDocType) return;
     setUploadingDoc(true);
     try {
-      const doc = await api.uploadEmployeeDocument(empData._id, newDocName.trim(), newDocFile, token);
+      const doc = await api.uploadEmployeeDocument(empData._id, newDocName.trim(), newDocFile, token, newDocType, newDocExpiry || null);
       setEmpData(prev => ({ ...prev, documents: [...(prev.documents || []), doc] }));
       setNewDocName("");
       setNewDocFile(null);
+      setNewDocType("");
+      setNewDocExpiry("");
       onRefresh?.();
     } catch {
       alert("Failed to upload document.");
@@ -373,6 +401,30 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
       onRefresh?.();
     } catch {
       alert("Failed to remove document.");
+    }
+  }
+
+  async function replaceDoc(docId) {
+    if (!replaceFile) return;
+    setReplacingUpload(true);
+    try {
+      const res = await api.replaceEmployeeDocument(empData._id, docId, replaceFile, replaceExpiry || null, token);
+      // Patch the local copy directly from the returned document — no need
+      // to re-fetch the whole employee roster just to see the new version.
+      if (res?.document) {
+        setEmpData(prev => ({
+          ...prev,
+          documents: (prev.documents || []).map(d => d.id === docId ? res.document : d),
+        }));
+      }
+      onRefresh?.();
+      setReplacingDocId(null);
+      setReplaceFile(null);
+      setReplaceExpiry("");
+    } catch {
+      alert("Failed to replace document.");
+    } finally {
+      setReplacingUpload(false);
     }
   }
 
@@ -457,6 +509,16 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
   const docSourceBadge = (source) => source === "ats"
     ? { label: "From Recruitment", color: "#2563eb", bg: "#eff6ff" }
     : { label: "Manual", color: "#64748b", bg: "#f1f5f9" };
+
+  // Expired / expiring-soon badge for a document's expiry_date, or null if
+  // there's nothing to flag (no expiry set, or it's comfortably in the future).
+  const docExpiryBadge = (expiryDate) => {
+    if (!expiryDate) return null;
+    const daysLeft = Math.ceil((new Date(expiryDate) - new Date(todayStr)) / 86400000);
+    if (daysLeft < 0) return { label: "Expired", color: "#dc2626", bg: "#fef2f2" };
+    if (daysLeft <= 30) return { label: `Expires in ${daysLeft}d`, color: "#d97706", bg: "#fffbeb" };
+    return null;
+  };
 
   return (
     <div
@@ -675,28 +737,72 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
               <div>
                 {empData.documents.map(d => {
                   const b = docSourceBadge(d.source);
+                  const expiryBadge = docExpiryBadge(d.expiry_date);
+                  const history = d.history || [];
+                  const isReplacing = replacingDocId === d.id;
+                  const isHistoryOpen = expandedHistoryId === d.id;
                   return (
-                    <div key={d.id || d.url} className="doc-row">
-                      <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <FaFileAlt size={13} color="#64748b" />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{d.name}</div>
-                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
-                          {fmtDateTime(d.uploaded_at)}
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: b.bg, color: b.color }}>{b.label}</span>
+                    <div key={d.id || d.url}>
+                      <div className="doc-row">
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <FaFileAlt size={13} color="#64748b" />
                         </div>
-                      </div>
-                      <a href={cloudinaryViewUrl(d.url)} target="_blank" rel="noreferrer" title="View" style={{ color: C_BRAND, padding: 6, display: "flex" }}>
-                        <FaExternalLinkAlt size={13} />
-                      </a>
-                      <button type="button" onClick={() => downloadDocument(d.url, d.name)} title="Download" style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: 6, display: "flex" }}>
-                        <FaDownload size={12} />
-                      </button>
-                      {api && token && (
-                        <button onClick={() => removeDoc(d.id)} title="Remove" style={{ background: "none", border: "none", color: "#cbd5e1", cursor: "pointer", padding: 6, display: "flex" }}>
-                          <FaTrash size={12} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{d.name}</div>
+                          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            {fmtDateTime(d.uploaded_at)}
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: b.bg, color: b.color }}>{b.label}</span>
+                            {d.type && <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: "#f5f3ff", color: "#7c3aed" }}>{d.type}</span>}
+                            {expiryBadge && <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: expiryBadge.bg, color: expiryBadge.color }}>{expiryBadge.label}</span>}
+                            {history.length > 0 && (
+                              <button type="button" onClick={() => setExpandedHistoryId(isHistoryOpen ? null : d.id)}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2, padding: 0 }}>
+                                v{history.length + 1} {isHistoryOpen ? <FaChevronUp size={8} /> : <FaChevronDown size={8} />}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <a href={cloudinaryViewUrl(d.url)} target="_blank" rel="noreferrer" title="View" style={{ color: C_BRAND, padding: 6, display: "flex" }}>
+                          <FaExternalLinkAlt size={13} />
+                        </a>
+                        <button type="button" onClick={() => downloadDocument(d.url, d.name)} title="Download" style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: 6, display: "flex" }}>
+                          <FaDownload size={12} />
                         </button>
+                        {api && token && (
+                          <>
+                            <button type="button" onClick={() => { setReplacingDocId(isReplacing ? null : d.id); setReplaceFile(null); setReplaceExpiry(d.expiry_date || ""); }} title="Replace" style={{ background: "none", border: "none", cursor: "pointer", color: isReplacing ? C_BRAND : "#64748b", padding: 6, display: "flex" }}>
+                              <FaSyncAlt size={12} />
+                            </button>
+                            <button onClick={() => removeDoc(d.id)} title="Remove" style={{ background: "none", border: "none", color: "#cbd5e1", cursor: "pointer", padding: 6, display: "flex" }}>
+                              <FaTrash size={12} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+
+                      {isHistoryOpen && history.length > 0 && (
+                        <div style={{ margin: "0 0 8px 42px", padding: "8px 12px", background: "#f8fafc", borderRadius: 8, fontSize: 11.5 }}>
+                          {history.slice().reverse().map((h, i) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", color: "#64748b" }}>
+                              <span>v{history.length - i}</span>
+                              <span>{fmtDateTime(h.uploaded_at)}</span>
+                              <a href={cloudinaryViewUrl(h.url)} target="_blank" rel="noreferrer" style={{ color: C_BRAND }}>View</a>
+                              <button type="button" onClick={() => downloadDocument(h.url, `${d.name} (v${history.length - i})`)} style={{ background: "none", border: "none", cursor: "pointer", color: C_BRAND, padding: 0 }}>Download</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {isReplacing && (
+                        <div style={{ margin: "0 0 10px 42px", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                          <input type="file" onChange={e => setReplaceFile(e.target.files?.[0] || null)} style={{ flex: "1 1 160px", fontSize: 12 }} accept=".pdf,.jpg,.jpeg,.png" />
+                          <input type="date" value={replaceExpiry} onChange={e => setReplaceExpiry(e.target.value)}
+                            style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none" }} title="Expiry date (optional)" />
+                          <button type="button" disabled={replacingUpload || !replaceFile} onClick={() => replaceDoc(d.id)}
+                            style={{ background: C_BRAND, color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: (replacingUpload || !replaceFile) ? 0.6 : 1 }}>
+                            {replacingUpload ? "Uploading…" : "Upload New Version"}
+                          </button>
+                        </div>
                       )}
                     </div>
                   );
@@ -712,13 +818,29 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                   placeholder="Document name (e.g. Offer Letter)"
                   style={{ flex: "1 1 180px", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", fontSize: 12.5, outline: "none" }}
                 />
+                <select
+                  value={newDocType}
+                  onChange={e => setNewDocType(e.target.value)}
+                  required
+                  style={{ flex: "1 1 160px", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", fontSize: 12.5, outline: "none", background: "#fff" }}
+                >
+                  <option value="">— Document Type —</option>
+                  {DOCUMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <input
+                  type="date"
+                  value={newDocExpiry}
+                  onChange={e => setNewDocExpiry(e.target.value)}
+                  title="Expiry date (optional)"
+                  style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", fontSize: 12.5, outline: "none" }}
+                />
                 <input
                   type="file"
                   onChange={e => setNewDocFile(e.target.files?.[0] || null)}
                   style={{ flex: "1 1 160px", fontSize: 12 }}
                   accept=".pdf,.jpg,.jpeg,.png"
                 />
-                <button type="submit" disabled={uploadingDoc || !newDocName.trim() || !newDocFile} style={{ display: "flex", alignItems: "center", gap: 6, background: C_BRAND, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", opacity: (uploadingDoc || !newDocName.trim() || !newDocFile) ? 0.6 : 1 }}>
+                <button type="submit" disabled={uploadingDoc || !newDocName.trim() || !newDocFile || !newDocType} style={{ display: "flex", alignItems: "center", gap: 6, background: C_BRAND, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", opacity: (uploadingDoc || !newDocName.trim() || !newDocFile || !newDocType) ? 0.6 : 1 }}>
                   <FaFileUpload size={11} /> {uploadingDoc ? "Uploading…" : "Add"}
                 </button>
               </form>
