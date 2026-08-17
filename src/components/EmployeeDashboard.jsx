@@ -21,6 +21,7 @@ const AdminPayroll        = lazy(() => import("./AdminPayroll"));
 const AdminLeavePage      = lazy(() => import("./AdminLeavePage"));
 const AdminAttendancePage = lazy(() => import("./AdminAttendancePage"));
 const EmployeeList           = lazy(() => import("./EmployeeList"));
+const EmployeeForm           = lazy(() => import("./EmployeeForm"));
 const RegisterManager        = lazy(() => import("./RegisterManager"));
 const AdminATS                = lazy(() => import("./AdminATS"));
 const AdminCareer             = lazy(() => import("./AdminCareer"));
@@ -148,16 +149,28 @@ const DELEGATED_MODULES = [
   { key: "employees", label: "Manage Employees", Icon: FaUsers,
     alert: "You are managing Employees using temporary Delegated Access.",
     render: (ctx) => (
-      <EmployeeList
-        employees={ctx.delegatedEmployees}
-        departments={[]}
-        onDelete={ctx.deleteDelegatedEmployee}
-        onRefresh={ctx.loadDelegatedEmployees}
-        onPatch={ctx.patchDelegatedEmployee}
-        onPromote={ctx.promoteDelegatedEmployee}
-        api={ctx.api}
-        token={ctx.token}
-      />
+      <>
+        {ctx.canWriteEmployees && (
+          <div className="card admin-buttons" style={{ marginBottom: 16 }}>
+            <button className={`btn ${ctx.delegatedEmpSubView === "list" ? "" : "ghost"}`} onClick={() => ctx.setDelegatedEmpSubView("list")}>Employee List</button>
+            <button className={`btn ${ctx.delegatedEmpSubView === "add" ? "" : "ghost"}`} onClick={() => ctx.setDelegatedEmpSubView("add")}>Add New Employee</button>
+          </div>
+        )}
+        {ctx.canWriteEmployees && ctx.delegatedEmpSubView === "add" ? (
+          <EmployeeForm onAdd={ctx.addDelegatedEmployee} api={ctx.api} token={ctx.token} departments={ctx.delegatedDepartments} />
+        ) : (
+          <EmployeeList
+            employees={ctx.delegatedEmployees}
+            departments={ctx.delegatedDepartments}
+            onDelete={ctx.deleteDelegatedEmployee}
+            onRefresh={ctx.loadDelegatedEmployees}
+            onPatch={ctx.patchDelegatedEmployee}
+            onPromote={ctx.promoteDelegatedEmployee}
+            api={ctx.api}
+            token={ctx.token}
+          />
+        )}
+      </>
     ) },
   { key: "manager", label: "Manage Managers", Icon: FaUserShield,
     alert: "You are managing Managers using temporary Delegated Access.",
@@ -212,9 +225,12 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // EmployeeList component behaves identically.
   const [delegatedEmployees, setDelegatedEmployees] = useState([]);
   const [delegatedEmployeesLoading, setDelegatedEmployeesLoading] = useState(false);
-  // Company department list — same on-demand fetch, needed by "Recruitment".
+  // Company department list — same on-demand fetch, needed by "Recruitment"
+  // and by "Employees" (its Add New Employee form's Department dropdown).
   const [delegatedDepartments, setDelegatedDepartments] = useState([]);
   const [delegatedDepartmentsLoading, setDelegatedDepartmentsLoading] = useState(false);
+  // "Employees" sub-view: List vs. Add New Employee (mirrors AdminDashboard's subView).
+  const [delegatedEmpSubView, setDelegatedEmpSubView] = useState("list");
 
   // ============================================================================
   // 6. NAVIGATION & UI STATES
@@ -361,8 +377,12 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         && delegatedEmployees.length === 0 && !delegatedEmployeesLoading) {
       loadDelegatedEmployees();
     }
-    if (view === "delegated-ats" && delegatedDepartments.length === 0 && !delegatedDepartmentsLoading) {
+    if ((view === "delegated-ats" || view === "delegated-employees")
+        && delegatedDepartments.length === 0 && !delegatedDepartmentsLoading) {
       loadDelegatedDepartments();
+    }
+    if (view !== "delegated-employees") {
+      setDelegatedEmpSubView("list");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
@@ -822,6 +842,13 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       } catch { /* silent — Add Candidate falls back to departments seen on existing candidates */ }
       finally { setDelegatedDepartmentsLoading(false); }
   }
+  // Mirrors AdminDashboard's own addEmployee — errors intentionally propagate
+  // so EmployeeForm's handle() can show them via err.message.
+  async function addDelegatedEmployee(data) {
+      await api.addEmployee(data, token);
+      await loadDelegatedEmployees();
+      setDelegatedEmpSubView("list");
+  }
   function patchDelegatedEmployee(id, updates) {
       setDelegatedEmployees(prev => prev.map(e => e._id === id ? { ...e, ...updates } : e));
   }
@@ -1232,6 +1259,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
           const ctx = {
               token, api, user, delegatedEmployees, delegatedDepartments,
               loadDelegatedEmployees, patchDelegatedEmployee, deleteDelegatedEmployee, promoteDelegatedEmployee,
+              addDelegatedEmployee, delegatedEmpSubView, setDelegatedEmpSubView,
+              canWriteEmployees: grantedModuleWrite("employees"),
           };
           return (
               <div key={m.key} style={{ marginTop: "16px" }}>
