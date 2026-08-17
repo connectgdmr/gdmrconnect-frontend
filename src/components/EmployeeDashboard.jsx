@@ -126,7 +126,7 @@ const DELEGATED_MODULES = [
     render: (ctx) => <AdminPayroll token={ctx.token} employees={[]} /> },
   { key: "ats", label: "Manage Recruitment", Icon: FaUserTag,
     alert: "You are managing Recruitment using temporary Delegated Access.",
-    render: (ctx) => <AdminATS token={ctx.token} role={ctx.user?.role || "employee"} employees={[]} departments={[]} /> },
+    render: (ctx) => <AdminATS token={ctx.token} role={ctx.user?.role || "employee"} employees={ctx.delegatedEmployees} departments={ctx.delegatedDepartments} /> },
   { key: "career", label: "Manage Jobs", Icon: FaBriefcase,
     alert: "You are managing Job Postings using temporary Delegated Access.",
     render: (ctx) => <AdminCareer token={ctx.token} employees={[]} /> },
@@ -205,11 +205,16 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // 5. SPECIAL ACCESS (DELEGATED ADMIN) STATE
   // ============================================================================
   const [delegatedGrants, setDelegatedGrants] = useState([]);
-  // Employee directory, fetched on-demand only when the delegated "Employees"
-  // sub-view is opened — mirrors AdminDashboard's own loadEmployees/patch/
-  // delete/promote so the reused EmployeeList component behaves identically.
+  // Employee directory, fetched on-demand only when a delegated sub-view that
+  // needs it is opened ("Employees" itself, or "Recruitment" for its Add
+  // Candidate form's Sourced By / Department pickers) — mirrors
+  // AdminDashboard's own loadEmployees/patch/delete/promote so the reused
+  // EmployeeList component behaves identically.
   const [delegatedEmployees, setDelegatedEmployees] = useState([]);
   const [delegatedEmployeesLoading, setDelegatedEmployeesLoading] = useState(false);
+  // Company department list — same on-demand fetch, needed by "Recruitment".
+  const [delegatedDepartments, setDelegatedDepartments] = useState([]);
+  const [delegatedDepartmentsLoading, setDelegatedDepartmentsLoading] = useState(false);
 
   // ============================================================================
   // 6. NAVIGATION & UI STATES
@@ -349,11 +354,15 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       .catch(() => {});
   }, [token, api]);
 
-  // Fetch the employee directory only when the delegated "Employees" sub-view
+  // Fetch the employee directory only when a delegated sub-view that needs it
   // is actually opened, not eagerly on every dashboard load.
   useEffect(() => {
-    if (view === "delegated-employees" && delegatedEmployees.length === 0 && !delegatedEmployeesLoading) {
+    if ((view === "delegated-employees" || view === "delegated-ats")
+        && delegatedEmployees.length === 0 && !delegatedEmployeesLoading) {
       loadDelegatedEmployees();
+    }
+    if (view === "delegated-ats" && delegatedDepartments.length === 0 && !delegatedDepartmentsLoading) {
+      loadDelegatedDepartments();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
@@ -803,6 +812,16 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       } catch { /* silent — UI shows stale/empty data */ }
       finally { setDelegatedEmployeesLoading(false); }
   }
+  // — Delegated "Recruitment" department lookup — Add Candidate's Department dropdown.
+  async function loadDelegatedDepartments() {
+      setDelegatedDepartmentsLoading(true);
+      try {
+          const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+          const res = await fetch(`${baseUrl}/api/admin/departments`, { headers: { Authorization: `Bearer ${token}` } });
+          setDelegatedDepartments(res.ok ? await res.json() : []);
+      } catch { /* silent — Add Candidate falls back to departments seen on existing candidates */ }
+      finally { setDelegatedDepartmentsLoading(false); }
+  }
   function patchDelegatedEmployee(id, updates) {
       setDelegatedEmployees(prev => prev.map(e => e._id === id ? { ...e, ...updates } : e));
   }
@@ -1211,7 +1230,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       {/* --- SUB-VIEWS FOR DELEGATED ADMIN --- */}
       {DELEGATED_MODULES.filter(m => view === `delegated-${m.key}`).map(m => {
           const ctx = {
-              token, api, user, delegatedEmployees,
+              token, api, user, delegatedEmployees, delegatedDepartments,
               loadDelegatedEmployees, patchDelegatedEmployee, deleteDelegatedEmployee, promoteDelegatedEmployee,
           };
           return (
