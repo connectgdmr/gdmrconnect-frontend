@@ -661,6 +661,26 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                 />
               </div>
 
+              <div style={{ textAlign: "left", marginBottom: 14 }}>
+                <label style={{ fontWeight: 600, color: "#334155", fontSize: 13 }}>Confirmation Date</label>
+                <input
+                  className="modern-input"
+                  type="date"
+                  value={editingEmployee.confirmation_date || ""}
+                  onChange={(e) => setEditingEmployee({ ...editingEmployee, confirmation_date: e.target.value })}
+                />
+              </div>
+
+              <div style={{ textAlign: "left", marginBottom: 14 }}>
+                <label style={{ fontWeight: 600, color: "#334155", fontSize: 13 }}>Promotion Date</label>
+                <input
+                  className="modern-input"
+                  type="date"
+                  value={editingEmployee.promotion_date || ""}
+                  onChange={(e) => setEditingEmployee({ ...editingEmployee, promotion_date: e.target.value })}
+                />
+              </div>
+
               <div style={{ textAlign: "left", marginBottom: 24 }}>
                 <label style={{ fontWeight: 600, color: "#334155", fontSize: 13 }}>Assigned Manager</label>
                 <select

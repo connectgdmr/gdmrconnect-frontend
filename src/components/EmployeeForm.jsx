@@ -14,6 +14,8 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
   const [position, setPosition] = useState("");
   const [employeeCode, setEmployeeCode] = useState("");
   const [doj, setDoj] = useState("");
+  const [confirmationDate, setConfirmationDate] = useState("");
+  const [promotionDate, setPromotionDate] = useState("");
   const [managerId, setManagerId] = useState("");
   const [shift, setShift] = useState("morning");
   const [employmentType, setEmploymentType] = useState("Permanent");
@@ -55,13 +57,15 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
         position,
         employee_code: employeeCode,
         doj,
+        confirmation_date: confirmationDate,
+        promotion_date: promotionDate,
         shift,
         manager_id: managerId || undefined,
         employment_type: employmentType,
         contract_months: employmentType === "Contract" ? Number(contractMonths) : undefined,
       });
       setMsg(employmentType === "Contract" ? "Employee added — no login access (contract)." : "Employee added — credentials sent by email.");
-      setName(""); setEmail(""); setPhone(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setEmployeeCode(""); setDoj(""); setManagerId(""); setShift("morning"); setEmploymentType("Permanent"); setContractMonths("");
+      setName(""); setEmail(""); setPhone(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setEmployeeCode(""); setDoj(""); setConfirmationDate(""); setPromotionDate(""); setManagerId(""); setShift("morning"); setEmploymentType("Permanent"); setContractMonths("");
     } catch (err) {
       setMsg(err.message || "Error");
     } finally { setSaving(false); }
@@ -133,6 +137,18 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
           <div style={{flex: 1}}>
             <label>Date of Joining</label>
             <input className="input" type="date" value={doj} onChange={e=>setDoj(e.target.value)} />
+          </div>
+        </div>
+
+        {/* Row 4b: Confirmation Date and Promotion Date */}
+        <div className="form-row">
+          <div style={{flex: 1}}>
+            <label>Confirmation Date</label>
+            <input className="input" type="date" value={confirmationDate} onChange={e=>setConfirmationDate(e.target.value)} />
+          </div>
+          <div style={{flex: 1}}>
+            <label>Promotion Date</label>
+            <input className="input" type="date" value={promotionDate} onChange={e=>setPromotionDate(e.target.value)} />
           </div>
         </div>
 
