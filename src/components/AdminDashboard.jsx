@@ -855,8 +855,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
         // Active workforce: excludes fully offboarded employees (LWD passed), includes notice-period
         const activeEmps = employees.filter(e => empExitStatus(e) !== "offboarded");
-        // Offboarded employees should not inflate any attendance count
-        const offboardedCount = employees.filter(e => empExitStatus(e) === "offboarded").length;
 
         // Extended-leave employees (active, no offboard)
         const extLeaveEmpsAll = activeEmps.filter(e =>
@@ -868,11 +866,11 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           ? todayLeaveRows.length
           : (stats.leave ?? 0) + extLeaveEmpsAll.length;
 
-        // Not Checked In: backend count minus offboarded, minus extended-leave employees
-        // that don't have a daily leave record (they appear as NCI in backend but are actually on leave)
-        const leaveEmpNameSet = new Set((todayLeaveRows || []).map(r => r.employee_name));
-        const extLeaveNoRecord = extLeaveEmpsAll.filter(e => !leaveEmpNameSet.has(e.name)).length;
-        const adjNotCheckedIn = Math.max(0, (stats.not_checked_in ?? 0) - offboardedCount - extLeaveNoRecord);
+        // Not Checked In: /admin/today-stats (and its attendance-summary fallback) already
+        // exclude offboarded employees (LWD passed) and anyone on leave — including extended
+        // leave — from this count. Subtracting offboardedCount/extLeaveNoRecord again here was
+        // double-counting and could clamp the tile to 0 while real not-checked-in people existed.
+        const adjNotCheckedIn = stats.not_checked_in ?? 0;
 
         return (
         <>
