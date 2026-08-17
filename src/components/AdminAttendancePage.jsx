@@ -153,6 +153,10 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
     leave: 0,
     not_checked_in: 0,
   });
+  // Deduplicated today's-leave roster (std leave applications + extended
+  // leave not already captured) — same source/shape as the Admin Dashboard's
+  // "On Leave" KPI so the two pages always agree.
+  const [todayLeaveRows, setTodayLeaveRows] = useState(null);
 
   // --- Modal State for Clickable Stats (NEWLY ADDED) ---
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -234,11 +238,61 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
       const activeList = list.filter(e => !isOffboarded(e));
       const deptNames = [...new Set(activeList.map(e => e.department).filter(Boolean))].sort((a, b) => a.localeCompare(b));
       setDepartments(["All", ...deptNames]);
+
+      // Load today's leave roster with fresh employee data so the KPI and
+      // modal stay in sync (same pattern as the Admin Dashboard).
+      loadTodayLeaves(list);
     } catch (err) {
       console.error("Error loading employees", err);
     } finally {
       setLoading(false);
     }
+  }
+
+  /**
+   * Builds today's leave roster — same dedup logic as the modal (and the
+   * Admin Dashboard) so the KPI tile and the click-through modal always agree.
+   */
+  async function loadTodayLeaves(empList) {
+    const todayStr = ymd();
+    const src = empList || employees;
+    try {
+      const allLeaves = await api.adminLeaves(token);
+      const rawList = Array.isArray(allLeaves) ? allLeaves : (allLeaves?.leaves || []);
+      const leaveList = rawList.filter(l => {
+        const st = (l.status || "").toLowerCase();
+        if (st === "rejected" || st === "cancelled") return false;
+        if (l.from_date && l.to_date) return String(l.from_date).slice(0, 10) <= todayStr && String(l.to_date).slice(0, 10) >= todayStr;
+        return String(l.date || "").slice(0, 10) === todayStr;
+      });
+
+      const leaveRows = leaveList.map(l => {
+        const emp = src.find(e => String(e._id) === String(l.employee_id) || e.name === l.employee_name);
+        return { ...l, department: l.department || emp?.department || "—" };
+      });
+
+      // Add employees with active extended_leaves not already captured
+      const leaveEmpNames = new Set(leaveRows.map(r => r.employee_name));
+      src.forEach(e => {
+        if (!e.resignation?.notice_date &&
+            e.extended_leaves?.some(lv => lv.from_date <= todayStr && lv.to_date >= todayStr) &&
+            !leaveEmpNames.has(e.name)) {
+          const lv = e.extended_leaves[e.extended_leaves.length - 1];
+          leaveRows.push({
+            _id: `ext_${e._id}`,
+            employee_name: e.name,
+            department: Array.isArray(e.department) ? e.department[0] : (e.department || "—"),
+            type: lv.type,
+            status: "Extended Leave",
+            manager_status: "N/A",
+            admin_status: "N/A",
+            _extLeave: true,
+          });
+        }
+      });
+
+      setTodayLeaveRows(leaveRows);
+    } catch { /* silent — KPI falls back to stats.leave */ }
   }
 
   /**
@@ -300,43 +354,46 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
       const todayStr = ymd(now);
 
       if (type === 'leave') {
-        // Full leave records (department, half/full, manager+admin approval) rather
-        // than just name/email — same source and shape as the admin dashboard's
-        // "On Leave Today" card so delegated access sees the same detail.
-        const allLeaves = await api.adminLeaves(token);
-        const rawList = Array.isArray(allLeaves) ? allLeaves : (allLeaves?.leaves || []);
-        const todayLeaves = rawList.filter(l => {
-          const st = (l.status || "").toLowerCase();
-          if (st === "rejected" || st === "cancelled") return false;
-          if (l.from_date && l.to_date) return String(l.from_date).slice(0, 10) <= todayStr && String(l.to_date).slice(0, 10) >= todayStr;
-          return String(l.date || "").slice(0, 10) === todayStr;
-        });
+        // Use the pre-loaded roster (same source as the KPI tile) for instant,
+        // consistent results — falls back to a fresh fetch if it hasn't loaded yet.
+        if (todayLeaveRows !== null) {
+          setDetailLeaves([...todayLeaveRows]);
+        } else {
+          const allLeaves = await api.adminLeaves(token);
+          const rawList = Array.isArray(allLeaves) ? allLeaves : (allLeaves?.leaves || []);
+          const todayLeaves = rawList.filter(l => {
+            const st = (l.status || "").toLowerCase();
+            if (st === "rejected" || st === "cancelled") return false;
+            if (l.from_date && l.to_date) return String(l.from_date).slice(0, 10) <= todayStr && String(l.to_date).slice(0, 10) >= todayStr;
+            return String(l.date || "").slice(0, 10) === todayStr;
+          });
 
-        const leaveRows = todayLeaves.map(l => {
-          const emp = employees.find(e => String(e._id) === String(l.employee_id) || e.name === l.employee_name);
-          return { ...l, department: l.department || emp?.department || "—" };
-        });
+          const leaveRows = todayLeaves.map(l => {
+            const emp = employees.find(e => String(e._id) === String(l.employee_id) || e.name === l.employee_name);
+            return { ...l, department: l.department || emp?.department || "—" };
+          });
 
-        const leaveEmpNames = new Set(leaveRows.map(r => r.employee_name));
-        employees.forEach(e => {
-          if (!e.resignation?.notice_date &&
-              e.extended_leaves?.some(lv => lv.from_date <= todayStr && lv.to_date >= todayStr) &&
-              !leaveEmpNames.has(e.name)) {
-            const lv = e.extended_leaves[e.extended_leaves.length - 1];
-            leaveRows.push({
-              _id: `ext_${e._id}`,
-              employee_name: e.name,
-              department: e.department || "—",
-              type: lv.type,
-              status: "Extended Leave",
-              manager_status: "N/A",
-              admin_status: "N/A",
-              _extLeave: true,
-            });
-          }
-        });
+          const leaveEmpNames = new Set(leaveRows.map(r => r.employee_name));
+          employees.forEach(e => {
+            if (!e.resignation?.notice_date &&
+                e.extended_leaves?.some(lv => lv.from_date <= todayStr && lv.to_date >= todayStr) &&
+                !leaveEmpNames.has(e.name)) {
+              const lv = e.extended_leaves[e.extended_leaves.length - 1];
+              leaveRows.push({
+                _id: `ext_${e._id}`,
+                employee_name: e.name,
+                department: e.department || "—",
+                type: lv.type,
+                status: "Extended Leave",
+                manager_status: "N/A",
+                admin_status: "N/A",
+                _extLeave: true,
+              });
+            }
+          });
 
-        setDetailLeaves(leaveRows);
+          setDetailLeaves(leaveRows);
+        }
         return;
       }
 
@@ -587,6 +644,11 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
   // COMPONENT RENDER
   // ============================================================================
 
+  // On Leave: use the pre-loaded deduplicated roster when available (matches
+  // the modal exactly and the Admin Dashboard's KPI) — falls back to the raw
+  // backend stat while that roster is still loading.
+  const leaveCount = todayLeaveRows !== null ? todayLeaveRows.length : (stats.leave ?? 0);
+
   return (
     <div>
       <style>{`
@@ -684,7 +746,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
       <div className="kpi-row">
           <KpiTile icon={<FaUsers />}       label="Total Workforce" value={activeEmployees.length} tone="brand" />
           <KpiTile icon={<FaCheckCircle />} label="Present Today"   value={stats.present}          tone="green" loading={statsLoading} onClick={() => handleStatClick('present',        'Present Today')} />
-          <KpiTile icon={<FaUserClock />}   label="On Leave"        value={stats.leave}            tone="teal"  loading={statsLoading} onClick={() => handleStatClick('leave',          'On Leave Today')} />
+          <KpiTile icon={<FaUserClock />}   label="On Leave"        value={leaveCount}              tone="teal"  onClick={() => handleStatClick('leave',          'On Leave Today')} />
           <KpiTile icon={<FaUserSlash />}   label="Not Checked In"  value={stats.not_checked_in}   tone="slate" loading={statsLoading} onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
       </div>
 
