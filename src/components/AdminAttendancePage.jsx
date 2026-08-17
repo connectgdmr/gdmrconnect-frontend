@@ -99,13 +99,24 @@ function groupAttendance(records) {
 // MAIN COMPONENT EXPORT
 // ============================================================================
 
-function StatItem({ icon, label, count, colorClass, onClick, statsLoading }) {
+// Same KPI tile used on the Admin Dashboard — kept local here (rather than
+// imported) since AdminDashboard doesn't export it, but uses the same
+// shared .kpi-row/.kpi-tile styles from styles.css so it renders identically.
+function KpiTile({ icon, label, value, tone = "brand", onClick, loading }) {
+  const tones = {
+    brand: { color: "var(--brand)", bg: "var(--brand-light)" },
+    green: { color: "#16a34a", bg: "#f0fdf4" },
+    teal:  { color: "#0f766e", bg: "#effdf8" },
+    amber: { color: "#d97706", bg: "#fffbeb" },
+    slate: { color: "#475569", bg: "#f1f5f9" },
+  };
+  const t = tones[tone] || tones.brand;
   return (
-    <div className="stat-row clickable-stat" style={{ flex: 1, minWidth: '200px' }} onClick={onClick}>
-      <div className={`stat-icon-box ${colorClass}`}>{icon}</div>
-      <div className="stat-info">
-        <span className="stat-count">{statsLoading ? "..." : count}</span>
-        <span className="stat-label">{label}</span>
+    <div className={`kpi-tile${onClick ? " kpi-clickable" : ""}`} onClick={onClick}>
+      <div className="kpi-icon" style={{ color: t.color, background: t.bg }}>{icon}</div>
+      <div className="kpi-meta">
+        <span className="kpi-value">{loading ? "..." : (value ?? 0)}</span>
+        <span className="kpi-label">{label}</span>
       </div>
     </div>
   );
@@ -464,8 +475,6 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
       return "-";
   };
 
-  // StatItem is defined above the component for performance
-
   // ============================================================================
   // ANALYZER COMPUTED DATA
   // ============================================================================
@@ -581,45 +590,6 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
   return (
     <div>
       <style>{`
-        .clickable-stat {
-          cursor: pointer;
-          transition: transform 0.2s, box-shadow 0.2s;
-          background: #fff;
-          border: 1px solid #eee;
-          padding: 15px;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          gap: 15px;
-        }
-        .clickable-stat:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-          border-color: #e5e5e5;
-        }
-        .stat-icon-box {
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          font-size: 20px;
-        }
-        .text-green { background: #f0fdf4; color: #16a34a; }
-        .text-red { background: #fef2f2; color: #dc2626; }
-        .text-dark-red { background: #effdf8; color: #0f766e; }
-        .text-orange { background: #f1f5f9; color: #475569; }
-        .stat-info { display: flex; flex-direction: column; }
-        .stat-count { font-size: 24px; font-weight: bold; color: #333; line-height: 1; }
-        .stat-label { font-size: 13px; color: #666; margin-top: 4px; }
-        .stats-grid-container {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 15px;
-          margin-bottom: 20px;
-        }
-        
         /* Modals for Clickable Stats Details */
         .detail-modal-overlay {
           position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -709,13 +679,13 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
       </div>
 
       {/* ========================================================= */}
-      {/* TODAY'S STATS WIDGETS (NOW FULLY CLICKABLE)               */}
+      {/* TODAY'S STATS WIDGETS — same KPI row style as Admin Dashboard */}
       {/* ========================================================= */}
-      <div className="stats-grid-container">
-          <StatItem statsLoading={statsLoading} icon={<FaCheckCircle />} label="Present Today"    count={stats.present}        colorClass="text-green"    onClick={() => handleStatClick('present',        'Present Today')} />
-          <StatItem statsLoading={statsLoading} icon={<FaTimesCircle />} label="Absent Today"     count={stats.absent}         colorClass="text-red"      onClick={() => handleStatClick('absent',         'Absent Today')} />
-          <StatItem statsLoading={statsLoading} icon={<FaUserClock />}   label="On Leave Today"   count={stats.leave}          colorClass="text-dark-red" onClick={() => handleStatClick('leave',          'On Leave Today')} />
-          <StatItem statsLoading={statsLoading} icon={<FaUserSlash />}   label="Not Checked In"   count={stats.not_checked_in} colorClass="text-orange"   onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
+      <div className="kpi-row">
+          <KpiTile icon={<FaUsers />}       label="Total Workforce" value={activeEmployees.length} tone="brand" />
+          <KpiTile icon={<FaCheckCircle />} label="Present Today"   value={stats.present}          tone="green" loading={statsLoading} onClick={() => handleStatClick('present',        'Present Today')} />
+          <KpiTile icon={<FaUserClock />}   label="On Leave"        value={stats.leave}            tone="teal"  loading={statsLoading} onClick={() => handleStatClick('leave',          'On Leave Today')} />
+          <KpiTile icon={<FaUserSlash />}   label="Not Checked In"  value={stats.not_checked_in}   tone="slate" loading={statsLoading} onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
       </div>
 
       {/* Employee roster grid is still shown under delegated access — only
