@@ -127,25 +127,34 @@ export default function AdminCareer({ token, employees = [] }) {
 
   async function toggleJobStatus(j) {
     const newStatus = j.status === "active" ? "closed" : "active";
-    await fetch(`${BASE}/admin/career/jobs/${j._id}`, {
-      method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ...j, status: newStatus }),
-    });
-    loadJobs();
+    try {
+      const r = await fetch(`${BASE}/admin/career/jobs/${j._id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (r.ok) { flash(newStatus === "closed" ? "Job closed." : "Job reopened."); loadJobs(); }
+      else { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to update job status.", "error"); }
+    } catch { flash("Network error.", "error"); }
   }
 
   async function deleteJob(id) {
     if (!window.confirm("Delete this job posting?")) return;
-    await fetch(`${BASE}/admin/career/jobs/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-    loadJobs();
+    try {
+      const r = await fetch(`${BASE}/admin/career/jobs/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) { flash("Job deleted."); loadJobs(); }
+      else { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to delete job.", "error"); }
+    } catch { flash("Network error.", "error"); }
   }
 
   async function updateReferralStatus(id, status) {
-    await fetch(`${BASE}/admin/career/referrals/${id}`, {
-      method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ status }),
-    });
-    loadReferrals();
+    try {
+      const r = await fetch(`${BASE}/admin/career/referrals/${id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      });
+      if (r.ok) { loadReferrals(); }
+      else { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to update referral status.", "error"); }
+    } catch { flash("Network error.", "error"); }
   }
 
   const addReq = () => {
