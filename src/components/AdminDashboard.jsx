@@ -205,7 +205,12 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   });
 
   // — Notification badge counts —
-  const [notifCounts, setNotifCounts] = useState({ leaves: 0, assets: 0, announcements: 0 });
+  const [notifCounts, setNotifCounts] = useState({ leaves: 0, assets: 0, announcements: 0, corrections: 0 });
+
+  // — Attendance Correction requests routed to admin (manager/admin/owner
+  // self-submitted corrections — see request_correction()'s approval_target) —
+  const [corrections, setCorrections] = useState([]);
+  const [correctionsLoading, setCorrectionsLoading] = useState(false);
 
   // — Asset States —
   const [allAssets, setAllAssets] = useState([]);
@@ -342,6 +347,38 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           }
       } catch (err) {
           // silent fail
+      }
+  }
+
+  // — Attendance Corrections (manager/admin/owner self-submitted, routed to admin) —
+
+  async function loadCorrections() {
+      setCorrectionsLoading(true);
+      try {
+          const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+          const res = await fetch(`${baseUrl}/api/admin/corrections`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+          setCorrections(res.ok ? await res.json() : []);
+      } catch { setCorrections([]); }
+      finally { setCorrectionsLoading(false); }
+  }
+
+  async function approveCorrection(id, action) {
+      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+      try {
+          const res = await fetch(`${baseUrl}/api/admin/approve-correction`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ id, action }),
+          });
+          if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(errData.message || "Failed to process correction request.");
+          }
+          await loadCorrections();
+      } catch (err) {
+          alert(err.message || "Failed to process correction request.");
       }
   }
 
@@ -482,6 +519,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
     if (view === "grant-access") loadAccessGrants();
     if (view === "assets") loadAssets();
     if (view === "departments") loadDepartments();
+    if (view === "corrections") loadCorrections();
   }, [view]);
 
   useEffect(() => {
@@ -773,6 +811,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           leaves: notifCounts?.leaves || 0,
           assets: notifCounts?.assets || 0,
           announcements: notifCounts?.announcements || 0,
+          corrections: notifCounts?.corrections || 0,
         }}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -1046,6 +1085,46 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
       {/* 3. ATTENDANCE */}
       {view === "attendance" && <div style={{ marginTop: "16px" }}><AdminAttendancePage token={token} api={api} /></div>}
+
+      {/* 3b. ATTENDANCE CORRECTIONS — manager/admin/owner self-submitted, routed here for approval */}
+      {view === "corrections" && (
+        <div className="card" style={{ marginTop: "16px" }}>
+          <h3 style={{ color: "var(--red)" }}>Attendance Corrections</h3>
+          <p className="small" style={{ marginBottom: 16 }}>Correction requests submitted by managers (and admins) for their own attendance — employee-submitted corrections are approved by their Reporting Manager instead.</p>
+          <div style={{ overflowX: "auto" }}>
+            {correctionsLoading ? <SkeletonTable rows={6} cols={5} /> : (
+              <table className="styled-table-global">
+                <thead><tr><th>Submitted By</th><th>New Time</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody>
+                  {corrections.length === 0 && <tr><td colSpan="5" style={{ textAlign: "center", padding: 20, color: "#999" }}>No correction requests found.</td></tr>}
+                  {corrections.map(c => (
+                    <tr key={c._id}>
+                      <td style={{ fontWeight: "bold" }}>{c.employee_name || "—"}</td>
+                      <td>{c.new_time ? new Date(c.new_time).toLocaleString() : "—"}</td>
+                      <td>{c.reason}</td>
+                      <td><span className={`status-badge ${getStatusClass(c.status)}`}>{c.status}</span></td>
+                      <td>
+                        {c.status === "Pending" ? (
+                          <div style={{ display: "flex", gap: 5 }}>
+                            <button className="btn-small" style={{ background: "green" }} onClick={() => approveCorrection(c._id, "Approved")}>
+                              <FaCheckCircle /> Approve
+                            </button>
+                            <button className="btn-small" style={{ background: "#b91c1c" }} onClick={() => approveCorrection(c._id, "Rejected")}>
+                              <FaTimesCircle /> Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ color: "#888", fontStyle: "italic", fontSize: 12 }}>Processed</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 4. MANAGERS */}
       {view === "manager" && <div style={{ marginTop: "16px" }}><RegisterManager token={token} api={api} /></div>}
