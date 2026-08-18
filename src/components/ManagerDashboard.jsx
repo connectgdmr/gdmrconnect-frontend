@@ -704,7 +704,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         body: JSON.stringify({
           new_time: correctionData.newTime,
           reason: correctionData.reason,
-          attendance_id: "manual_entry",
+          // No attendance_id — see EmployeeDashboard.jsx's submitCorrection for
+          // why the old "manual_entry" placeholder here silently broke approval.
           employee_name: user?.name || user?.employee_name || "",
           employee_id: user?._id || user?.id || user?.employee_id || "",
           submitted_by_role: "manager",

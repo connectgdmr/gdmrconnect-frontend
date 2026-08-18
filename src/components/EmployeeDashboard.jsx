@@ -675,7 +675,13 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
             body: JSON.stringify({
                 new_time: correctionData.newTime,
                 reason: correctionData.reason,
-                attendance_id: "manual_entry",
+                // No attendance_id — this correction isn't tied to an existing
+                // attendance record (that's the whole point of filing one), and
+                // the backend already treats a missing attendance_id correctly.
+                // A placeholder string here ("manual_entry") used to make
+                // ObjectId(attendance_id) throw on approval and silently abort
+                // the attendance-record insert, leaving the day stuck at LOP
+                // even though the correction showed "Approved".
                 employee_name: user?.name || user?.employee_name || "",
                 employee_id: user?._id || user?.id || user?.employee_id || "",
             })
