@@ -9,6 +9,17 @@ import {
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
 import EmployeeJourneyModal from "./EmployeeJourneyModal";
 
+// Same "offboarded" rule used elsewhere in the app (AdminAttendancePage,
+// AdminPayroll, AdminDashboard's empExitStatus, etc.): notice given + last
+// working day already passed. Offboarded staff are irrelevant to attendance/
+// LOP/correction reporting — every report table on this page excludes them.
+function isOffboarded(emp) {
+  const lwd = emp?.resignation?.last_working_day;
+  if (!emp?.resignation?.notice_date || !lwd) return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return new Date(lwd) < today;
+}
+
 // ─── WORKING DAY LOGIC ────────────────────────────────────────────────────────
 // Sundays = off. Saturdays = off EXCEPT the last Saturday of each month.
 function isLastSatOfMonth(dateStr) {
@@ -435,7 +446,7 @@ export default function AdminAttendanceSummary({ token, api }) {
   const [allLeaves, setAllLeaves] = useState([]);   // all leave apps for Journey modal
   const [activeTab, setActiveTab] = useState("overview");
   const [empSearch, setEmpSearch] = useState("");
-  const [empSort, setEmpSort] = useState("rate");
+  const [empSort, setEmpSort] = useState("name");
   const [empFilter, setEmpFilter] = useState("all");
   const [journeyEmp, setJourneyEmp] = useState(null); // employee object to show in Journey modal
 
@@ -498,9 +509,10 @@ export default function AdminAttendanceSummary({ token, api }) {
   function toggleMonth(m) {
     setMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m].sort());
   }
-  useEffect(() => {
-    // Load full employee list for Journey modal
-    api.listEmployees(token)
+  // Full employee list for the Journey modal and every HR report's roster —
+  // also called by the HR Reports tab's Refresh button.
+  function loadEmployees() {
+    return api.listEmployees(token)
       .then(list => {
         const arr = Array.isArray(list) ? list : list?.employees || [];
         const m = {};
@@ -509,6 +521,10 @@ export default function AdminAttendanceSummary({ token, api }) {
         setEmployees(arr);
       })
       .catch(() => {});
+  }
+
+  useEffect(() => {
+    loadEmployees();
     // Load all leave applications for Journey modal
     api.adminLeaves(token)
       .then(data => setAllLeaves(Array.isArray(data) ? data : data?.leaves || []))
@@ -522,7 +538,19 @@ export default function AdminAttendanceSummary({ token, api }) {
         setCodeMap(m);
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // HR Reports "Refresh" — re-pulls the roster, this period's attendance
+  // summary, and (if currently viewing them) the two on-demand reports, so
+  // "generate/refresh" always reflects the latest data rather than whatever
+  // was cached when the tab was first opened.
+  function refreshHrReports() {
+    loadEmployees();
+    load();
+    setCorrectionsReport(null);
+    setLateCheckins(null);
+  }
 
   const entries = useMemo(() => summary ? visibleDayEntries(summary) : [], [summary]);
   const totalEmp = summary?.total_employees ?? 0;
@@ -531,7 +559,8 @@ export default function AdminAttendanceSummary({ token, api }) {
 
   // Must be BEFORE the early return — Rules of Hooks
   const filteredEmp = useMemo(() => {
-    const list = metrics?.empList ? [...metrics.empList] : [];
+    const offboardedNames = new Set(employees.filter(isOffboarded).map(e => e.name));
+    const list = metrics?.empList ? metrics.empList.filter(e => !offboardedNames.has(e.name)) : [];
     let result = list;
     if (empFilter === "critical") result = result.filter(e => e.risk === "critical");
     else if (empFilter === "warning") result = result.filter(e => e.risk === "warning");
@@ -543,16 +572,20 @@ export default function AdminAttendanceSummary({ token, api }) {
     else if (empSort === "present") result.sort((a, b) => b.present - a.present);
     else if (empSort === "name") result.sort((a, b) => a.name.localeCompare(b.name));
     return result;
-  }, [metrics, empFilter, empSearch, empSort]);
+  }, [metrics, empFilter, empSearch, empSort, employees]);
 
-  // — HR Reports: filter options derived from the already-loaded roster —
-  const hrDeptOptions = useMemo(() => uniqueOptions(employees, e => Array.isArray(e.department) ? e.department[0] : e.department), [employees]);
-  const hrDesignationOptions = useMemo(() => uniqueOptions(employees, e => e.position), [employees]);
-  const hrManagerOptions = useMemo(() => uniqueOptions(employees, e => e.manager_name), [employees]);
-  const hrLocationOptions = useMemo(() => uniqueOptions(employees, e => e.location), [employees]);
+  // Offboarded staff are irrelevant to every report on this page — excluded
+  // once, here, rather than in each report's own memo.
+  const activeEmployees = useMemo(() => employees.filter(e => !isOffboarded(e)), [employees]);
 
-  // — HR Reports: roster filtered by all six dimensions —
-  const hrFilteredEmployees = useMemo(() => employees.filter(e => {
+  // — HR Reports: filter options derived from the active roster —
+  const hrDeptOptions = useMemo(() => uniqueOptions(activeEmployees, e => Array.isArray(e.department) ? e.department[0] : e.department), [activeEmployees]);
+  const hrDesignationOptions = useMemo(() => uniqueOptions(activeEmployees, e => e.position), [activeEmployees]);
+  const hrManagerOptions = useMemo(() => uniqueOptions(activeEmployees, e => e.manager_name), [activeEmployees]);
+  const hrLocationOptions = useMemo(() => uniqueOptions(activeEmployees, e => e.location), [activeEmployees]);
+
+  // — HR Reports: active roster filtered by all six dimensions, alphabetical by name —
+  const hrFilteredEmployees = useMemo(() => activeEmployees.filter(e => {
     const dept = Array.isArray(e.department) ? e.department[0] : e.department;
     if (hrDept !== "All" && dept !== hrDept) return false;
     if (hrDesignation !== "All" && e.position !== hrDesignation) return false;
@@ -561,7 +594,7 @@ export default function AdminAttendanceSummary({ token, api }) {
     if (hrLocation !== "All" && e.location !== hrLocation) return false;
     if (hrStatus !== "All" && hrEmployeeStatus(e) !== hrStatus) return false;
     return true;
-  }), [employees, hrDept, hrDesignation, hrManager, hrEmpType, hrLocation, hrStatus]);
+  }).sort((a, b) => (a.name || "").localeCompare(b.name || "")), [activeEmployees, hrDept, hrDesignation, hrManager, hrEmpType, hrLocation, hrStatus]);
 
   const hrDeptOf = (name) => {
     const e = employees.find(x => x.name === name);
@@ -601,7 +634,7 @@ export default function AdminAttendanceSummary({ token, api }) {
         if (allowedNames.has(name)) rows.push({ date, name, department: hrDeptOf(name) });
       });
     });
-    return rows.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+    return rows.sort((a, b) => a.name.localeCompare(b.name) || a.date.localeCompare(b.date));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, hrFilteredEmployees, idMap, employees]);
 
@@ -615,7 +648,7 @@ export default function AdminAttendanceSummary({ token, api }) {
       name: e.name,
       department: Array.isArray(e.department) ? e.department.join(", ") : (e.department || "—"),
       leave_days: byName[e.name],
-    })).sort((a, b) => b.leave_days - a.leave_days);
+    })).sort((a, b) => a.name.localeCompare(b.name));
   }, [entries, hrFilteredEmployees, idMap]);
 
   const correctionsRows = useMemo(() => {
@@ -629,7 +662,7 @@ export default function AdminAttendanceSummary({ token, api }) {
       reason: c.reason || "—",
       status: c.status || "Pending",
       submitted_by_role: c.submitted_by_role || "—",
-    }));
+    })).sort((a, b) => a.employee_name.localeCompare(b.employee_name) || a.date.localeCompare(b.date));
   }, [correctionsReport, hrFilteredEmployees]);
 
   const lateCheckinRows = useMemo(() => {
@@ -640,7 +673,7 @@ export default function AdminAttendanceSummary({ token, api }) {
       employee_name: r.employee_name,
       department: Array.isArray(r.department) ? r.department.join(", ") : (r.department || "—"),
       time: r.time ? new Date(r.time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—",
-    }));
+    })).sort((a, b) => a.employee_name.localeCompare(b.employee_name) || a.date.localeCompare(b.date));
   }, [lateCheckins, hrFilteredEmployees]);
 
   const HR_REPORT_COLUMNS = {
@@ -1082,24 +1115,24 @@ export default function AdminAttendanceSummary({ token, api }) {
                   <option value="perfect">Perfect Attendance</option>
                 </select>
                 <select value={empSort} onChange={e => setEmpSort(e.target.value)} className="modern-input" style={{ width: "auto", margin: 0, fontSize: 13, height: 42 }}>
+                  <option value="name">Sort: Name A–Z</option>
                   <option value="rate">Sort: Rate ↓</option>
                   <option value="present">Sort: Present ↓</option>
                   <option value="absent">Sort: Absent ↓</option>
-                  <option value="name">Sort: Name A–Z</option>
                 </select>
                 <span style={{ fontSize: 12, color: "var(--slate-400)", whiteSpace: "nowrap" }}>{filteredEmp.length} employees</span>
               </div>
-              <div style={{ overflowX: "auto" }}>
+              <div className="table-scroll-body" style={{ maxHeight: 520 }}>
                 <table className="styled-table">
                   <thead>
                     <tr>
-                      <th>Employee Code</th><th>Employee</th>
-                      <th style={{ color: C_BRAND }}>Present</th>
-                      <th style={{ color: C_DANGER }}>Absent</th>
-                      <th style={{ color: C_WARN }}>Leave</th>
-                      <th style={{ color: C_SLATE }}>NCI</th>
-                      <th>Attendance Rate</th>
-                      <th>Status</th>
+                      <th className="sticky-th">Employee Code</th><th className="sticky-th">Employee</th>
+                      <th className="sticky-th" style={{ color: C_BRAND }}>Present</th>
+                      <th className="sticky-th" style={{ color: C_DANGER }}>Absent</th>
+                      <th className="sticky-th" style={{ color: C_WARN }}>Leave</th>
+                      <th className="sticky-th" style={{ color: C_SLATE }}>NCI</th>
+                      <th className="sticky-th">Attendance Rate</th>
+                      <th className="sticky-th">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1182,7 +1215,10 @@ export default function AdminAttendanceSummary({ token, api }) {
               </select>
               <select value={hrStatus} onChange={e => setHrStatus(e.target.value)} className="modern-input" style={{ width: "auto", margin: 0, fontSize: 12.5, height: 38 }}>
                 <option value="All">All Statuses</option>
-                {Object.entries(HR_STATUS_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                {/* "resigned"/Off-boarded is deliberately excluded — offboarded staff are
+                    filtered out of every HR report entirely (see activeEmployees above),
+                    so that option would only ever show zero rows. */}
+                {Object.entries(HR_STATUS_LABELS).filter(([k]) => k !== "resigned").map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select>
             </div>
 
@@ -1193,6 +1229,9 @@ export default function AdminAttendanceSummary({ token, api }) {
               </select>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 12, color: "var(--slate-400)" }}>{hrActiveRows.length} rows · {formatMonthsLabel(months)}</span>
+                <button onClick={refreshHrReports} className="btn ghost" style={{ padding: "7px 12px", fontSize: 12 }} title="Re-pull the latest roster and attendance data for this report">
+                  <FaTable /> Refresh
+                </button>
                 <button onClick={() => exportHrReport("csv", hrActiveLabel, hrActiveColumns, hrActiveRows, formatMonthsLabel(months), `${hrReportType}_${months.join("_")}`)} className="btn ghost" style={{ padding: "7px 12px", fontSize: 12 }}>
                   <FaFileCsv /> CSV
                 </button>
@@ -1202,11 +1241,11 @@ export default function AdminAttendanceSummary({ token, api }) {
               </div>
             </div>
 
-            {/* Report table */}
-            <div style={{ overflowX: "auto" }}>
+            {/* Report table — offboarded employees excluded, header sticky, rows scroll, alphabetical by default */}
+            <div className="table-scroll-body" style={{ maxHeight: 520 }}>
               <table className="styled-table">
                 <thead>
-                  <tr>{hrActiveColumns.map(c => <th key={c.key}>{c.label}</th>)}</tr>
+                  <tr>{hrActiveColumns.map(c => <th key={c.key} className="sticky-th">{c.label}</th>)}</tr>
                 </thead>
                 <tbody>
                   {hrReportLoading ? (

@@ -820,6 +820,16 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   }
 
   const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
+
+  // Offboarded requesters are irrelevant here (their attendance no longer
+  // matters), alphabetical by requester name — same design rule applied to
+  // every report table (HR Reports, Employees tab) this session.
+  const offboardedIds = new Set(employees.filter(e => empExitStatus(e) === "offboarded").map(e => String(e._id)));
+  const visibleCorrections = corrections
+    .filter(c => !offboardedIds.has(String(c.user_id)))
+    .slice()
+    .sort((a, b) => (a.employee_name || "").localeCompare(b.employee_name || ""));
+
   return (
     <>
     <div className="app-shell">
@@ -1128,13 +1138,13 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
             </button>
           </div>
           <div style={{ marginBottom: 16 }} />
-          <div style={{ overflowX: "auto" }}>
+          <div className="table-scroll-body" style={{ maxHeight: 520 }}>
             {correctionsLoading ? <SkeletonTable rows={6} cols={5} /> : (
               <table className="styled-table-global">
-                <thead><tr><th>Submitted By</th><th>New Time</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+                <thead><tr><th className="sticky-th">Submitted By</th><th className="sticky-th">New Time</th><th className="sticky-th">Reason</th><th className="sticky-th">Status</th><th className="sticky-th">Action</th></tr></thead>
                 <tbody>
-                  {corrections.length === 0 && <tr><td colSpan="5" style={{ textAlign: "center", padding: 20, color: "#999" }}>No correction requests found.</td></tr>}
-                  {corrections.map(c => (
+                  {visibleCorrections.length === 0 && <tr><td colSpan="5" style={{ textAlign: "center", padding: 20, color: "#999" }}>No correction requests found.</td></tr>}
+                  {visibleCorrections.map(c => (
                     <tr key={c._id}>
                       <td style={{ fontWeight: "bold" }}>{c.employee_name || "—"}</td>
                       <td>{c.new_time ? new Date(c.new_time).toLocaleString() : "—"}</td>
