@@ -333,6 +333,74 @@ function buildPDFHtml(summary, month, idMap = {}) {
   return `<html><head><title>GDMR Connect — Attendance Report ${month}</title><style>@media print{@page{margin:14mm}}body{font-family:system-ui,Arial,sans-serif;color:#0f172a;margin:0;font-size:13px}table{width:100%;border-collapse:collapse}th,td{padding:7px 10px;text-align:left;border-bottom:1px solid #f1f5f9;font-size:12px}th{background:#f8fafc;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;border-bottom:2px solid #e6eaef}</style></head><body><div style="padding:36px 44px"><div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #34a06a;padding-bottom:14px;margin-bottom:20px"><div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#34a06a;margin-bottom:4px">GDMR Connect HRMS</div><h1 style="margin:0;font-size:18px;font-weight:800;color:#0f172a">Monthly Attendance Report</h1></div><div style="text-align:right;font-size:11px;color:#64748b"><div><b>Period:</b> ${month}</div><div><b>Rate:</b> ${rate}</div><div><b>Employees:</b> ${totalEmp}</div><div><b>Working Days:</b> ${days.length}</div><div><b>Generated:</b> ${today}</div></div></div><div style="display:flex;gap:10px;margin-bottom:20px">${[["Present",totals.p,"#16a34a","#f0fdf4"],["On Leave",totals.l,"#d97706","#fffbeb"],["Absent",totals.ab,"#dc2626","#fef2f2"],["Not Checked-in",totals.n,"#64748b","#f8fafc"]].map(([l,v,c,bg])=>`<div style="flex:1;background:${bg};border-radius:8px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:900;color:${c}">${v}</div><div style="font-size:10px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:.05em">${l}</div></div>`).join("")}</div><table><thead><tr><th>Date</th><th>Day</th><th>Present</th><th>Absent</th><th>On Leave</th><th>Not Checked-in</th></tr></thead><tbody>${rows}</tbody></table></div><div style="padding:36px 44px;page-break-before:always"><h2 style="color:#34a06a;margin:0 0 4px;font-size:15px">Detailed Daily Breakdown</h2><p style="color:#64748b;font-size:11px;margin:0 0 18px">Employees grouped by attendance status, day by day.</p>${detailPages}</div></body></html>`;
 }
 
+// ─── HR REPORTS (Stage 2) ──────────────────────────────────────────────────────
+// Six report types cover the spec's nine bullets — LOP, unauthorized absence, missing
+// check-ins, and payroll-related LOP are all the same underlying "absent" bucket from
+// the day-classification data (see helpers.classify_attendance_day on the backend), so
+// they're one report rather than four duplicate tables with identical numbers.
+const HR_REPORT_TYPES = [
+  { id: "employee-wise",     label: "Employee-wise Attendance" },
+  { id: "department-wise",   label: "Department-wise Attendance" },
+  { id: "lop",                label: "LOP / Unauthorized Absence / Missing Check-ins" },
+  { id: "late-checkins",     label: "Late Check-ins" },
+  { id: "corrections",       label: "Attendance Corrections" },
+  { id: "leave-utilization", label: "Leave Utilization" },
+];
+
+// Same 4-way bucket EmployeeList.jsx's getEmpStatus() already uses, so "Notice Period"
+// means the same thing on both screens.
+function hrEmployeeStatus(emp) {
+  if (emp.resignation?.notice_date) {
+    const lwd = emp.resignation.last_working_day;
+    if (lwd) {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (new Date(lwd) < today) return "resigned";
+    }
+    return "notice";
+  }
+  if (emp.extended_leaves?.length > 0) return "on_leave";
+  return "active";
+}
+const HR_STATUS_LABELS = { active: "Active", on_leave: "On Extended Leave", notice: "Serving Notice", resigned: "Off-boarded" };
+
+function uniqueOptions(arr, getter) {
+  return [...new Set(arr.map(getter).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+// Generic {columns, rows} exporter every HR report feeds into — same CSV-Blob /
+// window.print() PDF pattern as convertToCSV/buildPDFHtml above, generalized so six
+// report types don't need six bespoke export functions.
+function reportRowsToCSV(columns, rows) {
+  const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  let csv = columns.map(c => esc(c.label)).join(",") + "\n";
+  rows.forEach(r => { csv += columns.map(c => esc(r[c.key])).join(",") + "\n"; });
+  return csv;
+}
+
+function reportRowsToPDFHtml(title, columns, rows, periodLabel) {
+  const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const head = columns.map(c => `<th>${escHtml(c.label)}</th>`).join("");
+  const body = rows.length
+    ? rows.map(r => `<tr>${columns.map(c => `<td>${escHtml(String(r[c.key] ?? "—"))}</td>`).join("")}</tr>`).join("")
+    : `<tr><td colspan="${columns.length}" style="text-align:center;color:#94a3b8">No rows for this period/filter.</td></tr>`;
+  return `<html><head><title>GDMR Connect — ${escHtml(title)}</title><style>@media print{@page{margin:14mm}}body{font-family:system-ui,Arial,sans-serif;color:#0f172a;margin:0;font-size:13px}table{width:100%;border-collapse:collapse}th,td{padding:7px 10px;text-align:left;border-bottom:1px solid #f1f5f9;font-size:12px}th{background:#f8fafc;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;border-bottom:2px solid #e6eaef}</style></head><body><div style="padding:36px 44px"><div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #34a06a;padding-bottom:14px;margin-bottom:20px"><div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#34a06a;margin-bottom:4px">GDMR Connect HRMS</div><h1 style="margin:0;font-size:18px;font-weight:800;color:#0f172a">${escHtml(title)}</h1></div><div style="text-align:right;font-size:11px;color:#64748b"><div><b>Period:</b> ${escHtml(periodLabel)}</div><div><b>Rows:</b> ${rows.length}</div><div><b>Generated:</b> ${today}</div></div></div><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div></body></html>`;
+}
+
+function exportHrReport(fmt, title, columns, rows, periodLabel, filenameBase) {
+  if (fmt === "csv") {
+    const blob = new Blob([reportRowsToCSV(columns, rows)], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `${filenameBase}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } else {
+    const w = window.open("", "", "height=700,width=900");
+    if (!w) return;
+    w.document.write(reportRowsToPDFHtml(title, columns, rows, periodLabel));
+    w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+  }
+}
+
 // ─── SEVERITY CONFIG (standard icons, no AI branding) ─────────────────────────
 const SEV_CONFIG = {
   success:  { bg: "var(--success-bg)",  border: "var(--success-border)",  accent: C_BRAND,  Icon: FaCheckCircle },
@@ -371,6 +439,19 @@ export default function AdminAttendanceSummary({ token, api }) {
   const [empFilter, setEmpFilter] = useState("all");
   const [journeyEmp, setJourneyEmp] = useState(null); // employee object to show in Journey modal
 
+  // — HR Reports (Stage 2) —
+  const [hrDept, setHrDept] = useState("All");
+  const [hrDesignation, setHrDesignation] = useState("All");
+  const [hrManager, setHrManager] = useState("All");
+  const [hrEmpType, setHrEmpType] = useState("All");
+  const [hrLocation, setHrLocation] = useState("All");
+  const [hrStatus, setHrStatus] = useState("All");
+  const [hrReportType, setHrReportType] = useState("employee-wise");
+  const [correctionsReport, setCorrectionsReport] = useState(null);
+  const [correctionsReportLoading, setCorrectionsReportLoading] = useState(false);
+  const [lateCheckins, setLateCheckins] = useState(null);
+  const [lateCheckinsLoading, setLateCheckinsLoading] = useState(false);
+
   async function load() {
     if (!months.length) { setSummary({ days: {}, total_employees: 0 }); return; }
     setLoading(true);
@@ -389,6 +470,30 @@ export default function AdminAttendanceSummary({ token, api }) {
   }
 
   useEffect(() => { load(); }, [months.join(",")]);
+
+  // HR Reports: on-demand fetch for the two report types that need data beyond
+  // what's already loaded (attendance-summary + roster) — reset when the period
+  // changes so a stale month's rows never linger under a new month label.
+  useEffect(() => {
+    setCorrectionsReport(null);
+    setLateCheckins(null);
+  }, [months.join(",")]);
+
+  useEffect(() => {
+    if (activeTab !== "hr-reports") return;
+    if (hrReportType === "corrections" && correctionsReport === null && !correctionsReportLoading) {
+      setCorrectionsReportLoading(true);
+      Promise.all(months.map(m => api.getCorrectionsReport(m, token).catch(() => [])))
+        .then(results => setCorrectionsReport(results.flat()))
+        .finally(() => setCorrectionsReportLoading(false));
+    }
+    if (hrReportType === "late-checkins" && lateCheckins === null && !lateCheckinsLoading) {
+      setLateCheckinsLoading(true);
+      Promise.all(months.map(m => api.getLateCheckinsReport(m, token).catch(() => [])))
+        .then(results => setLateCheckins(results.flat()))
+        .finally(() => setLateCheckinsLoading(false));
+    }
+  }, [activeTab, hrReportType, months.join(",")]);
 
   function toggleMonth(m) {
     setMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m].sort());
@@ -440,6 +545,121 @@ export default function AdminAttendanceSummary({ token, api }) {
     return result;
   }, [metrics, empFilter, empSearch, empSort]);
 
+  // — HR Reports: filter options derived from the already-loaded roster —
+  const hrDeptOptions = useMemo(() => uniqueOptions(employees, e => Array.isArray(e.department) ? e.department[0] : e.department), [employees]);
+  const hrDesignationOptions = useMemo(() => uniqueOptions(employees, e => e.position), [employees]);
+  const hrManagerOptions = useMemo(() => uniqueOptions(employees, e => e.manager_name), [employees]);
+  const hrLocationOptions = useMemo(() => uniqueOptions(employees, e => e.location), [employees]);
+
+  // — HR Reports: roster filtered by all six dimensions —
+  const hrFilteredEmployees = useMemo(() => employees.filter(e => {
+    const dept = Array.isArray(e.department) ? e.department[0] : e.department;
+    if (hrDept !== "All" && dept !== hrDept) return false;
+    if (hrDesignation !== "All" && e.position !== hrDesignation) return false;
+    if (hrManager !== "All" && e.manager_name !== hrManager) return false;
+    if (hrEmpType !== "All" && (e.employment_type || "Permanent") !== hrEmpType) return false;
+    if (hrLocation !== "All" && e.location !== hrLocation) return false;
+    if (hrStatus !== "All" && hrEmployeeStatus(e) !== hrStatus) return false;
+    return true;
+  }), [employees, hrDept, hrDesignation, hrManager, hrEmpType, hrLocation, hrStatus]);
+
+  const hrDeptOf = (name) => {
+    const e = employees.find(x => x.name === name);
+    return e ? (Array.isArray(e.department) ? e.department.join(", ") : e.department) || "—" : "—";
+  };
+
+  // — Report rows, one memo per report type —
+  const employeeWiseRows = useMemo(() => hrFilteredEmployees.map(e => {
+    const stats = metrics?.empList?.find(x => x.name === e.name) || { present: 0, absent: 0, leave: 0, nci: 0, rate: 0 };
+    return {
+      employee_code: codeMap[e.name] || "—",
+      name: e.name,
+      department: Array.isArray(e.department) ? e.department.join(", ") : (e.department || "—"),
+      designation: e.position || "—",
+      present: stats.present, absent: stats.absent, leave: stats.leave, nci: stats.nci, rate: stats.rate,
+    };
+  }), [hrFilteredEmployees, metrics, codeMap]);
+
+  const departmentWiseRows = useMemo(() => {
+    const workDays = metrics?.workDays || 0;
+    const byDept = {};
+    employeeWiseRows.forEach(r => {
+      const d = r.department || "—";
+      if (!byDept[d]) byDept[d] = { department: d, employees: 0, present: 0, absent: 0, leave: 0, nci: 0 };
+      byDept[d].employees++; byDept[d].present += r.present; byDept[d].absent += r.absent; byDept[d].leave += r.leave; byDept[d].nci += r.nci;
+    });
+    return Object.values(byDept).map(d => ({
+      ...d, rate: d.employees && workDays ? Math.round((d.present / (d.employees * workDays)) * 100) : 0,
+    })).sort((a, b) => a.department.localeCompare(b.department));
+  }, [employeeWiseRows, metrics]);
+
+  const lopRows = useMemo(() => {
+    const allowedNames = new Set(hrFilteredEmployees.map(e => e.name));
+    const rows = [];
+    entries.forEach(([date, d]) => {
+      getNames(d, "absent", idMap).forEach(name => {
+        if (allowedNames.has(name)) rows.push({ date, name, department: hrDeptOf(name) });
+      });
+    });
+    return rows.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, hrFilteredEmployees, idMap, employees]);
+
+  const leaveUtilRows = useMemo(() => {
+    const allowedNames = new Set(hrFilteredEmployees.map(e => e.name));
+    const byName = {};
+    entries.forEach(([, d]) => {
+      getNames(d, "leave", idMap).forEach(name => { if (allowedNames.has(name)) byName[name] = (byName[name] || 0) + 1; });
+    });
+    return hrFilteredEmployees.filter(e => byName[e.name]).map(e => ({
+      name: e.name,
+      department: Array.isArray(e.department) ? e.department.join(", ") : (e.department || "—"),
+      leave_days: byName[e.name],
+    })).sort((a, b) => b.leave_days - a.leave_days);
+  }, [entries, hrFilteredEmployees, idMap]);
+
+  const correctionsRows = useMemo(() => {
+    if (!correctionsReport) return [];
+    const allowedNames = new Set(hrFilteredEmployees.map(e => e.name));
+    return correctionsReport.filter(c => allowedNames.has(c.employee_name)).map(c => ({
+      date: c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB") : "—",
+      employee_name: c.employee_name,
+      department: Array.isArray(c.department) ? c.department.join(", ") : (c.department || "—"),
+      new_time: c.new_time ? new Date(c.new_time).toLocaleString() : "—",
+      reason: c.reason || "—",
+      status: c.status || "Pending",
+      submitted_by_role: c.submitted_by_role || "—",
+    }));
+  }, [correctionsReport, hrFilteredEmployees]);
+
+  const lateCheckinRows = useMemo(() => {
+    if (!lateCheckins) return [];
+    const allowedNames = new Set(hrFilteredEmployees.map(e => e.name));
+    return lateCheckins.filter(r => allowedNames.has(r.employee_name)).map(r => ({
+      date: r.date,
+      employee_name: r.employee_name,
+      department: Array.isArray(r.department) ? r.department.join(", ") : (r.department || "—"),
+      time: r.time ? new Date(r.time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—",
+    }));
+  }, [lateCheckins, hrFilteredEmployees]);
+
+  const HR_REPORT_COLUMNS = {
+    "employee-wise":     [{key:"employee_code",label:"Employee Code"},{key:"name",label:"Employee"},{key:"department",label:"Department"},{key:"designation",label:"Designation"},{key:"present",label:"Present"},{key:"absent",label:"LOP"},{key:"leave",label:"Leave"},{key:"nci",label:"NCI"},{key:"rate",label:"Rate %"}],
+    "department-wise":   [{key:"department",label:"Department"},{key:"employees",label:"Employees"},{key:"present",label:"Present"},{key:"absent",label:"LOP"},{key:"leave",label:"Leave"},{key:"nci",label:"NCI"},{key:"rate",label:"Rate %"}],
+    "lop":               [{key:"date",label:"Date"},{key:"name",label:"Employee"},{key:"department",label:"Department"}],
+    "late-checkins":     [{key:"date",label:"Date"},{key:"employee_name",label:"Employee"},{key:"department",label:"Department"},{key:"time",label:"Check-in Time"}],
+    "corrections":       [{key:"date",label:"Date Requested"},{key:"employee_name",label:"Employee"},{key:"department",label:"Department"},{key:"new_time",label:"Requested Time"},{key:"reason",label:"Reason"},{key:"status",label:"Status"},{key:"submitted_by_role",label:"Submitted By"}],
+    "leave-utilization": [{key:"name",label:"Employee"},{key:"department",label:"Department"},{key:"leave_days",label:"Leave Days Taken"}],
+  };
+  const HR_REPORT_ROWS = {
+    "employee-wise": employeeWiseRows, "department-wise": departmentWiseRows, "lop": lopRows,
+    "late-checkins": lateCheckinRows, "corrections": correctionsRows, "leave-utilization": leaveUtilRows,
+  };
+  const hrReportLoading = (hrReportType === "corrections" && correctionsReportLoading) || (hrReportType === "late-checkins" && lateCheckinsLoading);
+  const hrActiveColumns = HR_REPORT_COLUMNS[hrReportType] || [];
+  const hrActiveRows = HR_REPORT_ROWS[hrReportType] || [];
+  const hrActiveLabel = HR_REPORT_TYPES.find(r => r.id === hrReportType)?.label || "Report";
+
   function handleExport(fmt) {
     if (!summary) return;
     const label = formatMonthsLabel(months);
@@ -486,10 +706,11 @@ export default function AdminAttendanceSummary({ token, api }) {
   ];
 
   const tabs = [
-    { id: "overview",  label: "Overview",   icon: <FaCalendarAlt size={11} /> },
-    { id: "analytics", label: "Analytics",  icon: <FaChartBar size={11} />    },
-    { id: "employees", label: "Employees",  icon: <FaUsers size={11} />       },
-    { id: "insights",  label: "Insights",   icon: <FaTrophy size={11} />      },
+    { id: "overview",   label: "Overview",    icon: <FaCalendarAlt size={11} /> },
+    { id: "analytics",  label: "Analytics",   icon: <FaChartBar size={11} />    },
+    { id: "employees",  label: "Employees",   icon: <FaUsers size={11} />       },
+    { id: "hr-reports", label: "HR Reports",  icon: <FaFilter size={11} />      },
+    { id: "insights",   label: "Insights",    icon: <FaTrophy size={11} />      },
   ];
 
   const riskBadge = (e) => {
@@ -929,6 +1150,78 @@ export default function AdminAttendanceSummary({ token, api }) {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════ HR REPORTS ══════════════════════════════════ */}
+      {activeTab === "hr-reports" && (
+        <div>
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            {/* Filter bar — mirrors EmployeeList.jsx's .filter-select styling */}
+            <div className="filter-bar" style={{ margin: 0, borderRadius: "14px 14px 0 0", borderBottom: "1px solid var(--slate-200)", gap: 10, flexWrap: "wrap" }}>
+              <select value={hrDept} onChange={e => setHrDept(e.target.value)} className="modern-input" style={{ width: "auto", margin: 0, fontSize: 12.5, height: 38 }}>
+                <option value="All">All Departments</option>
+                {hrDeptOptions.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={hrDesignation} onChange={e => setHrDesignation(e.target.value)} className="modern-input" style={{ width: "auto", margin: 0, fontSize: 12.5, height: 38 }}>
+                <option value="All">All Designations</option>
+                {hrDesignationOptions.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={hrManager} onChange={e => setHrManager(e.target.value)} className="modern-input" style={{ width: "auto", margin: 0, fontSize: 12.5, height: 38 }}>
+                <option value="All">All Reporting Managers</option>
+                {hrManagerOptions.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={hrEmpType} onChange={e => setHrEmpType(e.target.value)} className="modern-input" style={{ width: "auto", margin: 0, fontSize: 12.5, height: 38 }}>
+                <option value="All">All Employee Types</option>
+                <option value="Permanent">Permanent</option>
+                <option value="Contract">Contract</option>
+              </select>
+              <select value={hrLocation} onChange={e => setHrLocation(e.target.value)} className="modern-input" style={{ width: "auto", margin: 0, fontSize: 12.5, height: 38 }}>
+                <option value="All">All Locations</option>
+                {hrLocationOptions.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={hrStatus} onChange={e => setHrStatus(e.target.value)} className="modern-input" style={{ width: "auto", margin: 0, fontSize: 12.5, height: 38 }}>
+                <option value="All">All Statuses</option>
+                {Object.entries(HR_STATUS_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </div>
+
+            {/* Report type selector + export */}
+            <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--slate-200)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+              <select value={hrReportType} onChange={e => setHrReportType(e.target.value)} className="modern-input" style={{ width: "auto", margin: 0, fontSize: 13, fontWeight: 600, height: 38 }}>
+                {HR_REPORT_TYPES.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+              </select>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 12, color: "var(--slate-400)" }}>{hrActiveRows.length} rows · {formatMonthsLabel(months)}</span>
+                <button onClick={() => exportHrReport("csv", hrActiveLabel, hrActiveColumns, hrActiveRows, formatMonthsLabel(months), `${hrReportType}_${months.join("_")}`)} className="btn ghost" style={{ padding: "7px 12px", fontSize: 12 }}>
+                  <FaFileCsv /> CSV
+                </button>
+                <button onClick={() => exportHrReport("pdf", hrActiveLabel, hrActiveColumns, hrActiveRows, formatMonthsLabel(months), `${hrReportType}_${months.join("_")}`)} className="btn" style={{ padding: "7px 12px", fontSize: 12 }}>
+                  <FaFilePdf /> PDF
+                </button>
+              </div>
+            </div>
+
+            {/* Report table */}
+            <div style={{ overflowX: "auto" }}>
+              <table className="styled-table">
+                <thead>
+                  <tr>{hrActiveColumns.map(c => <th key={c.key}>{c.label}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {hrReportLoading ? (
+                    <tr><td colSpan={hrActiveColumns.length} style={{ textAlign: "center", padding: 32, color: "var(--slate-400)" }}>Loading…</td></tr>
+                  ) : hrActiveRows.length === 0 ? (
+                    <tr><td colSpan={hrActiveColumns.length} style={{ textAlign: "center", padding: 32, color: "var(--slate-400)" }}>No rows for this report / filter / period.</td></tr>
+                  ) : hrActiveRows.map((r, i) => (
+                    <tr key={i}>
+                      {hrActiveColumns.map(c => <td key={c.key}>{r[c.key] ?? "—"}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 

@@ -340,6 +340,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
       email: empData.email || "",
       phone: empData.phone || "",
       position: empData.position || "",
+      location: empData.location || "",
       employee_code: empData.employee_code || "",
       department: empData.department || "",
       shift: empData.shift || "morning",
@@ -650,6 +651,10 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                 <div className="award-form-row">
                   <label>Position</label>
                   <input value={editForm.position} onChange={e => setEditForm(f => ({ ...f, position: e.target.value }))} />
+                </div>
+                <div className="award-form-row">
+                  <label>Location</label>
+                  <input value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} />
                 </div>
                 <div className="award-form-row">
                   <label>Employee ID</label>

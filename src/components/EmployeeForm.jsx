@@ -12,6 +12,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
   const [phone, setPhone] = useState("");
   const [department, setDepartment] = useState(deptList[0]?.name || "");
   const [position, setPosition] = useState("");
+  const [location, setLocation] = useState("");
   const [employeeCode, setEmployeeCode] = useState("");
   const [doj, setDoj] = useState("");
   const [confirmationDate, setConfirmationDate] = useState("");
@@ -55,6 +56,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
         phone,
         department,
         position,
+        location,
         employee_code: employeeCode,
         doj,
         confirmation_date: confirmationDate,
@@ -65,7 +67,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
         contract_months: employmentType === "Contract" ? Number(contractMonths) : undefined,
       });
       setMsg(employmentType === "Contract" ? "Employee added — no login access (contract)." : "Employee added — credentials sent by email.");
-      setName(""); setEmail(""); setPhone(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setEmployeeCode(""); setDoj(""); setConfirmationDate(""); setPromotionDate(""); setManagerId(""); setShift("morning"); setEmploymentType("Permanent"); setContractMonths("");
+      setName(""); setEmail(""); setPhone(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setLocation(""); setEmployeeCode(""); setDoj(""); setConfirmationDate(""); setPromotionDate(""); setManagerId(""); setShift("morning"); setEmploymentType("Permanent"); setContractMonths("");
     } catch (err) {
       setMsg(err.message || "Error");
     } finally { setSaving(false); }
@@ -100,12 +102,20 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
           <div style={{ flex: 1 }}>
             <label>Position</label>
             {/* Position input now uses the .input class correctly, fixing height */}
-            <input 
-                className="input" 
-                placeholder="Position" 
-                value={position} 
-                onChange={e=>setPosition(e.target.value)} 
+            <input
+                className="input"
+                placeholder="Position"
+                value={position}
+                onChange={e=>setPosition(e.target.value)}
             />
+          </div>
+        </div>
+
+        {/* Row 2b: Location */}
+        <div className="form-row">
+          <div style={{ flex: 1 }}>
+            <label>Location</label>
+            <input className="input" placeholder="e.g. Kochi Office" value={location} onChange={e=>setLocation(e.target.value)} />
           </div>
         </div>
         

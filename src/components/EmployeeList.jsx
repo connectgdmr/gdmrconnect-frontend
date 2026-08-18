@@ -611,6 +611,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                 { label: "Full Name",      key: "name",     type: "text",  required: true },
                 { label: "Email Address",  key: "email",    type: "email", required: true },
                 { label: "Position Title", key: "position", type: "text",  required: false },
+                { label: "Location",       key: "location", type: "text",  required: false },
                 { label: "Employee ID",    key: "employee_code", type: "text", required: false },
               ].map(({ label, key, type, required }) => (
                 <div key={key} style={{ textAlign: "left", marginBottom: 14 }}>

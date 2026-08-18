@@ -241,6 +241,12 @@ export default {
     return data;
   },
 
+  // HR Reports — comprehensive corrections report (superset of /admin/corrections,
+  // which only covers requests routed to admin).
+  getCorrectionsReport: (month, token) => request(`/admin/reports/corrections?month=${month}`, "GET", null, token),
+  // HR Reports — late check-ins for a month (status_indicator === "Present (Late)").
+  getLateCheckinsReport: (month, token) => request(`/admin/reports/late-checkins?month=${month}`, "GET", null, token),
+
   // ── Daily Work Planning Module ──────────────────────────────────────────
   getMyWorkPlan:     (date, token)        => request(`/my/work-plan?date=${date}`, "GET", null, token),
   saveWorkPlan:      (payload, token)     => request("/my/work-plan", "POST", payload, token),
