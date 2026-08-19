@@ -1686,11 +1686,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       {/* — My Leaves — */}
       {view === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
+          <div style={{padding:'15px'}}>
               <h3 style={{margin:0, color:'var(--red)'}}>My Leaves</h3>
-              <button className="btn" style={{background:'#f59e0b', fontSize:'13px'}} onClick={() => setView("correction")}>
-                  <FaEdit style={{marginRight:5}}/> Request Correction
-              </button>
           </div>
           <div style={{overflowX: 'auto'}}>
             <table className="styled-table">
@@ -1726,6 +1723,11 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       {/* — Attendance Log — */}
       {view === "attendance-log" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
+           <div style={{display:'flex', justifyContent:'flex-end', alignItems:'center', padding:'15px'}}>
+              <button className="btn" style={{background:'#f59e0b', fontSize:'13px'}} onClick={() => setView("correction")}>
+                  <FaEdit style={{marginRight:5}}/> Attendance Correction Request
+              </button>
+           </div>
            {loading ? <SkeletonTable rows={6} cols={3} /> : (
             <table className="styled-table">
               <thead><tr><th>Type</th><th>Date / Time</th><th>Photo</th></tr></thead>

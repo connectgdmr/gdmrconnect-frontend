@@ -1896,7 +1896,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
                 <h3 style={{margin:0, color:'var(--red)'}}>My Attendance Log</h3>
                 <button className="btn" style={{fontSize:'13px'}} onClick={() => { setCorrectionData({newTime:'',reason:''}); setView("correction"); }}>
-                  <FaEdit style={{marginRight:5}}/> Request Correction
+                  <FaEdit style={{marginRight:5}}/> Attendance Correction Request
                 </button>
             </div>
             <div style={{overflowX: 'auto'}}>
