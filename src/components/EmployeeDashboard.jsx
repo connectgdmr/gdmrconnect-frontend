@@ -395,13 +395,18 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // Fetch the employee directory only when a delegated sub-view that needs it
   // is actually opened, not eagerly on every dashboard load.
   useEffect(() => {
-    if ((view === "delegated-employees" || view === "delegated-ats")
-        && delegatedEmployees.length === 0 && !delegatedEmployeesLoading) {
-      loadDelegatedEmployees();
-    }
-    if ((view === "delegated-ats" || view === "delegated-employees")
-        && delegatedDepartments.length === 0 && !delegatedDepartmentsLoading) {
-      loadDelegatedDepartments();
+    if (view === "delegated-employees" || view === "delegated-ats") {
+      if (delegatedEmployees.length === 0 && !delegatedEmployeesLoading) {
+        // Departments merges in names seen on the employee roster (see
+        // loadDelegatedDepartments) — chain off the freshly-loaded list
+        // rather than the stale `delegatedEmployees` closure so the first
+        // visit doesn't undercount to just the formal departments_col rows.
+        loadDelegatedEmployees().then(list => {
+          if (delegatedDepartments.length === 0) loadDelegatedDepartments(list);
+        });
+      } else if (delegatedDepartments.length === 0 && !delegatedDepartmentsLoading) {
+        loadDelegatedDepartments(delegatedEmployees);
+      }
     }
     if (view !== "delegated-employees") {
       setDelegatedEmpSubView("list");
@@ -859,19 +864,45 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   async function loadDelegatedEmployees() {
       setDelegatedEmployeesLoading(true);
       try {
-          setDelegatedEmployees(await api.listEmployees(token));
-      } catch { /* silent — UI shows stale/empty data */ }
+          const list = await api.listEmployees(token);
+          setDelegatedEmployees(list);
+          return list;
+      } catch { /* silent — UI shows stale/empty data */ return []; }
       finally { setDelegatedEmployeesLoading(false); }
   }
-  // — Delegated "Recruitment" department lookup — Add Candidate's Department dropdown.
-  async function loadDelegatedDepartments() {
+  // — Delegated "Recruitment"/"Employees" department lookup — Add Candidate's
+  // and Add/Edit Employee's Department dropdowns. Mirrors AdminDashboard's own
+  // loadDepartments(): departments_col is the source of truth for names, but
+  // an employee's `department` string can be set without ever having been
+  // formalized as its own departments_col document — merge those in too, or
+  // the dropdown only shows a handful of "official" departments instead of
+  // every department actually in use across the roster.
+  async function loadDelegatedDepartments(empList) {
       setDelegatedDepartmentsLoading(true);
+      const source = empList || delegatedEmployees;
       try {
           const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
           const res = await fetch(`${baseUrl}/api/admin/departments`, { headers: { Authorization: `Bearer ${token}` } });
-          setDelegatedDepartments(res.ok ? await res.json() : []);
-      } catch { /* silent — Add Candidate falls back to departments seen on existing candidates */ }
-      finally { setDelegatedDepartmentsLoading(false); }
+          const saved  = res.ok ? await res.json() : [];
+          const byName = {};
+          saved.forEach(s => { byName[s.name] = { ...s }; });
+          source.forEach((emp) => {
+            const deptVal = emp.department;
+            const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
+            depts.forEach(d => { if (!byName[d]) byName[d] = { _id: d, name: d, description: "", head_id: null }; });
+          });
+          setDelegatedDepartments(Object.values(byName));
+      } catch {
+          // Network error — fall back to whatever the roster shows so the
+          // dropdown isn't left blank.
+          const map = {};
+          source.forEach((emp) => {
+            const deptVal = emp.department;
+            const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
+            depts.forEach(d => { if (!map[d]) map[d] = { _id: d, name: d, description: "", head_id: null }; });
+          });
+          setDelegatedDepartments(Object.values(map));
+      } finally { setDelegatedDepartmentsLoading(false); }
   }
   // Mirrors AdminDashboard's own addEmployee — errors intentionally propagate
   // so EmployeeForm's handle() can show them via err.message.
