@@ -280,6 +280,11 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
    * Primary routing state for conditional rendering of sub-views 
    */
   const [view, setView] = useState("dashboard");
+  // Attendance (Log + Team Calendar) and Leave (My Leaves + Apply Leave) each
+  // consolidate two former sidebar entries into one, tabbed in-page — same
+  // reasoning as EmployeeDashboard.jsx's attendanceSubView/leaveSubView.
+  const [attendanceSubView, setAttendanceSubView] = useState("attendance-log");
+  const [leaveSubView, setLeaveSubView] = useState("my-leaves");
   const [loadError, setLoadError] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -715,7 +720,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       if (!res.ok) throw new Error(data.message || "Failed to submit correction.");
       alert("Correction request sent to Admin for approval.");
       setCorrectionData({ newTime: "", reason: "" });
-      setView("attendance-log");
+      setAttendanceSubView("attendance-log");
+      setView("attendance");
     } catch (err) {
       alert("Error: " + err.message);
     }
@@ -804,7 +810,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       const skippedMsg = conflictDates.length ? ` (${conflictDates.length} day${conflictDates.length > 1 ? "s" : ""} skipped — already requested.)` : "";
       if (failed === 0) alert(`Leave applied for ${datesToSubmit.length} day${datesToSubmit.length > 1 ? "s" : ""}.${skippedMsg}`);
       else alert(`${datesToSubmit.length - failed} of ${datesToSubmit.length} days applied. ${failed} failed — please retry those days.${skippedMsg}`);
-      setView("my-leaves");
+      setLeaveSubView("my-leaves");
+      setView("leave");
       return;
     }
 
@@ -828,7 +835,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
 
       await load(true);
       alert("Leave Applied Successfully!");
-      setView("my-leaves");
+      setLeaveSubView("my-leaves");
+      setView("leave");
     } catch (err) {
         alert(err.message);
     }
@@ -1242,10 +1250,10 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               <QuickLaunchItem icon={<FaUsers />} label="Dept Dashboard" onClick={() => setView("dept-dashboard")} />
               <QuickLaunchItem icon={<FaTags />} label="Work Types" onClick={() => setView("work-types")} />
               <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} badgeCount={notificationCounts?.corrections || 0} />
-              <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
-              <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
-              <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
-              <QuickLaunchItem icon={<FaCalendarWeek />} label="Team Calendar" onClick={() => setView("team-calendar")} />
+              <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => { setLeaveSubView("apply-leave"); setView("leave"); }} />
+              <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => { setLeaveSubView("my-leaves"); setView("leave"); }} />
+              <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => { setAttendanceSubView("attendance-log"); setView("attendance"); }} />
+              <QuickLaunchItem icon={<FaCalendarWeek />} label="Team Calendar" onClick={() => { setAttendanceSubView("team-calendar"); setView("attendance"); }} />
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} badgeCount={notificationCounts?.announcements || 0} />
               <QuickLaunchItem icon={<FaLaptop />} label="Team Assets" onClick={() => setView("team-assets")} badgeCount={notificationCounts?.assets || 0} />
               {delegatedGrants.length > 0 && (
@@ -1747,9 +1755,22 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {/* — Team Directory — */}
       {view === "team-members" && <TeamMembersList />}
 
-      {/* — Apply Leave — */}
-      {view === "apply-leave" && (
-        <div className="card">
+      {/* — Leave (Apply + My Leaves, tabbed) — */}
+      {view === "leave" && (
+        <>
+          <div style={{ display: "flex", gap: 4, marginTop: 16, background: "#f1f5f9", borderRadius: 10, padding: 4, width: "fit-content" }}>
+            <button onClick={() => setLeaveSubView("apply-leave")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: leaveSubView === "apply-leave" ? "var(--red)" : "transparent", color: leaveSubView === "apply-leave" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>Apply Leave</button>
+            <button onClick={() => setLeaveSubView("my-leaves")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: leaveSubView === "my-leaves" ? "var(--red)" : "transparent", color: leaveSubView === "my-leaves" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>My Leaves</button>
+          </div>
+
+      {leaveSubView === "apply-leave" && (
+        <div className="card" style={{ marginTop: 16 }}>
           <form onSubmit={applyLeave}>
              <h3 style={{marginTop:0}}>Apply for Leave</h3>
              <div style={{display:'flex', gap:20, marginBottom:15}}>
@@ -1827,12 +1848,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
-      {/* — My Leaves — */}
-      {view === "my-leaves" && (
+      {leaveSubView === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
-          <div style={{padding:'15px'}}>
-              <h3 style={{margin:0, color:'var(--red)'}}>My Leaves</h3>
-          </div>
           <div style={{overflowX: 'auto'}}>
             <table className="styled-table">
               <thead><tr><th>Date</th><th>Type</th><th style={{textAlign:'center'}}>Manager</th><th style={{textAlign:'center'}}>HR</th><th style={{textAlign:'center'}}>Overall</th><th>Attachment</th><th>Action</th></tr></thead>
@@ -1863,6 +1880,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           </div>
         </div>
       )}
+        </>
+      )}
 
       {/* — Attendance Correction Form — */}
       {view === "correction" && (
@@ -1883,15 +1902,28 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                 onChange={e => setCorrectionData({...correctionData, reason: e.target.value})} />
             </div>
             <div style={{display:'flex', gap:10, justifyContent:'flex-end'}}>
-              <button type="button" className="btn ghost" onClick={() => setView("attendance-log")}>Cancel</button>
+              <button type="button" className="btn ghost" onClick={() => { setAttendanceSubView("attendance-log"); setView("attendance"); }}>Cancel</button>
               <button type="submit" className="btn">Send Request</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* — Attendance Log — */}
-      {view === "attendance-log" && (
+      {/* — Attendance (Log + Team Calendar, tabbed) — */}
+      {view === "attendance" && (
+        <>
+          <div style={{ display: "flex", gap: 4, marginTop: 16, background: "#f1f5f9", borderRadius: 10, padding: 4, width: "fit-content" }}>
+            <button onClick={() => setAttendanceSubView("attendance-log")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: attendanceSubView === "attendance-log" ? "var(--red)" : "transparent", color: attendanceSubView === "attendance-log" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>Attendance Log</button>
+            <button onClick={() => setAttendanceSubView("team-calendar")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: attendanceSubView === "team-calendar" ? "var(--red)" : "transparent", color: attendanceSubView === "team-calendar" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>Team Calendar</button>
+          </div>
+
+      {attendanceSubView === "attendance-log" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
                 <h3 style={{margin:0, color:'var(--red)'}}>My Attendance Log</h3>
@@ -1920,8 +1952,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         </div>
       )}
 
-      {/* — Team Calendar (Department → Employee → Month attendance review) — */}
-      {view === "team-calendar" && (
+      {attendanceSubView === "team-calendar" && (
         <div style={{ marginTop: 16 }}>
           <ErrorBoundary label="Team Calendar" resetKey={view}>
             <Suspense fallback={<div />}>
@@ -1929,6 +1960,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             </Suspense>
           </ErrorBoundary>
         </div>
+      )}
+        </>
       )}
 
       {/* — Holidays & Modals — */}
@@ -2112,7 +2145,11 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
 
     <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
     {settingsOpen && <SettingsModal token={token} api={api} onClose={() => setSettingsOpen(false)} />}
-    <ChatBot token={token} api={api} user={user} role="manager" onNavigate={setView} />
+    <ChatBot token={token} api={api} user={user} role="manager" onNavigate={(v, subView) => {
+      if (v === "leave" && subView) setLeaveSubView(subView);
+      if (v === "attendance" && subView) setAttendanceSubView(subView);
+      setView(v);
+    }} />
     </>
   );
 }

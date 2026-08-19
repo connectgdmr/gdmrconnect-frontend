@@ -244,6 +244,12 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // 6. NAVIGATION & UI STATES
   // ============================================================================
   const [view, setView] = useState("dashboard");
+  // Attendance and Leave each used to be two separate sidebar items that
+  // landed on the same kind of page (a log/record view + an action view) —
+  // consolidated into one sidebar entry per topic with an in-page tab strip,
+  // so "where do I go to see X vs. do Y" has one answer instead of four.
+  const [attendanceSubView, setAttendanceSubView] = useState("attendance-log");
+  const [leaveSubView, setLeaveSubView] = useState("my-leaves");
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -690,8 +696,9 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         if(!res.ok) throw new Error(data.message);
 
         alert("Correction Request Sent Successfully!");
-        setView("my-leaves"); 
-        load(); 
+        setAttendanceSubView("attendance-log");
+        setView("attendance");
+        load();
       } catch (err) { 
           alert("Error sending correction request: " + err.message); 
       }
@@ -748,7 +755,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       const skippedMsg = conflictDates.length ? ` (${conflictDates.length} day${conflictDates.length > 1 ? "s" : ""} skipped — already requested.)` : "";
       if (failed === 0) alert(`Leave applied for ${datesToSubmit.length} day${datesToSubmit.length > 1 ? "s" : ""}.${skippedMsg}`);
       else alert(`${datesToSubmit.length - failed} of ${datesToSubmit.length} days applied. ${failed} failed — please retry those days.${skippedMsg}`);
-      setView("my-leaves");
+      setLeaveSubView("my-leaves");
+      setView("leave");
       load();
       return;
     }
@@ -773,7 +781,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       setFile(null);
 
       alert("Leave applied successfully!");
-      setView("my-leaves");
+      setLeaveSubView("my-leaves");
+      setView("leave");
       load(); // refresh in the background — don't block the success feedback
     } catch (err) {
       alert("Error applying leave: " + (err.message || "An unknown error occurred."));
@@ -1123,11 +1132,11 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
             <div className="quick-launch-grid">
               <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} disabled={fetchingLocation} />
               <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} disabled={fetchingLocation} />
-              <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => setView("apply-leave")} />
+              <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => { setLeaveSubView("apply-leave"); setView("leave"); }} />
               <QuickLaunchItem icon={<FaChartLine />} label="PMS Eval" onClick={() => setView("pms")} />
-              <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => setView("my-leaves")} />
-              <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => setView("attendance-log")} />
-              <QuickLaunchItem icon={<FaCalendarWeek />} label="Attendance Calendar" onClick={() => setView("attendance-calendar")} />
+              <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => { setLeaveSubView("my-leaves"); setView("leave"); }} />
+              <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => { setAttendanceSubView("attendance-log"); setView("attendance"); }} />
+              <QuickLaunchItem icon={<FaCalendarWeek />} label="Attendance Calendar" onClick={() => { setAttendanceSubView("attendance-calendar"); setView("attendance"); }} />
               <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
               <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
               <QuickLaunchItem icon={<FaLaptop />} label="Request Asset" onClick={() => setView("assets")} />
@@ -1162,9 +1171,9 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
           <div className="card dashboard-widget">
             <h4 className="widget-title">This Month's Attendance</h4>
             <div className="stats-list">
-              <StatItem icon={<FaCheckCircle />} label="Present" count={monthCalendarSummary?.present ?? "—"} colorClass="text-green" onClick={() => setView("attendance-calendar")} />
-              <StatItem icon={<FaCalendarCheck />} label="Approved Leave" count={monthCalendarSummary?.approved_leave ?? "—"} colorClass="text-orange" onClick={() => setView("attendance-calendar")} />
-              <StatItem icon={<FaTimesCircle />} label="LOP" count={monthCalendarSummary?.lop ?? "—"} colorClass="text-red" onClick={() => setView("attendance-calendar")} />
+              <StatItem icon={<FaCheckCircle />} label="Present" count={monthCalendarSummary?.present ?? "—"} colorClass="text-green" onClick={() => { setAttendanceSubView("attendance-calendar"); setView("attendance"); }} />
+              <StatItem icon={<FaCalendarCheck />} label="Approved Leave" count={monthCalendarSummary?.approved_leave ?? "—"} colorClass="text-orange" onClick={() => { setAttendanceSubView("attendance-calendar"); setView("attendance"); }} />
+              <StatItem icon={<FaTimesCircle />} label="LOP" count={monthCalendarSummary?.lop ?? "—"} colorClass="text-red" onClick={() => { setAttendanceSubView("attendance-calendar"); setView("attendance"); }} />
             </div>
             <div style={{ marginTop: 10, fontSize: 12.5, color: "#64748b", display: "flex", alignItems: "center", gap: 6 }}>
               🛠 Attendance Corrections: <strong style={{ color: "#0f172a" }}>{correctionHistory.filter(c => c.month === ym()).length} / 3 Used</strong> this month
@@ -1593,7 +1602,21 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {view === "apply-leave" && (
+      {/* — Leave (Apply + My Leaves, tabbed) — */}
+      {view === "leave" && (
+        <>
+          <div style={{ display: "flex", gap: 4, marginTop: 16, background: "#f1f5f9", borderRadius: 10, padding: 4, width: "fit-content" }}>
+            <button onClick={() => setLeaveSubView("apply-leave")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: leaveSubView === "apply-leave" ? "var(--red)" : "transparent", color: leaveSubView === "apply-leave" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>Apply Leave</button>
+            <button onClick={() => setLeaveSubView("my-leaves")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: leaveSubView === "my-leaves" ? "var(--red)" : "transparent", color: leaveSubView === "my-leaves" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>My Leaves</button>
+          </div>
+
+      {leaveSubView === "apply-leave" && (
         <div className="card" style={{ marginTop: 16 }}>
           <form onSubmit={applyLeave}>
              <h3 style={{marginTop:0}}>Apply for Leave</h3>
@@ -1683,12 +1706,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {/* — My Leaves — */}
-      {view === "my-leaves" && (
+      {leaveSubView === "my-leaves" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
-          <div style={{padding:'15px'}}>
-              <h3 style={{margin:0, color:'var(--red)'}}>My Leaves</h3>
-          </div>
           <div style={{overflowX: 'auto'}}>
             <table className="styled-table">
               <thead><tr><th>Date</th><th>Type</th><th style={{textAlign:'center'}}>Manager</th><th style={{textAlign:'center'}}>HR</th><th style={{textAlign:'center'}}>Overall</th><th>Attachment</th><th>Action</th></tr></thead>
@@ -1719,9 +1738,24 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
           </div>
         </div>
       )}
+        </>
+      )}
 
-      {/* — Attendance Log — */}
-      {view === "attendance-log" && (
+      {/* — Attendance (Log + Calendar, tabbed) — */}
+      {view === "attendance" && (
+        <>
+          <div style={{ display: "flex", gap: 4, marginTop: 16, background: "#f1f5f9", borderRadius: 10, padding: 4, width: "fit-content" }}>
+            <button onClick={() => setAttendanceSubView("attendance-log")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: attendanceSubView === "attendance-log" ? "var(--red)" : "transparent", color: attendanceSubView === "attendance-log" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>Attendance Log</button>
+            <button onClick={() => setAttendanceSubView("attendance-calendar")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: attendanceSubView === "attendance-calendar" ? "var(--red)" : "transparent", color: attendanceSubView === "attendance-calendar" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>Attendance Calendar</button>
+          </div>
+
+      {attendanceSubView === "attendance-log" && (
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
            <div style={{display:'flex', justifyContent:'flex-end', alignItems:'center', padding:'15px'}}>
               <button className="btn" style={{background:'#f59e0b', fontSize:'13px'}} onClick={() => setView("correction")}>
@@ -1749,8 +1783,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {/* — Attendance Calendar — */}
-      {view === "attendance-calendar" && (
+      {attendanceSubView === "attendance-calendar" && (
         <div style={{ marginTop: 16 }}>
           <ErrorBoundary label="Attendance Calendar" resetKey={view}>
             <Suspense fallback={<SkeletonTable rows={6} cols={7} />}>
@@ -1758,6 +1791,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
             </Suspense>
           </ErrorBoundary>
         </div>
+      )}
+        </>
       )}
 
       {/* — Holidays & Modals — */}
@@ -2126,7 +2161,11 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
 
     <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
     {settingsOpen && <SettingsModal token={token} api={api} onClose={() => setSettingsOpen(false)} />}
-    <ChatBot token={token} api={api} user={user} role="employee" onNavigate={setView} />
+    <ChatBot token={token} api={api} user={user} role="employee" onNavigate={(v, subView) => {
+      if (v === "leave" && subView) setLeaveSubView(subView);
+      if (v === "attendance" && subView) setAttendanceSubView(subView);
+      setView(v);
+    }} />
     </>
   );
 }

@@ -20,15 +20,15 @@ const BOT_NAME = "Rexor";
 const KB = [
   { k: ["apply leave", "take leave", "request leave", "leave application", "how to leave", "book leave", "want leave"],
     a: "To request time off, head to **Apply Leave**. Pick your dates, choose full or half day, add a reason (and a document if needed), then submit. It goes to your manager and HR for approval.",
-    action: { label: "Apply Leave", view: "apply-leave", roles: ["employee", "manager"] } },
+    action: { label: "Apply Leave", view: "leave", subView: "apply-leave", roles: ["employee", "manager"] } },
   { k: ["leave balance", "leave status", "my leaves", "leave approved", "leave pending", "how many leave"],
     a: "All your leave requests and their status (Pending / Approved / Rejected) live under **My Leaves**.",
-    action: { label: "My Leaves", view: "my-leaves", roles: ["employee", "manager"] } },
+    action: { label: "My Leaves", view: "leave", subView: "my-leaves", roles: ["employee", "manager"] } },
   { k: ["check in", "checkin", "check out", "checkout", "mark attendance", "punch", "clock in", "clock out"],
     a: "Tap **Check In** / **Check Out** on your dashboard — it opens your camera for a quick photo verification. Tip: you can only check in within ±1 hour of your assigned shift." },
   { k: ["attendance log", "my attendance", "attendance history", "attendance record"],
-    a: "Your full check-in / check-out history is under **Attendance Log**.",
-    action: { label: "Attendance Log", view: "attendance-log", roles: ["employee", "manager"] } },
+    a: "Your full check-in / check-out history is under **Attendance**.",
+    action: { label: "Attendance Log", view: "attendance", subView: "attendance-log", roles: ["employee", "manager"] } },
   { k: ["payslip", "salary slip", "my salary", "payroll", "pay slip", "salary", "ctc", "earnings"],
     a: "Your monthly payslips are under **Payroll → My Payslips** — view the full earnings/deductions breakdown and download any slip as a PDF.",
     action: { label: "Go to Payroll", view: "payroll" } },
@@ -498,7 +498,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
                       <span className="hud-txt">
                         {renderText(m.text)}
                         {m.action && (
-                          <button className="hud-action" onClick={() => { onNavigate?.(m.action.view); closePanel(); }}>
+                          <button className="hud-action" onClick={() => { onNavigate?.(m.action.view, m.action.subView); closePanel(); }}>
                             → {m.action.label}
                           </button>
                         )}
@@ -569,7 +569,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
                     )}
                     <div className={`genie-bubble ${m.from}`}>{renderText(m.text)}</div>
                     {m.action && (
-                      <button className="genie-action" onClick={() => { onNavigate?.(m.action.view); closePanel(); }}>
+                      <button className="genie-action" onClick={() => { onNavigate?.(m.action.view, m.action.subView); closePanel(); }}>
                         → {m.action.label}
                       </button>
                     )}

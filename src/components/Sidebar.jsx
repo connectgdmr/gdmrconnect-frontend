@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import Logo from "../assets/GDMR-LOGO-unit.png";
 import {
   FaTachometerAlt, FaUsers, FaCalendarCheck, FaClock, FaUserTie,
-  FaChartPie, FaCalendarAlt, FaCalendarWeek, FaBullhorn, FaUserShield, FaLaptop,
-  FaHistory, FaCalendarPlus, FaEdit, FaChartLine, FaClipboardCheck,
+  FaChartPie, FaCalendarAlt, FaBullhorn, FaUserShield, FaLaptop,
+  FaHistory, FaEdit, FaChartLine, FaClipboardCheck,
   FaSignOutAlt, FaBalanceScale, FaBuilding, FaClipboardList, FaGraduationCap, FaBriefcase, FaMoneyBillWave,
   FaTasks, FaChartArea, FaFolderOpen, FaUserTag, FaCommentDots
 } from "react-icons/fa";
@@ -35,10 +35,8 @@ const NAV_ITEMS = {
   manager: [
     { icon: <FaTachometerAlt />, label: "Dashboard", view: "dashboard" },
     { icon: <FaCommentDots />, label: "Messages", view: "chat" },
-    { icon: <FaHistory />, label: "Attendance Log", view: "attendance-log" },
-    { icon: <FaCalendarWeek />, label: "Team Calendar", view: "team-calendar" },
-    { icon: <FaCalendarCheck />, label: "My Leaves", view: "my-leaves" },
-    { icon: <FaCalendarPlus />, label: "Apply Leave", view: "apply-leave" },
+    { icon: <FaHistory />, label: "Attendance", view: "attendance" },
+    { icon: <FaCalendarCheck />, label: "Leave", view: "leave" },
     { icon: <FaUsers />, label: "Team", view: "dept-dashboard" },
     { icon: <FaCalendarCheck />, label: "Team Leaves", view: "team-leaves" },
     { icon: <FaClipboardCheck />, label: "Corrections", view: "corrections" },
@@ -81,10 +79,8 @@ const NAV_ITEMS = {
   employee: [
     { icon: <FaTachometerAlt />, label: "Dashboard", view: "dashboard" },
     { icon: <FaCommentDots />, label: "Messages", view: "chat" },
-    { icon: <FaHistory />, label: "Attendance Log", view: "attendance-log" },
-    { icon: <FaCalendarWeek />, label: "Attendance Calendar", view: "attendance-calendar" },
-    { icon: <FaCalendarCheck />, label: "My Leaves", view: "my-leaves" },
-    { icon: <FaCalendarPlus />, label: "Apply Leave", view: "apply-leave" },
+    { icon: <FaHistory />, label: "Attendance", view: "attendance" },
+    { icon: <FaCalendarCheck />, label: "Leave", view: "leave" },
     { icon: <FaChartLine />, label: "Performance", view: "pms" },
     { icon: <FaChartArea />, label: "Work", view: "work-analytics" },
     { icon: <FaBullhorn />, label: "Announcements", view: "announcements" },
