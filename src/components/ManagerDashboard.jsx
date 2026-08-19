@@ -34,6 +34,7 @@ const AdminAttendanceSummary = lazy(() => import("./AdminAttendanceSummary"));
 const EmployeeList           = lazy(() => import("./EmployeeList"));
 const RegisterManager        = lazy(() => import("./RegisterManager"));
 const AttendanceCalendar     = lazy(() => import("./AttendanceCalendar"));
+const DelegatedDepartments   = lazy(() => import("./DelegatedDepartments"));
 import {
   FaCamera, 
   FaSignOutAlt, 
@@ -79,6 +80,7 @@ import {
   FaGraduationCap,
   FaBriefcase,
   FaChartPie,
+  FaBuilding,
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 import SettingsModal from "./SettingsModal";
@@ -149,7 +151,7 @@ const DELEGATED_MODULES = [
     render: (ctx) => (
       <EmployeeList
         employees={ctx.delegatedEmployees}
-        departments={[]}
+        departments={ctx.delegatedDepartments}
         onDelete={ctx.deleteDelegatedEmployee}
         onRefresh={ctx.loadDelegatedEmployees}
         onPatch={ctx.patchDelegatedEmployee}
@@ -161,6 +163,9 @@ const DELEGATED_MODULES = [
   { key: "manager", label: "Manage Managers", Icon: FaUserShield,
     alert: "You are managing Managers using temporary Delegated Access.",
     render: (ctx) => <RegisterManager token={ctx.token} api={ctx.api} /> },
+  { key: "departments", label: "Manage Departments", Icon: FaBuilding,
+    alert: "You are managing Departments using temporary Delegated Access.",
+    render: (ctx) => <DelegatedDepartments token={ctx.token} api={ctx.api} canWrite={ctx.canWriteDepartments} /> },
 ];
 
 export default function ManagerDashboard({ token, api, user, onLogout, passwordChanged = true }) {
@@ -269,7 +274,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   // delete/promote so the reused EmployeeList component behaves identically.
   const [delegatedEmployees, setDelegatedEmployees] = useState([]);
   const [delegatedEmployeesLoading, setDelegatedEmployeesLoading] = useState(false);
-  
+  const [delegatedDepartments, setDelegatedDepartments] = useState([]);
+  const [delegatedDepartmentsLoading, setDelegatedDepartmentsLoading] = useState(false);
+
   /** 
    * Stores aggregated performance metrics for the department 
    */
@@ -466,8 +473,17 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   // Fetch the employee directory only when the delegated "Employees" sub-view
   // is actually opened, not eagerly on every dashboard load.
   useEffect(() => {
-    if (view === "delegated-employees" && delegatedEmployees.length === 0 && !delegatedEmployeesLoading) {
-      loadDelegatedEmployees();
+    if (view === "delegated-employees") {
+      if (delegatedEmployees.length === 0 && !delegatedEmployeesLoading) {
+        // Departments merges in names seen on the employee roster (see
+        // loadDelegatedDepartments) — chain off the freshly-loaded list
+        // rather than the stale `delegatedEmployees` closure.
+        loadDelegatedEmployees().then(list => {
+          if (delegatedDepartments.length === 0) loadDelegatedDepartments(list);
+        });
+      } else if (delegatedDepartments.length === 0 && !delegatedDepartmentsLoading) {
+        loadDelegatedDepartments(delegatedEmployees);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
@@ -481,9 +497,42 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   // loadEmployees/patchEmployee/deleteEmployee/promoteToManager.
   async function loadDelegatedEmployees() {
       setDelegatedEmployeesLoading(true);
-      try { setDelegatedEmployees(await api.listEmployees(token)); }
-      catch { /* silent — UI shows stale/empty data */ }
+      try {
+          const list = await api.listEmployees(token);
+          setDelegatedEmployees(list);
+          return list;
+      } catch { /* silent — UI shows stale/empty data */ return []; }
       finally { setDelegatedEmployeesLoading(false); }
+  }
+  // Mirrors EmployeeDashboard.jsx's loadDelegatedDepartments(): departments_col
+  // is the source of truth for names, but an employee's `department` string
+  // can be set without ever being formalized as its own departments_col
+  // document — merge those in too, or the dropdown only shows a handful of
+  // "official" departments instead of every department actually in use.
+  async function loadDelegatedDepartments(empList) {
+      setDelegatedDepartmentsLoading(true);
+      const source = empList || delegatedEmployees;
+      try {
+          const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+          const res = await fetch(`${baseUrl}/api/admin/departments`, { headers: { Authorization: `Bearer ${token}` } });
+          const saved  = res.ok ? await res.json() : [];
+          const byName = {};
+          saved.forEach(s => { byName[s.name] = { ...s }; });
+          source.forEach((emp) => {
+            const deptVal = emp.department;
+            const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
+            depts.forEach(d => { if (!byName[d]) byName[d] = { _id: d, name: d, description: "", head_id: null }; });
+          });
+          setDelegatedDepartments(Object.values(byName));
+      } catch {
+          const map = {};
+          source.forEach((emp) => {
+            const deptVal = emp.department;
+            const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
+            depts.forEach(d => { if (!map[d]) map[d] = { _id: d, name: d, description: "", head_id: null }; });
+          });
+          setDelegatedDepartments(Object.values(map));
+      } finally { setDelegatedDepartmentsLoading(false); }
   }
   function patchDelegatedEmployee(id, updates) {
       setDelegatedEmployees(prev => prev.map(e => e._id === id ? { ...e, ...updates } : e));
@@ -1294,8 +1343,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {/* --- SUB-VIEWS FOR DELEGATED ADMIN --- */}
       {DELEGATED_MODULES.filter(m => view === `delegated-${m.key}`).map(m => {
           const ctx = {
-              token, api, user, delegatedEmployees,
+              token, api, user, delegatedEmployees, delegatedDepartments,
               loadDelegatedEmployees, patchDelegatedEmployee, deleteDelegatedEmployee, promoteDelegatedEmployee,
+              canWriteDepartments: grantedModuleWrite("departments"),
           };
           return (
               <div key={m.key} style={{ marginTop: "16px" }}>

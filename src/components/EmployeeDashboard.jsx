@@ -32,6 +32,7 @@ const AdminAssessment         = lazy(() => import("./AdminAssessment"));
 const AdminAttendanceSummary  = lazy(() => import("./AdminAttendanceSummary"));
 const PMSWorkspace            = lazy(() => import("./PMSWorkspace"));
 const AttendanceCalendar      = lazy(() => import("./AttendanceCalendar"));
+const DelegatedDepartments    = lazy(() => import("./DelegatedDepartments"));
 
 import {
   FaCamera,
@@ -68,6 +69,7 @@ import {
   FaTasks,
   FaUsers,
   FaChartPie,
+  FaBuilding,
 } from "react-icons/fa";
 import ProfilePanel from "./ProfilePanel";
 import DailyQuote from "./DailyQuote";
@@ -178,6 +180,9 @@ const DELEGATED_MODULES = [
   { key: "manager", label: "Manage Managers", Icon: FaUserShield,
     alert: "You are managing Managers using temporary Delegated Access.",
     render: (ctx) => <RegisterManager token={ctx.token} api={ctx.api} /> },
+  { key: "departments", label: "Manage Departments", Icon: FaBuilding,
+    alert: "You are managing Departments using temporary Delegated Access.",
+    render: (ctx) => <DelegatedDepartments token={ctx.token} api={ctx.api} canWrite={ctx.canWriteDepartments} /> },
 ];
 
 export default function EmployeeDashboard({ token, api, user, onLogout, passwordChanged = true }) {
@@ -1336,6 +1341,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
               loadDelegatedEmployees, patchDelegatedEmployee, deleteDelegatedEmployee, promoteDelegatedEmployee,
               addDelegatedEmployee, delegatedEmpSubView, setDelegatedEmpSubView,
               canWriteEmployees: grantedModuleWrite("employees"),
+              canWriteDepartments: grantedModuleWrite("departments"),
           };
           return (
               <div key={m.key} style={{ marginTop: "16px" }}>
