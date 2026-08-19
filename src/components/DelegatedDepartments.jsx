@@ -24,11 +24,34 @@ export default function DelegatedDepartments({ token, api, canWrite = true }) {
   const baseUrl = api?.baseUrl || BASE;
   const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
 
+  // departments_col is the source of truth for formal department records,
+  // but (same as AdminDashboard.jsx's own loadDepartments()) an employee's
+  // `department` string can be set without ever being formalized as its own
+  // departments_col document — merge those in too, or this list only shows
+  // the handful of "official" rows instead of every department actually in
+  // use across the roster. Entries only known via the roster (no `_formal`
+  // flag) can't be PUT to (no real _id) so their Edit action is hidden.
   async function loadDepartments() {
     setLoading(true);
     try {
-      const res = await fetch(`${baseUrl}/api/admin/departments`, { headers });
-      setDepartments(res.ok ? await res.json() : []);
+      const [deptRes, empRes] = await Promise.all([
+        fetch(`${baseUrl}/api/admin/departments`, { headers }),
+        fetch(`${baseUrl}/api/admin/employees`, { headers }),
+      ]);
+      const saved = deptRes.ok ? await deptRes.json() : [];
+      const byName = {};
+      saved.forEach(s => { byName[s.name] = { ...s, _formal: true }; });
+
+      if (empRes.ok) {
+        const emps = await empRes.json();
+        const list = Array.isArray(emps) ? emps : (emps?.employees || []);
+        list.forEach((emp) => {
+          const deptVal = emp.department;
+          const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
+          depts.forEach(d => { if (!byName[d]) byName[d] = { _id: d, name: d, description: "", head_id: null, _formal: false }; });
+        });
+      }
+      setDepartments(Object.values(byName));
     } catch { setDepartments([]); }
     finally { setLoading(false); }
   }
@@ -111,17 +134,27 @@ export default function DelegatedDepartments({ token, api, canWrite = true }) {
           <tbody>
             {sorted.map(d => (
               <tr key={d._id}>
-                <td>{d.name}</td>
+                <td>
+                  {d.name}
+                  {!d._formal && (
+                    <span title="Seen on employee records but not yet a formal department entry" style={{
+                      marginLeft: 8, fontSize: 10.5, fontWeight: 600, color: "#b45309",
+                      background: "#fef3c7", borderRadius: 4, padding: "2px 6px",
+                    }}>Not formalized</span>
+                  )}
+                </td>
                 <td>{d.description || "—"}</td>
                 {canWrite && (
                   <td style={{ textAlign: "center" }}>
-                    <button
-                      onClick={() => setEditingDept({ ...d })}
-                      title="Edit"
-                      style={{ border: "none", background: "none", cursor: "pointer", color: "#16a34a", padding: 6, borderRadius: 4 }}
-                    >
-                      <FaEdit />
-                    </button>
+                    {d._formal && (
+                      <button
+                        onClick={() => setEditingDept({ ...d })}
+                        title="Edit"
+                        style={{ border: "none", background: "none", cursor: "pointer", color: "#16a34a", padding: 6, borderRadius: 4 }}
+                      >
+                        <FaEdit />
+                      </button>
+                    )}
                   </td>
                 )}
               </tr>
