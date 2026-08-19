@@ -35,6 +35,8 @@ const EmployeeList           = lazy(() => import("./EmployeeList"));
 const RegisterManager        = lazy(() => import("./RegisterManager"));
 const AttendanceCalendar     = lazy(() => import("./AttendanceCalendar"));
 const AdminDepartments       = lazy(() => import("./AdminDepartments"));
+const AdminAnnouncements     = lazy(() => import("./AdminAnnouncements"));
+const AdminAssets            = lazy(() => import("./AdminAssets"));
 import {
   FaCamera, 
   FaSignOutAlt, 
@@ -121,16 +123,16 @@ const DELEGATED_MODULES = [
     render: (ctx) => <AdminLeavePage token={ctx.token} api={ctx.api} /> },
   { key: "lms", label: "Manage LMS Courses", Icon: FaGraduationCap,
     alert: "You are managing LMS Courses using temporary Delegated Access — you can create courses and assign them.",
-    render: (ctx) => <AdminLMS token={ctx.token} employees={[]} departments={[]} /> },
+    render: (ctx) => <AdminLMS token={ctx.token} employees={ctx.delegatedEmployees} departments={ctx.delegatedDepartments} /> },
   { key: "payroll", label: "Manage Payroll", Icon: FaMoneyBillWave,
     alert: "You are managing Payroll using temporary Delegated Access.",
-    render: (ctx) => <AdminPayroll token={ctx.token} employees={[]} /> },
+    render: (ctx) => <AdminPayroll token={ctx.token} employees={ctx.delegatedEmployees} /> },
   { key: "ats", label: "Manage Recruitment", Icon: FaUserTag,
     alert: "You are managing Recruitment using temporary Delegated Access.",
-    render: (ctx) => <AdminATS token={ctx.token} role={ctx.user?.role || "manager"} employees={[]} departments={[]} /> },
+    render: (ctx) => <AdminATS token={ctx.token} role={ctx.user?.role || "manager"} employees={ctx.delegatedEmployees} departments={ctx.delegatedDepartments} /> },
   { key: "career", label: "Manage Jobs", Icon: FaBriefcase,
     alert: "You are managing Job Postings using temporary Delegated Access.",
-    render: (ctx) => <AdminCareer token={ctx.token} employees={[]} /> },
+    render: (ctx) => <AdminCareer token={ctx.token} employees={ctx.delegatedEmployees} /> },
   { key: "clients", label: "Manage Clients", Icon: FaFolderOpen,
     alert: "You are managing Clients using temporary Delegated Access.",
     render: (ctx) => <AdminClients token={ctx.token} /> },
@@ -142,7 +144,7 @@ const DELEGATED_MODULES = [
     render: (ctx) => <AdminAssessment token={ctx.token} /> },
   { key: "pms", label: "Manage PMS (All Depts)", Icon: FaChartLine,
     alert: "You are viewing PMS (all departments) using temporary Delegated Access.",
-    render: (ctx) => <PMSWorkspace token={ctx.token} api={ctx.api} user={ctx.user} scope="admin" assignablePool={[]} /> },
+    render: (ctx) => <PMSWorkspace token={ctx.token} api={ctx.api} user={ctx.user} scope="admin" assignablePool={ctx.delegatedEmployees} /> },
   { key: "summary", label: "View Reports", Icon: FaChartPie,
     alert: "You are viewing company Reports using temporary Delegated Access.",
     render: (ctx) => <AdminAttendanceSummary token={ctx.token} api={ctx.api} /> },
@@ -171,6 +173,12 @@ const DELEGATED_MODULES = [
         canWrite={ctx.canWriteDepartments} canDelete={false}
       />
     ) },
+  { key: "announcements", label: "Manage Announcements", Icon: FaBullhorn,
+    alert: "You are managing Announcements using temporary Delegated Access.",
+    render: (ctx) => <AdminAnnouncements token={ctx.token} api={ctx.api} canWrite={ctx.canWriteAnnouncements} /> },
+  { key: "assets", label: "Manage Assets", Icon: FaLaptop,
+    alert: "You are managing Assets using temporary Delegated Access.",
+    render: (ctx) => <AdminAssets token={ctx.token} api={ctx.api} canWrite={ctx.canWriteAssets} /> },
 ];
 
 export default function ManagerDashboard({ token, api, user, onLogout, passwordChanged = true }) {
@@ -475,10 +483,14 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       .catch(() => {});
   }, [token, api]);
 
-  // Fetch the employee directory only when the delegated "Employees" sub-view
-  // is actually opened, not eagerly on every dashboard load.
+  // Fetch the employee directory only when a delegated sub-view is actually
+  // opened, not eagerly on every dashboard load. Every DELEGATED_MODULES
+  // entry that reuses a real admin component (PMS, Departments, Managers,
+  // Employees...) needs the real roster, not an empty array — so this loads
+  // for any "delegated-*" view rather than naming each one and
+  // re-introducing this same "forgot to wire it up" bug for the next module.
   useEffect(() => {
-    if (view === "delegated-employees" || view === "delegated-departments") {
+    if (view.startsWith("delegated-")) {
       if (delegatedEmployees.length === 0 && !delegatedEmployeesLoading) {
         // Departments merges in names seen on the employee roster (see
         // loadDelegatedDepartments) — chain off the freshly-loaded list
@@ -1351,6 +1363,8 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               token, api, user, delegatedEmployees, delegatedDepartments,
               loadDelegatedEmployees, patchDelegatedEmployee, deleteDelegatedEmployee, promoteDelegatedEmployee,
               canWriteDepartments: grantedModuleWrite("departments"),
+              canWriteAnnouncements: grantedModuleWrite("announcements"),
+              canWriteAssets: grantedModuleWrite("assets"),
           };
           return (
               <div key={m.key} style={{ marginTop: "16px" }}>

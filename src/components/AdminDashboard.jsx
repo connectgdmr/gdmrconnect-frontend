@@ -14,6 +14,8 @@ const RegisterManager        = lazy(() => import("./RegisterManager"));
 const AdminAttendanceSummary = lazy(() => import("./AdminAttendanceSummary"));
 const HolidayCalendar        = lazy(() => import("./HolidayCalendar"));
 const AdminDepartments       = lazy(() => import("./AdminDepartments"));
+const AdminAnnouncements     = lazy(() => import("./AdminAnnouncements"));
+const AdminAssets            = lazy(() => import("./AdminAssets"));
 
 // ============================================================================
 // ICON IMPORTS
@@ -36,8 +38,6 @@ import {
   FaUserShield,
   FaTrash,
   FaEdit,
-  FaSave,
-  FaUndo,
   FaLaptop,
   FaBars,
   FaGift,
@@ -149,16 +149,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   // Pre-loaded today's leave roster (single source of truth for KPI + modal)
   const [todayLeaveRows, setTodayLeaveRows] = useState(null);
 
-  // — Announcement States —
-  const [announcements, setAnnouncements] = useState([]);
-  const [annTitle, setAnnTitle] = useState("");
-  const [annMessage, setAnnMessage] = useState("");
-  
-  // Inline Editing States for Announcements
-  const [editingAnnId, setEditingAnnId] = useState(null);
-  const [editAnnTitle, setEditAnnTitle] = useState("");
-  const [editAnnMessage, setEditAnnMessage] = useState("");
-
   // — Grant Access States —
   const [accessGrants, setAccessGrants] = useState([]);
   const [grantableModules, setGrantableModules] = useState([]); // [{key, label}] from backend — single source of truth
@@ -180,9 +170,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   const [corrections, setCorrections] = useState([]);
   const [correctionsLoading, setCorrectionsLoading] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
-
-  // — Asset States —
-  const [allAssets, setAllAssets] = useState([]);
 
   // — Department State — (the management UI itself now lives in
   // AdminDepartments.jsx; this stays only as the shared source for the
@@ -271,20 +258,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
     } catch { /* stats silent fail */ }
   }
 
-  async function loadAnnouncements() {
-    try {
-      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-      const res = await fetch(`${baseUrl}/api/announcements`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-          const data = await res.json();
-          const sorted = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-          setAnnouncements(sorted);
-      }
-    } catch { /* silent */ }
-  }
-
   async function loadAccessGrants() {
       try {
           const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
@@ -294,21 +267,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           ]);
           if (grantsRes.ok) setAccessGrants(await grantsRes.json());
           if (modulesRes.ok) setGrantableModules(await modulesRes.json());
-      } catch (err) {
-          // silent fail
-      }
-  }
-
-  async function loadAssets() {
-      try {
-          const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-          const res = await fetch(`${baseUrl}/api/admin/assets`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (res.ok) {
-              const data = await res.json();
-              setAllAssets(data);
-          }
       } catch (err) {
           // silent fail
       }
@@ -418,9 +376,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
   // Dynamically load data based on the current view to save bandwidth
   useEffect(() => {
-    if (view === "announcements") loadAnnouncements();
     if (view === "grant-access") loadAccessGrants();
-    if (view === "assets") loadAssets();
     if (view === "departments") loadDepartments();
     if (view === "corrections") loadCorrections();
   }, [view]);
@@ -492,61 +448,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       }
   }
 
-  // — Announcement Actions —
-  
-  async function createAnnouncement() {
-    if (!annTitle || !annMessage) return alert("Please fill in both title and message");
-    try {
-        const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-        const res = await fetch(`${baseUrl}/api/announcements`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ title: annTitle, message: annMessage })
-        });
-        if (res.ok) {
-            alert("Announcement Posted Successfully!");
-            setAnnTitle(""); setAnnMessage(""); loadAnnouncements();
-        } else { alert("Failed to post announcement"); }
-    } catch (err) { alert("Error posting announcement"); }
-  }
-
-  function startEditAnnouncement(ann) {
-      setEditingAnnId(ann._id); setEditAnnTitle(ann.title); setEditAnnMessage(ann.message);
-  }
-
-  function cancelEditAnnouncement() {
-      setEditingAnnId(null); setEditAnnTitle(""); setEditAnnMessage("");
-  }
-
-  async function updateAnnouncement(id) {
-      if (!editAnnTitle || !editAnnMessage) return alert("Title and message cannot be empty.");
-      try {
-          const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-          const res = await fetch(`${baseUrl}/api/announcements/${id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              body: JSON.stringify({ title: editAnnTitle, message: editAnnMessage })
-          });
-          if (res.ok) {
-              alert("Announcement Updated Successfully!");
-              setEditingAnnId(null); loadAnnouncements();
-          } else { alert("Failed to update announcement"); }
-      } catch (err) { alert("Error updating announcement"); }
-  }
-
-  async function recallAnnouncement(id) {
-      if (!window.confirm("Are you sure you want to recall (delete) this announcement?")) return;
-      try {
-          const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-          const res = await fetch(`${baseUrl}/api/announcements/${id}`, {
-              method: 'DELETE',
-              headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (res.ok) { alert("Announcement Recalled."); loadAnnouncements(); } 
-          else { alert("Failed to recall announcement."); }
-      } catch (err) { alert("Error recalling announcement."); }
-  }
-
   // — Grant Access Actions —
   
   function toggleGrantModule(key) {
@@ -590,36 +491,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           });
           if (res.ok) { alert("Access revoked."); loadAccessGrants(); }
       } catch { /* silent */ }
-  }
-
-  // — Asset Actions —
-  async function updateAdminAssetStatus(id, status) {
-      if (!window.confirm(`Are you sure you want to mark this request as ${status}?`)) return;
-      
-      try {
-          setLoading(true);
-          const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-          const res = await fetch(`${baseUrl}/api/admin/assets/${id}`, {
-              method: 'PUT',
-              headers: { 
-                  'Content-Type': 'application/json', 
-                  'Authorization': `Bearer ${token}` 
-              },
-              body: JSON.stringify({ admin_status: status })
-          });
-          
-          if (res.ok) {
-              alert(`Asset request ${status} successfully!`);
-              loadAssets(); // Refresh list to show updated status
-          } else {
-              const errData = await res.json();
-              alert(errData.message || "Failed to update asset.");
-          }
-      } catch (err) {
-          alert("Error updating asset: " + err.message);
-      } finally {
-          setLoading(false);
-      }
   }
 
   // — Stat Click Handler —
@@ -1091,61 +962,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {/* 7. ANNOUNCEMENTS */}
       {/* ============================================================================ */}
       {view === "announcements" && (
-        <div className="card" style={{ marginTop: "16px", background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
-            <h3 style={{color: 'var(--red)'}}>Manage Announcements</h3>
-            <p style={{color: '#64748b', marginBottom: 20}}>Broadcast messages to all employee dashboards.</p>
-            
-            <div className="card" style={{ marginBottom: 30 }}>
-                <h4 style={{marginTop: 0, borderBottom: '1px solid #f1f5f9', paddingBottom: 10}}>Create New Announcement</h4>
-                <div style={{ display:'flex', flexDirection:'column', gap:15 }}>
-                    <input className="modern-input" placeholder="Title (e.g. Office Closed on Friday)" value={annTitle} onChange={(e) => setAnnTitle(e.target.value)} />
-                    <textarea className="modern-input" placeholder="Message details..." style={{ minHeight: 80, resize:'vertical' }} value={annMessage} onChange={(e) => setAnnMessage(e.target.value)} />
-                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
-                        <button className="btn" onClick={createAnnouncement} style={{padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8}}>
-                            <FaBullhorn /> Post Announcement
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <h4 style={{marginBottom: 15, color: '#334155'}}>Announcement History & Management</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {announcements.length === 0 ? (
-                    <div className="card" style={{ textAlign: 'center', color: '#94a3b8', padding: '40px' }}>
-                        <FaBullhorn size={40} style={{opacity: 0.2, marginBottom: 15}}/>
-                        <p style={{margin: 0}}>No announcements currently active.</p>
-                    </div>
-                ) : (
-                    announcements.map((ann) => (
-                        <div key={ann._id}>
-                            {editingAnnId === ann._id ? (
-                                <div className="edit-mode-card">
-                                    <h4 style={{marginTop: 0, color: 'var(--brand)'}}>Editing Announcement</h4>
-                                    <input className="modern-input" style={{marginBottom: 10}} value={editAnnTitle} onChange={(e) => setEditAnnTitle(e.target.value)} />
-                                    <textarea className="modern-input" style={{ minHeight: 100, resize:'vertical', marginBottom: 15 }} value={editAnnMessage} onChange={(e) => setEditAnnMessage(e.target.value)} />
-                                    <div style={{display: 'flex', gap: 10}}>
-                                        <button className="btn" style={{display: 'flex', alignItems: 'center', gap: 5}} onClick={() => updateAnnouncement(ann._id)}><FaSave /> Save Changes</button>
-                                        <button className="btn ghost" onClick={cancelEditAnnouncement}>Cancel</button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="announcement-card">
-                                    <div className="announcement-header">
-                                        <h4 className="announcement-title">{ann.title}</h4>
-                                        <span className="announcement-date">{new Date(ann.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                                    </div>
-                                    <div className="announcement-body">{ann.message}</div>
-                                    <div className="announcement-actions">
-                                        <button className="btn-action-edit" onClick={() => startEditAnnouncement(ann)}><FaEdit /> Edit</button>
-                                        <button className="btn-action-recall" onClick={() => recallAnnouncement(ann._id)}><FaUndo /> Recall / Delete</button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ))
-                )}
-            </div>
-        </div>
+        <ErrorBoundary label="Announcements" resetKey={view}>
+          <AdminAnnouncements token={token} api={api} />
+        </ErrorBoundary>
       )}
 
       {/* ============================================================================ */}
@@ -1268,84 +1087,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {/* 10. ORGANIZATION ASSET MANAGEMENT */}
       {/* ============================================================================ */}
       {view === "assets" && (
-          <div className="card" style={{marginTop: 16}}>
-              <h3 style={{ color: "var(--brand)" }}>Manage Organization Assets</h3>
-              <p className="small" style={{marginBottom: 20}}>Review and provide final authorization for all hardware and equipment requests across the company. Requests must be approved by the Department Manager before final Admin processing.</p>
-              
-              <div style={{overflowX: 'auto'}}>
-                <table className="styled-table-global">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Employee (Dept)</th>
-                            <th>Requested Asset</th>
-                            <th>Reason</th>
-                            <th style={{textAlign:'center'}}>Manager Status</th>
-                            <th style={{textAlign:'center'}}>Admin Status</th>
-                            <th>Final Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {allAssets.length === 0 ? (
-                            <tr><td colSpan="7" style={{textAlign:'center', padding:40, color:'#999'}}>No asset requests found in the system.</td></tr>
-                        ) : (
-                            allAssets.map(asset => (
-                            <tr key={asset._id}>
-                                <td>{new Date(asset.created_at).toLocaleDateString('en-GB')}</td>
-                                <td>
-                                    <div style={{fontWeight:700, color: "#0f172a", fontSize: 13}}>{asset.employee_name}</div>
-                                    <div style={{fontSize:10, color:'#64748b', marginTop: 4}}>{asset.department || "No Dept"}</div>
-                                </td>
-                                <td style={{ fontWeight: 600, color: '#334155' }}>
-                                    {asset.asset_name}
-                                </td>
-                                <td style={{maxWidth:'200px'}}>
-                                    <div style={{fontSize:11, color:'#475569', lineHeight:'1.4'}}>
-                                      {asset.reason}
-                                    </div>
-                                </td>
-                                <td style={{textAlign:'center'}}>
-                                    <span className={`status-badge ${getStatusClass(asset.manager_status || 'Pending')}`}>
-                                      {asset.manager_status || 'Pending'}
-                                    </span>
-                                </td>
-                                <td style={{textAlign:'center'}}>
-                                    <span className={`status-badge ${getStatusClass(asset.admin_status || 'Pending')}`}>
-                                      {asset.admin_status || 'Pending'}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div className="action-btn-group" style={{ flexWrap: "wrap", gap: 6 }}>
-                                        <button
-                                            className="action-btn btn-approve"
-                                            onClick={() => updateAdminAssetStatus(asset._id, "Approved")}
-                                        >
-                                            <FaCheckCircle /> Approve
-                                        </button>
-                                        <button
-                                            className="action-btn btn-reject"
-                                            onClick={() => updateAdminAssetStatus(asset._id, "Rejected")}
-                                        >
-                                            <FaTimesCircle /> Reject
-                                        </button>
-                                        {(asset.admin_status || "").toLowerCase() === "approved" && (
-                                            <span style={{
-                                                display: "inline-flex", alignItems: "center", gap: 5,
-                                                padding: "5px 10px", borderRadius: 6,
-                                                background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0",
-                                                fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
-                                            }}>
-                                                <FaCheckCircle size={10} /> Approved — manager assigns
-                                            </span>
-                                        )}
-                                    </div>
-                                </td>
-                            </tr>
-                        )))}
-                    </tbody>
-                </table>
-              </div>
-          </div>
+        <ErrorBoundary label="Assets" resetKey={view}>
+          <AdminAssets token={token} api={api} />
+        </ErrorBoundary>
       )}
 
       </Suspense>
