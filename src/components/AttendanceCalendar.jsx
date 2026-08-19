@@ -102,7 +102,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
   }
 
   return (
-    <div className="card" style={{ padding: 16, maxWidth: 460, margin: "0 auto" }}>
+    <div className="card" style={{ padding: 18, width: "100%", maxWidth: 900, margin: "0 auto" }}>
       {mode === "manager" && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
           <select className="modern-input" style={{ margin: 0, flex: 1, minWidth: 160 }}
@@ -146,12 +146,12 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 3 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 4 }}>
             {DOW_LABELS.map((l, i) => (
-              <div key={i} style={{ textAlign: "center", fontSize: 10.5, fontWeight: 700, color: "#94a3b8", padding: "2px 0" }}>{l}</div>
+              <div key={i} style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: "#94a3b8", padding: "2px 0" }}>{l}</div>
             ))}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
             {cells.map((d, i) => {
               if (d === null) return <div key={i} />;
               const dateStr = ymd(new Date(year, month, d));
@@ -166,8 +166,8 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                   onClick={() => setSelectedDay(isSelected ? null : dateStr)}
                   title={style?.label || ""}
                   style={{
-                    height: 40, border: `1.5px solid ${isSelected ? "#0f172a" : (style?.border || "#f1f5f9")}`,
-                    borderRadius: 7, fontSize: 11.5, fontWeight: 600, cursor: (isFuture || !entry) ? "default" : "pointer",
+                    aspectRatio: "1.6", border: `1.5px solid ${isSelected ? "#0f172a" : (style?.border || "#f1f5f9")}`,
+                    borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: (isFuture || !entry) ? "default" : "pointer",
                     background: style?.bg || "#fff", color: isFuture ? "#cbd5e1" : "#0f172a",
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, padding: 0,
                   }}
