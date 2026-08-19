@@ -32,7 +32,7 @@ const AdminAssessment         = lazy(() => import("./AdminAssessment"));
 const AdminAttendanceSummary  = lazy(() => import("./AdminAttendanceSummary"));
 const PMSWorkspace            = lazy(() => import("./PMSWorkspace"));
 const AttendanceCalendar      = lazy(() => import("./AttendanceCalendar"));
-const DelegatedDepartments    = lazy(() => import("./DelegatedDepartments"));
+const AdminDepartments        = lazy(() => import("./AdminDepartments"));
 
 import {
   FaCamera,
@@ -182,7 +182,12 @@ const DELEGATED_MODULES = [
     render: (ctx) => <RegisterManager token={ctx.token} api={ctx.api} /> },
   { key: "departments", label: "Manage Departments", Icon: FaBuilding,
     alert: "You are managing Departments using temporary Delegated Access.",
-    render: (ctx) => <DelegatedDepartments token={ctx.token} api={ctx.api} canWrite={ctx.canWriteDepartments} /> },
+    render: (ctx) => (
+      <AdminDepartments
+        employees={ctx.delegatedEmployees} token={ctx.token} api={ctx.api}
+        canWrite={ctx.canWriteDepartments} canDelete={false}
+      />
+    ) },
 ];
 
 export default function EmployeeDashboard({ token, api, user, onLogout, passwordChanged = true }) {
@@ -400,7 +405,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // Fetch the employee directory only when a delegated sub-view that needs it
   // is actually opened, not eagerly on every dashboard load.
   useEffect(() => {
-    if (view === "delegated-employees" || view === "delegated-ats") {
+    if (view === "delegated-employees" || view === "delegated-ats" || view === "delegated-departments") {
       if (delegatedEmployees.length === 0 && !delegatedEmployeesLoading) {
         // Departments merges in names seen on the employee roster (see
         // loadDelegatedDepartments) — chain off the freshly-loaded list
