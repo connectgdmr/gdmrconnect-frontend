@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Logo from "../assets/GDMR-LOGO-unit.png";
 import {
   FaTachometerAlt, FaUsers, FaCalendarCheck, FaClock, FaUserTie,
-  FaChartPie, FaCalendarAlt, FaBullhorn, FaUserShield, FaLaptop,
+  FaChartPie, FaCalendarAlt, FaCalendarWeek, FaBullhorn, FaUserShield, FaLaptop,
   FaHistory, FaCalendarPlus, FaEdit, FaChartLine, FaClipboardCheck,
   FaSignOutAlt, FaBalanceScale, FaBuilding, FaClipboardList, FaGraduationCap, FaBriefcase, FaMoneyBillWave,
   FaTasks, FaChartArea, FaFolderOpen, FaUserTag, FaCommentDots
@@ -36,6 +36,7 @@ const NAV_ITEMS = {
     { icon: <FaTachometerAlt />, label: "Dashboard", view: "dashboard" },
     { icon: <FaCommentDots />, label: "Messages", view: "chat" },
     { icon: <FaHistory />, label: "Attendance Log", view: "attendance-log" },
+    { icon: <FaCalendarWeek />, label: "Team Calendar", view: "team-calendar" },
     { icon: <FaCalendarCheck />, label: "My Leaves", view: "my-leaves" },
     { icon: <FaCalendarPlus />, label: "Apply Leave", view: "apply-leave" },
     { icon: <FaUsers />, label: "Team", view: "dept-dashboard" },
@@ -81,6 +82,7 @@ const NAV_ITEMS = {
     { icon: <FaTachometerAlt />, label: "Dashboard", view: "dashboard" },
     { icon: <FaCommentDots />, label: "Messages", view: "chat" },
     { icon: <FaHistory />, label: "Attendance Log", view: "attendance-log" },
+    { icon: <FaCalendarWeek />, label: "Attendance Calendar", view: "attendance-calendar" },
     { icon: <FaCalendarCheck />, label: "My Leaves", view: "my-leaves" },
     { icon: <FaCalendarPlus />, label: "Apply Leave", view: "apply-leave" },
     { icon: <FaChartLine />, label: "Performance", view: "pms" },

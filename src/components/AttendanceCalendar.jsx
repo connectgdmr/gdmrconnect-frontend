@@ -102,7 +102,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
   }
 
   return (
-    <div className="card" style={{ padding: 18 }}>
+    <div className="card" style={{ padding: 16, maxWidth: 460, margin: "0 auto" }}>
       {mode === "manager" && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
           <select className="modern-input" style={{ margin: 0, flex: 1, minWidth: 160 }}
@@ -146,12 +146,12 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 3 }}>
             {DOW_LABELS.map((l, i) => (
-              <div key={i} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: "#94a3b8", padding: "4px 0" }}>{l}</div>
+              <div key={i} style={{ textAlign: "center", fontSize: 10.5, fontWeight: 700, color: "#94a3b8", padding: "2px 0" }}>{l}</div>
             ))}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
             {cells.map((d, i) => {
               if (d === null) return <div key={i} />;
               const dateStr = ymd(new Date(year, month, d));
@@ -166,14 +166,14 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                   onClick={() => setSelectedDay(isSelected ? null : dateStr)}
                   title={style?.label || ""}
                   style={{
-                    aspectRatio: "1", border: `1.5px solid ${isSelected ? "#0f172a" : (style?.border || "#f1f5f9")}`,
-                    borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: (isFuture || !entry) ? "default" : "pointer",
+                    height: 40, border: `1.5px solid ${isSelected ? "#0f172a" : (style?.border || "#f1f5f9")}`,
+                    borderRadius: 7, fontSize: 11.5, fontWeight: 600, cursor: (isFuture || !entry) ? "default" : "pointer",
                     background: style?.bg || "#fff", color: isFuture ? "#cbd5e1" : "#0f172a",
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, padding: 0,
                   }}
                 >
                   {d}
-                  {style && <span style={{ width: 5, height: 5, borderRadius: "50%", background: style.dot }} />}
+                  {style && <span style={{ width: 4, height: 4, borderRadius: "50%", background: style.dot }} />}
                 </button>
               );
             })}
