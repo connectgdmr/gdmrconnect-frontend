@@ -107,8 +107,35 @@ export default function AdminPayroll({ token, employees = [] }) {
   const setRunAdjField = (id, key, value) =>
     setRunAdjustments(a => ({ ...a, [id]: { ...a[id], [key]: value } }));
 
-  // Adjustments are month-specific — clear them when the selected month/year changes
-  useEffect(() => { setRunAdjustments({}); }, [runMonth, runYear]);
+  // Stage 3 — payroll auto-LOP: keyed by employee id, { lop_days, lop_amount },
+  // sourced from the Stage 1 attendance calendar's "lop" day-count for the
+  // selected month. Kept separate from runAdjustments so the "Auto: Xd" hint
+  // stays visible next to the LOP input even after HR edits/overrides it.
+  const [lopPreview, setLopPreview] = useState({});
+
+  // Adjustments are month-specific — clear them when the selected month/year
+  // changes, then re-seed LOP from the auto-computed preview. HR can still
+  // edit/override any value before generating payslips.
+  useEffect(() => {
+    setRunAdjustments({});
+    setLopPreview({});
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`${BASE}/admin/payroll/lop-preview?month=${runMonth + 1}&year=${runYear}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!r.ok || cancelled) return;
+        const rows = toArr(await r.json());
+        const preview = {};
+        const seedAdj = {};
+        rows.forEach(row => {
+          preview[row.employee_id] = row;
+          if (row.lop_amount > 0) seedAdj[row.employee_id] = { lop: String(row.lop_amount) };
+        });
+        if (!cancelled) { setLopPreview(preview); setRunAdjustments(seedAdj); }
+      } catch { /* preview is best-effort — HR can still enter LOP manually */ }
+    })();
+    return () => { cancelled = true; };
+  }, [runMonth, runYear, token]);
 
   // Payslips
   const [payslips, setPayslips]       = useState([]);
@@ -495,6 +522,11 @@ export default function AdminPayroll({ token, employees = [] }) {
                                   onChange={e => setRunAdjField(id, d.key, e.target.value)}
                                   style={{ margin: 0, width: 100 }}
                                 />
+                                {d.key === "lop" && lopPreview[id]?.lop_days > 0 && (
+                                  <div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 2 }} title="Auto-filled from the attendance calendar — edit to override">
+                                    Auto: {lopPreview[id].lop_days}d
+                                  </div>
+                                )}
                               </td>
                             ))}
                             <td>
