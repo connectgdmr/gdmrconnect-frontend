@@ -81,45 +81,54 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
 
   const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
 
+  // Kept separate from the roster merge below: the `employees` prop can
+  // still be mid-fetch (empty) on first mount for a delegate — a delegated
+  // view loads its own roster asynchronously (see EmployeeDashboard.jsx's/
+  // ManagerDashboard.jsx's loadDelegatedEmployees()). If the merge only ran
+  // once on mount inside this same fetch, it would permanently freeze on
+  // whatever `employees` happened to be at that instant (often still []),
+  // so the page would forever show just the formal departments_col rows
+  // even after the roster finished loading a moment later. Doing the merge
+  // in a memo keyed on `employees` instead means it recomputes every time
+  // the roster prop actually changes, with no extra network round-trip.
+  const [savedDepartments, setSavedDepartments] = useState([]);
+
   async function loadDepartments() {
     setDeptLoading(true);
     try {
       const res = await fetch(`${baseUrl}/api/admin/departments`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // departments_col is the source of truth for names. An employee's
-      // cached `department` string can briefly go stale right after a
-      // rename — it must never shadow or duplicate the real, current
-      // department record, or a rename looks like it "reverts" whenever
-      // this list re-renders.
-      const saved  = res.ok ? await res.json() : [];
-      const byName = {};
-      saved.forEach(s => { byName[s.name] = { ...s }; });
-
-      // Also surface any department only known via employee records (not
-      // yet formalized as its own departments_col document).
-      employees.forEach((emp) => {
-        const deptVal = emp.department;
-        const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
-        depts.forEach(d => {
-          if (!byName[d]) byName[d] = { _id: d, name: d, description: "", head_id: null };
-        });
-      });
-      setDepartments(Object.values(byName));
+      setSavedDepartments(res.ok ? await res.json() : []);
     } catch {
-      const map = {};
-      employees.forEach((emp) => {
-        const deptVal = emp.department;
-        const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
-        depts.forEach(d => { if (!map[d]) map[d] = { _id: d, name: d, description: "", head_id: null }; });
-      });
-      setDepartments(Object.values(map));
+      setSavedDepartments([]);
     } finally {
       setDeptLoading(false);
     }
   }
 
   useEffect(() => { loadDepartments(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    // departments_col is the source of truth for names. An employee's
+    // cached `department` string can briefly go stale right after a
+    // rename — it must never shadow or duplicate the real, current
+    // department record, or a rename looks like it "reverts" whenever
+    // this list re-renders.
+    const byName = {};
+    savedDepartments.forEach(s => { byName[s.name] = { ...s }; });
+
+    // Also surface any department only known via employee records (not
+    // yet formalized as its own departments_col document).
+    employees.forEach((emp) => {
+      const deptVal = emp.department;
+      const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
+      depts.forEach(d => {
+        if (!byName[d]) byName[d] = { _id: d, name: d, description: "", head_id: null };
+      });
+    });
+    setDepartments(Object.values(byName));
+  }, [savedDepartments, employees]);
 
   async function saveDepartment(e) {
     e.preventDefault();
