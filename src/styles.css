@@ -702,6 +702,11 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
   border-radius: var(--radius-xl); text-align: center;
   border: 1px solid var(--slate-200); box-shadow: var(--shadow-xl);
   animation: fadeScale 0.2s ease;
+  /* Some forms rendered inside .modal-box (e.g. EmployeeList.jsx's edit
+     modal) have more fields than fit on shorter viewports — without a cap
+     the box just runs off-screen with no way to reach the rest of the form
+     or the Save/Cancel row. Scroll inside the box instead. */
+  max-height: 90vh; overflow-y: auto;
 }
 .modal-card {
   background: var(--surface); width: 600px; max-width: 95vw;
