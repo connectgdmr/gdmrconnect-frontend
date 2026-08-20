@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Purchased Envato template — reference-only source for the visual reskin,
+# never a dependency of the actual app. Large (fonts/images/full demo repo)
+# and not something to ship or version — see styles.css's reskin comments
+# for what was actually pulled from it.
+TRMPLATE UI/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

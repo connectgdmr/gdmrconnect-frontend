@@ -10,7 +10,7 @@ export const ACCENTS = [
   { key: "purple", label: "Purple", swatch: "#7c3aed" },
   { key: "rose",   label: "Rose",   swatch: "#e11d48" },
   { key: "orange", label: "Orange", swatch: "#ea580c" },
-  { key: "teal",   label: "Teal",   swatch: "#0d9488" },
+  { key: "teal",   label: "Teal",   swatch: "#007D88" },
 ];
 
 export function useTheme() {
@@ -28,7 +28,11 @@ function applyMode(mode) {
 
 export function ThemeProvider({ children }) {
   const [mode, setModeState] = useState(() => localStorage.getItem(MODE_KEY) || "system");
-  const [accent, setAccentState] = useState(() => localStorage.getItem(ACCENT_KEY) || "green");
+  // Default accent is now "teal" (Jampack reference palette) — anyone who's
+  // already picked a color in Settings keeps exactly that choice (it's in
+  // localStorage), this only changes what a first-time/never-customized
+  // user sees out of the box.
+  const [accent, setAccentState] = useState(() => localStorage.getItem(ACCENT_KEY) || "teal");
 
   useEffect(() => { applyMode(mode); }, [mode]);
   useEffect(() => { document.documentElement.setAttribute("data-accent", accent); }, [accent]);
