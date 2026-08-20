@@ -3,7 +3,7 @@ import Logo from "../assets/GDMR-LOGO-unit.png";
 import {
   FaTachometerAlt, FaUsers, FaCalendarCheck, FaClock, FaUserTie,
   FaChartPie, FaCalendarAlt, FaBullhorn, FaUserShield, FaLaptop,
-  FaHistory, FaEdit, FaChartLine, FaClipboardCheck,
+  FaHistory, FaEdit, FaChartLine,
   FaSignOutAlt, FaBalanceScale, FaBuilding, FaClipboardList, FaGraduationCap, FaBriefcase, FaMoneyBillWave,
   FaTasks, FaChartArea, FaCommentDots
 } from "react-icons/fa";
@@ -15,7 +15,6 @@ const NAV_ITEMS = {
     { icon: <FaUsers />, label: "Employees", view: "employees" },
     { icon: <FaCalendarCheck />, label: "Leave Requests", view: "leaves" },
     { icon: <FaClock />, label: "Attendance", view: "attendance" },
-    { icon: <FaClipboardCheck />, label: "Corrections", view: "corrections" },
     { icon: <FaBuilding />, label: "Departments", view: "departments" },
     { icon: <FaUserTie />, label: "Managers", view: "manager" },
     { icon: <FaChartPie />, label: "Reports", view: "summary" },
@@ -37,7 +36,6 @@ const NAV_ITEMS = {
     { icon: <FaCalendarCheck />, label: "Leave", view: "leave" },
     { icon: <FaUsers />, label: "Team", view: "dept-dashboard" },
     { icon: <FaCalendarCheck />, label: "Team Leaves", view: "team-leaves" },
-    { icon: <FaClipboardCheck />, label: "Corrections", view: "corrections" },
     { icon: <FaChartLine />, label: "PMS", view: "pms" },
     { icon: <FaBullhorn />, label: "Announcements", view: "announcements" },
     { icon: <FaTasks />, label: "Work & Clients", view: "work-clients" },
@@ -55,7 +53,6 @@ const NAV_ITEMS = {
     { icon: <FaUsers />, label: "Employees", view: "employees" },
     { icon: <FaCalendarCheck />, label: "Leave Requests", view: "leaves" },
     { icon: <FaClock />, label: "Attendance", view: "attendance" },
-    { icon: <FaClipboardCheck />, label: "Corrections", view: "corrections" },
     { icon: <FaBuilding />, label: "Departments", view: "departments" },
     { icon: <FaUserTie />, label: "Managers", view: "manager" },
     { icon: <FaChartPie />, label: "Reports", view: "summary" },

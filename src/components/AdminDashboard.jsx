@@ -168,6 +168,10 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   const [corrections, setCorrections] = useState([]);
   const [correctionsLoading, setCorrectionsLoading] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
+  // "Attendance" and "Corrections" used to be two separate sidebar entries;
+  // Corrections is now a tab inside Attendance (same tabbed-merge pattern as
+  // Leave/Work & Clients/Jobs & Recruitment).
+  const [attendanceTab, setAttendanceTab] = useState("log");
 
   // — Department State — (the management UI itself now lives in
   // AdminDepartments.jsx; this stays only as the shared source for the
@@ -376,8 +380,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   useEffect(() => {
     if (view === "grant-access") loadAccessGrants();
     if (view === "departments") loadDepartments();
-    if (view === "corrections") loadCorrections();
-  }, [view]);
+    if (view === "attendance" && attendanceTab === "corrections") loadCorrections();
+  }, [view, attendanceTab]);
 
   useEffect(() => {
     const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
@@ -593,7 +597,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           leaves: notifCounts?.leaves || 0,
           assets: notifCounts?.assets || 0,
           announcements: notifCounts?.announcements || 0,
-          corrections: notifCounts?.corrections || 0,
+          attendance: notifCounts?.corrections || 0,
         }}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -865,60 +869,82 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {/* 2. LEAVES */}
       {view === "leaves" && <div style={{ marginTop: "16px" }}><AdminLeavePage token={token} api={api} /></div>}
 
-      {/* 3. ATTENDANCE */}
-      {view === "attendance" && <div style={{ marginTop: "16px" }}><AdminAttendancePage token={token} api={api} /></div>}
-
-      {/* 3b. ATTENDANCE CORRECTIONS — manager/admin/owner self-submitted, routed here for approval */}
-      {view === "corrections" && (
-        <div className="card" style={{ marginTop: "16px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
-            <div>
-              <h3 style={{ color: "var(--red)", margin: 0 }}>Attendance Corrections</h3>
-              <p className="small" style={{ margin: "4px 0 0" }}>Correction requests submitted by managers (and admins) for their own attendance — employee-submitted corrections are approved by their Reporting Manager instead.</p>
-            </div>
-            <button
-              className="btn ghost"
-              onClick={backfillCorrections}
-              disabled={backfilling}
-              title="One-time repair: some corrections approved before a recent bug fix never actually updated attendance, so the day still shows as LOP. Click to fix any still stuck."
-              style={{ whiteSpace: "nowrap", fontSize: 12.5 }}
-            >
-              {backfilling ? "Fixing…" : "Fix Stuck Corrections"}
+      {/* 3. ATTENDANCE (+ Corrections, tabbed — see attendanceTab above) */}
+      {view === "attendance" && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "#f1f5f9", borderRadius: 10, padding: 4, width: "fit-content" }}>
+            <button onClick={() => setAttendanceTab("log")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: attendanceTab === "log" ? "var(--red)" : "transparent", color: attendanceTab === "log" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>Attendance Log</button>
+            <button onClick={() => setAttendanceTab("corrections")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 7,
+              background: attendanceTab === "corrections" ? "var(--red)" : "transparent", color: attendanceTab === "corrections" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>
+              Corrections
+              {notifCounts?.corrections > 0 && (
+                <span style={{ background: attendanceTab === "corrections" ? "rgba(255,255,255,0.3)" : "var(--red)", color: "#fff", borderRadius: 10, fontSize: 11, fontWeight: 700, padding: "1px 7px", lineHeight: "16px" }}>
+                  {notifCounts.corrections}
+                </span>
+              )}
             </button>
           </div>
-          <div style={{ marginBottom: 16 }} />
-          <div className="table-scroll-body" style={{ maxHeight: 520 }}>
-            {correctionsLoading ? <SkeletonTable rows={6} cols={5} /> : (
-              <table className="styled-table-global">
-                <thead><tr><th className="sticky-th">Submitted By</th><th className="sticky-th">New Time</th><th className="sticky-th">Reason</th><th className="sticky-th">Status</th><th className="sticky-th">Action</th></tr></thead>
-                <tbody>
-                  {visibleCorrections.length === 0 && <tr><td colSpan="5" style={{ textAlign: "center", padding: 20, color: "#999" }}>No correction requests found.</td></tr>}
-                  {visibleCorrections.map(c => (
-                    <tr key={c._id}>
-                      <td style={{ fontWeight: "bold" }}>{c.employee_name || "—"}</td>
-                      <td>{c.new_time ? new Date(c.new_time).toLocaleString() : "—"}</td>
-                      <td>{c.reason}</td>
-                      <td><span className={`status-badge ${getStatusClass(c.status)}`}>{c.status}</span></td>
-                      <td>
-                        {c.status === "Pending" ? (
-                          <div style={{ display: "flex", gap: 5 }}>
-                            <button className="btn-small" style={{ background: "green" }} onClick={() => approveCorrection(c._id, "Approved")}>
-                              <FaCheckCircle /> Approve
-                            </button>
-                            <button className="btn-small" style={{ background: "#b91c1c" }} onClick={() => approveCorrection(c._id, "Rejected")}>
-                              <FaTimesCircle /> Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <span style={{ color: "#888", fontStyle: "italic", fontSize: 12 }}>Processed</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+
+          {attendanceTab === "log" && <AdminAttendancePage token={token} api={api} />}
+
+          {/* Corrections — manager/admin/owner self-submitted, routed here for approval */}
+          {attendanceTab === "corrections" && (
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+                <div>
+                  <h3 style={{ color: "var(--red)", margin: 0 }}>Attendance Corrections</h3>
+                  <p className="small" style={{ margin: "4px 0 0" }}>Correction requests submitted by managers (and admins) for their own attendance — employee-submitted corrections are approved by their Reporting Manager instead.</p>
+                </div>
+                <button
+                  className="btn ghost"
+                  onClick={backfillCorrections}
+                  disabled={backfilling}
+                  title="One-time repair: some corrections approved before a recent bug fix never actually updated attendance, so the day still shows as LOP. Click to fix any still stuck."
+                  style={{ whiteSpace: "nowrap", fontSize: 12.5 }}
+                >
+                  {backfilling ? "Fixing…" : "Fix Stuck Corrections"}
+                </button>
+              </div>
+              <div style={{ marginBottom: 16 }} />
+              <div className="table-scroll-body" style={{ maxHeight: 520 }}>
+                {correctionsLoading ? <SkeletonTable rows={6} cols={5} /> : (
+                  <table className="styled-table-global">
+                    <thead><tr><th className="sticky-th">Submitted By</th><th className="sticky-th">New Time</th><th className="sticky-th">Reason</th><th className="sticky-th">Status</th><th className="sticky-th">Action</th></tr></thead>
+                    <tbody>
+                      {visibleCorrections.length === 0 && <tr><td colSpan="5" style={{ textAlign: "center", padding: 20, color: "#999" }}>No correction requests found.</td></tr>}
+                      {visibleCorrections.map(c => (
+                        <tr key={c._id}>
+                          <td style={{ fontWeight: "bold" }}>{c.employee_name || "—"}</td>
+                          <td>{c.new_time ? new Date(c.new_time).toLocaleString() : "—"}</td>
+                          <td>{c.reason}</td>
+                          <td><span className={`status-badge ${getStatusClass(c.status)}`}>{c.status}</span></td>
+                          <td>
+                            {c.status === "Pending" ? (
+                              <div style={{ display: "flex", gap: 5 }}>
+                                <button className="btn-small" style={{ background: "green" }} onClick={() => approveCorrection(c._id, "Approved")}>
+                                  <FaCheckCircle /> Approve
+                                </button>
+                                <button className="btn-small" style={{ background: "#b91c1c" }} onClick={() => approveCorrection(c._id, "Rejected")}>
+                                  <FaTimesCircle /> Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ color: "#888", fontStyle: "italic", fontSize: 12 }}>Processed</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

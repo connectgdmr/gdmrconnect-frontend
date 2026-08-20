@@ -1094,7 +1094,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           "chat": chatUnread,
           "team-leaves": notificationCounts?.leaves || 0,
           "pms": notificationCounts?.pms || 0,
-          "corrections": notificationCounts?.corrections || 0,
+          "attendance": notificationCounts?.corrections || 0,
           "announcements": notificationCounts?.announcements || 0,
           "team-assets": notificationCounts?.assets || 0,
         }}
@@ -1316,7 +1316,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               <QuickLaunchItem icon={<FaChartLine />} label="PMS" onClick={() => setView("pms")} badgeCount={notificationCounts?.pms || 0} />
               <QuickLaunchItem icon={<FaUsers />} label="Dept Dashboard" onClick={() => setView("dept-dashboard")} />
               <QuickLaunchItem icon={<FaTags />} label="Work Types" onClick={() => setView("work-types")} />
-              <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => setView("corrections")} badgeCount={notificationCounts?.corrections || 0} />
+              <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => { setAttendanceSubView("corrections"); setView("attendance"); }} badgeCount={notificationCounts?.corrections || 0} />
               <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => { setLeaveSubView("apply-leave"); setView("leave"); }} />
               <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => { setLeaveSubView("my-leaves"); setView("leave"); }} />
               <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => { setAttendanceSubView("attendance-log"); setView("attendance"); }} />
@@ -1476,48 +1476,6 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                                 </td>
                             </tr>
                         ))}
-                    </tbody>
-                </table>
-              </div>
-          </div>
-      )}
-
-      {/* — Corrections — */}
-      {view === "corrections" && (
-          <div className="card">
-              <h3>Pending Attendance Corrections</h3>
-              <div style={{overflowX:'auto'}}>
-                <table className="styled-table-global">
-                    <thead><tr><th>Employee</th><th>New Time</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody>
-                        {pendingCorrections.length === 0 && <tr><td colSpan="5" style={{textAlign:'center', padding:20, color:'#999'}}>No pending corrections found.</td></tr>}
-                        {pendingCorrections.map(c => {
-                          const resolvedName = (c.employee_name && c.employee_name !== "Unknown")
-                            ? c.employee_name
-                            : (teamMembers.find(m => String(m._id) === String(c.employee_id || c.user_id || ""))?.name || c.employee_name || "—");
-                          return (
-                            <tr key={c._id}>
-                                <td style={{fontWeight: 'bold'}}>{resolvedName}</td>
-                                <td>{new Date(c.new_time).toLocaleString()}</td>
-                                <td>{c.reason}</td>
-                                <td><span className={`status-badge ${getStatusClass(c.status)}`}>{c.status}</span></td>
-                                <td>
-                                    {c.status === 'Pending' ? (
-                                      <div style={{display:'flex', gap:5}}>
-                                        <button className="btn-small" style={{background:'green'}} onClick={() => approveCorrection(c._id, 'Approved')}>
-                                          <FaCheckCircle /> Approve
-                                        </button>
-                                        <button className="btn-small" style={{background:'#b91c1c'}} onClick={() => approveCorrection(c._id, 'Rejected')}>
-                                          <FaTimesCircle /> Reject
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <span style={{color:'#888', fontStyle:'italic', fontSize:12}}>Processed</span>
-                                    )}
-                                </td>
-                            </tr>
-                          );
-                        })}
                     </tbody>
                 </table>
               </div>
@@ -1991,6 +1949,17 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
               background: attendanceSubView === "team-calendar" ? "var(--red)" : "transparent", color: attendanceSubView === "team-calendar" ? "#fff" : "#64748b", transition: "all 0.15s",
             }}>Team Calendar</button>
+            <button onClick={() => setAttendanceSubView("corrections")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 7,
+              background: attendanceSubView === "corrections" ? "var(--red)" : "transparent", color: attendanceSubView === "corrections" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>
+              Corrections
+              {notificationCounts?.corrections > 0 && (
+                <span style={{ background: attendanceSubView === "corrections" ? "rgba(255,255,255,0.3)" : "var(--red)", color: "#fff", borderRadius: 10, fontSize: 11, fontWeight: 700, padding: "1px 7px", lineHeight: "16px" }}>
+                  {notificationCounts.corrections}
+                </span>
+              )}
+            </button>
           </div>
 
       {attendanceSubView === "attendance-log" && (
@@ -2030,6 +1999,47 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             </Suspense>
           </ErrorBoundary>
         </div>
+      )}
+
+      {attendanceSubView === "corrections" && (
+          <div className="card" style={{ marginTop: 16 }}>
+              <h3>Pending Attendance Corrections</h3>
+              <div style={{overflowX:'auto'}}>
+                <table className="styled-table-global">
+                    <thead><tr><th>Employee</th><th>New Time</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {pendingCorrections.length === 0 && <tr><td colSpan="5" style={{textAlign:'center', padding:20, color:'#999'}}>No pending corrections found.</td></tr>}
+                        {pendingCorrections.map(c => {
+                          const resolvedName = (c.employee_name && c.employee_name !== "Unknown")
+                            ? c.employee_name
+                            : (teamMembers.find(m => String(m._id) === String(c.employee_id || c.user_id || ""))?.name || c.employee_name || "—");
+                          return (
+                            <tr key={c._id}>
+                                <td style={{fontWeight: 'bold'}}>{resolvedName}</td>
+                                <td>{new Date(c.new_time).toLocaleString()}</td>
+                                <td>{c.reason}</td>
+                                <td><span className={`status-badge ${getStatusClass(c.status)}`}>{c.status}</span></td>
+                                <td>
+                                    {c.status === 'Pending' ? (
+                                      <div style={{display:'flex', gap:5}}>
+                                        <button className="btn-small" style={{background:'green'}} onClick={() => approveCorrection(c._id, 'Approved')}>
+                                          <FaCheckCircle /> Approve
+                                        </button>
+                                        <button className="btn-small" style={{background:'#b91c1c'}} onClick={() => approveCorrection(c._id, 'Rejected')}>
+                                          <FaTimesCircle /> Reject
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <span style={{color:'#888', fontStyle:'italic', fontSize:12}}>Processed</span>
+                                    )}
+                                </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                </table>
+              </div>
+          </div>
       )}
         </>
       )}
