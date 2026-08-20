@@ -1,33 +1,68 @@
-﻿import React, { useState, useEffect } from "react";
-import { FaEdit, FaTrash, FaCrown } from "react-icons/fa";
+﻿import React, { useState, useEffect, useRef } from "react";
+import { FaEdit, FaTrash, FaCrown, FaChevronDown } from "react-icons/fa";
 
 import { BASE_URL as BASE } from "../api";
 
+// Collapsed multi-select dropdown — a single-column checklist that opens
+// on click instead of an always-expanded box, so the field reads like a
+// normal compact form control until you actually need to pick departments.
 function DeptCheckboxList({ departments, selected, onChange }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    function onOutsideClick(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onOutsideClick);
+    return () => document.removeEventListener("mousedown", onOutsideClick);
+  }, []);
+
   const toggle = (d) =>
     onChange(selected.includes(d) ? selected.filter(x => x !== d) : [...selected, d]);
+
+  const label = selected.length === 0
+    ? "Select departments…"
+    : selected.length <= 2
+      ? selected.join(", ")
+      : `${selected.length} departments selected`;
+
   return (
-    <div style={{
-      maxHeight: 160, maxWidth: 420, overflowY: "auto", border: "1px solid #e2e8f0",
-      borderRadius: 6, padding: "8px 10px", background: "#f8fafc",
-    }}>
-      {departments.length === 0 && (
-        <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>Loading departments…</p>
+    <div ref={wrapRef} style={{ position: "relative", maxWidth: 420 }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="modern-input"
+        style={{
+          margin: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: 8, cursor: "pointer", textAlign: "left",
+          color: selected.length === 0 ? "#94a3b8" : "#1e293b",
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        <FaChevronDown size={11} style={{ flexShrink: 0, color: "#94a3b8", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 30,
+          background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8,
+          boxShadow: "0 8px 24px rgba(15,23,42,0.12)", maxHeight: 220, overflowY: "auto",
+        }}>
+          {departments.length === 0 && (
+            <p style={{ fontSize: 12, color: "#94a3b8", margin: 0, padding: "10px 12px" }}>Loading departments…</p>
+          )}
+          {departments.map(d => (
+            <label key={d} style={{
+              display: "flex", alignItems: "center", gap: 9,
+              padding: "8px 12px", cursor: "pointer", fontSize: 13, color: "#1e293b",
+            }}>
+              <input type="checkbox" checked={selected.includes(d)} onChange={() => toggle(d)} />
+              {d}
+            </label>
+          ))}
+        </div>
       )}
-      {/* A single wide column with one department per row was the reported
-          "odd and big" look — a mostly-empty box on wider screens. A
-          multi-column grid uses the width productively instead. */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "2px 10px" }}>
-        {departments.map(d => (
-          <label key={d} style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "4px 0", cursor: "pointer", fontSize: 13, color: "#1e293b",
-          }}>
-            <input type="checkbox" checked={selected.includes(d)} onChange={() => toggle(d)} />
-            {d}
-          </label>
-        ))}
-      </div>
     </div>
   );
 }

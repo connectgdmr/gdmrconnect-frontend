@@ -752,12 +752,15 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
               body: JSON.stringify({ id, action })
           });
+          const data = await res.json().catch(() => ({}));
           if (!res.ok) {
-              const errData = await res.json();
-              throw new Error(errData.message || "Failed to process correction request.");
+              throw new Error(data.message || "Failed to process correction request.");
           }
           await load(true);
-          alert(`Correction Request ${action} successfully.`);
+          // "Approved" alone isn't proof the day's LOP actually cleared — the
+          // backend says so explicitly if the attendance record it needs to
+          // write failed, instead of that failing silently.
+          alert(data.synced === false ? data.message : `Correction Request ${action} successfully.`);
       } catch(err) {
           alert(err.message);
       }
