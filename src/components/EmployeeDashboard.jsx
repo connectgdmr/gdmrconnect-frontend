@@ -8,7 +8,7 @@ import useChatUnread from "./useChatUnread";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 import { getCurrentLocation } from "../utils/geolocation";
 import { resolveAttachmentUrl } from "../utils/security";
-import { ym } from "../utils/dateUtils";
+import { ym, ymd } from "../utils/dateUtils";
 import LeaveCalendar from "./LeaveCalendar";
 import SettingsModal from "./SettingsModal";
 import InsightsBanner from "./InsightsBanner";
@@ -1632,6 +1632,11 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                   <div style={{marginBottom:15}}>
                       <label className="modern-label">Correct Date & Time</label>
                       <input className="modern-input" type="datetime-local" required value={correctionData.newTime} onChange={e => setCorrectionData({...correctionData, newTime: e.target.value})} />
+                      {correctionData.newTime?.slice(0, 10) === ymd() && (
+                        <p style={{ fontSize: 12, color: "#d97706", margin: "6px 0 0" }}>
+                          This is today — today's attendance status is still "pending" until the day ends, so approving this won't change today's LOP count yet. It'll show correctly once the day finalizes.
+                        </p>
+                      )}
                   </div>
                   <div style={{marginBottom:15}}>
                       <label className="modern-label">Reason</label>
