@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FaHistory, FaSearch, FaRedo, FaDownload } from "react-icons/fa";
+import { TbHistory, TbSearch, TbRefresh, TbDownload } from "react-icons/tb";
 import { TASK_STATUSES, carryKey } from "./DailyWorkPlan";
 import { SkeletonList } from "./Skeleton";
 
@@ -126,7 +126,7 @@ export default function WorkHistory({ token, user }) {
             ))}
           </div>
           <button className="btn ghost" onClick={exportCSV} disabled={rows.length === 0} style={{ fontSize: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-            <FaDownload size={10} /> Export
+            <TbDownload size={10} /> Export
           </button>
         </div>
       </div>
@@ -155,7 +155,7 @@ export default function WorkHistory({ token, user }) {
       {/* Filters */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
         <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
-          <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+          <TbSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
           <input className="modern-input" placeholder="Search work done…" value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
         </div>
         <select className="modern-input" value={typeF} onChange={e => setTypeF(e.target.value)} style={{ margin: 0, maxWidth: 160 }}>
@@ -176,7 +176,7 @@ export default function WorkHistory({ token, user }) {
       {loading ? <SkeletonList count={4} />
       : rows.length === 0 ? (
         <div style={{ textAlign: "center", padding: "50px 20px", color: "#94a3b8" }}>
-          <FaHistory size={34} style={{ opacity: 0.2, marginBottom: 10 }} />
+          <TbHistory size={34} style={{ opacity: 0.2, marginBottom: 10 }} />
           <p style={{ margin: 0 }}>No work history matches your filters.</p>
         </div>
       ) : (
@@ -231,7 +231,7 @@ export default function WorkHistory({ token, user }) {
                       {r.status !== "Completed" && (
                         <button onClick={() => continueTask(r)} title="Continue this in today's plan"
                           style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--brand)", background: "var(--brand-light)", border: "1px solid #bbf7d0", borderRadius: 7, padding: "4px 9px", cursor: "pointer", whiteSpace: "nowrap" }}>
-                          <FaRedo size={9} /> Continue
+                          <TbRefresh size={9} /> Continue
                         </button>
                       )}
                     </td>
