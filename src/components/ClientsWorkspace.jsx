@@ -82,10 +82,24 @@ export default function ClientsWorkspace({ token, api, ownDepartments }) {
 
   useEffect(() => {
     if (isOwnScope) return; // manager/employee: no admin-departments call, no permission to make it either
-    fetch(`${baseUrl}/api/admin/departments`, { headers })
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setAllDepartments(Array.isArray(d) ? d.map(x => x.name).filter(Boolean).sort() : []))
-      .catch(() => setAllDepartments([]));
+    // departments_col alone (GET /api/admin/departments) is only ever the
+    // handful of *formally* created departments — same gap hit repeatedly
+    // elsewhere this session (AdminDepartments.jsx, delegated-departments
+    // sync, etc.): a department can be in wide use across the roster
+    // without ever having its own departments_col document. Merge in every
+    // department name actually seen on GET /api/admin/employees too, or
+    // this list undercounts to just the "official" few.
+    Promise.all([
+      fetch(`${baseUrl}/api/admin/departments`, { headers }).then(r => r.ok ? r.json() : []),
+      fetch(`${baseUrl}/api/admin/employees`, { headers }).then(r => r.ok ? r.json() : []),
+    ]).then(([depts, emps]) => {
+      const names = new Set((Array.isArray(depts) ? depts : []).map(d => d.name).filter(Boolean));
+      (Array.isArray(emps) ? emps : []).forEach(e => {
+        const dv = e.department;
+        (Array.isArray(dv) ? dv : (dv ? [dv] : [])).forEach(d => names.add(d));
+      });
+      setAllDepartments([...names].sort());
+    }).catch(() => setAllDepartments([]));
   }, [isOwnScope]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasUnassigned = clients.some(c => !c.departments?.length);
