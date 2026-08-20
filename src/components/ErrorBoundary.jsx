@@ -8,7 +8,15 @@ import { FaExclamationTriangle, FaCopy, FaSyncAlt } from "react-icons/fa";
 // never fix that — only a hard reload (fetching the new index.html with the
 // new hashes) can. Detect that specific failure and reload automatically,
 // once per session, instead of leaving the user stuck on a dead retry loop.
-const CHUNK_ERROR_RE = /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Loading chunk [\w-]+ failed/i;
+//
+// Different browsers word this failure differently — Chrome/Edge say
+// "Failed to fetch dynamically imported module", Safari says "Importing a
+// module script failed", and Firefox reports the server's HTML fallback
+// response by its MIME type instead ("'text/html' is not a valid
+// JavaScript MIME type."). That last one was missing here, so Firefox
+// users hitting a stale chunk saw the generic crash screen instead of the
+// auto-reload — matched in explicitly, not just chunk-load wording.
+const CHUNK_ERROR_RE = /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Loading chunk [\w-]+ failed|is not a valid JavaScript MIME type/i;
 const RELOAD_GUARD_KEY = "gdmr_chunk_reload_at";
 
 function isChunkLoadError(error) {
