@@ -65,7 +65,7 @@ const KB = [
     a: "You can reach HR directly at **info@gdmrfoundation.com**, or raise it through the relevant request in the app. They're happy to help!" },
   { k: ["add employee", "new employee", "onboard", "register employee"],
     a: "Admins add staff under **Employees → Add Employee** — set their department, manager, shift and role.",
-    action: { label: "Employees", view: "employees", roles: ["admin"] } },
+    action: { label: "Employees", view: "workforce", roles: ["admin"] } },
   { k: ["department", "departments", "team structure"],
     a: "Departments, their heads and team sizes are managed under **Departments**.",
     action: { label: "Departments", view: "departments", roles: ["admin"] } },

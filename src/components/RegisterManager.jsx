@@ -8,21 +8,26 @@ function DeptCheckboxList({ departments, selected, onChange }) {
     onChange(selected.includes(d) ? selected.filter(x => x !== d) : [...selected, d]);
   return (
     <div style={{
-      maxHeight: 160, overflowY: "auto", border: "1px solid #e2e8f0",
-      borderRadius: 6, padding: "6px 10px", background: "#f8fafc",
+      maxHeight: 160, maxWidth: 420, overflowY: "auto", border: "1px solid #e2e8f0",
+      borderRadius: 6, padding: "8px 10px", background: "#f8fafc",
     }}>
       {departments.length === 0 && (
         <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>Loading departments…</p>
       )}
-      {departments.map(d => (
-        <label key={d} style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "4px 0", cursor: "pointer", fontSize: 13, color: "#1e293b",
-        }}>
-          <input type="checkbox" checked={selected.includes(d)} onChange={() => toggle(d)} />
-          {d}
-        </label>
-      ))}
+      {/* A single wide column with one department per row was the reported
+          "odd and big" look — a mostly-empty box on wider screens. A
+          multi-column grid uses the width productively instead. */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "2px 10px" }}>
+        {departments.map(d => (
+          <label key={d} style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "4px 0", cursor: "pointer", fontSize: 13, color: "#1e293b",
+          }}>
+            <input type="checkbox" checked={selected.includes(d)} onChange={() => toggle(d)} />
+            {d}
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

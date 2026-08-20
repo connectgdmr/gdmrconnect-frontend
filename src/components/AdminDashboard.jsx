@@ -171,6 +171,9 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   // Corrections is now a tab inside Attendance (same tabbed-merge pattern as
   // Leave/Work & Clients/Jobs & Recruitment).
   const [attendanceTab, setAttendanceTab] = useState("log");
+  // "Employees" and "Managers" used to be two separate sidebar entries;
+  // merged into one "Workforce" entry with the same tabbed pattern.
+  const [workforceTab, setWorkforceTab] = useState("employees");
 
   // — Department State — (the management UI itself now lives in
   // AdminDepartments.jsx; this stays only as the shared source for the
@@ -567,7 +570,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         role="admin"
         user={user}
         view={view}
-        setView={(v) => { setView(v); if (v === "employees") setSubView("list"); }}
+        setView={(v) => { setView(v); if (v === "workforce") { setWorkforceTab("employees"); setSubView("list"); } }}
         onLogout={onLogout}
         navBadges={{
           chat: chatUnread,
@@ -688,11 +691,11 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         <div className="card" style={{ marginTop: 16 }}>
           <h4 className="widget-title">Quick Launch</h4>
           <div className="quick-launch-grid">
-            <QuickLaunchItem icon={<FaUserPlus />} label="Add Employee" onClick={() => { setView("employees"); setSubView("add"); }} />
-            <QuickLaunchItem icon={<FaUsers />} label="Employee List" onClick={() => { setView("employees"); setSubView("list"); }} />
+            <QuickLaunchItem icon={<FaUserPlus />} label="Add Employee" onClick={() => { setView("workforce"); setWorkforceTab("employees"); setSubView("add"); }} />
+            <QuickLaunchItem icon={<FaUsers />} label="Employee List" onClick={() => { setView("workforce"); setWorkforceTab("employees"); setSubView("list"); }} />
             <QuickLaunchItem icon={<FaCalendarCheck />} label="Leave Requests" onClick={() => setView("leaves")} />
             <QuickLaunchItem icon={<FaClock />} label="Attendance Logs" onClick={() => setView("attendance")} />
-            <QuickLaunchItem icon={<FaUserTie />} label="Managers" onClick={() => setView("manager")} />
+            <QuickLaunchItem icon={<FaUserTie />} label="Managers" onClick={() => { setView("workforce"); setWorkforceTab("managers"); }} />
             <QuickLaunchItem icon={<FaChartPie />} label="Reports" onClick={() => setView("summary")} />
             <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
             <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
@@ -812,35 +815,52 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {/* INNER PAGES ROUTING */}
       {/* ============================================================================ */}
 
-      {/* 1. EMPLOYEES */}
-      {view === "employees" && (
-        <>
-          <div className="card admin-buttons" style={{ marginTop: "12px" }}>
-            <button className={`btn ${subView === "list" ? "" : "ghost"}`} onClick={() => setSubView("list")}>Employee List</button>
-            <button className={`btn ${subView === "add" ? "" : "ghost"}`} onClick={() => setSubView("add")}>Add New Employee</button>
-            <button className={`btn ${subView === "add-admin" ? "" : "ghost"}`} onClick={() => setSubView("add-admin")}>Add Admin</button>
+      {/* 1. WORKFORCE (Employees + Managers, tabbed — see workforceTab above) */}
+      {view === "workforce" && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "#f1f5f9", borderRadius: 10, padding: 4, width: "fit-content" }}>
+            <button onClick={() => setWorkforceTab("employees")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: workforceTab === "employees" ? "var(--red)" : "transparent", color: workforceTab === "employees" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>Employees</button>
+            <button onClick={() => setWorkforceTab("managers")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: workforceTab === "managers" ? "var(--red)" : "transparent", color: workforceTab === "managers" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>Managers</button>
           </div>
-          <div style={{ marginTop: "16px" }}>
-            {subView === "add-admin" ? (
-              <RegisterAdmin api={api} token={token} user={user} />
-            ) : subView === "add" ? (
-              <EmployeeForm onAdd={addEmployee} api={api} token={token} departments={departments} />
-            ) : loading ? (
-              <SkeletonTable rows={8} cols={5} />
-            ) : (
-              <EmployeeList
-                employees={employees}
-                departments={departments}
-                onDelete={deleteEmployee}
-                onRefresh={loadEmployees}
-                onPatch={patchEmployee}
-                onPromote={promoteToManager}
-                api={api}
-                token={token}
-              />
-            )}
-          </div>
-        </>
+
+          {workforceTab === "employees" && (
+            <>
+              <div className="card admin-buttons">
+                <button className={`btn ${subView === "list" ? "" : "ghost"}`} onClick={() => setSubView("list")}>Employee List</button>
+                <button className={`btn ${subView === "add" ? "" : "ghost"}`} onClick={() => setSubView("add")}>Add New Employee</button>
+                <button className={`btn ${subView === "add-admin" ? "" : "ghost"}`} onClick={() => setSubView("add-admin")}>Add Admin</button>
+              </div>
+              <div style={{ marginTop: "16px" }}>
+                {subView === "add-admin" ? (
+                  <RegisterAdmin api={api} token={token} user={user} />
+                ) : subView === "add" ? (
+                  <EmployeeForm onAdd={addEmployee} api={api} token={token} departments={departments} />
+                ) : loading ? (
+                  <SkeletonTable rows={8} cols={5} />
+                ) : (
+                  <EmployeeList
+                    employees={employees}
+                    departments={departments}
+                    onDelete={deleteEmployee}
+                    onRefresh={loadEmployees}
+                    onPatch={patchEmployee}
+                    onPromote={promoteToManager}
+                    api={api}
+                    token={token}
+                  />
+                )}
+              </div>
+            </>
+          )}
+
+          {workforceTab === "managers" && <RegisterManager token={token} api={api} />}
+        </div>
       )}
 
       {/* 2. LEAVES */}
@@ -916,8 +936,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         </div>
       )}
 
-      {/* 4. MANAGERS */}
-      {view === "manager" && <div style={{ marginTop: "16px" }}><RegisterManager token={token} api={api} /></div>}
 
       {/* 5. SUMMARY REPORTS */}
       {view === "summary" && <div style={{ marginTop: "16px" }}><AdminAttendanceSummary token={token} api={api} /></div>}

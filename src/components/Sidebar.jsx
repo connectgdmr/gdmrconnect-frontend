@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Logo from "../assets/GDMR-LOGO-unit.png";
 import {
-  FaTachometerAlt, FaUsers, FaCalendarCheck, FaClock, FaUserTie,
+  FaTachometerAlt, FaUsers, FaCalendarCheck, FaClock,
   FaChartPie, FaCalendarAlt, FaBullhorn, FaUserShield, FaLaptop,
   FaHistory, FaEdit, FaChartLine,
   FaSignOutAlt, FaBalanceScale, FaBuilding, FaClipboardList, FaGraduationCap, FaBriefcase, FaMoneyBillWave,
@@ -12,11 +12,10 @@ const NAV_ITEMS = {
   admin: [
     { icon: <FaTachometerAlt />, label: "Dashboard", view: "dashboard" },
     { icon: <FaCommentDots />, label: "Messages", view: "chat" },
-    { icon: <FaUsers />, label: "Employees", view: "employees" },
+    { icon: <FaUsers />, label: "Workforce", view: "workforce" },
     { icon: <FaCalendarCheck />, label: "Leave Requests", view: "leaves" },
     { icon: <FaClock />, label: "Attendance", view: "attendance" },
     { icon: <FaBuilding />, label: "Departments", view: "departments" },
-    { icon: <FaUserTie />, label: "Managers", view: "manager" },
     { icon: <FaChartPie />, label: "Reports", view: "summary" },
     { icon: <FaChartLine />, label: "PMS", view: "pms" },
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },
@@ -50,11 +49,10 @@ const NAV_ITEMS = {
   owner: [
     { icon: <FaTachometerAlt />, label: "Dashboard", view: "dashboard" },
     { icon: <FaCommentDots />, label: "Messages", view: "chat" },
-    { icon: <FaUsers />, label: "Employees", view: "employees" },
+    { icon: <FaUsers />, label: "Workforce", view: "workforce" },
     { icon: <FaCalendarCheck />, label: "Leave Requests", view: "leaves" },
     { icon: <FaClock />, label: "Attendance", view: "attendance" },
     { icon: <FaBuilding />, label: "Departments", view: "departments" },
-    { icon: <FaUserTie />, label: "Managers", view: "manager" },
     { icon: <FaChartPie />, label: "Reports", view: "summary" },
     { icon: <FaChartLine />, label: "PMS", view: "pms" },
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },
