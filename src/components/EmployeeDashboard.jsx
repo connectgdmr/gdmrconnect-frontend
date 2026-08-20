@@ -641,7 +641,11 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         const res = await fetch(`${api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app'}/api/pms/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ responses: responsesArray })
+            // template_id pins this submission to the exact evaluation shown —
+            // an employee can be assigned by more than one creator (their
+            // manager AND HR) at once, so the backend must not have to guess
+            // which one this is by re-querying on its own.
+            body: JSON.stringify({ responses: responsesArray, template_id: pmsTemplate?._id })
         });
         const data = await res.json();
         if(!res.ok) throw new Error(data.message);
