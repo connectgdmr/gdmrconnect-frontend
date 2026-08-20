@@ -103,9 +103,13 @@ export default function ClientsWorkspace({ token, api, ownDepartments }) {
   }, [isOwnScope]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasUnassigned = clients.some(c => !c.departments?.length);
+  // The real, assignable department list — used both for the folder boxes
+  // (with "Unassigned" appended below) and for the Add/Edit modal's
+  // checkbox list (which must never include that synthetic bucket).
+  const realDepartmentOptions = isOwnScope ? [...ownDepartments].sort() : allDepartments;
   const departments = isOwnScope
-    ? [...ownDepartments].sort()
-    : [...allDepartments, ...(hasUnassigned ? ["Unassigned"] : [])];
+    ? realDepartmentOptions
+    : [...realDepartmentOptions, ...(hasUnassigned ? ["Unassigned"] : [])];
   // Admin/delegate always lands on the department-folder view first — the
   // point is browsing "every department as a folder", even empty ones.
   // Manager/employee auto-skip straight to their client grid when they only
@@ -267,14 +271,36 @@ export default function ClientsWorkspace({ token, api, ownDepartments }) {
                 <input className="modern-input" value={clientModal.description} onChange={e => setClientModal({ ...clientModal, description: e.target.value })} placeholder="Short note about this client" />
               </div>
               <div style={{ marginBottom: 18 }}>
-                <label className="modern-label">Department(s)</label>
-                <input
-                  className="modern-input"
-                  value={clientModal.departments.join(", ")}
-                  onChange={e => setClientModal({ ...clientModal, departments: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
-                  placeholder="e.g. Engineering, Design"
-                />
-                <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "4px 0 0" }}>Comma-separated. Leave blank to default to your own department.</p>
+                <label className="modern-label">
+                  Department(s)
+                  {clientModal.departments.length > 0 && (
+                    <span style={{ marginLeft: 8, fontSize: 11, color: "var(--brand)", fontWeight: 600 }}>{clientModal.departments.length} selected</span>
+                  )}
+                </label>
+                {/* Checked against the real department list (same one the
+                    folder boxes are built from) instead of free-typed text —
+                    typos there used to silently create a client tagged to a
+                    department name that matches nothing, invisible to
+                    everyone. */}
+                <div style={{ maxHeight: 160, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 6, padding: "6px 10px", background: "#f8fafc" }}>
+                  {realDepartmentOptions.length === 0 && (
+                    <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>No departments found.</p>
+                  )}
+                  {realDepartmentOptions.map(d => (
+                    <label key={d} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer", fontSize: 13, color: "#1e293b" }}>
+                      <input
+                        type="checkbox"
+                        checked={clientModal.departments.includes(d)}
+                        onChange={() => setClientModal(m => ({
+                          ...m,
+                          departments: m.departments.includes(d) ? m.departments.filter(x => x !== d) : [...m.departments, d],
+                        }))}
+                      />
+                      {d}
+                    </label>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "4px 0 0" }}>Leave blank to default to your own department.</p>
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button className="btn" type="submit" disabled={saving} style={{ flex: 1 }}>{saving ? "Saving…" : "Save"}</button>
