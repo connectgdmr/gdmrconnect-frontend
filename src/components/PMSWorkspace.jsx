@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  FaEdit, FaCheckCircle, FaCheckSquare, FaRegSquare, FaClipboardList,
-  FaPlus, FaTrash, FaTimes, FaChartLine, FaEye, FaShareAlt, FaDownload, FaBuilding,
-} from "react-icons/fa";
+  TbEdit, TbCircleCheck, TbSquareCheck, TbSquare, TbClipboardList,
+  TbPlus, TbTrash, TbX, TbChartLine, TbEye, TbShare, TbDownload, TbBuilding,
+} from "react-icons/tb";
 import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
 
 const TABS = [
@@ -260,7 +260,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
       </td>
       <td>
         <button className="btn-small ghost" style={{ border: "1px solid #e2e8f0", color: "#475569", padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 4 }} onClick={() => handleViewPMS(p)}>
-          <FaEye /> View
+          <TbEye /> View
         </button>
       </td>
     </tr>
@@ -282,7 +282,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
           </div>
           <input type="month" className="modern-input" style={{ margin: 0, width: "auto" }} value={reportMonth} onChange={e => setReportMonth(e.target.value)} />
           <button className="btn ghost" onClick={exportReport} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, whiteSpace: "nowrap" }}>
-            <FaDownload size={11} /> Export
+            <TbDownload size={11} /> Export
           </button>
         </div>
       </div>
@@ -294,7 +294,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
         ) : isAdmin ? (
           Object.keys(reviewsByDept).length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "50px 20px", color: "#94a3b8" }}>
-              <FaBuilding size={34} style={{ opacity: 0.2, marginBottom: 12 }} />
+              <TbBuilding size={34} style={{ opacity: 0.2, marginBottom: 12 }} />
               <p style={{ margin: 0 }}>No reviews have been shared with admin yet.</p>
               <p style={{ margin: "4px 0 0", fontSize: 12.5 }}>Reviews appear here once a manager clicks "Share with Admin", or once you build a PMS directly.</p>
             </div>
@@ -307,7 +307,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                   <div key={dept} className="card" style={{ padding: 0, overflow: "hidden" }}>
                     <button onClick={() => setOpenDept(isOpen ? null : dept)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
                       <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--brand-light)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <FaBuilding color="var(--brand)" size={16} />
+                        <TbBuilding color="var(--brand)" size={16} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{dept}</div>
@@ -323,7 +323,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                               <div style={{ fontSize: 11, color: "#94a3b8" }}>{p.cycle_name ? `${p.cycle_name} · ` : ""}{p.month} · {p.owner_role === "manager" ? "Shared by manager" : "Built by admin"}</div>
                             </div>
                             <button className="btn-small ghost" style={{ border: "1px solid #e2e8f0", color: "#475569", padding: "5px 12px", fontSize: 12, display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }} onClick={() => handleViewPMS(p)}>
-                              <FaEye size={11} /> View
+                              <TbEye size={11} /> View
                             </button>
                           </div>
                         ))}
@@ -368,7 +368,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                         </div>
                       </div>
                       <button className="btn" style={{ padding: "9px 20px", fontSize: 13, display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }} onClick={() => handleViewPMS(p)}>
-                        <FaChartLine /> Review Now
+                        <TbChartLine /> Review Now
                       </button>
                     </div>
                   ))}
@@ -406,7 +406,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
             <div className="card" style={{ marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
                 <div style={{ width: 46, height: 46, borderRadius: 12, background: "linear-gradient(135deg, var(--brand), var(--teal-800))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <FaEdit color="#fff" size={20} />
+                  <TbEdit color="#fff" size={20} />
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: 20, color: "#0f172a" }}>PMS Template Builder</h3>
@@ -452,10 +452,10 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                       </div>
                       <div style={{ display: "flex", gap: 8 }}>
                         <button type="button" style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }} onClick={() => selectAllEmployees(visiblePool)}>
-                          <FaCheckSquare size={11} /> {assignDeptFilter === "all" && !assignSearch ? "All" : "Select Shown"}
+                          <TbSquareCheck size={11} /> {assignDeptFilter === "all" && !assignSearch ? "All" : "Select Shown"}
                         </button>
                         <button type="button" style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }} onClick={() => clearAllEmployees(visiblePool)}>
-                          <FaRegSquare size={11} /> {assignDeptFilter === "all" && !assignSearch ? "Clear" : "Clear Shown"}
+                          <TbSquare size={11} /> {assignDeptFilter === "all" && !assignSearch ? "Clear" : "Clear Shown"}
                         </button>
                       </div>
                     </div>
@@ -482,7 +482,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                           <div key={dept} style={{ marginBottom: 14 }}>
                             {assignDeptFilter === "all" && (
                               <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8, paddingBottom: 5, borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 6 }}>
-                                <FaBuilding size={10} /> {dept} <span style={{ fontWeight: 500, color: "#cbd5e1", textTransform: "none" }}>({emps.length})</span>
+                                <TbBuilding size={10} /> {dept} <span style={{ fontWeight: 500, color: "#cbd5e1", textTransform: "none" }}>({emps.length})</span>
                               </div>
                             )}
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
@@ -493,7 +493,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                                     <input type="checkbox" style={{ display: "none" }} checked={selected} onChange={() => toggleEmployeeAssignment(emp._id)} />
                                     <span className="row-check-avatar">{emp.name?.[0]?.toUpperCase() || "?"}</span>
                                     <span className="row-check-name">{emp.name}</span>
-                                    {selected && <FaCheckCircle size={12} style={{ marginLeft: "auto", flexShrink: 0, opacity: 0.9 }} />}
+                                    {selected && <TbCircleCheck size={12} style={{ marginLeft: "auto", flexShrink: 0, opacity: 0.9 }} />}
                                   </label>
                                 );
                               })}
@@ -504,7 +504,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                     )}
                     {assignedEmployees.length > 0 && (
                       <div style={{ marginTop: 12, padding: "8px 14px", background: "#f0fdf4", borderRadius: 6, border: "1px solid #bbf7d0", fontSize: 13, color: "#166534", display: "flex", alignItems: "center", gap: 6 }}>
-                        <FaCheckCircle />{assignedEmployees.length} employee{assignedEmployees.length !== 1 ? "s" : ""} selected
+                        <TbCircleCheck />{assignedEmployees.length} employee{assignedEmployees.length !== 1 ? "s" : ""} selected
                       </div>
                     )}
               </div>
@@ -529,7 +529,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
 
                 {templateSessions.length === 0 && (
                   <div style={{ textAlign: "center", padding: "40px 20px", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 10, color: "#94a3b8", marginBottom: 16 }}>
-                    <FaClipboardList size={32} style={{ marginBottom: 10, opacity: 0.3 }} />
+                    <TbClipboardList size={32} style={{ marginBottom: 10, opacity: 0.3 }} />
                     <div style={{ fontSize: 15, fontWeight: 500 }}>No sections yet</div>
                     <div style={{ fontSize: 13, marginTop: 4 }}>Click "Add Section" below to start building</div>
                   </div>
@@ -550,7 +550,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                           value={session.weight ?? ""} onChange={e => handleSessionWeightChange(sIdx, e.target.value)} placeholder="20" />
                       </div>
                       <button type="button" style={{ background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 6, padding: "7px 10px", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }} onClick={() => handleRemoveSession(sIdx)}>
-                        <FaTrash size={12} />
+                        <TbTrash size={12} />
                       </button>
                     </div>
                     <div style={{ padding: 14 }}>
@@ -569,26 +569,26 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                             <option value="goals">Goals & Objectives</option>
                           </select>
                           <button type="button" style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8", padding: "8px 6px", flexShrink: 0 }} onClick={() => handleRemoveQuestion(sIdx, qIdx)}>
-                            <FaTimes />
+                            <TbX />
                           </button>
                         </div>
                       ))}
                       <button type="button" style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", background: "#f0fdf4", color: "#166534", border: "1px dashed #86efac", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600, marginTop: 6 }} onClick={() => handleAddQuestion(sIdx)}>
-                        <FaPlus size={10} /> Add Question
+                        <TbPlus size={10} /> Add Question
                       </button>
                     </div>
                   </div>
                 ))}
 
                 <button type="button" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 20px", background: "#f8fafc", color: "#475569", border: "2px dashed #cbd5e1", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600, width: "100%", marginTop: templateSessions.length > 0 ? 8 : 0 }} onClick={handleAddSession}>
-                  <FaPlus /> Add Section
+                  <TbPlus /> Add Section
                 </button>
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
                 <button type="button" className="btn ghost" onClick={() => setTab("reviews")}>Cancel</button>
                 <button type="submit" className="btn" style={{ padding: "12px 28px", fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}>
-                  <FaCheckCircle /> Assign & Save Template
+                  <TbCircleCheck /> Assign & Save Template
                 </button>
               </div>
                 </form>
@@ -610,7 +610,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
 
           {calibrationData.length === 0 ? (
             <div style={{ textAlign: "center", padding: "50px 20px", color: "#94a3b8", border: "1px dashed #e2e8f0", borderRadius: 10 }}>
-              <FaChartLine size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
+              <TbChartLine size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
               <div style={{ fontSize: 15, fontWeight: 500 }}>No calibration data for this period</div>
               <div style={{ fontSize: 13, marginTop: 4 }}>Complete PMS reviews to see calibration data here</div>
             </div>
@@ -685,29 +685,29 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                     {!isAdmin && !["admin", "owner"].includes(selectedPMS.owner_role) && (
                       selectedPMS.shared_with_admin ? (
                         <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 99, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
-                          <FaCheckCircle size={10} /> Shared with Admin
+                          <TbCircleCheck size={10} /> Shared with Admin
                         </span>
                       ) : (
                         <button disabled={sharing} onClick={() => shareWithAdmin(selectedPMS._id)}
                           style={{ fontSize: 11.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", border: "1px solid #bbf7d0", borderRadius: 99, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-                          <FaShareAlt size={10} /> {sharing ? "Sharing…" : "Share with Admin"}
+                          <TbShare size={10} /> {sharing ? "Sharing…" : "Share with Admin"}
                         </button>
                       )
                     )}
                     {isAdmin && ["admin", "owner"].includes(selectedPMS.owner_role) && (
                       selectedPMS.shared_with_manager ? (
                         <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 99, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
-                          <FaCheckCircle size={10} /> Shared with Manager
+                          <TbCircleCheck size={10} /> Shared with Manager
                         </span>
                       ) : (
                         <button disabled={sharing} onClick={() => shareWithManager(selectedPMS._id)}
                           style={{ fontSize: 11.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", border: "1px solid #bbf7d0", borderRadius: 99, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-                          <FaShareAlt size={10} /> {sharing ? "Sharing…" : "Share with Manager"}
+                          <TbShare size={10} /> {sharing ? "Sharing…" : "Share with Manager"}
                         </button>
                       )
                     )}
                     <button style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#475569", flexShrink: 0 }} onClick={() => setViewPMSModalOpen(false)}>
-                      <FaTimes size={15} />
+                      <TbX size={15} />
                     </button>
                   </div>
                 </div>
@@ -902,7 +902,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                     </div>
                     <button className="btn" style={{ width: "100%", fontSize: 16, padding: 16, background: "linear-gradient(135deg, var(--brand), var(--brand-dark))", border: "none", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
                       onClick={() => finalizePMS(selectedPMS._id)}>
-                      <FaCheckCircle /> Submit Scores & Finalize Review
+                      <TbCircleCheck /> Submit Scores & Finalize Review
                     </button>
                   </div>
                 )}
@@ -911,7 +911,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                   <div style={{ borderTop: "2px solid #e2e8f0", paddingTop: 20, marginTop: 8 }}>
                     {selectedPMS.overall_rating && (
                       <div style={{ marginBottom: 14, padding: "10px 16px", background: "#f0fdf4", borderRadius: 8, border: "1px solid #bbf7d0", display: "flex", alignItems: "center", gap: 10 }}>
-                        <FaCheckCircle color="#22c55e" />
+                        <TbCircleCheck color="#22c55e" />
                         <div><span style={{ fontSize: 12, color: "#64748b" }}>Overall Rating: </span><strong style={{ color: "#166534" }}>{selectedPMS.overall_rating}</strong></div>
                       </div>
                     )}

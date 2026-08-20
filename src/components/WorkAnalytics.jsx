@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaRobot, FaSyncAlt } from "react-icons/fa";
+import { TbRobot, TbRefresh } from "react-icons/tb";
 import DailyWorkPlan from "./DailyWorkPlan";
 import WorkHistory from "./WorkHistory";
 
@@ -34,7 +34,7 @@ function AIAnalytics({ token }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 38, height: 38, borderRadius: 11, background: "linear-gradient(135deg, var(--brand), var(--teal-800))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <FaRobot color="#fff" size={16} />
+            <TbRobot color="#fff" size={16} />
           </div>
           <div>
             <h4 style={{ margin: 0, fontSize: 15, color: "#0f172a" }}>AI Work Insights</h4>
@@ -48,7 +48,7 @@ function AIAnalytics({ token }) {
             ))}
           </div>
           <button onClick={load} title="Refresh" style={{ background: "#f1f5f9", border: "none", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#64748b" }}>
-            <FaSyncAlt size={12} />
+            <TbRefresh size={12} />
           </button>
         </div>
       </div>

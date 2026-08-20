@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
-  FaSitemap, FaPlus, FaEye, FaTags, FaEdit, FaTrash, FaTimes, FaUsers,
-} from "react-icons/fa";
+  TbSitemap, TbPlus, TbEye, TbTags, TbEdit, TbTrash, TbX, TbUsers,
+} from "react-icons/tb";
 import { SkeletonCards } from "./Skeleton";
 import WorkTypesManager from "./WorkTypesManager";
 
@@ -212,13 +212,13 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h3 style={{ margin: 0, color: "#0f172a", fontSize: 20, fontWeight: 800, display: "flex", alignItems: "center", gap: 10 }}>
-            <FaSitemap style={{ color: "var(--red)" }} /> Departments
+            <TbSitemap style={{ color: "var(--red)" }} /> Departments
           </h3>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>Manage your organisation's departments, assign heads, and view team composition.</p>
         </div>
         {canWrite && (
           <button className="btn" onClick={openAddDept} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px" }}>
-            <FaPlus size={11} /> Add Department
+            <TbPlus size={11} /> Add Department
           </button>
         )}
       </div>
@@ -244,7 +244,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
         <SkeletonCards count={6} />
       ) : enriched.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 24px", background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0" }}>
-          <FaSitemap size={40} style={{ color: "#cbd5e1", marginBottom: 16 }} />
+          <TbSitemap size={40} style={{ color: "#cbd5e1", marginBottom: 16 }} />
           <p style={{ fontSize: 15, fontWeight: 600, color: "#94a3b8", margin: 0 }}>No departments yet</p>
           {canWrite && <p style={{ fontSize: 13, color: "#cbd5e1", marginTop: 6 }}>Click "Add Department" to create your first one.</p>}
         </div>
@@ -299,7 +299,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
                       onClick={() => setDeptMembersOpen(dept)}
                       style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 10px", borderRadius: 8, border: `1.5px solid ${clr.border}`, background: clr.bg, color: clr.text, cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s" }}
                     >
-                      <FaEye size={11} /> View Members
+                      <TbEye size={11} /> View Members
                     </button>
                     {canWrite && (
                       <button
@@ -307,7 +307,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
                         title="Configure work types"
                         style={{ padding: "7px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}
                       >
-                        <FaTags size={11} />
+                        <TbTags size={11} />
                       </button>
                     )}
                     {canWrite && (
@@ -315,7 +315,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
                         onClick={() => openEditDept(dept)}
                         style={{ padding: "7px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}
                       >
-                        <FaEdit size={11} />
+                        <TbEdit size={11} />
                       </button>
                     )}
                     {canDelete && (
@@ -323,7 +323,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
                         onClick={() => deleteDepartment(dept._id, dept.name)}
                         style={{ padding: "7px 12px", borderRadius: 8, border: "1.5px solid #fee2e2", background: "#fff", color: "#dc2626", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}
                       >
-                        <FaTrash size={11} />
+                        <TbTrash size={11} />
                       </button>
                     )}
                   </div>
@@ -348,7 +348,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
                 </p>
               </div>
               <button onClick={() => setDeptModal(false)} style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#64748b", flexShrink: 0 }}>
-                <FaTimes size={13} />
+                <TbX size={13} />
               </button>
             </div>
             <form onSubmit={saveDepartment} style={{ padding: "20px 24px 24px" }}>
@@ -422,7 +422,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
                     </div>
                   </div>
                   <button onClick={() => setDeptMembersOpen(null)} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}>
-                    <FaTimes size={13} />
+                    <TbX size={13} />
                   </button>
                 </div>
                 {d.description && <p style={{ margin: 0, fontSize: 12.5, color: "#94a3b8", lineHeight: 1.5 }}>{d.description}</p>}
@@ -431,7 +431,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
               <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
                 {d.members.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "48px 16px" }}>
-                    <FaUsers size={36} style={{ color: "#cbd5e1", marginBottom: 12 }} />
+                    <TbUsers size={36} style={{ color: "#cbd5e1", marginBottom: 12 }} />
                     <p style={{ color: "#94a3b8", fontSize: 14, fontWeight: 600 }}>No employees in this department</p>
                   </div>
                 ) : (
@@ -476,7 +476,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
               <div style={{ padding: "14px 20px", borderTop: "1px solid #f1f5f9", display: "flex", gap: 10 }}>
                 {canWrite && (
                   <button className="btn" style={{ flex: 1 }} onClick={() => { openEditDept(d); setDeptMembersOpen(null); }}>
-                    <FaEdit size={12} /> Edit Department
+                    <TbEdit size={12} /> Edit Department
                   </button>
                 )}
                 <button className="btn ghost" onClick={() => setDeptMembersOpen(null)}>Close</button>
@@ -491,7 +491,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
         <div className="modal-overlay" onClick={() => setWorkTypesDept(null)}>
           <div className="modal-card" onClick={e => e.stopPropagation()} style={{ padding: 24, width: 480 }}>
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
-              <button onClick={() => setWorkTypesDept(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><FaTimes size={15} /></button>
+              <button onClick={() => setWorkTypesDept(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><TbX size={15} /></button>
             </div>
             <WorkTypesManager token={token} department={workTypesDept} canEdit={canWrite} />
           </div>

@@ -3,17 +3,17 @@ import { resolveAttachmentUrl } from "../utils/security";
 import { ymd } from "../utils/dateUtils";
 import { SkeletonTable } from "./Skeleton";
 import {
-  FaSearch,
-  FaFilter,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaFileDownload,
-  FaCalendarAlt,
-  FaClock,
-  FaSortAmountDown,
-  FaTimes,
-  FaBuilding
-} from "react-icons/fa";
+  TbSearch,
+  TbFilter,
+  TbCircleCheck,
+  TbCircleX,
+  TbFileDownload,
+  TbCalendar,
+  TbClock,
+  TbSortDescending,
+  TbX,
+  TbBuilding
+} from "react-icons/tb";
 
 // ============================================================================
 // MAIN COMPONENT EXPORT: ADMIN LEAVE PAGE
@@ -401,7 +401,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
       {/* ---------------- FILTERS ---------------- */}
       <div className="filter-container">
           <div className="search-wrapper">
-              <FaSearch className="search-icon" />
+              <TbSearch className="search-icon" />
               <input 
                   type="text" 
                   className="styled-input" 
@@ -411,7 +411,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
               />
           </div>
           <div className="filter-wrapper">
-              <FaFilter className="search-icon" />
+              <TbFilter className="search-icon" />
               <select
                   className="styled-input"
                   value={statusFilter}
@@ -424,7 +424,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
               </select>
           </div>
           <div className="filter-wrapper">
-              <FaBuilding className="search-icon" />
+              <TbBuilding className="search-icon" />
               <select
                   className="styled-input"
                   value={deptFilter}
@@ -436,7 +436,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
               </select>
           </div>
           <div className="filter-wrapper">
-              <FaSortAmountDown className="search-icon" />
+              <TbSortDescending className="search-icon" />
               <select
                   className="styled-input"
                   value={sortBy}
@@ -467,7 +467,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
                       onClick={() => setDateFilter("")}
                       title="Clear date filter"
                   >
-                      <FaTimes size={11} />
+                      <TbX size={11} />
                   </button>
               )}
           </div>
@@ -494,7 +494,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
           <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '0 0 12px 12px' }}>
              {filteredLeaves.length === 0 && !error ? (
                 <div style={{ padding: "60px 20px", textAlign: "center", color: "#94a3b8" }}>
-                  <FaCalendarAlt size={40} style={{ opacity: 0.2, marginBottom: 15 }} />
+                  <TbCalendar size={40} style={{ opacity: 0.2, marginBottom: 15 }} />
                   <p style={{ fontSize: 15, margin: 0, fontWeight: 500 }}>No leave requests found matching your criteria.</p>
                 </div>
              ) : (
@@ -505,7 +505,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
                     <tr>
                       <th>Employee</th>
                       <th>Department</th>
-                      <th><FaClock style={{marginRight: 4, opacity: 0.7, marginBottom: -2}}/> Applied On</th>
+                      <th><TbClock style={{marginRight: 4, opacity: 0.7, marginBottom: -2}}/> Applied On</th>
                       <th>Leave Period</th>
                       <th>Reason & Attachments</th>
                       <th>Manager</th>
@@ -568,7 +568,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
                                     background: '#fef2f2', padding: '4px 6px', borderRadius: 4
                                 }}
                               >
-                                <FaFileDownload /> View Doc
+                                <TbFileDownload /> View Doc
                               </a>
                             </div>
                           )}
@@ -587,14 +587,14 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
                                     onClick={() => updateStatus(l._id, "Approved")}
                                     disabled={saving || (l.status || "").toLowerCase().includes("approved")}
                                 >
-                                    <FaCheckCircle /> Approve
+                                    <TbCircleCheck /> Approve
                                 </button>
                                 <button
                                     className="action-btn btn-reject"
                                     onClick={() => updateStatus(l._id, "Rejected")}
                                     disabled={saving || (l.status || "").toLowerCase().includes("rejected")}
                                 >
-                                    <FaTimesCircle /> Reject
+                                    <TbCircleX /> Reject
                                 </button>
                             </div>
                         </td>
@@ -657,7 +657,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
                                 fontSize: "12px", textDecoration: "none", fontWeight: 600,
                               }}
                             >
-                              <FaFileDownload /> View Doc
+                              <TbFileDownload /> View Doc
                             </a>
                           </div>
                         )}
@@ -674,14 +674,14 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
                             onClick={() => updateStatus(l._id, "Approved")}
                             disabled={saving || (l.status || "").toLowerCase().includes("approved")}
                           >
-                            <FaCheckCircle /> Approve
+                            <TbCircleCheck /> Approve
                           </button>
                           <button
                             className="action-btn btn-reject"
                             onClick={() => updateStatus(l._id, "Rejected")}
                             disabled={saving || (l.status || "").toLowerCase().includes("rejected")}
                           >
-                            <FaTimesCircle /> Reject
+                            <TbCircleX /> Reject
                           </button>
                         </div>
                       </div>

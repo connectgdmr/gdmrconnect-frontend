@@ -1,5 +1,5 @@
 import React from "react";
-import { FaCheck, FaTimes } from "react-icons/fa";
+import { TbCheck, TbX } from "react-icons/tb";
 import { getPasswordStrength } from "../utils/security";
 
 /**
@@ -24,7 +24,7 @@ export default function PasswordStrengthMeter({ password = "", showChecklist = t
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 12px", marginTop: 8 }}>
           {checks.map((c) => (
             <div key={c.key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: c.passed ? "#16a34a" : "#94a3b8" }}>
-              {c.passed ? <FaCheck size={9} /> : <FaTimes size={9} />} {c.label}
+              {c.passed ? <TbCheck size={9} /> : <TbX size={9} />} {c.label}
             </div>
           ))}
         </div>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FaTasks, FaChartArea, FaFolderOpen } from "react-icons/fa";
+import { TbChecklist, TbChartArea, TbFolderOpen } from "react-icons/tb";
 import AdminWorkByTeam from "./AdminWorkByTeam";
 import WorkAnalytics from "./WorkAnalytics";
 import ClientsWorkspace from "./ClientsWorkspace";
@@ -27,12 +27,12 @@ export default function WorkAndClients({ token, api, user, role, ownDepartments,
           padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 7,
           background: tab === "work" ? "var(--red)" : "transparent", color: tab === "work" ? "#fff" : "#64748b",
         }}>
-          {isPersonal ? <FaChartArea size={12} /> : <FaTasks size={12} />} {isPersonal ? "My Work" : "Work by Team"}
+          {isPersonal ? <TbChartArea size={12} /> : <TbChecklist size={12} />} {isPersonal ? "My Work" : "Work by Team"}
         </button>
         <button onClick={() => setTab("clients")} style={{
           padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 7,
           background: tab === "clients" ? "var(--red)" : "transparent", color: tab === "clients" ? "#fff" : "#64748b",
-        }}><FaFolderOpen size={12} /> Clients</button>
+        }}><TbFolderOpen size={12} /> Clients</button>
       </div>
 
       {tab === "work"

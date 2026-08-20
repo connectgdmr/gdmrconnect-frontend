@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import Logo from "../assets/GDMR-LOGO-unit.png";
-import { FaClock, FaCheckCircle, FaExclamationTriangle, FaLock } from "react-icons/fa";
+import { TbClock, TbCircleCheck, TbAlertTriangle, TbLock } from "react-icons/tb";
 
 import { API_URL as BASE } from "../api";
 
@@ -160,7 +160,7 @@ export default function TakeAssessment({ assessmentToken }) {
   if (phase === "error") return (
     <Shell>
       <div style={{ background: "#fff", borderRadius: 16, padding: "40px 36px", textAlign: "center", maxWidth: 420, boxShadow: "0 4px 24px rgba(0,0,0,0.07)" }}>
-        <FaExclamationTriangle size={36} color="#ef4444" style={{ marginBottom: 16 }} />
+        <TbAlertTriangle size={36} color="#ef4444" style={{ marginBottom: 16 }} />
         <h2 style={{ margin: "0 0 10px", color: "#0f172a" }}>Link Not Found</h2>
         <p style={{ color: "#64748b", margin: 0, fontSize: 14 }}>{errorMsg}</p>
       </div>
@@ -170,7 +170,7 @@ export default function TakeAssessment({ assessmentToken }) {
   if (phase === "submitted") return (
     <Shell>
       <div style={{ background: "#fff", borderRadius: 16, padding: "48px 40px", textAlign: "center", maxWidth: 440, boxShadow: "0 4px 24px rgba(0,0,0,0.07)" }}>
-        <FaCheckCircle size={52} color="#16a34a" style={{ marginBottom: 18 }} />
+        <TbCircleCheck size={52} color="#16a34a" style={{ marginBottom: 18 }} />
         <h2 style={{ margin: "0 0 12px", color: "#0f172a", fontSize: 22 }}>Assessment Submitted</h2>
         <p style={{ color: "#64748b", fontSize: 15, margin: "0 0 6px", lineHeight: 1.6 }}>
           Thank you for completing the assessment.
@@ -190,9 +190,9 @@ export default function TakeAssessment({ assessmentToken }) {
 
         <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 28 }}>
           {[
-            { icon: <FaClock size={14} />, label: `${assessment.duration || 30} minutes` },
-            { icon: <FaLock size={14} />, label: `${assessment.question_count ?? assessment.questions?.length ?? 0} questions` },
-            { icon: <FaCheckCircle size={14} color="#16a34a" />, label: `Pass: ${assessment.passing_score || 60}%` },
+            { icon: <TbClock size={14} />, label: `${assessment.duration || 30} minutes` },
+            { icon: <TbLock size={14} />, label: `${assessment.question_count ?? assessment.questions?.length ?? 0} questions` },
+            { icon: <TbCircleCheck size={14} color="#16a34a" />, label: `Pass: ${assessment.passing_score || 60}%` },
           ].map(({ icon, label }, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#475569" }}>
               <span style={{ color: "#94a3b8" }}>{icon}</span> {label}
@@ -238,7 +238,7 @@ export default function TakeAssessment({ assessmentToken }) {
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             {tabWarnings > 0 && (
               <span style={{ fontSize: 12, color: "#dc2626", fontWeight: 600, background: "#fef2f2", padding: "3px 8px", borderRadius: 6 }}>
-                <FaExclamationTriangle size={10} style={{ marginRight: 4 }} />
+                <TbAlertTriangle size={10} style={{ marginRight: 4 }} />
                 {tabWarnings}/3 tab switch{tabWarnings > 1 ? "es" : ""}
               </span>
             )}
@@ -248,7 +248,7 @@ export default function TakeAssessment({ assessmentToken }) {
               background: urgent ? "#fef2f2" : "#f8fafc",
               padding: "6px 14px", borderRadius: 8,
             }}>
-              <FaClock size={14} /> {pad(mins)}:{pad(secs)}
+              <TbClock size={14} /> {pad(mins)}:{pad(secs)}
             </div>
           </div>
         </div>

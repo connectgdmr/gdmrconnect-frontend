@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaPlus, FaTimes, FaTags } from "react-icons/fa";
+import { TbPlus, TbX, TbTags } from "react-icons/tb";
 import { API_URL as BASE } from "../api";
 
 const DEFAULT_TYPES = ["Development", "Service", "Support"];
@@ -64,7 +64,7 @@ export default function WorkTypesManager({ token, department, canEdit = true }) 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <FaTags size={13} style={{ color: "var(--brand)" }} />
+        <TbTags size={13} style={{ color: "var(--brand)" }} />
         <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Work Types — {department}</span>
       </div>
       <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 12px" }}>
@@ -83,7 +83,7 @@ export default function WorkTypesManager({ token, department, canEdit = true }) 
             {t}
             {canEdit && (
               <button onClick={() => removeType(t)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--brand)", display: "flex", padding: 0 }}>
-                <FaTimes size={10} />
+                <TbX size={10} />
               </button>
             )}
           </span>
@@ -100,7 +100,7 @@ export default function WorkTypesManager({ token, department, canEdit = true }) 
               onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addType(); } }}
             />
             <button type="button" className="btn ghost" onClick={addType} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, padding: "0 14px" }}>
-              <FaPlus size={10} /> Add
+              <TbPlus size={10} /> Add
             </button>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

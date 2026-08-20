@@ -1,9 +1,9 @@
 ﻿import React, { useState, useEffect, lazy, Suspense } from "react";
 import { escHtml } from "../utils/security";
 import {
-  FaMoneyBillWave, FaEdit, FaTimes, FaPlay, FaCheckCircle,
-  FaSearch, FaFileInvoiceDollar, FaPrint, FaRupeeSign, FaClock, FaHistory, FaDownload,
-} from "react-icons/fa";
+  TbEdit, TbX, TbPlayerPlay, TbCircleCheck,
+  TbSearch, TbFileInvoice, TbPrinter, TbCurrencyRupee, TbHistory, TbDownload,
+} from "react-icons/tb";
 import { SkeletonTable, SkeletonStats } from "./Skeleton";
 
 const AdminPayrollLoans = lazy(() => import("./AdminPayrollLoans"));
@@ -373,7 +373,7 @@ export default function AdminPayroll({ token, employees = [] }) {
           </div>
 
           <div style={{ position: "relative", marginBottom: 14, maxWidth: 360 }}>
-            <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+            <TbSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
             <input className="modern-input" placeholder="Search employee or department…" value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
           </div>
 
@@ -400,11 +400,11 @@ export default function AdminPayroll({ token, employees = [] }) {
                         <td>
                           <div style={{ display: "flex", gap: 6 }}>
                             <button className="btn ghost" style={{ fontSize: 12, padding: "5px 12px" }} onClick={() => openEdit(row)}>
-                              <FaEdit size={11} /> {configured ? "Edit" : "Set Salary"}
+                              <TbEdit size={11} /> {configured ? "Edit" : "Set Salary"}
                             </button>
                             {configured && (
                               <button className="btn ghost" style={{ fontSize: 12, padding: "5px 12px", color: "#7c3aed", borderColor: "#ddd6fe" }} onClick={() => openHistory(row)}>
-                                <FaHistory size={11} /> History
+                                <TbHistory size={11} /> History
                               </button>
                             )}
                           </div>
@@ -439,7 +439,7 @@ export default function AdminPayroll({ token, employees = [] }) {
         const runBtn = (
           <button className="btn" onClick={runPayroll} disabled={running || allRunSalaries.length === 0}
             style={{ justifyContent: "center", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", flexShrink: 0 }}>
-            <FaPlay size={11} /> {running ? "Generating…" : `Generate Payslips — ${MONTHS[runMonth]} ${runYear}`}
+            <TbPlayerPlay size={11} /> {running ? "Generating…" : `Generate Payslips — ${MONTHS[runMonth]} ${runYear}`}
           </button>
         );
 
@@ -487,7 +487,7 @@ export default function AdminPayroll({ token, employees = [] }) {
           ) : (
             <>
               <div style={{ position: "relative", marginBottom: 14, maxWidth: 360 }}>
-                <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+                <TbSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
                 <input className="modern-input" placeholder="Search employee or department…" value={runSearch} onChange={e => setRunSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
               </div>
 
@@ -562,24 +562,24 @@ export default function AdminPayroll({ token, employees = [] }) {
               {[now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
             <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
-              <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+              <TbSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
               <input className="modern-input" placeholder="Search by employee name…" value={slipSearch}
                 onChange={e => setSlipSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
             </div>
             <button className="btn ghost" onClick={() => exportPayroll("xlsx")} disabled={!!exporting || payslips.length === 0}
               style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
-              <FaDownload size={11} /> {exporting === "xlsx" ? "Exporting…" : "Export Excel"}
+              <TbDownload size={11} /> {exporting === "xlsx" ? "Exporting…" : "Export Excel"}
             </button>
             <button className="btn ghost" onClick={() => exportPayroll("pdf")} disabled={!!exporting || payslips.length === 0}
               style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
-              <FaDownload size={11} /> {exporting === "pdf" ? "Exporting…" : "Export PDF"}
+              <TbDownload size={11} /> {exporting === "pdf" ? "Exporting…" : "Export PDF"}
             </button>
           </div>
 
           {slipsLoading ? <SkeletonTable rows={6} cols={6} />
           : payslips.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
-              <FaFileInvoiceDollar size={38} style={{ opacity: 0.2, marginBottom: 12 }} />
+              <TbFileInvoice size={38} style={{ opacity: 0.2, marginBottom: 12 }} />
               <p style={{ margin: 0 }}>No payslips generated for {MONTHS[slipMonth]} {slipYear}.</p>
             </div>
           ) : (
@@ -617,7 +617,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                               <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => setViewSlip(p)}>View</button>
                               <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px", display: "flex", alignItems: "center", gap: 5 }}
                                 onClick={() => printPayslip(p, `${MONTHS[slipMonth]} ${slipYear}`)} title="Download as PDF">
-                                <FaDownload size={10} />
+                                <TbDownload size={10} />
                               </button>
                               {!paid && <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px", color: "#16a34a", borderColor: "#bbf7d0" }} onClick={() => markPaid(p._id)}>Mark Paid</button>}
                             </div>
@@ -649,7 +649,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                 <h3 style={{ margin: 0, color: "var(--red)", fontSize: 15 }}>Salary Structure</h3>
                 <div style={{ fontSize: 13, color: "#475569", marginTop: 4 }}>{editEmp.employee_name}{editEmp.department && <span style={{ color: "#94a3b8" }}> · {editEmp.department}</span>}</div>
               </div>
-              <button onClick={() => setEditEmp(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><FaTimes size={15} /></button>
+              <button onClick={() => setEditEmp(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><TbX size={15} /></button>
             </div>
 
             <form onSubmit={saveSalary}>
@@ -671,7 +671,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                     <div key={f.key} style={{ marginBottom: 10 }}>
                       <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>{f.label}</label>
                       <div style={{ position: "relative" }}>
-                        <FaRupeeSign size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
+                        <TbCurrencyRupee size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
                         <input className="modern-input" type="number" min="0" step="0.01" value={salaryForm[f.key]} placeholder="0"
                           onChange={e => setSalaryForm(s => ({ ...s, [f.key]: e.target.value }))} style={{ margin: 0, paddingLeft: 26 }} />
                       </div>
@@ -680,7 +680,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                   <div style={{ marginBottom: 10 }}>
                     <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>Bonus</label>
                     <div style={{ position: "relative" }}>
-                      <FaRupeeSign size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
+                      <TbCurrencyRupee size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
                       <input className="modern-input" type="number" min="0" step="0.01" value={salaryForm.bonus} placeholder="0"
                         onChange={e => setSalaryForm(s => ({ ...s, bonus: e.target.value }))} style={{ margin: 0, paddingLeft: 26 }} />
                     </div>
@@ -692,7 +692,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                     <div key={f.key} style={{ marginBottom: 10 }}>
                       <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>{f.label}</label>
                       <div style={{ position: "relative" }}>
-                        <FaRupeeSign size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
+                        <TbCurrencyRupee size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
                         <input className="modern-input" type="number" min="0" step="0.01" value={salaryForm[f.key]} placeholder="0"
                           onChange={e => setSalaryForm(s => ({ ...s, [f.key]: e.target.value }))} style={{ margin: 0, paddingLeft: 26 }} />
                       </div>
@@ -724,7 +724,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                   <div>
                     <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>Increment Amount</label>
                     <div style={{ position: "relative" }}>
-                      <FaRupeeSign size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
+                      <TbCurrencyRupee size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
                       <input className="modern-input" type="number" step="0.01" placeholder="0" value={salaryForm.increment_amount}
                         onChange={e => applyIncrementAmount(e.target.value)} style={{ margin: 0, paddingLeft: 26 }} />
                     </div>
@@ -732,7 +732,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                   <div>
                     <label style={{ fontSize: 12, color: "#475569", display: "block", marginBottom: 4 }}>New Gross Salary</label>
                     <div style={{ position: "relative" }}>
-                      <FaRupeeSign size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
+                      <TbCurrencyRupee size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
                       <input className="modern-input" type="number" step="0.01" placeholder="0" value={salaryForm.new_gross}
                         onChange={e => applyNewGross(e.target.value)} style={{ margin: 0, paddingLeft: 26 }} />
                     </div>
@@ -774,10 +774,10 @@ export default function AdminPayroll({ token, employees = [] }) {
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 720, width: "100%", maxHeight: "88vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid #e2e8f0", paddingBottom: 12 }}>
               <div>
-                <h3 style={{ margin: 0, color: "var(--red)", fontSize: 15, display: "flex", alignItems: "center", gap: 7 }}><FaFileInvoiceDollar size={13} /> Payroll Profile</h3>
+                <h3 style={{ margin: 0, color: "var(--red)", fontSize: 15, display: "flex", alignItems: "center", gap: 7 }}><TbFileInvoice size={13} /> Payroll Profile</h3>
                 <div style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>{historyModal.emp.employee_name}{historyModal.emp.department && <span style={{ color: "#94a3b8" }}> · {historyModal.emp.department}</span>}</div>
               </div>
-              <button onClick={() => setHistoryModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><FaTimes size={15} /></button>
+              <button onClick={() => setHistoryModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><TbX size={15} /></button>
             </div>
 
             {historyLoading ? <div className="loader" style={{ margin: "30px auto" }} /> : (
@@ -785,7 +785,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                 {/* Salary History */}
                 <div style={{ marginBottom: 22 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                    <FaHistory size={11} /> Salary History
+                    <TbHistory size={11} /> Salary History
                   </div>
                   {historyModal.history.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8", fontSize: 13, background: "#f8fafc", borderRadius: 8 }}>
@@ -817,7 +817,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                 {/* Payslip History — every payslip ever generated, downloadable */}
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                    <FaFileInvoiceDollar size={11} /> Payslip History ({historyModal.slips.length})
+                    <TbFileInvoice size={11} /> Payslip History ({historyModal.slips.length})
                   </div>
                   {historyModal.slips.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8", fontSize: 13, background: "#f8fafc", borderRadius: 8 }}>
@@ -848,7 +848,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                                     <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => setViewSlip(p)}>View</button>
                                     <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px", display: "flex", alignItems: "center", gap: 5 }}
                                       onClick={() => printPayslip(p, p.period)} title="Download as PDF">
-                                      <FaDownload size={10} />
+                                      <TbDownload size={10} />
                                     </button>
                                   </div>
                                 </td>
@@ -971,7 +971,7 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
             <h3 style={{ margin: 0, color: "var(--red)", fontSize: 15 }}>Salary Slip</h3>
             <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{period}</div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><FaTimes size={15} /></button>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><TbX size={15} /></button>
         </div>
 
         {/* Company title */}
@@ -1096,7 +1096,7 @@ export function PayslipModal({ slip, onClose, monthLabel }) {
         </table>
 
         <button className="btn" onClick={() => printPayslip(slip, monthLabel)} style={{ width: "100%", justifyContent: "center", display: "flex", alignItems: "center", gap: 8 }}>
-          <FaPrint size={12} /> Print / Download PDF
+          <TbPrinter size={12} /> Print / Download PDF
         </button>
       </div>
     </div>

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import {
-  FaTimes, FaTrophy, FaMedal, FaStar, FaPlus, FaTrash,
-  FaCalendarAlt, FaUserTimes, FaPlane, FaRocket,
-  FaChevronDown, FaChevronUp, FaArrowUp, FaChartLine,
-  FaBolt, FaClock, FaUserPlus,
-  FaCheckCircle, FaEdit, FaSave,
-  FaFileAlt, FaFileUpload, FaExternalLinkAlt, FaBriefcase,
-  FaEnvelope, FaPhoneAlt, FaDownload, FaMoneyBillWave, FaSyncAlt,
-} from "react-icons/fa";
+  TbX, TbTrophy, TbMedal, TbStar, TbPlus, TbTrash,
+  TbCalendar, TbUserX, TbPlane, TbRocket,
+  TbChevronDown, TbChevronUp, TbArrowUp, TbChartLine,
+  TbBolt, TbClock, TbUserPlus,
+  TbCircleCheck, TbEdit, TbDeviceFloppy,
+  TbFileText, TbFileUpload, TbExternalLink, TbBriefcase,
+  TbMail, TbPhone, TbDownload, TbCurrencyDollar, TbRefresh,
+} from "react-icons/tb";
 
 // "View" opens a URL the browser can actually render inline. Images and
 // PDFs render natively; anything else (docx/xlsx/pptx, or — very common
@@ -61,12 +61,12 @@ const DOCUMENT_TYPES = [
 
 // ─── ACHIEVEMENT TYPE CONFIG (FA icons only — no emojis) ─────────────────────
 const ACH_TYPES = [
-  { value: "eom",         label: "Employee of the Month",   Icon: FaTrophy,       color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
-  { value: "eoq",         label: "Employee of the Quarter", Icon: FaMedal,        color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
-  { value: "eoy",         label: "Employee of the Year",    Icon: FaStar,         color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
-  { value: "salary_hike", label: "Salary Hike",             Icon: FaArrowUp,      color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
-  { value: "promotion",   label: "Promotion",               Icon: FaChartLine,    color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe" },
-  { value: "custom",      label: "Custom Award",            Icon: FaBolt,         color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
+  { value: "eom",         label: "Employee of the Month",   Icon: TbTrophy,       color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+  { value: "eoq",         label: "Employee of the Quarter", Icon: TbMedal,        color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
+  { value: "eoy",         label: "Employee of the Year",    Icon: TbStar,         color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+  { value: "salary_hike", label: "Salary Hike",             Icon: TbArrowUp,      color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
+  { value: "promotion",   label: "Promotion",               Icon: TbChartLine,    color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe" },
+  { value: "custom",      label: "Custom Award",            Icon: TbBolt,         color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
 ];
 
 const SHIFT_OPTIONS = [
@@ -437,7 +437,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
   if (joinDate) {
     timeline.push({
       date: joinDate.slice(0, 10),
-      Icon: FaUserPlus,
+      Icon: TbUserPlus,
       title: "Joined GDMR Connect",
       sub: `Started as ${empData.position || "team member"} · ${dept}`,
       color: C_BRAND,
@@ -451,9 +451,9 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
   (empData.profile_history || []).forEach((h, i) => {
     let dateStr = joinDate ? joinDate.slice(0, 10) : todayStr;
     try { dateStr = new Date(h.at).toISOString().slice(0, 10); } catch { /* keep fallback */ }
-    let Icon = FaBriefcase, title = "Profile Updated", color = "#2563eb";
+    let Icon = TbBriefcase, title = "Profile Updated", color = "#2563eb";
     if (h.type === "salary_change") {
-      Icon = FaMoneyBillWave;
+      Icon = TbCurrencyDollar;
       title = h.increment_type || "Salary Updated";
       color = "#16a34a";
     } else if (h.type === "onboarding" || (!h.type && i === 0)) {
@@ -478,7 +478,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
   (empData.extended_leaves || []).forEach(lv => {
     timeline.push({
       date: lv.from_date || "2020-01-01",
-      Icon: FaPlane,
+      Icon: TbPlane,
       title: `Extended Leave — ${lv.type || "Sabbatical"}`,
       sub: `${fmtDate(lv.from_date)} → ${fmtDate(lv.to_date)}`,
       color: "#7c3aed",
@@ -488,7 +488,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
   if (empData.resignation?.notice_date) {
     timeline.push({
       date: empData.resignation.notice_date,
-      Icon: FaUserTimes,
+      Icon: TbUserX,
       title: isOffboarded ? "Offboarded" : "Resignation Notice",
       sub: empData.resignation.last_working_day
         ? `Last working day: ${fmtDate(empData.resignation.last_working_day)}`
@@ -561,14 +561,14 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                 title={editMode ? "Cancel editing" : "Edit employee details"}
                 style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}
               >
-                {editMode ? <FaTimes size={13} /> : <FaEdit size={13} />}
+                {editMode ? <TbX size={13} /> : <TbEdit size={13} />}
               </button>
             )}
             <button
               onClick={onClose}
               style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}
             >
-              <FaTimes size={14} />
+              <TbX size={14} />
             </button>
           </div>
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
@@ -581,12 +581,12 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
                 {empData.email && (
                   <a href={`mailto:${empData.email}`} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "rgba(255,255,255,0.85)", textDecoration: "none" }}>
-                    <FaEnvelope size={10} /> {empData.email}
+                    <TbMail size={10} /> {empData.email}
                   </a>
                 )}
                 {empData.phone && (
                   <a href={`tel:${empData.phone}`} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "rgba(255,255,255,0.85)", textDecoration: "none" }}>
-                    <FaPhoneAlt size={10} /> {empData.phone}
+                    <TbPhone size={10} /> {empData.phone}
                   </a>
                 )}
               </div>
@@ -596,7 +596,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                 </span>
                 {tenureStr !== "—" && (
                   <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.90)" }}>
-                    <FaClock size={9} /> {tenureStr} tenure
+                    <TbClock size={9} /> {tenureStr} tenure
                   </span>
                 )}
                 {joinDate && (
@@ -606,7 +606,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                 )}
                 {empData.source_candidate_id && (
                   <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.90)" }}>
-                    <FaBriefcase size={9} /> Recruitment Hire
+                    <TbBriefcase size={9} /> Recruitment Hire
                   </span>
                 )}
               </div>
@@ -634,7 +634,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         {editMode && editForm && (
           <div style={{ margin: "12px 16px 0" }}>
             <div className="journey-section" style={{ margin: 0 }}>
-              <div className="journey-section-title"><FaEdit size={10} /> Edit Employee Details</div>
+              <div className="journey-section-title"><TbEdit size={10} /> Edit Employee Details</div>
               <div className="edit-grid">
                 <div className="award-form-row">
                   <label>Full Name</label>
@@ -700,7 +700,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
                 <button onClick={() => setEditMode(false)} style={{ background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
                 <button onClick={saveEdit} disabled={savingEdit} style={{ display: "flex", alignItems: "center", gap: 6, background: C_BRAND, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", opacity: savingEdit ? 0.7 : 1 }}>
-                  <FaSave size={11} /> {savingEdit ? "Saving…" : "Save Changes"}
+                  <TbDeviceFloppy size={11} /> {savingEdit ? "Saving…" : "Save Changes"}
                 </button>
               </div>
             </div>
@@ -710,7 +710,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         {/* ─── ATTENDANCE QUICK STATS ──────────────────────────────────── */}
         <div style={{ margin: "12px 16px 0" }}>
           <div className="journey-section" style={{ margin: 0 }}>
-            <div className="journey-section-title"><FaCheckCircle size={10} /> Attendance — {effectiveMonth}</div>
+            <div className="journey-section-title"><TbCircleCheck size={10} /> Attendance — {effectiveMonth}</div>
             <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid #f1f5f9" }}>
               {[
                 { label: "Rate",    val: `${attRate}%`,       color: attRate >= 80 ? "#16a34a" : attRate >= 65 ? "#d97706" : "#dc2626", bg: attRate >= 80 ? "#f0fdf4" : attRate >= 65 ? "#fffbeb" : "#fef2f2" },
@@ -744,7 +744,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         {/* ─── DOCUMENTS ───────────────────────────────────────────────── */}
         <div style={{ margin: "12px 16px 0" }}>
           <div className="journey-section" style={{ margin: 0 }}>
-            <div className="journey-section-title"><FaFileAlt size={10} /> Documents ({(empData.documents || []).length})</div>
+            <div className="journey-section-title"><TbFileText size={10} /> Documents ({(empData.documents || []).length})</div>
 
             {(empData.documents || []).length === 0 ? (
               <div style={{ textAlign: "center", padding: "12px 0", color: "#94a3b8", fontSize: 12.5 }}>No documents on file yet.</div>
@@ -760,7 +760,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                     <div key={d.id || d.url}>
                       <div className="doc-row">
                         <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <FaFileAlt size={13} color="#64748b" />
+                          <TbFileText size={13} color="#64748b" />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{d.name}</div>
@@ -772,24 +772,24 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                             {history.length > 0 && (
                               <button type="button" onClick={() => setExpandedHistoryId(isHistoryOpen ? null : d.id)}
                                 style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2, padding: 0 }}>
-                                v{history.length + 1} {isHistoryOpen ? <FaChevronUp size={8} /> : <FaChevronDown size={8} />}
+                                v{history.length + 1} {isHistoryOpen ? <TbChevronUp size={8} /> : <TbChevronDown size={8} />}
                               </button>
                             )}
                           </div>
                         </div>
                         <a href={cloudinaryViewUrl(d.url)} target="_blank" rel="noreferrer" title="View" style={{ color: C_BRAND, padding: 6, display: "flex" }}>
-                          <FaExternalLinkAlt size={13} />
+                          <TbExternalLink size={13} />
                         </a>
                         <button type="button" onClick={() => downloadDocument(d.url, d.name)} title="Download" style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: 6, display: "flex" }}>
-                          <FaDownload size={12} />
+                          <TbDownload size={12} />
                         </button>
                         {api && token && (
                           <>
                             <button type="button" onClick={() => { setReplacingDocId(isReplacing ? null : d.id); setReplaceFile(null); setReplaceExpiry(d.expiry_date || ""); }} title="Replace" style={{ background: "none", border: "none", cursor: "pointer", color: isReplacing ? C_BRAND : "#64748b", padding: 6, display: "flex" }}>
-                              <FaSyncAlt size={12} />
+                              <TbRefresh size={12} />
                             </button>
                             <button onClick={() => removeDoc(d.id)} title="Remove" style={{ background: "none", border: "none", color: "#cbd5e1", cursor: "pointer", padding: 6, display: "flex" }}>
-                              <FaTrash size={12} />
+                              <TbTrash size={12} />
                             </button>
                           </>
                         )}
@@ -856,7 +856,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                   accept=".pdf,.jpg,.jpeg,.png"
                 />
                 <button type="submit" disabled={uploadingDoc || !newDocName.trim() || !newDocFile || !newDocType} style={{ display: "flex", alignItems: "center", gap: 6, background: C_BRAND, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", opacity: (uploadingDoc || !newDocName.trim() || !newDocFile || !newDocType) ? 0.6 : 1 }}>
-                  <FaFileUpload size={11} /> {uploadingDoc ? "Uploading…" : "Add"}
+                  <TbFileUpload size={11} /> {uploadingDoc ? "Uploading…" : "Add"}
                 </button>
               </form>
             )}
@@ -867,7 +867,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         {empData.recruitment_profile && Object.values(empData.recruitment_profile).some(Boolean) && (
           <div style={{ margin: "12px 16px 0" }}>
             <div className="journey-section" style={{ margin: 0 }}>
-              <div className="journey-section-title"><FaBriefcase size={10} /> Recruitment Profile</div>
+              <div className="journey-section-title"><TbBriefcase size={10} /> Recruitment Profile</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
                 {Object.entries(RECRUITMENT_PROFILE_LABELS).map(([key, label]) => (
                   empData.recruitment_profile[key] ? (
@@ -886,7 +886,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         {/* ─── CAREER TIMELINE ─────────────────────────────────────────── */}
         <div style={{ margin: "12px 16px 0" }}>
           <div className="journey-section" style={{ margin: 0 }}>
-            <div className="journey-section-title"><FaRocket size={10} /> Career Journey</div>
+            <div className="journey-section-title"><TbRocket size={10} /> Career Journey</div>
             {timeline.length === 0 ? (
               <div style={{ textAlign: "center", color: "#94a3b8", fontSize: 12.5, padding: "12px 0" }}>No timeline events yet.</div>
             ) : timeline.map((ev, i) => (
@@ -899,12 +899,12 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         <div style={{ margin: "12px 16px 0" }}>
           <div className="journey-section" style={{ margin: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <div className="journey-section-title" style={{ marginBottom: 0 }}><FaTrophy size={10} /> Achievements & Awards</div>
+              <div className="journey-section-title" style={{ marginBottom: 0 }}><TbTrophy size={10} /> Achievements & Awards</div>
               <button
                 onClick={() => setShowAwardForm(v => !v)}
                 style={{ display: "flex", alignItems: "center", gap: 5, background: C_BRAND, color: "#fff", border: "none", borderRadius: 8, padding: "7px 13px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
               >
-                <FaPlus size={10} /> Award
+                <TbPlus size={10} /> Award
               </button>
             </div>
 
@@ -945,7 +945,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
               <div style={{ textAlign: "center", color: "#94a3b8", fontSize: 12.5, padding: "12px 0" }}>Loading…</div>
             ) : achievements.length === 0 ? (
               <div style={{ textAlign: "center", padding: "18px 0" }}>
-                <FaTrophy size={28} style={{ color: "#e2e8f0", marginBottom: 8 }} />
+                <TbTrophy size={28} style={{ color: "#e2e8f0", marginBottom: 8 }} />
                 <div style={{ fontSize: 12.5, color: "#94a3b8" }}>No achievements recorded yet. Click "Award" to recognise this employee.</div>
               </div>
             ) : (
@@ -964,7 +964,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                         {a.description && <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 2 }}>{a.description}</div>}
                       </div>
                       <button onClick={() => deleteAchievement(a._id)} style={{ background: "none", border: "none", color: "#cbd5e1", cursor: "pointer", padding: 4, borderRadius: 4, display: "flex", alignItems: "center" }} title="Remove">
-                        <FaTrash size={11} />
+                        <TbTrash size={11} />
                       </button>
                     </div>
                   );
@@ -982,9 +982,9 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
               style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: leavesExpanded ? 14 : 0 }}
             >
               <div className="journey-section-title" style={{ marginBottom: 0 }}>
-                <FaCalendarAlt size={10} /> Leave History ({empLeaves.length})
+                <TbCalendar size={10} /> Leave History ({empLeaves.length})
               </div>
-              {leavesExpanded ? <FaChevronUp size={11} color="#94a3b8" /> : <FaChevronDown size={11} color="#94a3b8" />}
+              {leavesExpanded ? <TbChevronUp size={11} color="#94a3b8" /> : <TbChevronDown size={11} color="#94a3b8" />}
             </button>
             {leavesExpanded && (
               empLeaves.length === 0 ? (
@@ -1021,7 +1021,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         {empData.extended_leaves?.length > 0 && (
           <div style={{ margin: "0 16px 16px" }}>
             <div className="journey-section" style={{ margin: 0 }}>
-              <div className="journey-section-title"><FaPlane size={10} /> Extended Leaves / Sabbaticals</div>
+              <div className="journey-section-title"><TbPlane size={10} /> Extended Leaves / Sabbaticals</div>
               {empData.extended_leaves.map((lv, i) => (
                 <div key={i} className="leave-row">
                   <div>
@@ -1039,7 +1039,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         {empData.resignation?.notice_date && (
           <div style={{ margin: "0 16px 24px" }}>
             <div className="journey-section" style={{ margin: 0, background: "#fef2f2", border: "1px solid #fecaca" }}>
-              <div className="journey-section-title" style={{ color: "#dc2626" }}><FaUserTimes size={10} /> Resignation Details</div>
+              <div className="journey-section-title" style={{ color: "#dc2626" }}><TbUserX size={10} /> Resignation Details</div>
               <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
                 <div>
                   <div style={{ fontSize: 10.5, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase" }}>Notice Date</div>

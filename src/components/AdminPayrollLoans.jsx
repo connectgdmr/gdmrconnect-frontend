@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaTimes, FaPlus, FaHandHoldingUsd, FaRupeeSign } from "react-icons/fa";
+import { TbX, TbPlus, TbMoneybag, TbCurrencyRupee } from "react-icons/tb";
 import { SkeletonTable } from "./Skeleton";
 
 const FETCH_BASE = "/api";
@@ -57,7 +57,7 @@ function IssueLoanModal({ token, employees, onClose, onSuccess }) {
       <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 520, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, borderBottom: "1px solid #e2e8f0", paddingBottom: 14 }}>
           <h3 style={{ margin: 0, color: "var(--red)", fontSize: 15 }}>Issue Loan / Salary Advance</h3>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><FaTimes size={15} /></button>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><TbX size={15} /></button>
         </div>
 
         {err && <div style={{ marginBottom: 14, padding: "10px 14px", background: "#fef2f2", borderRadius: 8, fontSize: 13, color: "#b91c1c", border: "1px solid #fecaca" }}>{err}</div>}
@@ -89,7 +89,7 @@ function IssueLoanModal({ token, employees, onClose, onSuccess }) {
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 5 }}>Amount (₹) *</label>
               <div style={{ position: "relative" }}>
-                <FaRupeeSign size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
+                <TbCurrencyRupee size={10} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
                 <input className="modern-input" style={{ margin: 0, paddingLeft: 26 }} type="number" min="1" value={form.amount} onChange={e => set("amount", e.target.value)} placeholder="e.g. 25000" required />
               </div>
             </div>
@@ -157,7 +157,7 @@ function LoanDetailModal({ loan, onClose }) {
             </h3>
             <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 3 }}>{loan.employee_name}</div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><FaTimes size={15} /></button>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><TbX size={15} /></button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
@@ -285,7 +285,7 @@ export default function AdminPayrollLoans({ token, employees = [] }) {
         </div>
         <button className="btn" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}
           onClick={() => setShowIssue(true)}>
-          <FaPlus size={11} /> Issue Loan / Advance
+          <TbPlus size={11} /> Issue Loan / Advance
         </button>
       </div>
 
@@ -310,7 +310,7 @@ export default function AdminPayrollLoans({ token, employees = [] }) {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr><td colSpan={9} style={{ textAlign: "center", padding: "48px 20px", color: "#94a3b8" }}>
-                    <FaHandHoldingUsd size={28} style={{ opacity: 0.2, display: "block", margin: "0 auto 10px" }} />
+                    <TbMoneybag size={28} style={{ opacity: 0.2, display: "block", margin: "0 auto 10px" }} />
                     No {filter !== "all" ? filter : ""} loans or advances found.
                   </td></tr>
                 ) : filtered.map(l => {

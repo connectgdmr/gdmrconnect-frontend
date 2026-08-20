@@ -1,10 +1,10 @@
 ﻿import React, { useState, useEffect, lazy, Suspense } from "react";
 import {
-  FaPlus, FaTimes, FaEdit, FaTrash, FaGraduationCap,
-  FaBook, FaVideo, FaFileAlt, FaLink, FaUsers,
-  FaChevronDown, FaChevronRight, FaCheckCircle, FaSearch,
-  FaEye, FaTag, FaUserTie,
-} from "react-icons/fa";
+  TbPlus, TbX, TbEdit, TbTrash, TbSchool,
+  TbBook, TbVideo, TbFileText, TbLink, TbUsers,
+  TbChevronDown, TbChevronRight, TbCircleCheck, TbSearch,
+  TbEye, TbUserBolt,
+} from "react-icons/tb";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 
 import { API_URL as BASE } from "../api";
@@ -12,7 +12,7 @@ const EmployeeLMS = lazy(() => import("./EmployeeLMS"));
 
 const CATEGORIES = ["Technical", "Soft Skills", "Compliance", "Leadership", "Product", "Other"];
 const LESSON_TYPES = ["Video", "Document", "Article"];
-const LESSON_ICON = { Video: <FaVideo />, Document: <FaFileAlt />, Article: <FaLink /> };
+const LESSON_ICON = { Video: <TbVideo />, Document: <TbFileText />, Article: <TbLink /> };
 
 const CAT_COLORS = {
   Technical:     { color: "#34a06a", bg: "#f0fdf4" },
@@ -250,7 +250,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
           <p className="small">Your learning journey · Create &amp; assign courses for your team</p>
         </div>
         <button className="btn" onClick={startCreate} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <FaPlus size={11} /> New Course
+          <TbPlus size={11} /> New Course
         </button>
       </div>
 
@@ -281,7 +281,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
         <>
           <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
             <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-              <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+              <TbSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
               <input className="modern-input" placeholder="Search by title or course code…" value={search}
                 onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
             </div>
@@ -299,7 +299,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
 
           {visibleCourses.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
-              <FaGraduationCap size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
+              <TbSchool size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
               <p style={{ margin: 0 }}>{courses.length === 0 ? "No courses available." : "No courses match your search."}</p>
             </div>
           ) : (
@@ -314,7 +314,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
                       <img src={c.thumbnail_url} alt="" style={{ width: "100%", height: 100, objectFit: "cover" }} />
                     ) : (
                       <div style={{ height: 70, background: `linear-gradient(135deg, ${cat.bg}, #fff)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <FaBook size={24} color={cat.color} />
+                        <TbBook size={24} color={cat.color} />
                       </div>
                     )}
                     <div style={{ padding: "10px 14px 14px" }}>
@@ -324,23 +324,23 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
                           {code && <span style={{ fontSize: 9, fontWeight: 700, color: "#7c3aed", background: "#f5f3ff", padding: "2px 7px", borderRadius: 4, fontFamily: "monospace" }}>#{code}</span>}
                         </div>
                         <div style={{ display: "flex", gap: 4 }}>
-                          <button className="btn-action" title="Preview" onClick={() => setPreviewCourse(c)} style={{ color: "#0f766e" }}><FaEye /></button>
+                          <button className="btn-action" title="Preview" onClick={() => setPreviewCourse(c)} style={{ color: "#0f766e" }}><TbEye /></button>
                           {isOwn && <>
-                            <button className="btn-action btn-edit" onClick={() => startEdit(c)} title="Edit"><FaEdit /></button>
-                            <button className="btn-action btn-remove" onClick={() => deleteCourse(c._id)} title="Delete"><FaTrash /></button>
+                            <button className="btn-action btn-edit" onClick={() => startEdit(c)} title="Edit"><TbEdit /></button>
+                            <button className="btn-action btn-remove" onClick={() => deleteCourse(c._id)} title="Delete"><TbTrash /></button>
                           </>}
                         </div>
                       </div>
                       <div style={{ fontWeight: 700, fontSize: 13.5, color: "#0f172a", marginBottom: 3 }}>{c.title}</div>
                       {c.created_by_name && (
                         <div style={{ fontSize: 10.5, color: "#7c3aed", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
-                          <FaUserTie size={9} /> {c.created_by_name}{c.department && <span style={{ color: "#94a3b8" }}> · {c.department}</span>}
+                          <TbUserBolt size={9} /> {c.created_by_name}{c.department && <span style={{ color: "#94a3b8" }}> · {c.department}</span>}
                         </div>
                       )}
                       {c.description && <p style={{ margin: "0 0 6px", fontSize: 11.5, color: "#64748b" }}>{c.description.slice(0, 60)}{c.description.length > 60 ? "…" : ""}</p>}
                       <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8 }}>{c.modules?.length || 0} modules · {c.modules?.reduce((s, m) => s + (m?.lessons?.length || 0), 0) || 0} lessons</div>
                       <button className="btn ghost" style={{ fontSize: 12, width: "100%" }} onClick={() => { setAssignCourseId(c._id); setTab("assign"); }}>
-                        <FaUsers size={11} /> Assign to My Team
+                        <TbUsers size={11} /> Assign to My Team
                       </button>
                     </div>
                   </div>
@@ -385,7 +385,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
                 <input className="modern-input" type="url" value={courseForm.thumbnailUrl} onChange={e => setCourseForm({ ...courseForm, thumbnailUrl: e.target.value })} placeholder="https://…" />
               </div>
               <div style={{ marginBottom: 16, padding: "10px 12px", background: "#f0fdf4", borderRadius: 8, fontSize: 12, color: "#16a34a" }}>
-                <FaUserTie size={11} style={{ marginRight: 5 }} />
+                <TbUserBolt size={11} style={{ marginRight: 5 }} />
                 Created by <b>{user?.name || user?.employee_name || "you"}</b> · {user?.department || ""}
               </div>
               <button className="btn" type="submit" disabled={saving} style={{ width: "100%" }}>
@@ -398,20 +398,20 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <h4 style={{ margin: 0 }}>Modules ({modules.length})</h4>
                 <button type="button" className="btn ghost" onClick={() => { setModules([...modules, blankModule()]); setExpandedMod(modules.length); }} style={{ fontSize: 13 }}>
-                  <FaPlus size={10} /> Add Module
+                  <TbPlus size={10} /> Add Module
                 </button>
               </div>
               {modules.map((mod, mi) => (
                 <div key={mi} className="card" style={{ marginBottom: 10, padding: 0, overflow: "hidden" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", cursor: "pointer", background: "#fafafa" }}
                     onClick={() => setExpandedMod(expandedMod === mi ? null : mi)}>
-                    {expandedMod === mi ? <FaChevronDown size={11} color="#94a3b8" /> : <FaChevronRight size={11} color="#94a3b8" />}
+                    {expandedMod === mi ? <TbChevronDown size={11} color="#94a3b8" /> : <TbChevronRight size={11} color="#94a3b8" />}
                     <input className="modern-input" value={mod.title} onChange={e => { e.stopPropagation(); updateModule(mi, { title: e.target.value }); }}
                       onClick={e => e.stopPropagation()} placeholder={`Module ${mi + 1} title`} style={{ flex: 1, margin: 0, fontWeight: 600 }} />
                     <span style={{ fontSize: 11, color: "#94a3b8", flexShrink: 0 }}>{mod.lessons.length} lesson{mod.lessons.length !== 1 ? "s" : ""}</span>
                     {modules.length > 1 && (
                       <button type="button" onClick={e => { e.stopPropagation(); setModules(prev => prev.filter((_, i) => i !== mi)); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444" }}>
-                        <FaTimes size={11} />
+                        <TbX size={11} />
                       </button>
                     )}
                   </div>
@@ -426,13 +426,13 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
                           <input className="modern-input" value={ls.url} onChange={e => updateLesson(mi, li, { url: e.target.value })} placeholder="Resource URL" style={{ margin: 0 }} />
                           {mod.lessons.length > 1 && (
                             <button type="button" onClick={() => removeLesson(mi, li)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: 4 }}>
-                              <FaTimes size={11} />
+                              <TbX size={11} />
                             </button>
                           )}
                         </div>
                       ))}
                       <button type="button" onClick={() => addLesson(mi)} style={{ marginTop: 10, background: "none", border: "1px dashed #cbd5e1", borderRadius: 7, padding: "5px 12px", cursor: "pointer", color: "#64748b", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}>
-                        <FaPlus size={9} /> Add Lesson
+                        <TbPlus size={9} /> Add Lesson
                       </button>
                     </div>
                   )}
@@ -476,7 +476,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
                 </label>
               </div>
               <div style={{ position: "relative", marginBottom: 6 }}>
-                <FaSearch style={{ position: "absolute", left: 10, top: 10, color: "#94a3b8", fontSize: 12 }} />
+                <TbSearch style={{ position: "absolute", left: 10, top: 10, color: "#94a3b8", fontSize: 12 }} />
                 <input className="modern-input" placeholder="Search team…" value={empSearch} onChange={e => setEmpSearch(e.target.value)} style={{ paddingLeft: 30, margin: 0, fontSize: 12 }} />
               </div>
               <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8, padding: 8 }}>
@@ -512,7 +512,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
         <div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
             <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
-              <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+              <TbSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
               <input className="modern-input" placeholder="Search team member…" value={progSearch} onChange={e => setProgSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
             </div>
             <select className="modern-input" value={progCourse} onChange={e => setProgCourse(e.target.value)} style={{ margin: 0, flex: 1, minWidth: 160 }}>
@@ -524,7 +524,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
           {progLoading ? <SkeletonTable rows={6} cols={5} />
           : filteredProgress.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
-              <FaGraduationCap size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
+              <TbSchool size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
               <p>No progress data for your team yet. Assign courses to see their learning journey.</p>
             </div>
           ) : (
@@ -555,7 +555,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
                           <td style={{ fontSize: 12, color: "#94a3b8" }}>{row.last_activity ? new Date(row.last_activity).toLocaleDateString("en-GB") : "—"}</td>
                           <td>
                             <span style={{ fontSize: 11, fontWeight: 700, color: statusColor, display: "flex", alignItems: "center", gap: 4 }}>
-                              {pct >= 100 && <FaCheckCircle size={11} />} {statusLabel}
+                              {pct >= 100 && <TbCircleCheck size={11} />} {statusLabel}
                             </span>
                           </td>
                         </tr>
@@ -588,10 +588,10 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
                     {code && <span style={{ fontSize: 10, fontWeight: 700, color: "#7c3aed", background: "#f5f3ff", padding: "2px 8px", borderRadius: 4, fontFamily: "monospace" }}>#{code}</span>}
                   </div>
                   <h3 style={{ margin: "0 0 4px", fontSize: 17 }}>{c.title}</h3>
-                  {c.created_by_name && <div style={{ fontSize: 12, color: "#7c3aed" }}><FaUserTie size={10} style={{ marginRight: 4 }} />{c.created_by_name}{c.department && <span style={{ color: "#94a3b8" }}> · {c.department}</span>}</div>}
+                  {c.created_by_name && <div style={{ fontSize: 12, color: "#7c3aed" }}><TbUserBolt size={10} style={{ marginRight: 4 }} />{c.created_by_name}{c.department && <span style={{ color: "#94a3b8" }}> · {c.department}</span>}</div>}
                   {c.description && <p style={{ margin: "8px 0 0", fontSize: 13, color: "#475569" }}>{c.description}</p>}
                 </div>
-                <button onClick={() => setPreviewCourse(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", marginLeft: 12 }}><FaTimes size={15} /></button>
+                <button onClick={() => setPreviewCourse(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", marginLeft: 12 }}><TbX size={15} /></button>
               </div>
               <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#64748b", padding: "10px 0", borderTop: "1px solid #f1f5f9", borderBottom: "1px solid #f1f5f9", marginBottom: 14 }}>
                 <span><b style={{ color: "#0f172a" }}>{mods.length}</b> modules</span>
@@ -600,7 +600,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
               <PreviewModules mods={mods} />
               <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
                 <button className="btn ghost" onClick={() => { setAssignCourseId(c._id); setTab("assign"); setPreviewCourse(null); }}>
-                  <FaUsers size={11} /> Assign to Team
+                  <TbUsers size={11} /> Assign to Team
                 </button>
                 <button className="btn ghost" onClick={() => setPreviewCourse(null)} style={{ marginLeft: "auto" }}>Close</button>
               </div>
@@ -623,7 +623,7 @@ function PreviewModules({ mods }) {
           <div key={mi} style={{ border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden" }}>
             <div onClick={() => setExpanded(open ? null : mi)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", cursor: "pointer", background: "#f8fafc" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {open ? <FaChevronDown size={11} color="#94a3b8" /> : <FaChevronRight size={11} color="#94a3b8" />}
+                {open ? <TbChevronDown size={11} color="#94a3b8" /> : <TbChevronRight size={11} color="#94a3b8" />}
                 <span style={{ fontWeight: 600, fontSize: 13 }}>{mod.title || mod.name || `Module ${mi + 1}`}</span>
               </div>
               <span style={{ fontSize: 11, color: "#94a3b8" }}>{lessons.length} lesson{lessons.length !== 1 ? "s" : ""}</span>
@@ -632,7 +632,7 @@ function PreviewModules({ mods }) {
               <div style={{ padding: "6px 14px 10px" }}>
                 {lessons.map((ls, li) => (
                   <div key={li} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: li < lessons.length - 1 ? "1px solid #f1f5f9" : "none" }}>
-                    <span style={{ color: "#94a3b8", flexShrink: 0 }}>{LESSON_ICON[ls.type || ls.lesson_type] || <FaFileAlt />}</span>
+                    <span style={{ color: "#94a3b8", flexShrink: 0 }}>{LESSON_ICON[ls.type || ls.lesson_type] || <TbFileText />}</span>
                     <span style={{ fontSize: 13, flex: 1 }}>{ls.title || ls.name || `Lesson ${li + 1}`}</span>
                     <span style={{ fontSize: 10, color: "#94a3b8", background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>{ls.type || ls.lesson_type || "Video"}</span>
                     {(ls.url || ls.resource_url || ls.link) && (

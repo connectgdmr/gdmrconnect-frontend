@@ -21,30 +21,29 @@ const AdminAssets            = lazy(() => import("./AdminAssets"));
 // ICON IMPORTS
 // ============================================================================
 import {
-  FaUserPlus,
-  FaUsers,
-  FaCalendarCheck,
-  FaClock,
-  FaChartPie,
-  FaUserTie,
-  FaArrowLeft,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaUserClock,
-  FaUserSlash,
-  FaTimes,
-  FaCalendarAlt,
-  FaBullhorn,
-  FaUserShield,
-  FaTrash,
-  FaEdit,
-  FaLaptop,
-  FaBars,
-  FaGift,
-  FaBuilding,
-  FaTasks,
-  FaCog
-} from "react-icons/fa";
+  TbUserPlus,
+  TbUsers,
+  TbCalendarCheck,
+  TbClock,
+  TbChartPie,
+  TbUserBolt,
+  TbArrowLeft,
+  TbCircleCheck,
+  TbCircleX,
+  TbUserPause,
+  TbUserOff,
+  TbX,
+  TbCalendar,
+  TbSpeakerphone,
+  TbShieldLock,
+  TbTrash,
+  TbDeviceLaptop,
+  TbMenu2,
+  TbGift,
+  TbBuilding,
+  TbChecklist,
+  TbSettings
+} from "react-icons/tb";
 import ProfilePanel from "./ProfilePanel";
 import SettingsModal from "./SettingsModal";
 import AdminInsights from "./AdminInsights";
@@ -590,16 +589,16 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       />
       <div className="main-area">
         <div className="main-topbar">
-          <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><FaBars /></button>
+          <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><TbMenu2 /></button>
           {view !== "dashboard" && (
-            <button className="topbar-back" onClick={() => setView("dashboard")}><FaArrowLeft /></button>
+            <button className="topbar-back" onClick={() => setView("dashboard")}><TbArrowLeft /></button>
           )}
           <span className="topbar-title">
             {view === "dashboard" ? "Admin Dashboard" : view.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
           </span>
           <div className="topbar-right">
             <button className="topbar-action-btn" title="Settings" onClick={() => setSettingsOpen(true)} style={{ padding: "7px 10px" }}>
-              <FaCog size={14} />
+              <TbSettings size={14} />
             </button>
             <button className="topbar-profile-btn" onClick={() => setProfileOpen(true)}>
               <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
@@ -621,7 +620,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {/* Birthday Notification Banner */}
       {!birthdayDismissed && todayBirthdays.length > 0 && (
         <div className={`birthday-banner ${todayBirthdays.some(b => b.is_self) ? 'birthday-banner-self' : 'birthday-banner-others'}`}>
-          <div className="birthday-banner-icon"><FaGift /></div>
+          <div className="birthday-banner-icon"><TbGift /></div>
           <div className="birthday-banner-text">
             {todayBirthdays.some(b => b.is_self) ? (
               <>
@@ -637,7 +636,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
               </>
             )}
           </div>
-          <button className="birthday-banner-dismiss" onClick={() => setBirthdayDismissed(true)}><FaTimes size={12} /></button>
+          <button className="birthday-banner-dismiss" onClick={() => setBirthdayDismissed(true)}><TbX size={12} /></button>
         </div>
       )}
 
@@ -652,7 +651,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       ) : (
         <div className="dashboard-header-card card" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           <button className="btn ghost" onClick={() => setView("dashboard")} style={{padding: '8px 12px', display:'flex', alignItems:'center', gap:6}}>
-            <FaArrowLeft /> Back
+            <TbArrowLeft /> Back
           </button>
           <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>{view.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</h3>
         </div>
@@ -687,28 +686,28 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
         <>
         {/* KPI Row */}
         <div className="kpi-row">
-          <KpiTile icon={<FaUsers />}        label="Total Workforce" value={activeEmps.length}    tone="brand" />
-          <KpiTile icon={<FaCheckCircle />}  label="Present Today"    value={stats.present ?? 0}  tone="green" onClick={() => handleStatClick('present', 'Present Today')} />
-          <KpiTile icon={<FaUserClock />}    label="On Leave"         value={leaveCount}           tone="teal"  onClick={() => handleStatClick('leave', 'On Leave Today')} />
-          <KpiTile icon={<FaUserSlash />}    label="Not Checked In"   value={adjNotCheckedIn}      tone="slate" onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
+          <KpiTile icon={<TbUsers />}        label="Total Workforce" value={activeEmps.length}    tone="brand" />
+          <KpiTile icon={<TbCircleCheck />}  label="Present Today"    value={stats.present ?? 0}  tone="green" onClick={() => handleStatClick('present', 'Present Today')} />
+          <KpiTile icon={<TbUserPause />}    label="On Leave"         value={leaveCount}           tone="teal"  onClick={() => handleStatClick('leave', 'On Leave Today')} />
+          <KpiTile icon={<TbUserOff />}    label="Not Checked In"   value={adjNotCheckedIn}      tone="slate" onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
         </div>
 
         {/* Quick Launch */}
         <div className="card" style={{ marginTop: 16 }}>
           <h4 className="widget-title">Quick Launch</h4>
           <div className="quick-launch-grid">
-            <QuickLaunchItem icon={<FaUserPlus />} label="Add Employee" onClick={() => { setView("workforce"); setWorkforceTab("employees"); setSubView("add"); }} />
-            <QuickLaunchItem icon={<FaUsers />} label="Employee List" onClick={() => { setView("workforce"); setWorkforceTab("employees"); setSubView("list"); }} />
-            <QuickLaunchItem icon={<FaCalendarCheck />} label="Leave Requests" onClick={() => setView("leaves")} />
-            <QuickLaunchItem icon={<FaClock />} label="Attendance Logs" onClick={() => setView("attendance")} />
-            <QuickLaunchItem icon={<FaUserTie />} label="Managers" onClick={() => { setView("workforce"); setWorkforceTab("managers"); }} />
-            <QuickLaunchItem icon={<FaChartPie />} label="Reports" onClick={() => setView("summary")} />
-            <QuickLaunchItem icon={<FaCalendarAlt />} label="Holidays" onClick={() => setView("holidays")} />
-            <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
-            <QuickLaunchItem icon={<FaUserShield />} label="Grant Access" onClick={() => setView("grant-access")} />
-            <QuickLaunchItem icon={<FaBuilding />} label="Departments" onClick={() => setView("departments")} />
-            <QuickLaunchItem icon={<FaTasks />} label="Work & Clients" onClick={() => setView("work-clients")} />
-            <QuickLaunchItem icon={<FaLaptop />} label="Manage Assets" onClick={() => setView("assets")} />
+            <QuickLaunchItem icon={<TbUserPlus />} label="Add Employee" onClick={() => { setView("workforce"); setWorkforceTab("employees"); setSubView("add"); }} />
+            <QuickLaunchItem icon={<TbUsers />} label="Employee List" onClick={() => { setView("workforce"); setWorkforceTab("employees"); setSubView("list"); }} />
+            <QuickLaunchItem icon={<TbCalendarCheck />} label="Leave Requests" onClick={() => setView("leaves")} />
+            <QuickLaunchItem icon={<TbClock />} label="Attendance Logs" onClick={() => setView("attendance")} />
+            <QuickLaunchItem icon={<TbUserBolt />} label="Managers" onClick={() => { setView("workforce"); setWorkforceTab("managers"); }} />
+            <QuickLaunchItem icon={<TbChartPie />} label="Reports" onClick={() => setView("summary")} />
+            <QuickLaunchItem icon={<TbCalendar />} label="Holidays" onClick={() => setView("holidays")} />
+            <QuickLaunchItem icon={<TbSpeakerphone />} label="Announcements" onClick={() => setView("announcements")} />
+            <QuickLaunchItem icon={<TbShieldLock />} label="Grant Access" onClick={() => setView("grant-access")} />
+            <QuickLaunchItem icon={<TbBuilding />} label="Departments" onClick={() => setView("departments")} />
+            <QuickLaunchItem icon={<TbChecklist />} label="Work & Clients" onClick={() => setView("work-clients")} />
+            <QuickLaunchItem icon={<TbDeviceLaptop />} label="Manage Assets" onClick={() => setView("assets")} />
           </div>
         </div>
 
@@ -735,7 +734,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
             <div className="detail-header">
               <h3 style={{ margin: 0, color: 'var(--red)' }}>{detailTitle}</h3>
               <button className="btn ghost" onClick={() => setDetailModalOpen(false)} style={{padding:'4px 8px'}}>
-                <FaTimes />
+                <TbX />
               </button>
             </div>
             <div className="detail-list">
@@ -921,10 +920,10 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                             {c.status === "Pending" ? (
                               <div style={{ display: "flex", gap: 5 }}>
                                 <button className="btn-small" style={{ background: "green" }} onClick={() => approveCorrection(c._id, "Approved")}>
-                                  <FaCheckCircle /> Approve
+                                  <TbCircleCheck /> Approve
                                 </button>
                                 <button className="btn-small" style={{ background: "#b91c1c" }} onClick={() => approveCorrection(c._id, "Rejected")}>
-                                  <FaTimesCircle /> Reject
+                                  <TbCircleX /> Reject
                                 </button>
                               </div>
                             ) : (
@@ -1075,7 +1074,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                                     <td><span style={{ backgroundColor: grant.access_level === 'view_edit' ? '#dcfce7' : '#e0e7ff', color: grant.access_level === 'view_edit' ? '#16a34a' : '#4f46e5', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>{grant.access_level === 'view_edit' ? 'View & Edit' : 'View Only'}</span></td>
                                     <td>{grant.scope === 'today' ? 'Today' : grant.custom_date}</td>
                                     <td style={{ color: '#666' }}>{grant.expiry === 'end_of_day' ? 'End of Day' : new Date(grant.custom_expiry_time).toLocaleString()}</td>
-                                    <td><button className="btn-small ghost" style={{ color: 'var(--red)', border: '1px solid var(--red)' }} onClick={() => revokeAccess(grant._id)}><FaTrash style={{ marginRight: 5 }} /> Revoke</button></td>
+                                    <td><button className="btn-small ghost" style={{ color: 'var(--red)', border: '1px solid var(--red)' }} onClick={() => revokeAccess(grant._id)}><TbTrash style={{ marginRight: 5 }} /> Revoke</button></td>
                                 </tr>
                                 );
                             })

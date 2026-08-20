@@ -1,11 +1,11 @@
 ﻿import React, { useState, useEffect, useCallback } from "react";
 import { escHtml } from "../utils/security";
 import {
-  FaUserPlus, FaSearch, FaTimes, FaUsers, FaCheckCircle, FaHandshake, FaPercent,
-  FaFilePdf, FaLink, FaVideo, FaFolderOpen, FaPaperPlane, FaTrash, FaPlus, FaHistory,
-  FaBriefcase, FaEnvelopeOpenText, FaIdBadge, FaEye, FaDownload, FaEnvelope, FaFileExport,
-  FaCloudUploadAlt,
-} from "react-icons/fa";
+  TbUserPlus, TbSearch, TbX, TbUsers, TbCircleCheck, TbHeartHandshake, TbPercentage,
+  TbFileTypePdf, TbLink, TbVideo, TbFolderOpen, TbSend, TbTrash, TbPlus, TbHistory,
+  TbMailOpened, TbIdBadge, TbEye, TbDownload, TbMail, TbFileExport,
+  TbCloudUpload,
+} from "react-icons/tb";
 import { BarChart, DonutChart } from "./Charts";
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
 
@@ -347,7 +347,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
           <p className="small">Source, screen, interview and hire — all in one place</p>
         </div>
         <button className="btn" onClick={() => { setForm(blankCandidate()); setShowAdd(true); }} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <FaUserPlus size={12} /> Add Candidate
+          <TbUserPlus size={12} /> Add Candidate
         </button>
       </div>
 
@@ -364,10 +364,10 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginBottom: 16 }}>
             {[
-              { icon: <FaUsers />, label: "Total Candidates", value: stats?.total ?? safe.length, color: "var(--brand)", bg: "var(--brand-light)" },
-              { icon: <FaHandshake />, label: "Offers Released", value: stats?.offers_released ?? offersReleased, color: "#0f766e", bg: "#effdf8" },
-              { icon: <FaCheckCircle />, label: "Offers Accepted", value: stats?.offers_accepted ?? offersAccepted, color: "#16a34a", bg: "#f0fdf4" },
-              { icon: <FaPercent />, label: "Joining Ratio", value: `${stats?.joining_ratio ?? joiningRatio}%`, color: "#7c3aed", bg: "#f5f3ff" },
+              { icon: <TbUsers />, label: "Total Candidates", value: stats?.total ?? safe.length, color: "var(--brand)", bg: "var(--brand-light)" },
+              { icon: <TbHeartHandshake />, label: "Offers Released", value: stats?.offers_released ?? offersReleased, color: "#0f766e", bg: "#effdf8" },
+              { icon: <TbCircleCheck />, label: "Offers Accepted", value: stats?.offers_accepted ?? offersAccepted, color: "#16a34a", bg: "#f0fdf4" },
+              { icon: <TbPercentage />, label: "Joining Ratio", value: `${stats?.joining_ratio ?? joiningRatio}%`, color: "#7c3aed", bg: "#f5f3ff" },
             ].map(s => (
               <div key={s.label} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <div style={{ width: 46, height: 46, borderRadius: 12, background: s.bg, color: s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{s.icon}</div>
@@ -391,7 +391,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
         <div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
             <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-              <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+              <TbSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
               <input className="modern-input" placeholder="Search name, role, skill, company, location…" value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
             </div>
             <select className="modern-input" value={statusF} onChange={e => setStatusF(e.target.value)} style={{ margin: 0, maxWidth: 200 }}>
@@ -403,14 +403,14 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
               {depts.map(d => <option key={d}>{d}</option>)}
             </select>
             <button className="btn ghost" onClick={exportAllCSV} title="Export all filtered candidates as CSV / Excel" style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}>
-              <FaFileExport size={12} /> Export All (CSV)
+              <TbFileExport size={12} /> Export All (CSV)
             </button>
           </div>
 
           {loading ? <SkeletonTable rows={7} cols={7} />
           : filtered.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "50px 20px", color: "#94a3b8" }}>
-              <FaIdBadge size={34} style={{ opacity: 0.2, marginBottom: 10 }} />
+              <TbIdBadge size={34} style={{ opacity: 0.2, marginBottom: 10 }} />
               <p style={{ margin: 0 }}>No candidates found. Add your first one.</p>
             </div>
           ) : (
@@ -434,23 +434,23 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                             <div style={{ display: "inline-flex", gap: 6 }}>
                               <button title="View profile" onClick={() => setDetail(c)}
                                 style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#2563eb", width: 30, height: 30, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                                <FaEye size={12} />
+                                <TbEye size={12} />
                               </button>
                               <button title="Export as CSV / Excel" onClick={() => exportCandidateCSV(c)}
                                 style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", width: 30, height: 30, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                                <FaDownload size={11} />
+                                <TbDownload size={11} />
                               </button>
                               <button title="Export as PDF" onClick={() => exportCandidatePDF(c)}
                                 style={{ background: "#fef9f0", border: "1px solid #fed7aa", color: "#ea580c", width: 30, height: 30, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                                <FaFilePdf size={11} />
+                                <TbFileTypePdf size={11} />
                               </button>
                               <button title="Send document request link" onClick={() => sendDocRequest(c)}
                                 style={{ background: "var(--brand-light)", border: "1px solid #bbf7d0", color: "var(--brand)", width: 30, height: 30, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                                <FaPaperPlane size={11} />
+                                <TbSend size={11} />
                               </button>
                               <button title="Delete candidate" onClick={() => setPendingDelete(c)}
                                 style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", width: 30, height: 30, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                                <FaTrash size={12} />
+                                <TbTrash size={12} />
                               </button>
                             </div>
                           </td>
@@ -471,7 +471,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 640, width: "100%", maxHeight: "92vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid #e2e8f0", paddingBottom: 12 }}>
               <h3 style={{ margin: 0, color: "var(--brand)", fontSize: 16 }}>Add Candidate</h3>
-              <button onClick={() => setShowAdd(false)} style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#64748b" }}><FaTimes size={13} /></button>
+              <button onClick={() => setShowAdd(false)} style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#64748b" }}><TbX size={13} /></button>
             </div>
             <form onSubmit={addCandidate}>
               {(() => {
@@ -606,7 +606,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                           background: "var(--brand-light)", color: "var(--brand)", border: "1px solid #bbf7d0",
                           borderRadius: 8, padding: "8px 14px", cursor: uploadingResume ? "default" : "pointer", flexShrink: 0,
                         }}>
-                          <FaCloudUploadAlt size={13} /> {uploadingResume ? "Uploading…" : "Upload Resume"}
+                          <TbCloudUpload size={13} /> {uploadingResume ? "Uploading…" : "Upload Resume"}
                           <input type="file" accept=".pdf,.doc,.docx" hidden disabled={uploadingResume}
                             onChange={e => { const f = e.target.files?.[0]; if (f) uploadResumeFile(f); e.target.value = ""; }} />
                         </label>
@@ -647,7 +647,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
         <div className="modal-overlay" onClick={() => !deleting && setPendingDelete(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
             <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-              <div style={{ width: 42, height: 42, borderRadius: 12, background: "#fef2f2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><FaTrash size={16} /></div>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: "#fef2f2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><TbTrash size={16} /></div>
               <div style={{ flex: 1 }}>
                 <h3 style={{ margin: "0 0 6px", fontSize: 16, color: "#0f172a" }}>Delete candidate?</h3>
                 <p style={{ margin: 0, fontSize: 13.5, color: "#64748b", lineHeight: 1.5 }}>
@@ -659,7 +659,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
               <button className="btn ghost" type="button" onClick={() => setPendingDelete(null)} disabled={deleting}>Cancel</button>
               <button type="button" onClick={confirmDelete} disabled={deleting}
                 style={{ background: "#dc2626", color: "#fff", border: "none", borderRadius: 8, padding: "9px 18px", fontWeight: 600, fontSize: 13, cursor: deleting ? "default" : "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                <FaTrash size={11} /> {deleting ? "Deleting…" : "Delete"}
+                <TbTrash size={11} /> {deleting ? "Deleting…" : "Delete"}
               </button>
             </div>
           </div>
@@ -762,10 +762,10 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <button onClick={() => exportCandidateCSV(c)} title="Export as CSV / Excel" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: "#16a34a", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}><FaDownload size={11} /> CSV</button>
-            <button onClick={() => exportCandidatePDF(c)} title="Export as PDF" style={{ background: "#fef9f0", border: "1px solid #fed7aa", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: "#ea580c", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}><FaFilePdf size={11} /> PDF</button>
-            <button onClick={onDelete} title="Delete candidate" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#dc2626" }}><FaTrash size={13} /></button>
-            <button onClick={onClose} style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#64748b" }}><FaTimes size={14} /></button>
+            <button onClick={() => exportCandidateCSV(c)} title="Export as CSV / Excel" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: "#16a34a", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}><TbDownload size={11} /> CSV</button>
+            <button onClick={() => exportCandidatePDF(c)} title="Export as PDF" style={{ background: "#fef9f0", border: "1px solid #fed7aa", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: "#ea580c", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}><TbFileTypePdf size={11} /> PDF</button>
+            <button onClick={onDelete} title="Delete candidate" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#dc2626" }}><TbTrash size={13} /></button>
+            <button onClick={onClose} style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#64748b" }}><TbX size={14} /></button>
           </div>
         </div>
 
@@ -780,13 +780,13 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
               </select>
               <button onClick={sendStatusEmail} disabled={busy} title="Manually send status update email to candidate"
                 style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#2563eb", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
-                <FaEnvelope size={11} /> Send Email
+                <TbMail size={11} /> Send Email
               </button>
             </div>
           </div>
           {c.status_history?.length > 0 && (
             <div style={{ marginTop: 10, borderTop: "1px solid #eef1f5", paddingTop: 10 }}>
-              <div style={{ fontSize: 10.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}><FaHistory size={9} /> Audit Trail</div>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}><TbHistory size={9} /> Audit Trail</div>
               {c.status_history.slice().reverse().slice(0, 6).map((h, i) => (
                 <div key={i} style={{ fontSize: 12, color: "#475569", padding: "2px 0" }}>
                   <b>{h.status}</b> <span style={{ color: "#94a3b8" }}>— {h.at ? new Date(h.at).toLocaleString("en-GB") : ""}{h.by ? ` · ${h.by}` : ""}</span>
@@ -813,41 +813,41 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
         {c.remarks && <div style={{ marginBottom: 16, padding: "10px 14px", background: "#f8fafc", borderRadius: 8, fontSize: 13, color: "#475569" }}><b>Remarks:</b> {c.remarks}</div>}
         {c.resume_url && (
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-            <a href={cloudinaryViewUrl(c.resume_url)} target="_blank" rel="noreferrer" className="btn ghost" style={{ fontSize: 12.5, display: "inline-flex" }}><FaFilePdf /> View Resume</a>
+            <a href={cloudinaryViewUrl(c.resume_url)} target="_blank" rel="noreferrer" className="btn ghost" style={{ fontSize: 12.5, display: "inline-flex" }}><TbFileTypePdf /> View Resume</a>
             <button type="button" onClick={() => downloadFile(c.resume_url, `${(c.name || "candidate").replace(/\s+/g, "_")}_Resume.pdf`)}
               className="btn ghost" style={{ fontSize: 12.5, display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <FaDownload size={11} /> Download
+              <TbDownload size={11} /> Download
             </button>
           </div>
         )}
 
         {/* Recordings */}
-        <Section title="Interview & Assessment Recordings" icon={<FaVideo />}>
+        <Section title="Interview & Assessment Recordings" icon={<TbVideo />}>
           {(c.recordings || []).map((r, i) => (
             <a key={i} href={r.url} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#334155", padding: "6px 0", textDecoration: "none" }}>
-              <FaVideo size={12} color="#0f766e" /> <b>{r.type}</b> <FaLink size={10} color="#3b82f6" style={{ marginLeft: "auto" }} />
+              <TbVideo size={12} color="#0f766e" /> <b>{r.type}</b> <TbLink size={10} color="#3b82f6" style={{ marginLeft: "auto" }} />
             </a>
           ))}
           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
             <select className="modern-input" value={recType} onChange={e => setRecType(e.target.value)} style={{ margin: 0, maxWidth: 180, fontSize: 12.5 }}>{RECORDING_TYPES.map(t => <option key={t}>{t}</option>)}</select>
             <input className="modern-input" placeholder="Recording / file URL" value={recUrl} onChange={e => setRecUrl(e.target.value)} style={{ margin: 0, flex: 1, minWidth: 160 }} />
-            <button className="btn ghost" type="button" onClick={addRecording} disabled={busy} style={{ fontSize: 12.5 }}><FaPlus size={10} /> Add</button>
+            <button className="btn ghost" type="button" onClick={addRecording} disabled={busy} style={{ fontSize: 12.5 }}><TbPlus size={10} /> Add</button>
           </div>
         </Section>
 
         {/* Portfolio */}
-        <Section title="Portfolio & Links" icon={<FaFolderOpen />}>
+        <Section title="Portfolio & Links" icon={<TbFolderOpen />}>
           {(c.portfolio_links || []).map((p, i) => (
             <a key={i} href={p} target="_blank" rel="noreferrer" style={{ display: "block", fontSize: 13, color: "#3b82f6", padding: "4px 0", wordBreak: "break-all" }}>{p}</a>
           ))}
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <input className="modern-input" placeholder="Portfolio link (Behance, GitHub, Drive…)" value={portUrl} onChange={e => setPortUrl(e.target.value)} style={{ margin: 0, flex: 1 }} />
-            <button className="btn ghost" type="button" onClick={addPortfolio} disabled={busy} style={{ fontSize: 12.5 }}><FaPlus size={10} /> Add</button>
+            <button className="btn ghost" type="button" onClick={addPortfolio} disabled={busy} style={{ fontSize: 12.5 }}><TbPlus size={10} /> Add</button>
           </div>
         </Section>
 
         {/* Documents */}
-        <Section title="Documents" icon={<FaEnvelopeOpenText />}>
+        <Section title="Documents" icon={<TbMailOpened />}>
           {(c.documents || []).length === 0 && <div style={{ fontSize: 12.5, color: "#94a3b8", marginBottom: 8 }}>No documents submitted yet.</div>}
           {(c.documents || []).map((d, i) => {
             const dc = (d.status || "Pending");
@@ -860,7 +860,7 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
                     <a href={cloudinaryViewUrl(d.url)} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#3b82f6" }}>View</a>
                     <button type="button" onClick={() => downloadFile(d.url, `${d.name || "document"}.pdf`)}
                       style={{ background: "none", border: "none", cursor: "pointer", color: "var(--brand)", padding: 0, display: "flex", alignItems: "center" }} title="Download">
-                      <FaDownload size={12} />
+                      <TbDownload size={12} />
                     </button>
                   </>
                 )}
@@ -869,7 +869,7 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
             );
           })}
           <button className="btn" type="button" onClick={requestDocs} disabled={busy} style={{ marginTop: 10, fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}>
-            <FaPaperPlane size={11} /> Send Document Request Link
+            <TbSend size={11} /> Send Document Request Link
           </button>
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>Required: {DOC_TYPES.join(", ")}</div>
         </Section>

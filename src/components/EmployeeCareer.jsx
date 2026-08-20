@@ -1,8 +1,8 @@
 ﻿import React, { useState, useEffect, useRef } from "react";
 import {
-  FaBriefcase, FaMapMarkerAlt, FaClock, FaUsers,
-  FaPlus, FaTimes, FaCheckCircle, FaStar, FaFileUpload, FaFilePdf,
-} from "react-icons/fa";
+  TbBriefcase, TbMapPin, TbUsers,
+  TbX, TbCircleCheck, TbStar, TbFileUpload, TbFileTypePdf,
+} from "react-icons/tb";
 import { SkeletonList } from "./Skeleton";
 
 import { API_URL as BASE } from "../api";
@@ -138,7 +138,7 @@ export default function EmployeeCareer({ token, user }) {
         loading ? <SkeletonList count={4} />
         : safeJobs.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
-            <FaBriefcase size={40} style={{ opacity: 0.15, marginBottom: 12 }} />
+            <TbBriefcase size={40} style={{ opacity: 0.15, marginBottom: 12 }} />
             <h4 style={{ margin: "0 0 8px", color: "#64748b" }}>No open positions right now</h4>
             <p style={{ margin: 0, fontSize: 13 }}>Check back later for new opportunities.</p>
           </div>
@@ -158,8 +158,8 @@ export default function EmployeeCareer({ token, user }) {
                         <span style={{ fontSize: 11, fontWeight: 700, color: tc.color, background: tc.bg, padding: "2px 8px", borderRadius: 4 }}>{j.employment_type}</span>
                       </div>
                       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-                        {j.department && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><FaUsers size={10} /> {j.department}</span>}
-                        {j.location   && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><FaMapMarkerAlt size={10} /> {j.location}</span>}
+                        {j.department && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><TbUsers size={10} /> {j.department}</span>}
+                        {j.location   && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><TbMapPin size={10} /> {j.location}</span>}
                         {(j.salary_min || j.salary_max) && <span>₹{j.salary_min || "—"} – ₹{j.salary_max || "—"}/mo</span>}
                       </div>
                       {j.description && <p style={{ margin: "0 0 8px", fontSize: 13, color: "#475569", lineHeight: 1.5 }}>{j.description.slice(0, 120)}{j.description.length > 120 ? "…" : ""}</p>}
@@ -176,7 +176,7 @@ export default function EmployeeCareer({ token, user }) {
                       style={{ flexShrink: 0, fontSize: 12 }}
                       onClick={() => { setRefJobId(j._id); setTab("refer"); }}
                     >
-                      <FaStar size={10} /> Refer Someone
+                      <TbStar size={10} /> Refer Someone
                     </button>
                   </div>
                 </div>
@@ -197,7 +197,7 @@ export default function EmployeeCareer({ token, user }) {
               background: refMsg.includes("Thank") ? "#f0fdf4" : "#fef2f2",
               color:      refMsg.includes("Thank") ? "#16a34a"  : "#b91c1c",
               border: `1px solid ${refMsg.includes("Thank") ? "#bbf7d0" : "#fecaca"}` }}>
-              {refMsg.includes("Thank") && <FaCheckCircle style={{ marginRight: 6 }} />}{refMsg}
+              {refMsg.includes("Thank") && <TbCircleCheck style={{ marginRight: 6 }} />}{refMsg}
             </div>
           )}
 
@@ -238,12 +238,12 @@ export default function EmployeeCareer({ token, user }) {
               />
               {resumeFile ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8 }}>
-                  <FaFilePdf color="#dc2626" />
+                  <TbFileTypePdf color="#dc2626" />
                   <span style={{ flex: 1, fontSize: 13, color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{resumeFile.name}</span>
                   <span style={{ fontSize: 11, color: "#94a3b8" }}>{(resumeFile.size / 1024).toFixed(0)} KB</span>
                   <button type="button" onClick={() => { setResumeFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}>
-                    <FaTimes size={13} />
+                    <TbX size={13} />
                   </button>
                 </div>
               ) : (
@@ -252,7 +252,7 @@ export default function EmployeeCareer({ token, user }) {
                   padding: "12px", border: "1.5px dashed #cbd5e1", borderRadius: 8, cursor: "pointer",
                   color: "#64748b", fontSize: 13, fontWeight: 500, transition: "border-color 0.15s",
                 }}>
-                  <FaFileUpload /> Click to upload PDF resume
+                  <TbFileUpload /> Click to upload PDF resume
                 </label>
               )}
             </div>
@@ -277,7 +277,7 @@ export default function EmployeeCareer({ token, user }) {
         refsLoading ? <SkeletonList count={3} />
         : safeMyRefs.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "48px 20px", color: "#94a3b8" }}>
-            <FaStar size={36} style={{ opacity: 0.15, marginBottom: 12 }} />
+            <TbStar size={36} style={{ opacity: 0.15, marginBottom: 12 }} />
             <p style={{ margin: 0 }}>You haven't referred anyone yet.</p>
           </div>
         ) : (

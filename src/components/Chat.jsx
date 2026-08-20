@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  FaSearch, FaPaperPlane, FaHashtag, FaArrowLeft, FaPlus, FaTimes,
-  FaUsers, FaCommentDots, FaCheck, FaCircle, FaPen, FaTrash, FaEllipsisV, FaSignOutAlt, FaPhone
-} from "react-icons/fa";
+  TbSearch, TbSend, TbHash, TbArrowLeft, TbPlus, TbX,
+  TbUsers, TbMessageDots, TbCheck, TbCircle, TbPencil, TbTrash, TbDotsVertical, TbLogout, TbPhone
+} from "react-icons/tb";
 import { playNotifSound, showBrowserNotif, requestNotifPermission, prewarmAudio } from "../utils/notifications";
 import { useCall, CALL_LOG_PREFIX } from "./CallContext";
 
@@ -41,7 +41,7 @@ function Avatar({ name, size = 38, isChannel = false, online = false }) {
         color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
         fontWeight: 700, fontSize: size * 0.38,
       }}>
-        {isChannel ? <FaHashtag size={size * 0.42} /> : initials(safeName)}
+        {isChannel ? <TbHash size={size * 0.42} /> : initials(safeName)}
       </div>
       {online && !isChannel && (
         <span style={{
@@ -531,7 +531,7 @@ export default function Chat({ token, api, user }) {
     if (loadingMsgs) return <div className="gchat-empty"><div className="loader" /></div>;
     if (!messages.length) return (
       <div className="gchat-empty">
-        <FaCommentDots size={34} color="#cbd5e1" />
+        <TbMessageDots size={34} color="#cbd5e1" />
         <p>No messages yet — say hello 👋</p>
       </div>
     );
@@ -551,7 +551,7 @@ export default function Chat({ token, api, user }) {
           <React.Fragment key={m._id}>
             {showDay && <div className="gchat-day"><span>{day}</span></div>}
             <div className="gchat-call-log">
-              <FaPhone size={10} />
+              <TbPhone size={10} />
               <span>{m.text.replace(`${CALL_LOG_PREFIX} `, "")}</span>
               <span className="gchat-call-log-time">{fmtTime(m.created_at)}</span>
             </div>
@@ -588,18 +588,18 @@ export default function Chat({ token, api, user }) {
                   <span className="gchat-bubble-time">
                     {m.edited && <span style={{ marginRight: 4, fontStyle: "italic", opacity: 0.7 }}>edited</span>}
                     {fmtTime(m.created_at)}
-                    {mine && (m.pending ? " · sending…" : m.failed ? " · failed" : <FaCheck size={9} style={{ marginLeft: 4, opacity: 0.7 }} />)}
+                    {mine && (m.pending ? " · sending…" : m.failed ? " · failed" : <TbCheck size={9} style={{ marginLeft: 4, opacity: 0.7 }} />)}
                   </span>
                   {!m.pending && !m.failed && (
                     <div className="gchat-msg-actions">
-                      <button title="Message options" onClick={() => setMsgMenu(msgMenu === m._id ? null : m._id)}><FaEllipsisV size={11} /></button>
+                      <button title="Message options" onClick={() => setMsgMenu(msgMenu === m._id ? null : m._id)}><TbDotsVertical size={11} /></button>
                       {msgMenu === m._id && (
                         <>
                           <div className="gchat-menu-backdrop" onClick={() => setMsgMenu(null)} />
                           <div className={`gchat-msg-menu ${mine ? "mine" : ""}`}>
-                            {canEdit(m) && <button onClick={() => { setMsgMenu(null); startEdit(m); }}><FaPen size={10} /> Edit</button>}
-                            <button onClick={() => { setMsgMenu(null); deleteForMe(m); }}><FaTrash size={10} /> Delete for me</button>
-                            {canModify(m) && <button className="danger" onClick={() => { setMsgMenu(null); setConfirm({ title: "Delete message", message: "Delete this message for everyone? This cannot be undone.", danger: true, onConfirm: () => deleteForEveryone(m) }); }}><FaTrash size={10} /> Delete for everyone</button>}
+                            {canEdit(m) && <button onClick={() => { setMsgMenu(null); startEdit(m); }}><TbPencil size={10} /> Edit</button>}
+                            <button onClick={() => { setMsgMenu(null); deleteForMe(m); }}><TbTrash size={10} /> Delete for me</button>
+                            {canModify(m) && <button className="danger" onClick={() => { setMsgMenu(null); setConfirm({ title: "Delete message", message: "Delete this message for everyone? This cannot be undone.", danger: true, onConfirm: () => deleteForEveryone(m) }); }}><TbTrash size={10} /> Delete for everyone</button>}
                           </div>
                         </>
                       )}
@@ -653,11 +653,11 @@ export default function Chat({ token, api, user }) {
         <div className="gchat-rail-head">
           <h3>Messages</h3>
           <button className="gchat-new-btn" title="New channel" onClick={() => setShowNewChannel(true)}>
-            <FaPlus size={12} />
+            <TbPlus size={12} />
           </button>
         </div>
         <div className="gchat-search">
-          <FaSearch size={12} />
+          <TbSearch size={12} />
           <input placeholder="Search people or channels" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
 
@@ -685,7 +685,7 @@ export default function Chat({ token, api, user }) {
           ) : (
             <>
               {/* Channels */}
-              <div className="gchat-section-label"><FaUsers size={10} /> Channels</div>
+              <div className="gchat-section-label"><TbUsers size={10} /> Channels</div>
               {filteredChannels.length === 0 && <div className="gchat-rail-hint">No channels yet</div>}
               {filteredChannels.map(c => (
                 <button key={c._id} className={`gchat-item ${active?.id === c._id ? "active" : ""}`} onClick={() => openChannel(c)}>
@@ -702,7 +702,7 @@ export default function Chat({ token, api, user }) {
               ))}
 
               {/* Direct messages */}
-              <div className="gchat-section-label"><FaCommentDots size={10} /> Direct Messages</div>
+              <div className="gchat-section-label"><TbMessageDots size={10} /> Direct Messages</div>
               {filteredDms.length === 0 && <div className="gchat-rail-hint">No people found</div>}
               {filteredDms.map(e => (
                 <button key={e.key} className={`gchat-item ${active?.peerId === e.id || active?.id === e.conv?._id ? "active" : ""}`} onClick={() => openDmEntry(e)}>
@@ -726,7 +726,7 @@ export default function Chat({ token, api, user }) {
       <section className="gchat-thread">
         {!active ? (
           <div className="gchat-placeholder">
-            <FaCommentDots size={48} color="#cbd5e1" />
+            <TbMessageDots size={48} color="#cbd5e1" />
             <h3>Your conversations</h3>
             <p>Select a person or channel to start messaging your team.</p>
           </div>
@@ -734,7 +734,7 @@ export default function Chat({ token, api, user }) {
           <>
             <header className="gchat-thread-head">
               <button className="gchat-back" onClick={() => { setActive(null); setMobilePane("list"); }}>
-                <FaArrowLeft />
+                <TbArrowLeft />
               </button>
               <Avatar name={active.title} size={36} isChannel={active.type === "channel"} online={active.type === "dm" && isOnline(active.peerId)} />
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -747,9 +747,9 @@ export default function Chat({ token, api, user }) {
                   ) : active.type === "channel" ? (
                     "Channel"
                   ) : isOnline(active.peerId) ? (
-                    <><FaCircle size={7} color="#22c55e" /> Online</>
+                    <><TbCircle size={7} color="#22c55e" /> Online</>
                   ) : (
-                    <><FaCircle size={7} color="#cbd5e1" /> Offline</>
+                    <><TbCircle size={7} color="#cbd5e1" /> Offline</>
                   )}
                 </div>
               </div>
@@ -761,33 +761,33 @@ export default function Chat({ token, api, user }) {
                   disabled={!call || call.status !== "idle"}
                   style={{ color: "var(--brand)" }}
                 >
-                  <FaPhone size={14} />
+                  <TbPhone size={14} />
                 </button>
               )}
               <div className="gchat-menu-wrap">
                 <button className="gchat-menu-btn" title="Conversation options" onClick={() => setHeaderMenu(v => !v)}>
-                  <FaEllipsisV size={15} />
+                  <TbDotsVertical size={15} />
                 </button>
                 {headerMenu && (
                   <>
                     <div className="gchat-menu-backdrop" onClick={() => setHeaderMenu(false)} />
                     <div className="gchat-menu">
                       <button onClick={() => { setHeaderMenu(false); setConfirm({ title: "Clear chat for me", message: "Hide all messages in this conversation for you only? The other person keeps their copy.", onConfirm: clearForMe }); }}>
-                        <FaTrash size={11} /> Clear chat for me
+                        <TbTrash size={11} /> Clear chat for me
                       </button>
                       {canClearAll && (
                         <button className="danger" onClick={() => { setHeaderMenu(false); setConfirm({ title: "Clear chat for everyone", message: "Delete all messages in this conversation for everyone? This cannot be undone.", danger: true, onConfirm: clearForEveryone }); }}>
-                          <FaTrash size={11} /> Clear chat for everyone
+                          <TbTrash size={11} /> Clear chat for everyone
                         </button>
                       )}
                       {active.type === "channel" && (
                         <button onClick={() => { setHeaderMenu(false); setConfirm({ title: "Leave channel", message: `Leave "#${active.title}"? You'll stop receiving its messages.`, onConfirm: leaveChannel }); }}>
-                          <FaSignOutAlt size={12} /> Leave channel
+                          <TbLogout size={12} /> Leave channel
                         </button>
                       )}
                       {canDeleteChan && (
                         <button className="danger" onClick={() => { setHeaderMenu(false); setConfirm({ title: "Delete channel", message: `Delete the channel "#${active.title}" and all its messages for everyone? This cannot be undone.`, danger: true, onConfirm: deleteChannel }); }}>
-                          <FaTimes size={12} /> Delete channel
+                          <TbX size={12} /> Delete channel
                         </button>
                       )}
                     </div>
@@ -817,7 +817,7 @@ export default function Chat({ token, api, user }) {
                 onKeyDown={onComposerKey}
               />
               <button type="submit" className="gchat-send" disabled={!text.trim() || sending}>
-                <FaPaperPlane size={14} />
+                <TbSend size={14} />
               </button>
             </form>
           </>
@@ -846,7 +846,7 @@ export default function Chat({ token, api, user }) {
         <div className="modal-overlay" onClick={() => setConfirm(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
             <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-              <div style={{ width: 42, height: 42, borderRadius: 12, background: "#fef2f2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><FaTrash size={15} /></div>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: "#fef2f2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><TbTrash size={15} /></div>
               <div style={{ flex: 1 }}>
                 <h3 style={{ margin: "0 0 6px", fontSize: 16, color: "#0f172a" }}>{confirm.title}</h3>
                 <p style={{ margin: 0, fontSize: 13.5, color: "#64748b", lineHeight: 1.5 }}>{confirm.message}</p>
@@ -856,7 +856,7 @@ export default function Chat({ token, api, user }) {
               <button className="btn ghost" type="button" onClick={() => setConfirm(null)}>Cancel</button>
               <button type="button" onClick={() => { const fn = confirm.onConfirm; setConfirm(null); fn?.(); }}
                 style={{ background: "#dc2626", color: "#fff", border: "none", borderRadius: 8, padding: "9px 18px", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                <FaTrash size={11} /> Confirm
+                <TbTrash size={11} /> Confirm
               </button>
             </div>
           </div>
@@ -890,13 +890,13 @@ function NewChannelModal({ api, token, people, onClose, onCreated }) {
       <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0, color: "var(--brand)", fontSize: 17 }}>Create a Channel</h3>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><FaTimes /></button>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><TbX /></button>
         </div>
         {err && <div className="gchat-error" style={{ marginBottom: 12 }}>{err}</div>}
         <form onSubmit={create}>
           <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 6 }}>Channel name</label>
           <div style={{ position: "relative", marginBottom: 16 }}>
-            <FaHashtag size={12} style={{ position: "absolute", left: 12, top: 13, color: "#94a3b8" }} />
+            <TbHash size={12} style={{ position: "absolute", left: 12, top: 13, color: "#94a3b8" }} />
             <input className="modern-input" style={{ paddingLeft: 30 }} placeholder="e.g. design-team" value={name} onChange={e => setName(e.target.value)} />
           </div>
           <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 6 }}>
@@ -918,7 +918,7 @@ function NewChannelModal({ api, token, people, onClose, onCreated }) {
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{p.name}</div>
                     <div style={{ fontSize: 11, color: "#94a3b8" }}>{p.role || p.department || ""}</div>
                   </div>
-                  {on ? <FaCheck color="#16a34a" /> : <span style={{ width: 16, height: 16, border: "1.5px solid #cbd5e1", borderRadius: 4 }} />}
+                  {on ? <TbCheck color="#16a34a" /> : <span style={{ width: 16, height: 16, border: "1.5px solid #cbd5e1", borderRadius: 4 }} />}
                 </button>
               );
             })}

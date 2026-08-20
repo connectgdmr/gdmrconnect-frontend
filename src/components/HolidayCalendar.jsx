@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaPlus, FaTrash, FaTimes } from "react-icons/fa";
+import { TbPlus, TbTrash, TbX } from "react-icons/tb";
 
 // Backend (routes/calendar.py's GET/POST/DELETE /api/holidays, backed by
 // database.holidays_col) is the single source of truth — this tab, the
@@ -64,7 +64,7 @@ export default function HolidayCalendar({ token, api, canWrite = false }) {
         </div>
         {canWrite && (
           <button type="button" className="btn" style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }} onClick={() => setShowAdd(s => !s)}>
-            {showAdd ? <FaTimes size={12} /> : <FaPlus size={12} />} {showAdd ? "Cancel" : "Add Holiday"}
+            {showAdd ? <TbX size={12} /> : <TbPlus size={12} />} {showAdd ? "Cancel" : "Add Holiday"}
           </button>
         )}
       </div>
@@ -115,7 +115,7 @@ export default function HolidayCalendar({ token, api, canWrite = false }) {
                       title="Remove this holiday"
                       style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6, width: 28, height: 28, cursor: "pointer", color: "#dc2626", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                     >
-                      <FaTrash size={11} />
+                      <TbTrash size={11} />
                     </button>
                   </td>
                 )}

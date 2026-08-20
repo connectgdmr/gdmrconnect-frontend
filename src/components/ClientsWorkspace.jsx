@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import {
-  FaFolder, FaFolderPlus, FaFile, FaFilePdf, FaFileImage, FaFileWord, FaFileExcel,
-  FaPlus, FaTrash, FaEdit, FaSearch, FaCloudUploadAlt, FaArrowLeft, FaChevronRight,
-  FaBuilding, FaTimes, FaDownload, FaPaperPlane, FaClipboardList,
-} from "react-icons/fa";
+  TbFolder, TbFolderPlus, TbFile, TbFileTypePdf, TbFileTypeJpg, TbFileTypeDoc, TbFileTypeXls,
+  TbPlus, TbTrash, TbEdit, TbSearch, TbCloudUpload, TbArrowLeft, TbChevronRight,
+  TbBuilding, TbDownload, TbSend, TbClipboardList,
+} from "react-icons/tb";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 
 // One real Clients workspace for every role and every delegated-access caller —
@@ -24,12 +24,12 @@ const TINTS = [
 const tint = (i) => TINTS[i % TINTS.length];
 
 function fileIcon(mime) {
-  if (!mime) return FaFile;
-  if (mime.includes("pdf")) return FaFilePdf;
-  if (mime.startsWith("image/")) return FaFileImage;
-  if (mime.includes("word") || mime.includes("document")) return FaFileWord;
-  if (mime.includes("sheet") || mime.includes("excel")) return FaFileExcel;
-  return FaFile;
+  if (!mime) return TbFile;
+  if (mime.includes("pdf")) return TbFileTypePdf;
+  if (mime.startsWith("image/")) return TbFileTypeJpg;
+  if (mime.includes("word") || mime.includes("document")) return TbFileTypeDoc;
+  if (mime.includes("sheet") || mime.includes("excel")) return TbFileTypeXls;
+  return TbFile;
 }
 function fmtSize(bytes) {
   if (!bytes && bytes !== 0) return "";
@@ -174,7 +174,7 @@ export default function ClientsWorkspace({ token, api, ownDepartments }) {
           <h3 style={{ margin: 0, color: "var(--brand)" }}>
             {deptFilter ? (
               <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <button onClick={() => setDeptFilter(null)} title="Back to departments" style={{ border: "none", background: "none", cursor: "pointer", color: "var(--brand)", padding: 0, display: "flex" }}><FaArrowLeft size={15} /></button>
+                <button onClick={() => setDeptFilter(null)} title="Back to departments" style={{ border: "none", background: "none", cursor: "pointer", color: "var(--brand)", padding: 0, display: "flex" }}><TbArrowLeft size={15} /></button>
                 {deptFilter}
               </span>
             ) : "Clients"}
@@ -184,7 +184,7 @@ export default function ClientsWorkspace({ token, api, ownDepartments }) {
           </p>
         </div>
         <button className="btn" onClick={openAdd} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <FaPlus size={11} /> Add Client
+          <TbPlus size={11} /> Add Client
         </button>
       </div>
 
@@ -202,7 +202,7 @@ export default function ClientsWorkspace({ token, api, ownDepartments }) {
             return (
               <button key={d} onClick={() => setDeptFilter(d)} className="card" style={{ textAlign: "left", cursor: "pointer", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ width: 46, height: 46, borderRadius: 12, background: t.bg, color: t.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
-                  <FaBuilding />
+                  <TbBuilding />
                 </div>
                 <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 15 }}>{d}</div>
                 <div style={{ fontSize: 12, color: "#94a3b8" }}>{count} client{count === 1 ? "" : "s"}</div>
@@ -213,13 +213,13 @@ export default function ClientsWorkspace({ token, api, ownDepartments }) {
       ) : (
         <>
           <div style={{ position: "relative", marginBottom: 14, maxWidth: 340 }}>
-            <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+            <TbSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
             <input className="modern-input" placeholder="Search clients…" value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
           </div>
 
           {visibleClients.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "50px 20px", color: "#94a3b8" }}>
-              <FaFolder size={36} style={{ opacity: 0.2, marginBottom: 10 }} />
+              <TbFolder size={36} style={{ opacity: 0.2, marginBottom: 10 }} />
               <p style={{ margin: 0 }}>No clients {deptFilter ? "in this department" : ""} yet. Add one above.</p>
             </div>
           ) : (
@@ -230,12 +230,12 @@ export default function ClientsWorkspace({ token, api, ownDepartments }) {
                   <div key={c._id} className="card" style={{ display: "flex", flexDirection: "column", gap: 10, cursor: "pointer" }} onClick={() => setOpenClientId(c._id)}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                       <div style={{ width: 46, height: 46, borderRadius: 12, background: t.bg, color: t.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
-                        <FaFolder />
+                        <TbFolder />
                       </div>
                       {c.can_write && (
                         <div style={{ display: "flex", gap: 4 }} onClick={e => e.stopPropagation()}>
-                          <button className="btn-action" title="Edit" onClick={() => openEdit(c)}><FaEdit /></button>
-                          <button className="btn-action btn-remove" title="Delete" onClick={() => removeClient(c._id, c.name)}><FaTrash /></button>
+                          <button className="btn-action" title="Edit" onClick={() => openEdit(c)}><TbEdit /></button>
+                          <button className="btn-action btn-remove" title="Delete" onClick={() => removeClient(c._id, c.name)}><TbTrash /></button>
                         </div>
                       )}
                     </div>
@@ -330,7 +330,7 @@ function ClientDetail({ clientId, baseUrl, headers, jsonHeaders, onBack }) {
     <div style={{ marginTop: 16 }}>
       <div className="card" style={{ marginBottom: 16 }}>
         <button onClick={onBack} style={{ border: "none", background: "none", cursor: "pointer", color: "var(--brand)", display: "flex", alignItems: "center", gap: 6, padding: 0, marginBottom: 10, fontSize: 13, fontWeight: 600 }}>
-          <FaArrowLeft size={12} /> Back to Clients
+          <TbArrowLeft size={12} /> Back to Clients
         </button>
         <h3 style={{ margin: 0, color: "var(--brand)" }}>{client?.name || "…"}</h3>
         {client?.description && <p className="small" style={{ marginTop: 4 }}>{client.description}</p>}
@@ -417,7 +417,7 @@ function DriveTab({ clientId, baseUrl, headers, canWrite }) {
         <button onClick={() => setParentId(null)} style={{ border: "none", background: "none", cursor: "pointer", color: parentId ? "var(--brand)" : "#0f172a", fontWeight: parentId ? 500 : 700, padding: "2px 4px" }}>Root</button>
         {breadcrumb.map((b, i) => (
           <React.Fragment key={b._id}>
-            <FaChevronRight size={9} color="#cbd5e1" />
+            <TbChevronRight size={9} color="#cbd5e1" />
             <button onClick={() => setParentId(b._id)} style={{ border: "none", background: "none", cursor: "pointer", color: i === breadcrumb.length - 1 ? "#0f172a" : "var(--brand)", fontWeight: i === breadcrumb.length - 1 ? 700 : 500, padding: "2px 4px" }}>{b.name}</button>
           </React.Fragment>
         ))}
@@ -427,7 +427,7 @@ function DriveTab({ clientId, baseUrl, headers, canWrite }) {
         <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
           {newFolder === null ? (
             <button className="btn ghost" onClick={() => setNewFolder("")} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-              <FaFolderPlus size={12} /> New Folder
+              <TbFolderPlus size={12} /> New Folder
             </button>
           ) : (
             <form onSubmit={createFolder} style={{ display: "flex", gap: 6 }}>
@@ -437,7 +437,7 @@ function DriveTab({ clientId, baseUrl, headers, canWrite }) {
             </form>
           )}
           <label className="btn ghost" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: uploading ? "not-allowed" : "pointer", opacity: uploading ? 0.6 : 1 }}>
-            <FaCloudUploadAlt size={13} /> {uploading ? "Uploading…" : "Upload File"}
+            <TbCloudUpload size={13} /> {uploading ? "Uploading…" : "Upload File"}
             <input type="file" onChange={uploadFile} disabled={uploading} style={{ display: "none" }} />
           </label>
         </div>
@@ -446,13 +446,13 @@ function DriveTab({ clientId, baseUrl, headers, canWrite }) {
 
       {loading ? <SkeletonTable rows={4} cols={3} /> : items.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8" }}>
-          <FaFolder size={32} style={{ opacity: 0.2, marginBottom: 8 }} />
+          <TbFolder size={32} style={{ opacity: 0.2, marginBottom: 8 }} />
           <p style={{ margin: 0 }}>This folder is empty.</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {items.map(it => {
-            const Icon = it.type === "folder" ? FaFolder : fileIcon(it.mime_type);
+            const Icon = it.type === "folder" ? TbFolder : fileIcon(it.mime_type);
             return (
               <div key={it._id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 8px", borderRadius: 8, cursor: it.type === "folder" ? "pointer" : "default" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}
@@ -463,10 +463,10 @@ function DriveTab({ clientId, baseUrl, headers, canWrite }) {
                   {it.type === "file" && <div style={{ fontSize: 11, color: "#94a3b8" }}>{fmtSize(it.size)} · {fmtWhen(it.created_at)}</div>}
                 </div>
                 {it.type === "file" && it.url && (
-                  <a href={it.url} target="_blank" rel="noreferrer" title="Download" onClick={e => e.stopPropagation()} style={{ color: "#0f766e", padding: 6 }}><FaDownload size={13} /></a>
+                  <a href={it.url} target="_blank" rel="noreferrer" title="Download" onClick={e => e.stopPropagation()} style={{ color: "#0f766e", padding: 6 }}><TbDownload size={13} /></a>
                 )}
                 {canWrite && (
-                  <button title="Delete" onClick={e => { e.stopPropagation(); removeItem(it); }} style={{ border: "none", background: "none", cursor: "pointer", color: "#dc2626", padding: 6 }}><FaTrash size={13} /></button>
+                  <button title="Delete" onClick={e => { e.stopPropagation(); removeItem(it); }} style={{ border: "none", background: "none", cursor: "pointer", color: "#dc2626", padding: 6 }}><TbTrash size={13} /></button>
                 )}
               </div>
             );
@@ -510,14 +510,14 @@ function UpdatesTab({ clientId, baseUrl, headers, jsonHeaders, canWrite }) {
         <form onSubmit={post} style={{ display: "flex", gap: 10, marginBottom: 18 }}>
           <input className="modern-input" value={text} onChange={e => setText(e.target.value)} placeholder="Post an update on this client…" style={{ margin: 0, flex: 1 }} />
           <button className="btn" type="submit" disabled={posting} style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-            <FaPaperPlane size={11} /> {posting ? "Posting…" : "Post"}
+            <TbSend size={11} /> {posting ? "Posting…" : "Post"}
           </button>
         </form>
       )}
 
       {loading ? <SkeletonTable rows={4} cols={2} /> : updates.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8" }}>
-          <FaClipboardList size={32} style={{ opacity: 0.2, marginBottom: 8 }} />
+          <TbClipboardList size={32} style={{ opacity: 0.2, marginBottom: 8 }} />
           <p style={{ margin: 0 }}>No work logged for this client yet.</p>
           <p style={{ fontSize: 12, marginTop: 4 }}>Tasks tagged to this client in Daily Work Plan show up here automatically.</p>
         </div>

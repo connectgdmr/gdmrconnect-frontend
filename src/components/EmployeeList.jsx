@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import {
-  FaTrash, FaUserShield, FaSearch, FaFilter, FaUserTie, FaUser,
-  FaEdit, FaUserClock, FaTimes, FaPlus, FaExclamationTriangle,
-  FaSun, FaMoon, FaRegClock,
-} from "react-icons/fa";
+  TbTrash, TbShieldLock, TbSearch, TbFilter, TbUserBolt, TbUser,
+  TbEdit, TbUserPause, TbX, TbPlus, TbAlertTriangle,
+  TbSun, TbMoon, TbClock,
+} from "react-icons/tb";
 import { SkeletonTable } from "./Skeleton";
 import EmployeeJourneyModal from "./EmployeeJourneyModal";
 
 const SHIFTS = [
-  { key: "general", label: "General Shift", hours: "9 AM – 6 PM",  icon: <FaRegClock size={11} />, color: "#0f766e", bg: "#effdf8", border: "#b6e6d6" },
-  { key: "morning", label: "Morning Shift", hours: "10 AM – 7 PM", icon: <FaSun  size={11} />, color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
-  { key: "night",   label: "Night Shift",   hours: "7 PM – 4 AM",  icon: <FaMoon size={11} />, color: "#6d28d9", bg: "#f5f3ff", border: "#ddd6fe" },
+  { key: "general", label: "General Shift", hours: "9 AM – 6 PM",  icon: <TbClock size={11} />, color: "#0f766e", bg: "#effdf8", border: "#b6e6d6" },
+  { key: "morning", label: "Morning Shift", hours: "10 AM – 7 PM", icon: <TbSun  size={11} />, color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+  { key: "night",   label: "Night Shift",   hours: "7 PM – 4 AM",  icon: <TbMoon size={11} />, color: "#6d28d9", bg: "#f5f3ff", border: "#ddd6fe" },
 ];
 
 function ShiftBadge({ shift }) {
@@ -187,7 +187,7 @@ function StatusModal({ employee, onClose, onRefresh, api, token }) {
             onClick={onClose}
             style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, lineHeight: 1 }}
           >
-            <FaTimes size={15} />
+            <TbX size={15} />
           </button>
         </div>
 
@@ -237,7 +237,7 @@ function StatusModal({ employee, onClose, onRefresh, api, token }) {
                             title="Remove record"
                             style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: 4, lineHeight: 1 }}
                           >
-                            <FaTimes size={13} />
+                            <TbX size={13} />
                           </button>
                         </div>
                       ))}
@@ -283,7 +283,7 @@ function StatusModal({ employee, onClose, onRefresh, api, token }) {
 
                   <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid #f1f5f9", paddingTop: 14 }}>
                     <button className="btn" type="submit" disabled={saving} style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                      <FaPlus size={11} />
+                      <TbPlus size={11} />
                       {saving ? "Saving…" : "Record Leave"}
                     </button>
                   </div>
@@ -301,7 +301,7 @@ function StatusModal({ employee, onClose, onRefresh, api, token }) {
                       borderRadius: 10, padding: "16px 20px", marginBottom: 20,
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                        <FaExclamationTriangle color="#dc2626" size={14} />
+                        <TbAlertTriangle color="#dc2626" size={14} />
                         <span style={{ fontWeight: 700, color: "#b91c1c", fontSize: 14 }}>Resignation on Record</span>
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 13 }}>
@@ -451,7 +451,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
       {/* Search & filter header */}
       <div className="list-header">
         <div className="search-bar">
-          <FaSearch color="#94a3b8" />
+          <TbSearch color="#94a3b8" />
           <input
             type="text"
             placeholder="Search by name, email, or department..."
@@ -460,7 +460,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
           />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <FaFilter color="#94a3b8" />
+          <TbFilter color="#94a3b8" />
           <select className="filter-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
             <option value="All">All Roles</option>
             <option value="employee">Employees Only</option>
@@ -517,7 +517,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                       {emp.department || "No Department"}
                     </div>
                     <span className={`role-badge ${emp.role === "manager" ? "role-manager" : "role-employee"}`}>
-                      {emp.role === "manager" ? <FaUserTie /> : <FaUser />} {emp.role}
+                      {emp.role === "manager" ? <TbUserBolt /> : <TbUser />} {emp.role}
                     </span>
                   </td>
                   <td>
@@ -538,18 +538,18 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                   <td onClick={e => e.stopPropagation()}>
                     <div className="action-btn-group">
                       <button className="btn-action btn-edit" onClick={() => handleEditClick(emp)} title="Edit employee details">
-                        <FaEdit />
+                        <TbEdit />
                       </button>
                       <button className="btn-action btn-status" onClick={() => setStatusEmployee(emp)} title="Employment status">
-                        <FaUserClock />
+                        <TbUserPause />
                       </button>
                       {emp.role === "employee" && (
                         <button className="btn-action btn-promote" onClick={() => onPromote(emp._id)} title="Promote to Manager">
-                          <FaUserShield />
+                          <TbShieldLock />
                         </button>
                       )}
                       <button className="btn-action btn-remove" onClick={() => handleDeleteClick(emp._id)} title="Remove employee">
-                        <FaTrash />
+                        <TbTrash />
                       </button>
                     </div>
                   </td>
@@ -588,7 +588,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
       {showDeleteModal && (
         <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ textAlign: "center" }}>
-            <FaTrash size={38} color="#dc2626" style={{ marginBottom: 14 }} />
+            <TbTrash size={38} color="#dc2626" style={{ marginBottom: 14 }} />
             <h3 style={{ marginTop: 0, color: "#0f172a" }}>Delete Employee?</h3>
             <p style={{ color: "#64748b" }}>This action cannot be undone and will erase all historical attendance data.</p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 24 }}>

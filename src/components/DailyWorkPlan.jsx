@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaPlus, FaTimes, FaCheckCircle, FaPaperPlane, FaTasks, FaCopy, FaShareAlt } from "react-icons/fa";
+import { TbPlus, TbX, TbCircleCheck, TbSend, TbChecklist, TbCopy, TbShare } from "react-icons/tb";
 
 import { API_URL as BASE } from "../api";
 
@@ -151,23 +151,23 @@ export default function DailyWorkPlan({ token, user }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 38, height: 38, borderRadius: 11, background: "var(--brand-light)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <FaTasks color="var(--brand)" size={16} />
+            <TbChecklist color="var(--brand)" size={16} />
           </div>
           <div>
             <h4 style={{ margin: 0, fontSize: 15, color: "#0f172a" }}>What are you working on right now?</h4>
             <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
               {status === "submitted"
-                ? <span style={{ color: "#16a34a", fontWeight: 600 }}><FaCheckCircle size={11} /> Plan submitted · {completed}/{withTitles} done</span>
+                ? <span style={{ color: "#16a34a", fontWeight: 600 }}><TbCircleCheck size={11} /> Plan submitted · {completed}/{withTitles} done</span>
                 : status === "draft" ? "Draft saved — submit when ready" : "Log it so your manager knows your focus"}
             </div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn ghost" style={{ fontSize: 12, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }} onClick={copyStatus} disabled={withTitles === 0}>
-            <FaCopy size={10} /> Copy Status
+            <TbCopy size={10} /> Copy Status
           </button>
           <button className="btn ghost" style={{ fontSize: 12, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }} onClick={shareStatus} disabled={sharing || withTitles === 0}>
-            <FaShareAlt size={10} /> {sharing ? "Sharing…" : "Share Status"}
+            <TbShare size={10} /> {sharing ? "Sharing…" : "Share Status"}
           </button>
         </div>
       </div>
@@ -249,7 +249,7 @@ export default function DailyWorkPlan({ token, user }) {
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", flexShrink: 0 }}>{i + 1}.</span>
                 <input className="modern-input" style={{ margin: 0, flex: 1 }} placeholder="What's the task?" value={t.title} onChange={e => updateTask(t.id, { title: e.target.value })} />
-                {tasks.length > 1 && <button onClick={() => removeTask(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", flexShrink: 0 }}><FaTimes size={13} /></button>}
+                {tasks.length > 1 && <button onClick={() => removeTask(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", flexShrink: 0 }}><TbX size={13} /></button>}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
                 <select className="modern-input" style={{ margin: 0, fontSize: 12.5 }} value={t.work_type} onChange={e => updateTask(t.id, { work_type: e.target.value })}>
@@ -290,11 +290,11 @@ export default function DailyWorkPlan({ token, user }) {
       {editing && (
         <>
           <button onClick={addTask} style={{ marginTop: 10, background: "none", border: "1px dashed #cbd5e1", borderRadius: 8, padding: "8px 14px", cursor: "pointer", color: "#64748b", fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center" }}>
-            <FaPlus size={10} /> Add Task
+            <TbPlus size={10} /> Add Task
           </button>
           <div style={{ display: "flex", gap: 10, marginTop: 14, justifyContent: "flex-end", borderTop: "1px solid #f1f5f9", paddingTop: 14 }}>
             <button className="btn ghost" disabled={saving} onClick={() => save(false)} style={{ fontSize: 13 }}>Save Draft</button>
-            <button className="btn" disabled={saving} onClick={() => save(true)} style={{ fontSize: 13 }}><FaPaperPlane size={11} /> {saving ? "Submitting…" : "Submit Plan"}</button>
+            <button className="btn" disabled={saving} onClick={() => save(true)} style={{ fontSize: 13 }}><TbSend size={11} /> {saving ? "Submitting…" : "Submit Plan"}</button>
           </div>
         </>
       )}

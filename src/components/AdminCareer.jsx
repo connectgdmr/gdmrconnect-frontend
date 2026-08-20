@@ -1,9 +1,9 @@
 ﻿import React, { useState, useEffect } from "react";
 import {
-  FaPlus, FaTimes, FaEdit, FaBriefcase, FaMapMarkerAlt,
-  FaClock, FaUsers, FaLink, FaSearch, FaCheckCircle,
-  FaTimesCircle, FaRegClock, FaStar,
-} from "react-icons/fa";
+  TbPlus, TbX, TbEdit, TbBriefcase, TbMapPin,
+  TbClock, TbUsers, TbLink, TbSearch,
+  TbStar,
+} from "react-icons/tb";
 import { SkeletonList, SkeletonTable } from "./Skeleton";
 
 import { API_URL as BASE } from "../api";
@@ -198,7 +198,7 @@ export default function AdminCareer({ token, employees = [] }) {
           <p className="small">Post job openings and manage employee referrals</p>
         </div>
         <button className="btn" onClick={startCreate} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <FaPlus size={11} /> Post a Job
+          <TbPlus size={11} /> Post a Job
         </button>
       </div>
 
@@ -247,7 +247,7 @@ export default function AdminCareer({ token, employees = [] }) {
           {jobsLoading ? <SkeletonList count={4} />
           : filteredJobs.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
-              <FaBriefcase size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
+              <TbBriefcase size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
               <p style={{ margin: 0 }}>No job postings yet. Post the first one!</p>
             </div>
           ) : (
@@ -270,10 +270,10 @@ export default function AdminCareer({ token, employees = [] }) {
                           </span>
                         </div>
                         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: "#64748b" }}>
-                          {j.department && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><FaUsers size={10} />{j.department}</span>}
-                          {j.location   && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><FaMapMarkerAlt size={10} />{j.location}</span>}
+                          {j.department && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><TbUsers size={10} />{j.department}</span>}
+                          {j.location   && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><TbMapPin size={10} />{j.location}</span>}
                           {(j.salary_min || j.salary_max) && <span style={{ display: "flex", alignItems: "center", gap: 4 }}>₹{j.salary_min || "—"} – ₹{j.salary_max || "—"}/mo</span>}
-                          {j.created_at && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><FaClock size={10} />Posted {new Date(j.created_at).toLocaleDateString("en-GB")}</span>}
+                          {j.created_at && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><TbClock size={10} />Posted {new Date(j.created_at).toLocaleDateString("en-GB")}</span>}
                         </div>
                         {reqs.length > 0 && (
                           <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 5 }}>
@@ -285,7 +285,7 @@ export default function AdminCareer({ token, employees = [] }) {
                         )}
                       </div>
                       <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                        <button className="btn-action btn-edit" onClick={() => startEdit(j)} title="Edit"><FaEdit /></button>
+                        <button className="btn-action btn-edit" onClick={() => startEdit(j)} title="Edit"><TbEdit /></button>
                         <button
                           className="btn ghost"
                           onClick={() => toggleJobStatus(j)}
@@ -293,7 +293,7 @@ export default function AdminCareer({ token, employees = [] }) {
                         >
                           {j.status === "active" ? "Close" : "Reopen"}
                         </button>
-                        <button className="btn-action btn-remove" onClick={() => deleteJob(j._id)} title="Delete"><FaTimes /></button>
+                        <button className="btn-action btn-remove" onClick={() => deleteJob(j._id)} title="Delete"><TbX /></button>
                       </div>
                     </div>
                   </div>
@@ -363,7 +363,7 @@ export default function AdminCareer({ token, employees = [] }) {
                     <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, padding: "4px 10px", background: "#f1f5f9", borderRadius: 6, color: "#334155" }}>
                       {r}
                       <button type="button" onClick={() => setJobForm(f => ({ ...f, requirements: f.requirements.filter((_, j) => j !== i) }))} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 0 }}>
-                        <FaTimes size={10} />
+                        <TbX size={10} />
                       </button>
                     </span>
                   ))}
@@ -399,7 +399,7 @@ export default function AdminCareer({ token, employees = [] }) {
           {/* Filters */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
             <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
-              <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+              <TbSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
               <input className="modern-input" placeholder="Search candidate or referrer…" value={refSearch} onChange={e => setRefSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
             </div>
             <select className="modern-input" value={refJobFilter} onChange={e => setRefJobFilter(e.target.value)} style={{ margin: 0, flex: 1, minWidth: 160 }}>
@@ -415,7 +415,7 @@ export default function AdminCareer({ token, employees = [] }) {
           {refLoading ? <SkeletonTable rows={6} cols={7} />
           : filteredReferrals.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
-              <FaUsers size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
+              <TbUsers size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
               <p style={{ margin: 0 }}>No referrals yet.</p>
             </div>
           ) : (
@@ -445,7 +445,7 @@ export default function AdminCareer({ token, employees = [] }) {
                           </td>
                           <td style={{ fontSize: 13, color: "#475569" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <FaStar size={11} color="#f59e0b" />
+                              <TbStar size={11} color="#f59e0b" />
                               {r.referred_by_name || "—"}
                             </div>
                           </td>
@@ -459,12 +459,12 @@ export default function AdminCareer({ token, employees = [] }) {
                                     onClick={() => downloadResume(r.resume_file_url, `${(r.candidate_name || "resume").replace(/\s+/g, "_")}.pdf`)}
                                     style={{ color: "#dc2626", fontSize: 12, display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", padding: 0 }}
                                   >
-                                    <FaLink size={10} /> Download PDF
+                                    <TbLink size={10} /> Download PDF
                                   </button>
                                 )}
                                 {r.resume_url && (
                                   <a href={r.resume_url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
-                                    <FaLink size={10} /> Link
+                                    <TbLink size={10} /> Link
                                   </a>
                                 )}
                               </div>

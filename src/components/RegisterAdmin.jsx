@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaUserShield, FaTrash } from "react-icons/fa";
+import { TbShieldLock, TbTrash } from "react-icons/tb";
 
 const MAX_ADMINS = 3;
 
@@ -68,7 +68,7 @@ export default function RegisterAdmin({ token, api, user }) {
   return (
     <div className="card">
       <h3 style={{ color: "var(--brand)", display: "flex", alignItems: "center", gap: 8 }}>
-        <FaUserShield /> Create Admin Account
+        <TbShieldLock /> Create Admin Account
       </h3>
       <p className="small">
         Creates a full admin account with all admin powers and features.
@@ -145,7 +145,7 @@ export default function RegisterAdmin({ token, api, user }) {
                           color: isSelf ? "#cbd5e1" : "#dc2626",
                         }}
                       >
-                        <FaTrash />
+                        <TbTrash />
                       </button>
                     </td>
                   </tr>

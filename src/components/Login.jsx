@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from "react";
 import Logo from "../assets/GDMR-LOGO-unit.png";
-import { FaEye, FaEyeSlash, FaUsers, FaMoneyBillWave, FaUserTag, FaGraduationCap, FaBuilding, FaChartArea, FaCommentDots } from "react-icons/fa";
+import { TbEye, TbEyeOff, TbUsers, TbCurrencyDollar, TbUserSearch, TbSchool, TbBuilding, TbChartArea, TbMessageDots } from "react-icons/tb";
 import { cleanEmail, isValidEmail } from "../utils/security";
 
 const MAX_ATTEMPTS = 5;
 const COOLDOWN_SECONDS = 30;
 
 const FEATURES = [
-  { icon: <FaUsers />,         label: "HR, Attendance & Leave Management" },
-  { icon: <FaMoneyBillWave />, label: "Payroll, PMS & Performance Reviews" },
-  { icon: <FaUserTag />,       label: "Recruitment & Applicant Tracking (ATS)" },
-  { icon: <FaGraduationCap />, label: "Learning Management System (LMS)" },
-  { icon: <FaBuilding />,      label: "Client & Asset Management" },
-  { icon: <FaChartArea />,     label: "Work Planning, Analytics & Reports" },
-  { icon: <FaCommentDots />,   label: "Team Collaboration & Real-time Chat" },
+  { icon: <TbUsers />,         label: "HR, Attendance & Leave Management" },
+  { icon: <TbCurrencyDollar />, label: "Payroll, PMS & Performance Reviews" },
+  { icon: <TbUserSearch />,    label: "Recruitment & Applicant Tracking (ATS)" },
+  { icon: <TbSchool />,        label: "Learning Management System (LMS)" },
+  { icon: <TbBuilding />,      label: "Client & Asset Management" },
+  { icon: <TbChartArea />,     label: "Work Planning, Analytics & Reports" },
+  { icon: <TbMessageDots />,   label: "Team Collaboration & Real-time Chat" },
 ];
 
 export default function Login({ onLogin, api }) {
@@ -221,7 +221,7 @@ export default function Login({ onLogin, api }) {
                     className="login-eye-toggle"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    {showPassword ? <TbEyeOff /> : <TbEye />}
                   </button>
                 </div>
                 <div className="login-forgot">

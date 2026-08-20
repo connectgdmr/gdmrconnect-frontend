@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { escHtml } from "../utils/security";
 import {
-  FaFileCsv, FaFilePdf, FaChartBar, FaChartLine,
-  FaCheckCircle, FaTimesCircle, FaExclamationTriangle,
-  FaUsers, FaCalendarAlt, FaArrowUp, FaArrowDown,
-  FaTrophy, FaSearch, FaFilter, FaTable,
-} from "react-icons/fa";
+  TbFileTypeCsv, TbFileTypePdf, TbChartBar, TbChartLine,
+  TbCircleCheck, TbCircleX, TbAlertTriangle,
+  TbUsers, TbCalendar, TbArrowUp, TbArrowDown,
+  TbTrophy, TbSearch, TbFilter, TbTable,
+} from "react-icons/tb";
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
 import EmployeeJourneyModal from "./EmployeeJourneyModal";
 
@@ -414,11 +414,11 @@ function exportHrReport(fmt, title, columns, rows, periodLabel, filenameBase) {
 
 // ─── SEVERITY CONFIG (standard icons, no AI branding) ─────────────────────────
 const SEV_CONFIG = {
-  success:  { bg: "var(--success-bg)",  border: "var(--success-border)",  accent: C_BRAND,  Icon: FaCheckCircle },
-  info:     { bg: "var(--info-bg)",     border: "var(--info-border)",     accent: C_INFO,   Icon: FaCalendarAlt },
-  warning:  { bg: "var(--warning-bg)",  border: "var(--warning-border)",  accent: C_WARN,   Icon: FaExclamationTriangle },
-  critical: { bg: "var(--error-bg)",    border: "var(--error-border)",    accent: C_DANGER, Icon: FaTimesCircle },
-  tip:      { bg: "#f5f3ff",            border: "#ddd6fe",                accent: "#7c3aed", Icon: FaTrophy },
+  success:  { bg: "var(--success-bg)",  border: "var(--success-border)",  accent: C_BRAND,  Icon: TbCircleCheck },
+  info:     { bg: "var(--info-bg)",     border: "var(--info-border)",     accent: C_INFO,   Icon: TbCalendar },
+  warning:  { bg: "var(--warning-bg)",  border: "var(--warning-border)",  accent: C_WARN,   Icon: TbAlertTriangle },
+  critical: { bg: "var(--error-bg)",    border: "var(--error-border)",    accent: C_DANGER, Icon: TbCircleX },
+  tip:      { bg: "#f5f3ff",            border: "#ddd6fe",                accent: "#7c3aed", Icon: TbTrophy },
 };
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
@@ -739,11 +739,11 @@ export default function AdminAttendanceSummary({ token, api }) {
   ];
 
   const tabs = [
-    { id: "overview",   label: "Overview",    icon: <FaCalendarAlt size={11} /> },
-    { id: "analytics",  label: "Analytics",   icon: <FaChartBar size={11} />    },
-    { id: "employees",  label: "Employees",   icon: <FaUsers size={11} />       },
-    { id: "hr-reports", label: "HR Reports",  icon: <FaFilter size={11} />      },
-    { id: "insights",   label: "Insights",    icon: <FaTrophy size={11} />      },
+    { id: "overview",   label: "Overview",    icon: <TbCalendar size={11} /> },
+    { id: "analytics",  label: "Analytics",   icon: <TbChartBar size={11} />    },
+    { id: "employees",  label: "Employees",   icon: <TbUsers size={11} />       },
+    { id: "hr-reports", label: "HR Reports",  icon: <TbFilter size={11} />      },
+    { id: "insights",   label: "Insights",    icon: <TbTrophy size={11} />      },
   ];
 
   const riskBadge = (e) => {
@@ -792,7 +792,7 @@ export default function AdminAttendanceSummary({ token, api }) {
               className="modern-input"
               style={{ width: "auto", margin: 0, padding: "8px 12px", fontSize: 13, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}
             >
-              <FaCalendarAlt size={12} color="var(--slate-400)" />
+              <TbCalendar size={12} color="var(--slate-400)" />
               {formatMonthsLabel(months)}
             </button>
 
@@ -838,10 +838,10 @@ export default function AdminAttendanceSummary({ token, api }) {
             )}
           </div>
           <button onClick={() => handleExport("csv")} className="btn ghost" style={{ padding: "8px 14px", fontSize: 12.5 }}>
-            <FaFileCsv /> CSV
+            <TbFileTypeCsv /> CSV
           </button>
           <button onClick={() => handleExport("pdf")} className="btn" style={{ padding: "8px 14px", fontSize: 12.5 }}>
-            <FaFilePdf /> PDF
+            <TbFileTypePdf /> PDF
           </button>
         </div>
       </div>
@@ -856,7 +856,7 @@ export default function AdminAttendanceSummary({ token, api }) {
                 {k.value}
                 {k.showTrend && trendDir && trendDir !== "flat" && (
                   <span style={{ fontSize: 11, fontWeight: 700, color: trendDir === "up" ? C_BRAND : C_DANGER, display: "flex", alignItems: "center", gap: 2 }}>
-                    {trendDir === "up" ? <FaArrowUp size={9} /> : <FaArrowDown size={9} />}
+                    {trendDir === "up" ? <TbArrowUp size={9} /> : <TbArrowDown size={9} />}
                     {trendPct?.toFixed(0)}%
                   </span>
                 )}
@@ -922,7 +922,7 @@ export default function AdminAttendanceSummary({ token, api }) {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <div className="card">
                   <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
-                    <FaTrophy size={12} color={C_WARN} />
+                    <TbTrophy size={12} color={C_WARN} />
                     <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate-400)" }}>Peak Days</span>
                   </div>
                   {(bestDays?.length ? bestDays : []).map(([date, d], i) => (
@@ -937,7 +937,7 @@ export default function AdminAttendanceSummary({ token, api }) {
                 </div>
                 <div className="card">
                   <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
-                    <FaExclamationTriangle size={11} color={C_DANGER} />
+                    <TbAlertTriangle size={11} color={C_DANGER} />
                     <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate-400)" }}>Lowest Days</span>
                   </div>
                   {(worstDays?.length ? worstDays : []).map(([date, d], i) => (
@@ -957,7 +957,7 @@ export default function AdminAttendanceSummary({ token, api }) {
           {/* Daily log table */}
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "13px 18px", borderBottom: "1px solid var(--slate-100)", display: "flex", alignItems: "center", gap: 8 }}>
-              <FaTable size={12} color="var(--slate-400)" />
+              <TbTable size={12} color="var(--slate-400)" />
               <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate-400)" }}>Daily Log — working days only (Mon–Fri + last Saturday)</span>
             </div>
             <div style={{ overflowX: "auto" }}>
@@ -1017,7 +1017,7 @@ export default function AdminAttendanceSummary({ token, api }) {
           <div className="card">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <FaChartLine size={13} color="var(--brand)" />
+                <TbChartLine size={13} color="var(--brand)" />
                 <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--slate-700)" }}>Daily Attendance Trend — {formatMonthsLabel(months)}</span>
               </div>
               <div style={{ display: "flex", gap: 16, fontSize: 12, color: "var(--slate-500)" }}>
@@ -1095,7 +1095,7 @@ export default function AdminAttendanceSummary({ token, api }) {
         <div>
           {!hasEmpData ? (
             <div className="card" style={{ textAlign: "center", padding: 40 }}>
-              <FaUsers size={32} style={{ color: "var(--slate-200)", marginBottom: 12 }} />
+              <TbUsers size={32} style={{ color: "var(--slate-200)", marginBottom: 12 }} />
               <div style={{ fontSize: 14, color: "var(--slate-500)", marginBottom: 6 }}>Employee-level breakdown requires name data from the backend.</div>
               <div style={{ fontSize: 12, color: "var(--slate-400)" }}>Check the Attendance Logs tab to view individual records.</div>
             </div>
@@ -1103,7 +1103,7 @@ export default function AdminAttendanceSummary({ token, api }) {
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
               <div className="filter-bar" style={{ margin: "0 0 0", borderRadius: "14px 14px 0 0", borderBottom: "1px solid var(--slate-200)", gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
-                  <FaSearch style={{ position: "absolute", left: 12, top: 13, color: "var(--slate-400)" }} size={11} />
+                  <TbSearch style={{ position: "absolute", left: 12, top: 13, color: "var(--slate-400)" }} size={11} />
                   <input value={empSearch} onChange={e => setEmpSearch(e.target.value)} placeholder="Search employee…"
                     className="modern-input" style={{ paddingLeft: 32, margin: 0, fontSize: 13 }} />
                 </div>
@@ -1230,13 +1230,13 @@ export default function AdminAttendanceSummary({ token, api }) {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 12, color: "var(--slate-400)" }}>{hrActiveRows.length} rows · {formatMonthsLabel(months)}</span>
                 <button onClick={refreshHrReports} className="btn ghost" style={{ padding: "7px 12px", fontSize: 12 }} title="Re-pull the latest roster and attendance data for this report">
-                  <FaTable /> Refresh
+                  <TbTable /> Refresh
                 </button>
                 <button onClick={() => exportHrReport("csv", hrActiveLabel, hrActiveColumns, hrActiveRows, formatMonthsLabel(months), `${hrReportType}_${months.join("_")}`)} className="btn ghost" style={{ padding: "7px 12px", fontSize: 12 }}>
-                  <FaFileCsv /> CSV
+                  <TbFileTypeCsv /> CSV
                 </button>
                 <button onClick={() => exportHrReport("pdf", hrActiveLabel, hrActiveColumns, hrActiveRows, formatMonthsLabel(months), `${hrReportType}_${months.join("_")}`)} className="btn" style={{ padding: "7px 12px", fontSize: 12 }}>
-                  <FaFilePdf /> PDF
+                  <TbFileTypePdf /> PDF
                 </button>
               </div>
             </div>

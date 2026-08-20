@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FaChevronLeft, FaChevronRight, FaClock } from "react-icons/fa";
+import { TbChevronLeft, TbChevronRight, TbClock } from "react-icons/tb";
 import { ymd, ym } from "../utils/dateUtils";
 
 const DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -123,14 +123,14 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))}
           style={{ border: "1px solid #e2e8f0", background: "#fff", borderRadius: 8, cursor: "pointer", color: "#64748b", padding: "6px 10px" }}>
-          <FaChevronLeft size={12} />
+          <TbChevronLeft size={12} />
         </button>
         <span style={{ fontWeight: 700, fontSize: 15, color: "#0f172a" }}>
           {viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
         </span>
         <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))}
           style={{ border: "1px solid #e2e8f0", background: "#fff", borderRadius: 8, cursor: "pointer", color: "#64748b", padding: "6px 10px" }}>
-          <FaChevronRight size={12} />
+          <TbChevronRight size={12} />
         </button>
       </div>
 
@@ -184,7 +184,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
 
           {selectedDay && statusFor(selectedDay) && (
             <div style={{ marginTop: 14, padding: "10px 14px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
-              <FaClock size={11} color="#64748b" />
+              <TbClock size={11} color="#64748b" />
               <strong>{new Date(selectedDay).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}:</strong>
               <span>{statusFor(selectedDay).holiday_name || STATUS_STYLE[statusFor(selectedDay).status]?.label}</span>
               {statusFor(selectedDay).checkin_time && (

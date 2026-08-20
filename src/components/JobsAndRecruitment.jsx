@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FaBriefcase, FaUserTag } from "react-icons/fa";
+import { TbBriefcase, TbUserSearch } from "react-icons/tb";
 import AdminCareer from "./AdminCareer";
 import EmployeeCareer from "./EmployeeCareer";
 import AdminATS from "./AdminATS";
@@ -27,11 +27,11 @@ export default function JobsAndRecruitment({ token, user, role, employees = [], 
         <button onClick={() => setTab("jobs")} style={{
           padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 7,
           background: tab === "jobs" ? "var(--red)" : "transparent", color: tab === "jobs" ? "#fff" : "#64748b",
-        }}><FaBriefcase size={12} /> Jobs</button>
+        }}><TbBriefcase size={12} /> Jobs</button>
         <button onClick={() => setTab("ats")} style={{
           padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 7,
           background: tab === "ats" ? "var(--red)" : "transparent", color: tab === "ats" ? "#fff" : "#64748b",
-        }}><FaUserTag size={12} /> Recruitment</button>
+        }}><TbUserSearch size={12} /> Recruitment</button>
       </div>
 
       {tab === "jobs"

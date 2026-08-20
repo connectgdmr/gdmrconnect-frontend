@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaFileInvoiceDollar, FaRupeeSign, FaCalendarAlt, FaHandHoldingUsd } from "react-icons/fa";
+import { TbReceiptDollar, TbCurrencyRupee, TbCalendar, TbCashBanknote } from "react-icons/tb";
 import { SkeletonList, SkeletonTable } from "./Skeleton";
 import { PayslipModal } from "./AdminPayroll";
 
@@ -70,7 +70,7 @@ export default function EmployeePayroll({ token }) {
         loading ? <SkeletonList count={4} />
         : payslips.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
-            <FaFileInvoiceDollar size={42} style={{ opacity: 0.15, marginBottom: 14 }} />
+            <TbReceiptDollar size={42} style={{ opacity: 0.15, marginBottom: 14 }} />
             <h4 style={{ margin: "0 0 8px", color: "#64748b" }}>No payslips yet</h4>
             <p style={{ margin: 0, fontSize: 13 }}>Your payslips will appear here once payroll is processed.</p>
           </div>
@@ -82,11 +82,11 @@ export default function EmployeePayroll({ token }) {
               return (
                 <div key={p._id} className="card" style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                   <div style={{ width: 46, height: 46, borderRadius: 12, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <FaRupeeSign color="var(--red)" size={18} />
+                    <TbCurrencyRupee color="var(--red)" size={18} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 15, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>
-                      <FaCalendarAlt size={12} color="#94a3b8" /> {periodLabel(p)}
+                      <TbCalendar size={12} color="#94a3b8" /> {periodLabel(p)}
                     </div>
                     <div style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>
                       Net Pay: <span style={{ fontWeight: 700, color: "#16a34a" }}>{inr(net)}</span>
@@ -129,7 +129,7 @@ export default function EmployeePayroll({ token }) {
 
             {loans.length === 0 ? (
               <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
-                <FaHandHoldingUsd size={38} style={{ opacity: 0.15, marginBottom: 14 }} />
+                <TbCashBanknote size={38} style={{ opacity: 0.15, marginBottom: 14 }} />
                 <h4 style={{ margin: "0 0 8px", color: "#64748b" }}>No loans or advances</h4>
                 <p style={{ margin: 0, fontSize: 13 }}>Any loans or salary advances issued to you will appear here.</p>
               </div>
@@ -143,7 +143,7 @@ export default function EmployeePayroll({ token }) {
                     <div key={l._id} className="card">
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
                         <div style={{ width: 42, height: 42, borderRadius: 10, background: l.type === "advance" ? "#eff6ff" : "#fdf4ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <FaHandHoldingUsd color={l.type === "advance" ? "#1d4ed8" : "#7e22ce"} size={16} />
+                          <TbCashBanknote color={l.type === "advance" ? "#1d4ed8" : "#7e22ce"} size={16} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>

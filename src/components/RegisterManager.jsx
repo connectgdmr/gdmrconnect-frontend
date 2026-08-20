@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from "react";
-import { FaEdit, FaTrash, FaCrown, FaChevronDown } from "react-icons/fa";
+import { TbEdit, TbTrash, TbCrown, TbChevronDown } from "react-icons/tb";
 
 import { BASE_URL as BASE } from "../api";
 
@@ -40,7 +40,7 @@ function DeptCheckboxList({ departments, selected, onChange }) {
         }}
       >
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-        <FaChevronDown size={11} style={{ flexShrink: 0, color: "#94a3b8", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+        <TbChevronDown size={11} style={{ flexShrink: 0, color: "#94a3b8", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
       </button>
 
       {open && (
@@ -319,7 +319,7 @@ export default function RegisterManager({ token, api }) {
                       padding: "2px 7px", verticalAlign: "middle",
                       display: "inline-flex", alignItems: "center", gap: 4,
                     }}>
-                      <FaCrown style={{ fontSize: 10 }} /> Business Owner
+                      <TbCrown style={{ fontSize: 10 }} /> Business Owner
                     </span>
                   )}
                 </td>
@@ -338,14 +338,14 @@ export default function RegisterManager({ token, api }) {
                       color: m.role === "owner" ? "#64748b" : "#b45309",
                     }}
                   >
-                    <FaCrown style={{ fontSize: 11 }} />
+                    <TbCrown style={{ fontSize: 11 }} />
                     {togglingId === m._id ? "..." : m.role === "owner" ? "Remove Owner" : "Make Owner"}
                   </button>
                   <button className="icon-btn edit" onClick={() => handleEditClick(m)} title="Edit">
-                    <FaEdit />
+                    <TbEdit />
                   </button>
                   <button className="icon-btn delete" onClick={() => deleteManager(m._id)} title="Delete">
-                    <FaTrash />
+                    <TbTrash />
                   </button>
                 </td>
               </tr>

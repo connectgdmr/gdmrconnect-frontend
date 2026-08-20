@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from "react";
 import Logo from "../assets/GDMR-LOGO-unit.png";
-import { FaCheckCircle, FaCloudUploadAlt, FaExclamationTriangle, FaFilePdf, FaClock, FaTimesCircle } from "react-icons/fa";
+import { TbCircleCheck, TbCloudUpload, TbAlertTriangle, TbClock, TbCircleX } from "react-icons/tb";
 
 import { API_URL as BASE } from "../api";
 
@@ -74,7 +74,7 @@ export default function CandidateDocuments({ docToken }) {
   if (phase === "error") return (
     <Shell>
       <div style={{ background: "#fff", borderRadius: 16, padding: "40px 36px", textAlign: "center", maxWidth: 440, boxShadow: "0 4px 24px rgba(16,40,30,0.08)" }}>
-        <FaExclamationTriangle size={36} color="#ef4444" style={{ marginBottom: 16 }} />
+        <TbAlertTriangle size={36} color="#ef4444" style={{ marginBottom: 16 }} />
         <h2 style={{ margin: "0 0 10px", color: "#0f172a" }}>Link Not Available</h2>
         <p style={{ color: "#64748b", margin: 0, fontSize: 14 }}>{errorMsg}</p>
       </div>
@@ -94,7 +94,7 @@ export default function CandidateDocuments({ docToken }) {
 
         {allDone && (
           <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "12px 16px", marginBottom: 18, color: "#16a34a", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
-            <FaCheckCircle /> All documents submitted — thank you! Our team will review them shortly.
+            <TbCircleCheck /> All documents submitted — thank you! Our team will review them shortly.
           </div>
         )}
 
@@ -118,7 +118,7 @@ export default function CandidateDocuments({ docToken }) {
                   <div style={{ fontWeight: 600, fontSize: 13.5, color: "#0f172a" }}>{docName}</div>
                   {uploaded ? (
                     <div style={{ fontSize: 11.5, marginTop: 3, display: "flex", alignItems: "center", gap: 6 }}>
-                      {st === "Approved" ? <FaCheckCircle size={11} color="#16a34a" /> : st === "Rejected" ? <FaTimesCircle size={11} color="#dc2626" /> : <FaClock size={11} color="#d97706" />}
+                      {st === "Approved" ? <TbCircleCheck size={11} color="#16a34a" /> : st === "Rejected" ? <TbCircleX size={11} color="#dc2626" /> : <TbClock size={11} color="#d97706" />}
                       <span style={{ color: stColor, fontWeight: 700 }}>{st}</span>
                       <a href={sub.url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", marginLeft: 4 }}>view</a>
                       {needsReupload && <span style={{ color: "#dc2626" }}>· please re-upload</span>}
@@ -129,12 +129,12 @@ export default function CandidateDocuments({ docToken }) {
                 </div>
                 {showUpload && (
                   <label style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 600, color: "#fff", background: "var(--brand, #34a06a)", borderRadius: 8, padding: "8px 14px", cursor: uploading ? "default" : "pointer", opacity: uploading === docName ? 0.7 : 1 }}>
-                    {uploading === docName ? <><span className="btn-spinner" /> Uploading…</> : <><FaCloudUploadAlt size={14} /> {needsReupload ? "Re-upload" : "Upload"}</>}
+                    {uploading === docName ? <><span className="btn-spinner" /> Uploading…</> : <><TbCloudUpload size={14} /> {needsReupload ? "Re-upload" : "Upload"}</>}
                     <input type="file" accept="application/pdf,image/*" style={{ display: "none" }} disabled={!!uploading}
                       onChange={e => upload(docName, e.target.files?.[0])} />
                   </label>
                 )}
-                {uploaded && st === "Approved" && <FaCheckCircle size={18} color="#16a34a" style={{ flexShrink: 0 }} />}
+                {uploaded && st === "Approved" && <TbCircleCheck size={18} color="#16a34a" style={{ flexShrink: 0 }} />}
               </div>
             );
           })}

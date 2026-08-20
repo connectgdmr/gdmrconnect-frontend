@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaBullhorn, FaSave, FaEdit, FaUndo } from "react-icons/fa";
+import { TbSpeakerphone, TbDeviceFloppy, TbEdit, TbArrowBackUp } from "react-icons/tb";
 
 // Full "Manage Announcements" UI — originally AdminDashboard.jsx's
 // `view === "announcements"` block. Extracted so a delegated "announcements"
@@ -94,7 +94,7 @@ export default function AdminAnnouncements({ token, api, canWrite = true }) {
             <textarea className="modern-input" placeholder="Message details..." style={{ minHeight: 80, resize: "vertical" }} value={annMessage} onChange={(e) => setAnnMessage(e.target.value)} />
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button className="btn" onClick={createAnnouncement} style={{ padding: "10px 20px", display: "flex", alignItems: "center", gap: 8 }}>
-                <FaBullhorn /> Post Announcement
+                <TbSpeakerphone /> Post Announcement
               </button>
             </div>
           </div>
@@ -105,7 +105,7 @@ export default function AdminAnnouncements({ token, api, canWrite = true }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {announcements.length === 0 ? (
           <div className="card" style={{ textAlign: "center", color: "#94a3b8", padding: "40px" }}>
-            <FaBullhorn size={40} style={{ opacity: 0.2, marginBottom: 15 }} />
+            <TbSpeakerphone size={40} style={{ opacity: 0.2, marginBottom: 15 }} />
             <p style={{ margin: 0 }}>No announcements currently active.</p>
           </div>
         ) : (
@@ -117,7 +117,7 @@ export default function AdminAnnouncements({ token, api, canWrite = true }) {
                   <input className="modern-input" style={{ marginBottom: 10 }} value={editAnnTitle} onChange={(e) => setEditAnnTitle(e.target.value)} />
                   <textarea className="modern-input" style={{ minHeight: 100, resize: "vertical", marginBottom: 15 }} value={editAnnMessage} onChange={(e) => setEditAnnMessage(e.target.value)} />
                   <div style={{ display: "flex", gap: 10 }}>
-                    <button className="btn" style={{ display: "flex", alignItems: "center", gap: 5 }} onClick={() => updateAnnouncement(ann._id)}><FaSave /> Save Changes</button>
+                    <button className="btn" style={{ display: "flex", alignItems: "center", gap: 5 }} onClick={() => updateAnnouncement(ann._id)}><TbDeviceFloppy /> Save Changes</button>
                     <button className="btn ghost" onClick={cancelEditAnnouncement}>Cancel</button>
                   </div>
                 </div>
@@ -130,8 +130,8 @@ export default function AdminAnnouncements({ token, api, canWrite = true }) {
                   <div className="announcement-body">{ann.message}</div>
                   {canWrite && (
                     <div className="announcement-actions">
-                      <button className="btn-action-edit" onClick={() => startEditAnnouncement(ann)}><FaEdit /> Edit</button>
-                      <button className="btn-action-recall" onClick={() => recallAnnouncement(ann._id)}><FaUndo /> Recall / Delete</button>
+                      <button className="btn-action-edit" onClick={() => startEditAnnouncement(ann)}><TbEdit /> Edit</button>
+                      <button className="btn-action-recall" onClick={() => recallAnnouncement(ann._id)}><TbArrowBackUp /> Recall / Delete</button>
                     </div>
                   )}
                 </div>

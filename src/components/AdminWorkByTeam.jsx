@@ -1,9 +1,9 @@
 ﻿import React, { useState, useEffect } from "react";
 import { escHtml } from "../utils/security";
 import {
-  FaUsers, FaTasks, FaCheckCircle, FaHourglassHalf, FaSearch, FaFilter,
-  FaFileCsv, FaFileExcel, FaFilePdf, FaRegCommentDots, FaChevronDown, FaChevronRight, FaTimes,
-} from "react-icons/fa";
+  TbUsers, TbChecklist, TbCircleCheck, TbHourglass, TbSearch,
+  TbFileTypeCsv, TbFileTypeXls, TbFileTypePdf, TbMessageDots, TbChevronDown, TbChevronRight, TbX,
+} from "react-icons/tb";
 import { BarChart, DonutChart, ProgressRing, LineChart } from "./Charts";
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
 
@@ -120,10 +120,10 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 16 }}>
             {[
-              { icon: <FaUsers />,        label: "Employees Active Today", value: safePlans.length, color: "var(--brand)", bg: "var(--brand-light)" },
-              { icon: <FaTasks />,        label: "Total Tasks",            value: allTasks.length,  color: "#0f766e", bg: "#effdf8" },
-              { icon: <FaCheckCircle />,  label: "Completed",              value: completed,        color: "#16a34a", bg: "#f0fdf4" },
-              { icon: <FaHourglassHalf />,label: "Pending",                value: pending,          color: "#d97706", bg: "#fffbeb" },
+              { icon: <TbUsers />,        label: "Employees Active Today", value: safePlans.length, color: "var(--brand)", bg: "var(--brand-light)" },
+              { icon: <TbChecklist />,    label: "Total Tasks",            value: allTasks.length,  color: "#0f766e", bg: "#effdf8" },
+              { icon: <TbCircleCheck />,  label: "Completed",              value: completed,        color: "#16a34a", bg: "#f0fdf4" },
+              { icon: <TbHourglass />,    label: "Pending",                value: pending,          color: "#d97706", bg: "#fffbeb" },
             ].map(s => (
               <div key={s.label} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <div style={{ width: 46, height: 46, borderRadius: 12, background: s.bg, color: s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{s.icon}</div>
@@ -174,7 +174,7 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
           {/* Filters */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
             <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-              <FaSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
+              <TbSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
               <input className="modern-input" placeholder="Search employee or task…" value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
             </div>
             <input type="date" className="modern-input" value={date} onChange={e => setDate(e.target.value)} style={{ margin: 0, maxWidth: 170 }} />
@@ -193,9 +193,9 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
             <div className="card" style={{ marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
               <div style={{ fontSize: 13, color: "#64748b" }}>Export <b>{filtered.reduce((s, p) => s + (p.tasks?.length || 0), 0)}</b> tasks from <b>{filtered.length}</b> plans for {date}</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn ghost" style={{ fontSize: 12.5 }} onClick={() => exportCSV("csv")}><FaFileCsv /> CSV</button>
-                <button className="btn ghost" style={{ fontSize: 12.5 }} onClick={() => exportCSV("xls")}><FaFileExcel /> Excel</button>
-                <button className="btn" style={{ fontSize: 12.5 }} onClick={exportPDF}><FaFilePdf /> PDF</button>
+                <button className="btn ghost" style={{ fontSize: 12.5 }} onClick={() => exportCSV("csv")}><TbFileTypeCsv /> CSV</button>
+                <button className="btn ghost" style={{ fontSize: 12.5 }} onClick={() => exportCSV("xls")}><TbFileTypeXls /> Excel</button>
+                <button className="btn" style={{ fontSize: 12.5 }} onClick={exportPDF}><TbFileTypePdf /> PDF</button>
               </div>
             </div>
           )}
@@ -203,7 +203,7 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
           {loading ? <SkeletonTable rows={6} cols={4} />
           : filtered.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "50px 20px", color: "#94a3b8" }}>
-              <FaTasks size={34} style={{ opacity: 0.2, marginBottom: 10 }} />
+              <TbChecklist size={34} style={{ opacity: 0.2, marginBottom: 10 }} />
               <p style={{ margin: 0 }}>No work plans submitted for {date}.</p>
             </div>
           ) : (
@@ -220,7 +220,7 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
                         <div style={{ fontSize: 12, color: "#64748b" }}>{p.department || "—"} {p.check_in_time && `· checked in ${p.check_in_time}`}</div>
                       </div>
                       <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "3px 10px", borderRadius: 99, flexShrink: 0 }}>{done}/{p.tasks?.length || 0} done</span>
-                      {open ? <FaChevronDown size={12} color="#94a3b8" /> : <FaChevronRight size={12} color="#94a3b8" />}
+                      {open ? <TbChevronDown size={12} color="#94a3b8" /> : <TbChevronRight size={12} color="#94a3b8" />}
                     </div>
                     {open && (
                       <div style={{ borderTop: "1px solid #f1f5f9", padding: "12px 18px" }}>
@@ -243,7 +243,7 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
                           </div>
                         )}
                         <button className="btn ghost" style={{ marginTop: 10, fontSize: 12 }} onClick={() => { setCommentPlan(p); setCommentText(p.manager_comment || ""); }}>
-                          <FaRegCommentDots /> {p.manager_comment ? "Edit Feedback" : "Add Feedback"}
+                          <TbMessageDots /> {p.manager_comment ? "Edit Feedback" : "Add Feedback"}
                         </button>
                       </div>
                     )}
@@ -261,7 +261,7 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h3 style={{ margin: 0, color: "var(--brand)", fontSize: 15 }}>Feedback for {commentPlan.employee_name}</h3>
-              <button onClick={() => setCommentPlan(null)} style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#64748b" }}><FaTimes size={12} /></button>
+              <button onClick={() => setCommentPlan(null)} style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#64748b" }}><TbX size={12} /></button>
             </div>
             <textarea className="modern-input" rows={4} placeholder="Share feedback or guidance on today's plan…" value={commentText} onChange={e => setCommentText(e.target.value)} style={{ resize: "vertical" }} />
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 14 }}>

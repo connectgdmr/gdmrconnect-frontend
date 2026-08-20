@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaTrash, FaCrown } from "react-icons/fa";
+import { TbTrash, TbCrown } from "react-icons/tb";
 import { SkeletonTable } from "./Skeleton";
 
 export default function AdminManagers({ token, api }) {
@@ -90,7 +90,7 @@ export default function AdminManagers({ token, api }) {
                         alignItems: "center",
                         gap: 4,
                       }}>
-                        <FaCrown style={{ fontSize: 10 }} /> Business Owner
+                        <TbCrown style={{ fontSize: 10 }} /> Business Owner
                       </span>
                     )}
                   </td>
@@ -115,7 +115,7 @@ export default function AdminManagers({ token, api }) {
                       disabled={togglingId === m._id}
                       title={m.role === "owner" ? "Remove Business Owner role" : "Grant Business Owner role"}
                     >
-                      <FaCrown style={{ marginRight: 5, fontSize: 11 }} />
+                      <TbCrown style={{ marginRight: 5, fontSize: 11 }} />
                       {togglingId === m._id
                         ? "Updating..."
                         : m.role === "owner"
@@ -127,7 +127,7 @@ export default function AdminManagers({ token, api }) {
                       onClick={() => deleteManager(m._id)}
                       title="Delete"
                     >
-                      <FaTrash />
+                      <TbTrash />
                     </button>
                   </td>
                 </tr>

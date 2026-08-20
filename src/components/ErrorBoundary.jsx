@@ -1,5 +1,5 @@
 import React from "react";
-import { FaExclamationTriangle, FaCopy, FaSyncAlt } from "react-icons/fa";
+import { TbAlertTriangle, TbCopy, TbRefresh } from "react-icons/tb";
 
 // After a new deploy, an already-open tab's index.html still points at the
 // previous build's hashed chunk filenames (e.g. AdminCareer-<oldhash>.js),
@@ -79,7 +79,7 @@ export default class ErrorBoundary extends React.Component {
         // instead of the alarming error card while it happens.
         return (
           <div className="card" style={{ textAlign: "center", padding: "50px 24px", marginTop: 16, color: "#64748b" }}>
-            <FaSyncAlt size={30} color="#34a06a" style={{ marginBottom: 14 }} className="spin-icon" />
+            <TbRefresh size={30} color="#34a06a" style={{ marginBottom: 14 }} className="spin-icon" />
             <h3 style={{ margin: "0 0 8px", color: "#0f172a" }}>Updating…</h3>
             <p style={{ margin: 0, fontSize: 14 }}>A new version of GDMR Connect is available. Reloading the page.</p>
             <style>{`.spin-icon { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -89,7 +89,7 @@ export default class ErrorBoundary extends React.Component {
 
       return (
         <div className="card" style={{ textAlign: "center", padding: "50px 24px", marginTop: 16, color: "#64748b" }}>
-          <FaExclamationTriangle size={36} color="#f59e0b" style={{ marginBottom: 14 }} />
+          <TbAlertTriangle size={36} color="#f59e0b" style={{ marginBottom: 14 }} />
           <h3 style={{ margin: "0 0 8px", color: "#0f172a" }}>
             {chunkError ? "This section needs a page reload" : "Something went wrong loading this section"}
           </h3>
@@ -114,7 +114,7 @@ export default class ErrorBoundary extends React.Component {
             </button>
             {this.state.error && (
               <button className="btn ghost" onClick={this.copyDetails} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <FaCopy size={11} /> {this.state.copied ? "Copied!" : "Copy error details"}
+                <TbCopy size={11} /> {this.state.copied ? "Copied!" : "Copy error details"}
               </button>
             )}
           </div>

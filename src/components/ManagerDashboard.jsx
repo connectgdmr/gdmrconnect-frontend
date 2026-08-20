@@ -39,52 +39,48 @@ const AdminDepartments       = lazy(() => import("./AdminDepartments"));
 const AdminAnnouncements     = lazy(() => import("./AdminAnnouncements"));
 const AdminAssets            = lazy(() => import("./AdminAssets"));
 import {
-  FaCamera, 
-  FaSignOutAlt, 
-  FaCalendarPlus,
-  FaCalendarCheck,
-  FaCalendarWeek,
-  FaHistory,
-  FaArrowLeft, 
-  FaCheckCircle, 
-  FaHourglassHalf, 
-  FaTimesCircle, 
-  FaUserCheck, 
-  FaTimes, 
-  FaCloudUploadAlt, 
-  FaCalendarAlt, 
-  FaUsers,
-  FaChartLine, 
-  FaClipboardCheck, 
-  FaBullhorn, 
-  FaEye,
-  FaEyeSlash, 
-  FaLock,
-  FaDownload,
-  FaPlus,
-  FaTrash,
-  FaEdit,
-  FaUserShield, 
-  FaClipboardList,
-  FaCheckSquare,
-  FaRegSquare,
-  FaClock,
-  FaFileDownload,
-  FaLaptop,
-  FaBars,
-  FaGift,
-  FaSave,
-  FaCog,
-  FaTags,
-  FaMoneyBillWave,
-  FaUserTag,
-  FaFolderOpen,
-  FaTasks,
-  FaGraduationCap,
-  FaBriefcase,
-  FaChartPie,
-  FaBuilding,
-} from "react-icons/fa";
+  TbCamera,
+  TbLogout,
+  TbCalendarPlus,
+  TbCalendarCheck,
+  TbCalendarWeek,
+  TbHistory,
+  TbArrowLeft,
+  TbCircleCheck,
+  TbHourglass,
+  TbCircleX,
+  TbUserCheck,
+  TbX,
+  TbCloudUpload,
+  TbCalendar,
+  TbUsers,
+  TbChartLine,
+  TbClipboardCheck,
+  TbSpeakerphone,
+  TbEye,
+  TbEyeOff,
+  TbLock,
+  TbDownload,
+  TbEdit,
+  TbShieldLock,
+  TbClipboardList,
+  TbClock,
+  TbFileDownload,
+  TbDeviceLaptop,
+  TbMenu2,
+  TbGift,
+  TbDeviceFloppy,
+  TbSettings,
+  TbTags,
+  TbCurrencyDollar,
+  TbUserSearch,
+  TbFolderOpen,
+  TbChecklist,
+  TbSchool,
+  TbBriefcase,
+  TbChartPie,
+  TbBuilding,
+} from "react-icons/tb";
 import ProfilePanel from "./ProfilePanel";
 import SettingsModal from "./SettingsModal";
 import WorkTypesManager from "./WorkTypesManager";
@@ -116,40 +112,40 @@ function StatItem({ icon, label, count, colorClass, onClick }) {
 // Same config as EmployeeDashboard.jsx — module keys match backend's
 // GRANTABLE_MODULES (helpers.py) and Sidebar.jsx's admin view keys.
 const DELEGATED_MODULES = [
-  { key: "attendance", label: "Manage Daily Attendance", Icon: FaHistory,
+  { key: "attendance", label: "Manage Daily Attendance", Icon: TbHistory,
     alert: "You are viewing the Daily Attendance Logs using temporary Delegated Access.",
     render: (ctx) => <AdminAttendancePage token={ctx.token} api={ctx.api} delegated /> },
-  { key: "leaves", label: "Manage Leave Approvals", Icon: FaClipboardList,
+  { key: "leaves", label: "Manage Leave Approvals", Icon: TbClipboardList,
     alert: "You are viewing the Leave Approval interface using temporary Delegated Access.",
     render: (ctx) => <AdminLeavePage token={ctx.token} api={ctx.api} departments={ctx.delegatedDepartments} /> },
-  { key: "lms", label: "Manage LMS Courses", Icon: FaGraduationCap,
+  { key: "lms", label: "Manage LMS Courses", Icon: TbSchool,
     alert: "You are managing LMS Courses using temporary Delegated Access — you can create courses and assign them.",
     render: (ctx) => <AdminLMS token={ctx.token} employees={ctx.delegatedEmployees} departments={ctx.delegatedDepartments} /> },
-  { key: "payroll", label: "Manage Payroll", Icon: FaMoneyBillWave,
+  { key: "payroll", label: "Manage Payroll", Icon: TbCurrencyDollar,
     alert: "You are managing Payroll using temporary Delegated Access.",
     render: (ctx) => <AdminPayroll token={ctx.token} employees={ctx.delegatedEmployees} /> },
-  { key: "ats", label: "Manage Recruitment", Icon: FaUserTag,
+  { key: "ats", label: "Manage Recruitment", Icon: TbUserSearch,
     alert: "You are managing Recruitment using temporary Delegated Access.",
     render: (ctx) => <AdminATS token={ctx.token} role={ctx.user?.role || "manager"} employees={ctx.delegatedEmployees} departments={ctx.delegatedDepartments} /> },
-  { key: "career", label: "Manage Jobs", Icon: FaBriefcase,
+  { key: "career", label: "Manage Jobs", Icon: TbBriefcase,
     alert: "You are managing Job Postings using temporary Delegated Access.",
     render: (ctx) => <AdminCareer token={ctx.token} employees={ctx.delegatedEmployees} /> },
-  { key: "clients", label: "Manage Clients", Icon: FaFolderOpen,
+  { key: "clients", label: "Manage Clients", Icon: TbFolderOpen,
     alert: "You are managing Clients using temporary Delegated Access.",
     render: (ctx) => <ClientsWorkspace token={ctx.token} api={ctx.api} /> },
-  { key: "work-by-team", label: "Work by Team (All Depts)", Icon: FaTasks,
+  { key: "work-by-team", label: "Work by Team (All Depts)", Icon: TbChecklist,
     alert: "You are viewing Work by Team (all departments) using temporary Delegated Access.",
     render: (ctx) => <AdminWorkByTeam token={ctx.token} role="admin" /> },
-  { key: "assessment", label: "Manage Assessments", Icon: FaClipboardList,
+  { key: "assessment", label: "Manage Assessments", Icon: TbClipboardList,
     alert: "You are managing Assessments using temporary Delegated Access.",
     render: (ctx) => <AdminAssessment token={ctx.token} /> },
-  { key: "pms", label: "Manage PMS (All Depts)", Icon: FaChartLine,
+  { key: "pms", label: "Manage PMS (All Depts)", Icon: TbChartLine,
     alert: "You are viewing PMS (all departments) using temporary Delegated Access.",
     render: (ctx) => <PMSWorkspace token={ctx.token} api={ctx.api} user={ctx.user} scope="admin" assignablePool={ctx.delegatedEmployees} /> },
-  { key: "summary", label: "View Reports", Icon: FaChartPie,
+  { key: "summary", label: "View Reports", Icon: TbChartPie,
     alert: "You are viewing company Reports using temporary Delegated Access.",
     render: (ctx) => <AdminAttendanceSummary token={ctx.token} api={ctx.api} /> },
-  { key: "employees", label: "Manage Employees", Icon: FaUsers,
+  { key: "employees", label: "Manage Employees", Icon: TbUsers,
     alert: "You are managing Employees using temporary Delegated Access.",
     render: (ctx) => (
       <EmployeeList
@@ -163,10 +159,10 @@ const DELEGATED_MODULES = [
         token={ctx.token}
       />
     ) },
-  { key: "manager", label: "Manage Managers", Icon: FaUserShield,
+  { key: "manager", label: "Manage Managers", Icon: TbShieldLock,
     alert: "You are managing Managers using temporary Delegated Access.",
     render: (ctx) => <RegisterManager token={ctx.token} api={ctx.api} /> },
-  { key: "departments", label: "Manage Departments", Icon: FaBuilding,
+  { key: "departments", label: "Manage Departments", Icon: TbBuilding,
     alert: "You are managing Departments using temporary Delegated Access.",
     render: (ctx) => (
       <AdminDepartments
@@ -174,10 +170,10 @@ const DELEGATED_MODULES = [
         canWrite={ctx.canWriteDepartments} canDelete={false}
       />
     ) },
-  { key: "announcements", label: "Manage Announcements", Icon: FaBullhorn,
+  { key: "announcements", label: "Manage Announcements", Icon: TbSpeakerphone,
     alert: "You are managing Announcements using temporary Delegated Access.",
     render: (ctx) => <AdminAnnouncements token={ctx.token} api={ctx.api} canWrite={ctx.canWriteAnnouncements} /> },
-  { key: "assets", label: "Manage Assets", Icon: FaLaptop,
+  { key: "assets", label: "Manage Assets", Icon: TbDeviceLaptop,
     alert: "You are managing Assets using temporary Delegated Access.",
     render: (ctx) => <AdminAssets token={ctx.token} api={ctx.api} canWrite={ctx.canWriteAssets} /> },
 ];
@@ -1118,16 +1114,16 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       />
       <div className="main-area">
         <div className="main-topbar">
-          <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><FaBars /></button>
+          <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><TbMenu2 /></button>
           {view !== "dashboard" && (
-            <button className="topbar-back" onClick={() => setView("dashboard")}><FaArrowLeft /></button>
+            <button className="topbar-back" onClick={() => setView("dashboard")}><TbArrowLeft /></button>
           )}
           <span className="topbar-title">
             {view === "dashboard" ? "Manager Dashboard" : view.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
           </span>
           <div className="topbar-right">
             <button className="topbar-action-btn" title="Settings" onClick={() => setSettingsOpen(true)} style={{ padding: "7px 10px" }}>
-              <FaCog size={14} />
+              <TbSettings size={14} />
             </button>
             <button className="topbar-profile-btn" onClick={() => setProfileOpen(true)}>
               <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
@@ -1159,7 +1155,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {/* Birthday Notification Banner */}
       {!birthdayDismissed && todayBirthdays.length > 0 && (
         <div className={`birthday-banner ${todayBirthdays.some(b => b.is_self) ? 'birthday-banner-self' : 'birthday-banner-others'}`}>
-          <div className="birthday-banner-icon"><FaGift /></div>
+          <div className="birthday-banner-icon"><TbGift /></div>
           <div className="birthday-banner-text">
             {todayBirthdays.some(b => b.is_self) ? (
               <>
@@ -1175,7 +1171,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               </>
             )}
           </div>
-          <button className="birthday-banner-dismiss" onClick={() => setBirthdayDismissed(true)}><FaTimes size={12} /></button>
+          <button className="birthday-banner-dismiss" onClick={() => setBirthdayDismissed(true)}><TbX size={12} /></button>
         </div>
       )}
 
@@ -1191,7 +1187,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                   <button
                     onClick={() => { setShowPasswordModal(false); setPassError(""); setOldPassword(""); setNewPassword(""); setConfirmPassword(""); }}
                     style={{background:'#f1f5f9', border:'none', borderRadius:'50%', width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#64748b', flexShrink:0}}
-                  ><FaTimes size={13} /></button>
+                  ><TbX size={13} /></button>
                 </div>
                 <div style={{padding:'20px 24px 24px'}}>
                 {passError && <div className="alert" style={{marginBottom: 15, color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '8px'}}>{passError}</div>}
@@ -1209,7 +1205,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                             required
                         />
                         <span className="password-toggle-icon" onClick={() => setShowOldPass(!showOldPass)}>
-                            {showOldPass ? <FaEyeSlash /> : <FaEye />}
+                            {showOldPass ? <TbEyeOff /> : <TbEye />}
                         </span>
                     </div>
 
@@ -1225,7 +1221,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                             required
                         />
                         <span className="password-toggle-icon" onClick={() => setShowNewPass(!showNewPass)}>
-                            {showNewPass ? <FaEyeSlash /> : <FaEye />}
+                            {showNewPass ? <TbEyeOff /> : <TbEye />}
                         </span>
                         <PasswordStrengthMeter password={newPassword} />
                     </div>
@@ -1242,7 +1238,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                             required
                         />
                         <span className="password-toggle-icon" onClick={() => setShowConfirmPass(!showConfirmPass)}>
-                            {showConfirmPass ? <FaEyeSlash /> : <FaEye />}
+                            {showConfirmPass ? <TbEyeOff /> : <TbEye />}
                         </span>
                     </div>
 
@@ -1275,13 +1271,13 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             }}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
           >
-            <FaLock /> Change Password
+            <TbLock /> Change Password
           </button>
         </div>
       ) : (
         <div className="dashboard-header-card card" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           <button className="btn ghost" onClick={() => setView("dashboard")} style={{padding: '8px 12px', display:'flex', alignItems:'center', gap:6}}>
-            <FaArrowLeft /> Back
+            <TbArrowLeft /> Back
           </button>
           <h3 style={{ margin: 0, color: "var(--red)", textTransform: 'uppercase' }}>{view.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</h3>
         </div>
@@ -1325,21 +1321,21 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           <div className="card dashboard-widget">
             <h4 className="widget-title">Quick Actions</h4>
             <div className="quick-launch-grid">
-              <QuickLaunchItem icon={<FaCamera />} label="Check In" onClick={() => openCamera("checkin")} />
-              <QuickLaunchItem icon={<FaSignOutAlt />} label="Check Out" onClick={() => openCamera("checkout")} />
-              <QuickLaunchItem icon={<FaUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} badgeCount={notificationCounts?.leaves || 0} />
-              <QuickLaunchItem icon={<FaChartLine />} label="PMS" onClick={() => setView("pms")} badgeCount={notificationCounts?.pms || 0} />
-              <QuickLaunchItem icon={<FaUsers />} label="Dept Dashboard" onClick={() => setView("dept-dashboard")} />
-              <QuickLaunchItem icon={<FaTags />} label="Work Types" onClick={() => setView("work-types")} />
-              <QuickLaunchItem icon={<FaClipboardCheck />} label="Corrections" onClick={() => { setAttendanceSubView("corrections"); setView("attendance"); }} badgeCount={notificationCounts?.corrections || 0} />
-              <QuickLaunchItem icon={<FaCalendarPlus />} label="Apply Leave" onClick={() => { setLeaveSubView("apply-leave"); setView("leave"); }} />
-              <QuickLaunchItem icon={<FaCalendarCheck />} label="My Leaves" onClick={() => { setLeaveSubView("my-leaves"); setView("leave"); }} />
-              <QuickLaunchItem icon={<FaHistory />} label="Attendance Log" onClick={() => { setAttendanceSubView("attendance-log"); setView("attendance"); }} />
-              <QuickLaunchItem icon={<FaCalendarWeek />} label="Team Calendar" onClick={() => { setAttendanceSubView("team-calendar"); setView("attendance"); }} />
-              <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} badgeCount={notificationCounts?.announcements || 0} />
-              <QuickLaunchItem icon={<FaLaptop />} label="Team Assets" onClick={() => setView("team-assets")} badgeCount={notificationCounts?.assets || 0} />
+              <QuickLaunchItem icon={<TbCamera />} label="Check In" onClick={() => openCamera("checkin")} />
+              <QuickLaunchItem icon={<TbLogout />} label="Check Out" onClick={() => openCamera("checkout")} />
+              <QuickLaunchItem icon={<TbUserCheck />} label="Team Leaves" onClick={() => setView("team-leaves")} badgeCount={notificationCounts?.leaves || 0} />
+              <QuickLaunchItem icon={<TbChartLine />} label="PMS" onClick={() => setView("pms")} badgeCount={notificationCounts?.pms || 0} />
+              <QuickLaunchItem icon={<TbUsers />} label="Dept Dashboard" onClick={() => setView("dept-dashboard")} />
+              <QuickLaunchItem icon={<TbTags />} label="Work Types" onClick={() => setView("work-types")} />
+              <QuickLaunchItem icon={<TbClipboardCheck />} label="Corrections" onClick={() => { setAttendanceSubView("corrections"); setView("attendance"); }} badgeCount={notificationCounts?.corrections || 0} />
+              <QuickLaunchItem icon={<TbCalendarPlus />} label="Apply Leave" onClick={() => { setLeaveSubView("apply-leave"); setView("leave"); }} />
+              <QuickLaunchItem icon={<TbCalendarCheck />} label="My Leaves" onClick={() => { setLeaveSubView("my-leaves"); setView("leave"); }} />
+              <QuickLaunchItem icon={<TbHistory />} label="Attendance Log" onClick={() => { setAttendanceSubView("attendance-log"); setView("attendance"); }} />
+              <QuickLaunchItem icon={<TbCalendarWeek />} label="Team Calendar" onClick={() => { setAttendanceSubView("team-calendar"); setView("attendance"); }} />
+              <QuickLaunchItem icon={<TbSpeakerphone />} label="Announcements" onClick={() => setView("announcements")} badgeCount={notificationCounts?.announcements || 0} />
+              <QuickLaunchItem icon={<TbDeviceLaptop />} label="Team Assets" onClick={() => setView("team-assets")} badgeCount={notificationCounts?.assets || 0} />
               {delegatedGrants.length > 0 && (
-                <QuickLaunchItem icon={<FaUserShield />} label="Admin Portal (Special Access)" onClick={() => setView("special-access")} badgeCount={delegatedGrants.length} />
+                <QuickLaunchItem icon={<TbShieldLock />} label="Admin Portal (Special Access)" onClick={() => setView("special-access")} badgeCount={delegatedGrants.length} />
               )}
             </div>
           </div>
@@ -1347,9 +1343,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
           <div className="card dashboard-widget">
             <h4 className="widget-title">My Leave Status</h4>
             <div className="stats-list">
-              <StatItem icon={<FaHourglassHalf />} label="Pending" count={pendingLeaves.length} colorClass="text-orange" onClick={() => handleStatClick("My Pending", pendingLeaves)} />
-              <StatItem icon={<FaCheckCircle />} label="Approved" count={approvedLeaves.length} colorClass="text-green" onClick={() => handleStatClick("My Approved", approvedLeaves)} />
-              <StatItem icon={<FaTimesCircle />} label="Rejected" count={rejectedLeaves.length} colorClass="text-red" onClick={() => handleStatClick("My Rejected", rejectedLeaves)} />
+              <StatItem icon={<TbHourglass />} label="Pending" count={pendingLeaves.length} colorClass="text-orange" onClick={() => handleStatClick("My Pending", pendingLeaves)} />
+              <StatItem icon={<TbCircleCheck />} label="Approved" count={approvedLeaves.length} colorClass="text-green" onClick={() => handleStatClick("My Approved", approvedLeaves)} />
+              <StatItem icon={<TbCircleX />} label="Rejected" count={rejectedLeaves.length} colorClass="text-red" onClick={() => handleStatClick("My Rejected", rejectedLeaves)} />
             </div>
           </div>
         </div>
@@ -1359,7 +1355,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {view === "special-access" && (
          <div className="card" style={{ marginTop: "16px" }}>
             <h2 style={{ color: 'var(--red)', marginTop: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <FaUserShield /> Temporary Admin Portal
+                <TbShieldLock /> Temporary Admin Portal
             </h2>
             <p style={{ color: '#666', marginBottom: 30 }}>
                 You have been granted temporary administrative permissions. Select an action below to proceed.
@@ -1405,7 +1401,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {announcements.length === 0 ? (
                     <div className="card" style={{ textAlign: 'center', color: '#94a3b8', padding: '40px' }}>
-                        <FaBullhorn size={40} style={{opacity: 0.2, marginBottom: 15}}/>
+                        <TbSpeakerphone size={40} style={{opacity: 0.2, marginBottom: 15}}/>
                         <p style={{margin: 0}}>No announcements currently active.</p>
                     </div>
                 ) : (
@@ -1462,7 +1458,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                           onChange={(e) => setDashboardMonth(e.target.value)} 
                       />
                       <button className="btn" style={{background: '#10b981', display:'flex', alignItems:'center', gap:5}} onClick={downloadReport}>
-                          <FaDownload /> Export CSV
+                          <TbDownload /> Export CSV
                       </button>
                   </div>
               </div>
@@ -1506,7 +1502,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                     <thead>
                         <tr>
                             <th>Employee</th>
-                            <th style={{minWidth: '95px'}}><FaClock style={{marginRight: 4, opacity: 0.7, marginBottom: -2}}/> Applied On</th>
+                            <th style={{minWidth: '95px'}}><TbClock style={{marginRight: 4, opacity: 0.7, marginBottom: -2}}/> Applied On</th>
                             <th>Period</th>
                             <th>Reason</th>
                             <th style={{textAlign:'center'}}>Manager</th>
@@ -1564,7 +1560,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                                               background: '#fef2f2', padding: '4px 6px', borderRadius: 4
                                           }}
                                         >
-                                          <FaFileDownload /> View
+                                          <TbFileDownload /> View
                                         </a>
                                       </div>
                                     )}
@@ -1592,13 +1588,13 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                                             className="action-btn btn-approve"
                                             onClick={() => updateLeaveStatus(l._id, "Approved")}
                                         >
-                                            <FaCheckCircle /> Approve
+                                            <TbCircleCheck /> Approve
                                         </button>
                                         <button
                                             className="action-btn btn-reject"
                                             onClick={() => updateLeaveStatus(l._id, "Rejected")}
                                         >
-                                            <FaTimesCircle /> Reject
+                                            <TbCircleX /> Reject
                                         </button>
                                         {(l.status === "Pending" || l.status === "Approved") && (
                                             <button
@@ -1682,7 +1678,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                                                 } catch(e) { alert(e.message); }
                                             }}
                                         >
-                                            <FaCheckCircle /> Approve
+                                            <TbCircleCheck /> Approve
                                         </button>
                                         <button 
                                             className="action-btn btn-reject" 
@@ -1699,7 +1695,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                                                 } catch(e) { alert(e.message); }
                                             }}
                                         >
-                                            <FaTimesCircle /> Reject
+                                            <TbCircleX /> Reject
                                         </button>
                                         {(asset.manager_status || "").toLowerCase() === "approved" && (
                                             <button
@@ -1712,7 +1708,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                                                     whiteSpace: "nowrap",
                                                 }}
                                             >
-                                                <FaSave size={10} /> Assign to Mail
+                                                <TbDeviceFloppy size={10} /> Assign to Mail
                                             </button>
                                         )}
                                     </div>
@@ -1737,7 +1733,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                 </p>
               </div>
               <button onClick={() => setAssignAsset(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}>
-                <FaTimes />
+                <TbX />
               </button>
             </div>
 
@@ -1786,7 +1782,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
                 <button className="btn" type="submit" disabled={assignSending}
                   style={{ background: "#0f766e", display: "flex", alignItems: "center", gap: 6 }}>
-                  <FaSave size={11} /> {assignSending ? "Sending…" : "Send Email"}
+                  <TbDeviceFloppy size={11} /> {assignSending ? "Sending…" : "Send Email"}
                 </button>
                 <button className="btn ghost" type="button" onClick={() => setAssignAsset(null)}>Cancel</button>
               </div>
@@ -1819,11 +1815,11 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
              <div style={{display:'flex', gap:20, marginBottom:15}}>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
                     <input type="radio" name="duration" checked={leaveDuration === 'single'} onChange={() => setLeaveDuration('single')} />
-                    <FaCalendarAlt style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Single Day</span>
+                    <TbCalendar style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Single Day</span>
                 </label>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
                     <input type="radio" name="duration" checked={leaveDuration === 'multiple'} onChange={() => setLeaveDuration('multiple')} />
-                    <FaCalendarAlt style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Multiple Days</span>
+                    <TbCalendar style={{color: "var(--red)"}} /><span style={{fontWeight:500}}>Multiple Days</span>
                 </label>
             </div>
             {leaveDuration === 'single' && (
@@ -1879,7 +1875,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             <div style={{marginTop: 15}}>
               <label className="modern-label">Attachment (Optional)</label>
               <label className="file-upload-label">
-                <FaCloudUploadAlt size={24} />
+                <TbCloudUpload size={24} />
                 <span>{file ? file.name : "Click to upload a document (Max 5MB)"}</span>
                 <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} style={{display: "none"}} />
               </label>
@@ -2004,7 +2000,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px'}}>
                 <h3 style={{margin:0, color:'var(--red)'}}>My Attendance Log</h3>
                 <button className="btn" style={{fontSize:'13px'}} onClick={() => { setCorrectionData({newTime:'',reason:''}); setView("correction"); }}>
-                  <FaEdit style={{marginRight:5}}/> Attendance Correction Request
+                  <TbEdit style={{marginRight:5}}/> Attendance Correction Request
                 </button>
             </div>
             <div style={{overflowX: 'auto'}}>
@@ -2060,10 +2056,10 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                                     {c.status === 'Pending' ? (
                                       <div style={{display:'flex', gap:5}}>
                                         <button className="btn-small" style={{background:'green'}} onClick={() => approveCorrection(c._id, 'Approved')}>
-                                          <FaCheckCircle /> Approve
+                                          <TbCircleCheck /> Approve
                                         </button>
                                         <button className="btn-small" style={{background:'#b91c1c'}} onClick={() => approveCorrection(c._id, 'Rejected')}>
-                                          <FaTimesCircle /> Reject
+                                          <TbCircleX /> Reject
                                         </button>
                                       </div>
                                     ) : (
@@ -2106,7 +2102,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               <button
                 onClick={() => setLeaveModalOpen(false)}
                 style={{ background:'#f1f5f9', border:'none', cursor:'pointer', color:'#475569', width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}
-              ><FaTimes size={15} /></button>
+              ><TbX size={15} /></button>
             </div>
             <div style={{overflowY:'auto', flex:1, padding:'8px 24px 20px'}}>
                {modalList.length === 0 ? (
@@ -2132,7 +2128,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               <button
                 onClick={() => setViewLeave(null)}
                 style={{ background:'#f1f5f9', border:'none', cursor:'pointer', color:'#475569', width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}
-              ><FaTimes size={15} /></button>
+              ><TbX size={15} /></button>
             </div>
             <div style={{overflowY:'auto', flex:1, padding:'20px 24px 24px', display:'flex', flexDirection:'column', gap:16}}>
               <div>
@@ -2219,7 +2215,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
                 style={{ position: 'absolute', top: 10, right: 10, padding: 5, background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', fontSize: '18px' }} 
                 onClick={closeCamera}
             >
-                <FaTimes />
+                <TbX />
             </button>
 
             {submittingPhoto ? (

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { FaPhone, FaPhoneSlash, FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
+import { TbPhone, TbPhoneOff, TbMicrophone, TbMicrophoneOff } from "react-icons/tb";
 import { useCall } from "./CallContext";
 
 function fmtDuration(sec) {
@@ -59,13 +59,13 @@ export default function CallOverlay() {
               width: 48, height: 48, borderRadius: "50%", border: "none", cursor: "pointer",
               background: "#dc2626", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17,
             }}>
-              <FaPhoneSlash />
+              <TbPhoneOff />
             </button>
             <button onClick={answerCall} title="Answer" style={{
               width: 48, height: 48, borderRadius: "50%", border: "none", cursor: "pointer",
               background: "#16a34a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17,
             }}>
-              <FaPhone />
+              <TbPhone />
             </button>
           </div>
         </div>
@@ -94,13 +94,13 @@ export default function CallOverlay() {
               width: 44, height: 44, borderRadius: "50%", border: "1px solid #e2e8f0", cursor: "pointer",
               background: muted ? "#f1f5f9" : "#fff", color: "#334155", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15,
             }}>
-              {muted ? <FaMicrophoneSlash /> : <FaMicrophone />}
+              {muted ? <TbMicrophoneOff /> : <TbMicrophone />}
             </button>
             <button onClick={hangUp} title="End call" style={{
               width: 48, height: 48, borderRadius: "50%", border: "none", cursor: "pointer",
               background: "#dc2626", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17,
             }}>
-              <FaPhoneSlash />
+              <TbPhoneOff />
             </button>
           </div>
         </div>

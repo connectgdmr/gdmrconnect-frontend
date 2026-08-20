@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaCheckCircle, FaTimesCircle } from "react-icons/fa";
+import { TbCircleCheck, TbCircleX } from "react-icons/tb";
 
 const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
 
@@ -105,13 +105,13 @@ export default function AdminAssets({ token, api, canWrite = true }) {
                           className="action-btn btn-approve" disabled={loading}
                           onClick={() => updateAdminAssetStatus(asset._id, "Approved")}
                         >
-                          <FaCheckCircle /> Approve
+                          <TbCircleCheck /> Approve
                         </button>
                         <button
                           className="action-btn btn-reject" disabled={loading}
                           onClick={() => updateAdminAssetStatus(asset._id, "Rejected")}
                         >
-                          <FaTimesCircle /> Reject
+                          <TbCircleX /> Reject
                         </button>
                         {(asset.admin_status || "").toLowerCase() === "approved" && (
                           <span style={{
@@ -120,7 +120,7 @@ export default function AdminAssets({ token, api, canWrite = true }) {
                             background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0",
                             fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
                           }}>
-                            <FaCheckCircle size={10} /> Approved — manager assigns
+                            <TbCircleCheck size={10} /> Approved — manager assigns
                           </span>
                         )}
                       </div>

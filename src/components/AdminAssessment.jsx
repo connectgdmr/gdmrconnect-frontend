@@ -1,9 +1,9 @@
 ﻿import React, { useState, useEffect } from "react";
 import {
-  FaPlus, FaTimes, FaPaperPlane, FaEdit, FaTrash,
-  FaCheckCircle, FaTimesCircle, FaClipboardList, FaUserGraduate,
-  FaClock, FaChartBar, FaSearch,
-} from "react-icons/fa";
+  TbPlus, TbX, TbSend, TbEdit, TbTrash,
+  TbCircleCheck, TbCircleX, TbClipboardList, TbUserSearch,
+  TbClock, TbChartBar, TbSearch,
+} from "react-icons/tb";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 
 import { API_URL as BASE } from "../api";
@@ -40,7 +40,7 @@ function QuestionCard({ q, idx, onChange, onRemove }) {
             <option value="text">Text Answer</option>
           </select>
           <button onClick={() => onRemove(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444" }}>
-            <FaTimes size={13} />
+            <TbX size={13} />
           </button>
         </div>
       </div>
@@ -226,7 +226,7 @@ export default function AdminAssessment({ token }) {
           <p className="small">Create and manage pre-employment and onboarding assessments</p>
         </div>
         <button className="btn" onClick={startCreate} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <FaPlus size={11} /> New Assessment
+          <TbPlus size={11} /> New Assessment
         </button>
       </div>
 
@@ -250,7 +250,7 @@ export default function AdminAssessment({ token }) {
         loading ? <SkeletonCards count={6} />
         : assessments.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
-            <FaClipboardList size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
+            <TbClipboardList size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
             <p style={{ margin: 0 }}>No assessments yet. Create one to get started.</p>
           </div>
         ) : (
@@ -260,20 +260,20 @@ export default function AdminAssessment({ token }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <h4 style={{ margin: 0, color: "#0f172a", fontSize: 15 }}>{a.title}</h4>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button className="btn-action btn-edit" onClick={() => startEdit(a)} title="Edit"><FaEdit /></button>
-                    <button className="btn-action btn-remove" onClick={() => deleteAssessment(a._id)} title="Delete"><FaTrash /></button>
+                    <button className="btn-action btn-edit" onClick={() => startEdit(a)} title="Edit"><TbEdit /></button>
+                    <button className="btn-action btn-remove" onClick={() => deleteAssessment(a._id)} title="Delete"><TbTrash /></button>
                   </div>
                 </div>
                 {a.description && <p style={{ margin: 0, fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{a.description.slice(0, 80)}{a.description.length > 80 ? "…" : ""}</p>}
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 12, color: "#475569", display: "flex", alignItems: "center", gap: 4 }}>
-                    <FaClock size={11} color="#94a3b8" /> {a.duration || 30} min
+                    <TbClock size={11} color="#94a3b8" /> {a.duration || 30} min
                   </span>
                   <span style={{ fontSize: 12, color: "#475569", display: "flex", alignItems: "center", gap: 4 }}>
-                    <FaClipboardList size={11} color="#94a3b8" /> {a.questions?.length || 0} questions
+                    <TbClipboardList size={11} color="#94a3b8" /> {a.questions?.length || 0} questions
                   </span>
                   <span style={{ fontSize: 12, color: "#475569", display: "flex", alignItems: "center", gap: 4 }}>
-                    <FaChartBar size={11} color="#94a3b8" /> Pass: {a.passing_score || 60}%
+                    <TbChartBar size={11} color="#94a3b8" /> Pass: {a.passing_score || 60}%
                   </span>
                 </div>
               </div>
@@ -311,7 +311,7 @@ export default function AdminAssessment({ token }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h4 style={{ margin: 0, color: "#0f172a" }}>Questions ({questions.length})</h4>
               <button type="button" className="btn ghost" onClick={() => setQuestions([...questions, blankQuestion()])} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-                <FaPlus size={10} /> Add Question
+                <TbPlus size={10} /> Add Question
               </button>
             </div>
             {questions.map((q, i) => (
@@ -355,7 +355,7 @@ export default function AdminAssessment({ token }) {
               </select>
             </div>
             <button className="btn" type="submit" disabled={inviteSaving} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", justifyContent: "center" }}>
-              <FaPaperPlane size={12} /> {inviteSaving ? "Sending…" : "Send Assessment Link"}
+              <TbSend size={12} /> {inviteSaving ? "Sending…" : "Send Assessment Link"}
             </button>
           </form>
         </div>
@@ -365,14 +365,14 @@ export default function AdminAssessment({ token }) {
       {tab === "candidates" && (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
           <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 10, alignItems: "center" }}>
-            <FaSearch color="#94a3b8" />
+            <TbSearch color="#94a3b8" />
             <input style={{ border: "none", outline: "none", flex: 1, fontSize: 14, background: "transparent" }}
               placeholder="Search candidate name or email…" value={candSearch} onChange={e => setCandSearch(e.target.value)} />
           </div>
           {candLoading ? <SkeletonTable rows={6} cols={5} />
           : candidates.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px", color: "#94a3b8" }}>
-              <FaUserGraduate size={36} style={{ opacity: 0.2, marginBottom: 10 }} />
+              <TbUserSearch size={36} style={{ opacity: 0.2, marginBottom: 10 }} />
               <p>No candidates invited yet.</p>
             </div>
           ) : (
@@ -389,7 +389,7 @@ export default function AdminAssessment({ token }) {
                       <td>
                         {c.status === "completed" && (
                           <button className="btn ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => loadResult(c._id)}>
-                            <FaChartBar size={11} /> View Results
+                            <TbChartBar size={11} /> View Results
                           </button>
                         )}
                       </td>
@@ -407,7 +407,7 @@ export default function AdminAssessment({ token }) {
         resultLoading ? <SkeletonTable rows={5} cols={1} />
         : !selectedResult ? (
           <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
-            <FaChartBar size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
+            <TbChartBar size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
             <p>Select a completed candidate from the Candidates tab to view results.</p>
           </div>
         ) : (
@@ -447,8 +447,8 @@ export default function AdminAssessment({ token }) {
                   return (
                   <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                      {isCorrect === true  && <FaCheckCircle color="#16a34a" style={{ marginTop: 2, flexShrink: 0 }} />}
-                      {isCorrect === false && <FaTimesCircle color="#ef4444" style={{ marginTop: 2, flexShrink: 0 }} />}
+                      {isCorrect === true  && <TbCircleCheck color="#16a34a" style={{ marginTop: 2, flexShrink: 0 }} />}
+                      {isCorrect === false && <TbCircleX color="#ef4444" style={{ marginTop: 2, flexShrink: 0 }} />}
                       {isCorrect == null   && <span style={{ width: 14, height: 14, marginTop: 2, flexShrink: 0, borderRadius: "50%", background: "#e2e8f0", display: "inline-block" }} />}
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 13, color: "#0f172a" }}>Q{(a.question_index ?? i) + 1}: {questionText}</div>

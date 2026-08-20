@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaLightbulb, FaGift, FaHourglassHalf, FaCalendarCheck } from "react-icons/fa";
+import { TbBulb, TbGift, TbHourglass, TbCalendarCheck } from "react-icons/tb";
 
 // Finds the nearest holiday on/after `today` from the live GET /api/holidays
 // list (database.holidays_col) — used to replace the old hardcoded
@@ -42,7 +42,7 @@ export default function InsightsBanner({ leaves = [], token, api }) {
 
   if (nextHoliday && nextHoliday.daysAway <= 14) {
     items.push({
-      icon: <FaGift />,
+      icon: <TbGift />,
       text: nextHoliday.daysAway === 0
         ? `${nextHoliday.name} is today!`
         : `${nextHoliday.name} is coming up on ${nextHoliday.date.toLocaleDateString("en-US", { month: "long", day: "numeric" })} — ${nextHoliday.daysAway} day${nextHoliday.daysAway > 1 ? "s" : ""} away.`,
@@ -51,14 +51,14 @@ export default function InsightsBanner({ leaves = [], token, api }) {
 
   if (pendingCount > 0) {
     items.push({
-      icon: <FaHourglassHalf />,
+      icon: <TbHourglass />,
       text: `You have ${pendingCount} leave request${pendingCount > 1 ? "s" : ""} awaiting approval.`,
     });
   }
 
   if (nextApprovedLeave) {
     items.push({
-      icon: <FaCalendarCheck />,
+      icon: <TbCalendarCheck />,
       text: `Your next approved leave starts ${nextApprovedLeave.d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}.`,
     });
   }
@@ -68,7 +68,7 @@ export default function InsightsBanner({ leaves = [], token, api }) {
   return (
     <div className="insights-banner">
       <div className="insights-banner-title">
-        <FaLightbulb style={{ marginRight: 6, marginBottom: -1 }} /> Insights
+        <TbBulb style={{ marginRight: 6, marginBottom: -1 }} /> Insights
       </div>
       {items.map((it, i) => (
         <div key={i} className="insights-row">
