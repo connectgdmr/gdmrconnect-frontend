@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaTimes, FaGift, FaPhone, FaEdit, FaCheckCircle, FaBuilding, FaBriefcase, FaEnvelope } from "react-icons/fa";
+import { TbX, TbGift, TbPhone, TbEdit, TbCircleCheck, TbBuilding, TbBriefcase, TbMail } from "react-icons/tb";
 
 export default function ProfilePanel({ user, token, api, isOpen, onClose }) {
   const [birthday, setBirthday] = useState("");
@@ -58,7 +58,7 @@ export default function ProfilePanel({ user, token, api, isOpen, onClose }) {
         <div className="profile-panel-header">
           <h3 style={{ margin: 0, fontSize: 17, color: "#0f172a" }}>My Profile</h3>
           <button className="profile-panel-close" onClick={onClose}>
-            <FaTimes size={14} />
+            <TbX size={14} />
           </button>
         </div>
 
@@ -77,19 +77,19 @@ export default function ProfilePanel({ user, token, api, isOpen, onClose }) {
         <div className="profile-panel-info-row">
           {user?.email && (
             <div className="profile-info-item">
-              <FaEnvelope size={11} style={{ color: "var(--brand)", flexShrink: 0 }} />
+              <TbMail size={11} style={{ color: "var(--brand)", flexShrink: 0 }} />
               <span>{user.email}</span>
             </div>
           )}
           {user?.department && (
             <div className="profile-info-item">
-              <FaBuilding size={11} style={{ color: "#f59e0b", flexShrink: 0 }} />
+              <TbBuilding size={11} style={{ color: "#f59e0b", flexShrink: 0 }} />
               <span>{user.department}</span>
             </div>
           )}
           {user?.position && (
             <div className="profile-info-item">
-              <FaBriefcase size={11} style={{ color: "#22c55e", flexShrink: 0 }} />
+              <TbBriefcase size={11} style={{ color: "#22c55e", flexShrink: 0 }} />
               <span>{user.position}</span>
             </div>
           )}
@@ -102,7 +102,7 @@ export default function ProfilePanel({ user, token, api, isOpen, onClose }) {
           <form onSubmit={saveProfile}>
             <div className="profile-field">
               <label className="profile-label">
-                <FaGift size={12} style={{ color: "#f59e0b", marginRight: 6 }} />
+                <TbGift size={12} style={{ color: "#f59e0b", marginRight: 6 }} />
                 Date of Birth
               </label>
               <input
@@ -118,7 +118,7 @@ export default function ProfilePanel({ user, token, api, isOpen, onClose }) {
 
             <div className="profile-field">
               <label className="profile-label">
-                <FaPhone size={12} style={{ color: "var(--brand)", marginRight: 6 }} />
+                <TbPhone size={12} style={{ color: "var(--brand)", marginRight: 6 }} />
                 Phone Number
               </label>
               <input
@@ -132,7 +132,7 @@ export default function ProfilePanel({ user, token, api, isOpen, onClose }) {
 
             <div className="profile-field">
               <label className="profile-label">
-                <FaEdit size={12} style={{ color: "#22c55e", marginRight: 6 }} />
+                <TbEdit size={12} style={{ color: "#22c55e", marginRight: 6 }} />
                 Bio / About Me
               </label>
               <textarea
@@ -159,7 +159,7 @@ export default function ProfilePanel({ user, token, api, isOpen, onClose }) {
               disabled={saving}
             >
               {saved ? (
-                <><FaCheckCircle /> Saved!</>
+                <><TbCircleCheck /> Saved!</>
               ) : saving ? "Saving..." : "Save Profile"}
             </button>
           </form>

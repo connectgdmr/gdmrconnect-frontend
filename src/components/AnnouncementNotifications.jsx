@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FaBullhorn, FaTimes } from "react-icons/fa";
+import { TbSpeakerphone, TbX } from "react-icons/tb";
 
 export default function AnnouncementNotifications({ announcements, userId }) {
   const storageKey = `dismissed_ann_${userId || "guest"}`;
@@ -59,7 +59,7 @@ export default function AnnouncementNotifications({ announcements, userId }) {
             animation: "slideDown 0.3s ease",
           }}
         >
-          <FaBullhorn
+          <TbSpeakerphone
             style={{ color: "var(--red)", flexShrink: 0, marginTop: 3, fontSize: 15 }}
           />
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -90,7 +90,7 @@ export default function AnnouncementNotifications({ announcements, userId }) {
             onMouseEnter={(e) => { e.currentTarget.style.color = "#dc2626"; e.currentTarget.style.background = "#fef2f2"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "#94a3b8"; e.currentTarget.style.background = "none"; }}
           >
-            <FaTimes size={13} />
+            <TbX size={13} />
           </button>
         </div>
       ))}

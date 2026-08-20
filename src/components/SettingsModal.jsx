@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { FaTimes, FaSun, FaMoon, FaDesktop, FaLock, FaEye, FaEyeSlash, FaCheck } from "react-icons/fa";
+import { TbX, TbSun, TbMoon, TbDeviceDesktop, TbLock, TbEye, TbEyeOff, TbCheck } from "react-icons/tb";
 import { useTheme, ACCENTS } from "./ThemeContext";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 
 const THEME_OPTIONS = [
-  { key: "light", label: "Light", icon: FaSun },
-  { key: "dark", label: "Dark", icon: FaMoon },
-  { key: "system", label: "System", icon: FaDesktop },
+  { key: "light", label: "Light", icon: TbSun },
+  { key: "dark", label: "Dark", icon: TbMoon },
+  { key: "system", label: "System", icon: TbDeviceDesktop },
 ];
 
 const STRONG_PW = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
@@ -58,7 +58,7 @@ export default function SettingsModal({ token, api, onClose }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h3 style={{ margin: 0, color: "var(--red)" }}>Settings</h3>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--slate-400)" }}>
-            <FaTimes size={16} />
+            <TbX size={16} />
           </button>
         </div>
 
@@ -97,7 +97,7 @@ export default function SettingsModal({ token, api, onClose }) {
                   outlineOffset: 2,
                 }}
               >
-                {accent === key && <FaCheck size={11} color="#fff" />}
+                {accent === key && <TbCheck size={11} color="#fff" />}
               </button>
             ))}
           </div>
@@ -106,7 +106,7 @@ export default function SettingsModal({ token, api, onClose }) {
         {/* ── Change Password ── */}
         <div>
           <div className="profile-section-label" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-            <FaLock size={10} /> Change Password
+            <TbLock size={10} /> Change Password
           </div>
 
           {msg && (
@@ -128,7 +128,7 @@ export default function SettingsModal({ token, api, onClose }) {
               />
               <span className="password-toggle-icon" onClick={() => setShowOld((v) => !v)}
                 style={{ position: "absolute", right: 12, top: 34 }}>
-                {showOld ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+                {showOld ? <TbEyeOff size={14} /> : <TbEye size={14} />}
               </span>
             </div>
 
@@ -141,7 +141,7 @@ export default function SettingsModal({ token, api, onClose }) {
               />
               <span className="password-toggle-icon" onClick={() => setShowNew((v) => !v)}
                 style={{ position: "absolute", right: 12, top: 34 }}>
-                {showNew ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+                {showNew ? <TbEyeOff size={14} /> : <TbEye size={14} />}
               </span>
             </div>
             <PasswordStrengthMeter password={newPassword} />

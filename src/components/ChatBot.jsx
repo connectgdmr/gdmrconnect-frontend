@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FaTimes, FaPaperPlane, FaRegLightbulb, FaMicrophone, FaStop, FaCommentDots } from "react-icons/fa";
+import { TbX, TbSend, TbBulb, TbMicrophone, TbMessageDots } from "react-icons/tb";
 import { GiLion } from "react-icons/gi";
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -474,7 +474,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
                 </div>
                 <div className="hud-topbar-right">
                   <span className="hud-status-chip"><span className="hud-led" />ONLINE</span>
-                  <button onClick={closePanel} className="hud-close"><FaTimes size={12} /></button>
+                  <button onClick={closePanel} className="hud-close"><TbX size={12} /></button>
                 </div>
               </div>
 
@@ -545,12 +545,12 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
                     type="button"
                     className={panelMode === "voice" ? "active" : ""}
                     onClick={() => setPanelMode("voice")}
-                  ><FaMicrophone size={10} /> VOICE</button>
+                  ><TbMicrophone size={10} /> VOICE</button>
                   <button
                     type="button"
                     className={panelMode === "chat" ? "active" : ""}
                     onClick={switchToChat}
-                  ><FaCommentDots size={10} /> TEXT</button>
+                  ><TbMessageDots size={10} /> TEXT</button>
                 </div>
 
                 {panelMode === "voice" ? (
@@ -564,7 +564,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
                 ) : (
                   <form onSubmit={(e) => { e.preventDefault(); send(); }} className="hud-input-row">
                     <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type a message…" className="hud-input" />
-                    <button type="submit" disabled={!input.trim()} className="hud-send"><FaPaperPlane size={11} /></button>
+                    <button type="submit" disabled={!input.trim()} className="hud-send"><TbSend size={11} /></button>
                   </form>
                 )}
               </div>
@@ -580,7 +580,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
                     <span className="genie-dot" /> GDMR Connect Assistant
                   </div>
                 </div>
-                <button onClick={closePanel} className="genie-close"><FaTimes size={13} /></button>
+                <button onClick={closePanel} className="genie-close"><TbX size={13} /></button>
               </div>
 
               <div ref={scrollRef} className="genie-body">
@@ -611,7 +611,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
                 <div className="genie-chips">
                   {suggestions.map((s) => (
                     <button key={s} onClick={() => send(s)} className="genie-chip">
-                      <FaRegLightbulb size={10} style={{ opacity: 0.7 }} /> {s}
+                      <TbBulb size={10} style={{ opacity: 0.7 }} /> {s}
                     </button>
                   ))}
                 </div>
@@ -620,7 +620,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
               <form onSubmit={(e) => { e.preventDefault(); send(); }} className="genie-input-row">
                 <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={`Ask ${BOT_NAME} anything…`} className="genie-input" />
                 <button type="submit" disabled={!input.trim()} className="genie-send" style={{ background: input.trim() ? "var(--brand)" : "#cbd5e1" }}>
-                  <FaPaperPlane size={13} />
+                  <TbSend size={13} />
                 </button>
               </form>
             </div>
