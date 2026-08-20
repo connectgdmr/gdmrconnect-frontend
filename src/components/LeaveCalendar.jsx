@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { TbChevronLeft, TbChevronRight } from "react-icons/tb";
 
 // Click-to-select calendar for multi-day leave — pick individual days
 // (not necessarily consecutive) instead of typing a start/end date range.
@@ -32,14 +32,14 @@ export default function LeaveCalendar({ selected, onToggle }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
         <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))}
           style={{ border: "none", background: "none", cursor: "pointer", color: "#64748b", padding: 3 }}>
-          <FaChevronLeft size={10} />
+          <TbChevronLeft size={10} />
         </button>
         <span style={{ fontWeight: 700, fontSize: 11.5, color: "#0f172a" }}>
           {viewDate.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
         </span>
         <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))}
           style={{ border: "none", background: "none", cursor: "pointer", color: "#64748b", padding: 3 }}>
-          <FaChevronRight size={10} />
+          <TbChevronRight size={10} />
         </button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 2 }}>
