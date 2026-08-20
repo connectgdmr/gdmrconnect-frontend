@@ -327,6 +327,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
 
   // Manager's own attendance correction form
   const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
+  const [myCorrectionsHistory, setMyCorrectionsHistory] = useState([]);
 
   // Modal display states
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
@@ -396,7 +397,12 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
         fetch(`${baseUrl}/api/admin/pms-dashboard?month=${dashboardMonth}`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
         fetch(`${baseUrl}/api/my/delegated-access`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
         fetch(`${baseUrl}/api/manager/assets`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
-        fetch(`${baseUrl}/api/my/profile`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status))
+        fetch(`${baseUrl}/api/my/profile`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        // A manager's own self-submitted correction (routed to admin, not
+        // /api/manager/corrections — that's the team-approval queue, which
+        // deliberately excludes admin-routed requests) never showed up
+        // anywhere on their own dashboard once submitted.
+        fetch(`${baseUrl}/api/my/corrections`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
       ]);
 
       // Map results to state safely avoiding any undefined crashes
@@ -443,6 +449,11 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       // Employment status — offboarded managers can't clock in/out
       if (results[10].status === 'fulfilled' && results[10].value) {
           setEmploymentEnded(!!results[10].value.offboarded);
+      }
+
+      // My own submitted correction requests (self-submitted, routed to admin)
+      if (results[11].status === 'fulfilled' && Array.isArray(results[11].value)) {
+          setMyCorrectionsHistory(results[11].value);
       }
 
     } catch (err) {
@@ -790,6 +801,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       if (!res.ok) throw new Error(data.message || "Failed to submit correction.");
       alert("Correction request sent to Admin for approval.");
       setCorrectionData({ newTime: "", reason: "" });
+      await load(true); // so "My Correction Requests" has it next time this view opens
       setAttendanceSubView("attendance-log");
       setView("attendance");
     } catch (err) {
@@ -1937,6 +1949,23 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               <button type="submit" className="btn">Send Request</button>
             </div>
           </form>
+
+          <h4 style={{marginTop:30, color:'var(--red)'}}>My Correction Requests</h4>
+          <div style={{overflowX: 'auto'}}>
+            <table className="styled-table-global">
+              <thead><tr><th>Date Requested</th><th>Reason</th><th>Status</th></tr></thead>
+              <tbody>
+                {myCorrectionsHistory.length === 0 && <tr><td colSpan="3" style={{textAlign:'center', padding:20, color:'#999'}}>No history found.</td></tr>}
+                {myCorrectionsHistory.map(c => (
+                  <tr key={c._id}>
+                    <td>{c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
+                    <td>{c.reason}</td>
+                    <td><span className={`status-badge ${getStatusClass(c.status)}`}>{c.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
