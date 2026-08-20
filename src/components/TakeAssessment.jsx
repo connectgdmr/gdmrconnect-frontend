@@ -15,6 +15,7 @@ export default function TakeAssessment({ assessmentToken }) {
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [tabWarnings, setTabWarnings] = useState(0);
+  const [starting, setStarting] = useState(false);
 
   const timerRef   = useRef(null);
   const startedRef = useRef(false);
@@ -71,10 +72,30 @@ export default function TakeAssessment({ assessmentToken }) {
 
   useEffect(() => () => clearInterval(timerRef.current), []);
 
-  function startAssessment() {
-    requestFullscreen();
-    setPhase("taking");
-    startTimer();
+  // The actual question text/options are only ever fetched here, via the
+  // one-shot POST .../start — the initial page-load GET (above) only ever
+  // returns a safe title/description/count preview and never marks the
+  // invite "started", precisely so that closing this tab and reopening the
+  // same link can't hand back a second fresh look at the questions (see
+  // routes/assessment.py's get_assessment_by_token()/start_assessment_by_token()
+  // for why the GET had to stop mutating status).
+  async function startAssessment() {
+    if (starting) return;
+    setStarting(true);
+    try {
+      const r = await fetch(`${BASE}/assessment/${assessmentToken}/start`, { method: "POST" });
+      const data = await r.json();
+      if (!r.ok) { setErrorMsg(data.message || "This assessment can no longer be started."); setPhase("error"); return; }
+      setAssessment(a => ({ ...a, ...data }));
+      requestFullscreen();
+      setPhase("taking");
+      startTimer();
+    } catch {
+      setErrorMsg("Network error — please check your connection and try again.");
+      setPhase("error");
+    } finally {
+      setStarting(false);
+    }
   }
 
   // ── Submit ────────────────────────────────────────────────────────────────────
@@ -116,8 +137,14 @@ export default function TakeAssessment({ assessmentToken }) {
 
   // ── Renders ───────────────────────────────────────────────────────────────────
 
+  // #root is globally height:100vh + overflow:hidden (the dashboard shell's
+  // fixed-viewport layout — see App.css) — this page renders standalone,
+  // outside that shell's own scrollable content area, so it must give
+  // itself an explicit scroll container or anything taller than one
+  // viewport (e.g. many stacked questions) just gets silently clipped with
+  // no way to reach the rest of the page.
   const Shell = ({ children }) => (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
+    <div style={{ height: "100vh", overflowY: "auto", background: "#f8fafc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <img src={Logo} alt="GDMR" style={{ height: 44, marginBottom: 24, opacity: 0.9 }} />
       {children}
     </div>
@@ -164,7 +191,7 @@ export default function TakeAssessment({ assessmentToken }) {
         <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 28 }}>
           {[
             { icon: <FaClock size={14} />, label: `${assessment.duration || 30} minutes` },
-            { icon: <FaLock size={14} />, label: `${assessment.questions?.length || 0} questions` },
+            { icon: <FaLock size={14} />, label: `${assessment.question_count ?? assessment.questions?.length ?? 0} questions` },
             { icon: <FaCheckCircle size={14} color="#16a34a" />, label: `Pass: ${assessment.passing_score || 60}%` },
           ].map(({ icon, label }, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#475569" }}>
@@ -185,9 +212,10 @@ export default function TakeAssessment({ assessmentToken }) {
 
         <button
           onClick={startAssessment}
-          style={{ width: "100%", padding: "14px", background: "var(--red, #b91c1c)", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 16, cursor: "pointer", letterSpacing: "0.02em" }}
+          disabled={starting}
+          style={{ width: "100%", padding: "14px", background: "var(--red, #b91c1c)", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 16, cursor: starting ? "not-allowed" : "pointer", letterSpacing: "0.02em", opacity: starting ? 0.7 : 1 }}
         >
-          Begin Assessment
+          {starting ? "Starting…" : "Begin Assessment"}
         </button>
         <p style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", margin: "10px 0 0" }}>By clicking Begin you agree to follow the assessment rules.</p>
       </div>
@@ -200,7 +228,7 @@ export default function TakeAssessment({ assessmentToken }) {
     const urgent = timeLeft < 300;
 
     return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc", paddingBottom: 80 }}>
+      <div style={{ height: "100vh", overflowY: "auto", background: "#f8fafc", paddingBottom: 80 }}>
         {/* Sticky header */}
         <div style={{ position: "sticky", top: 0, background: "#fff", borderBottom: "1px solid #e2e8f0", zIndex: 100, padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
