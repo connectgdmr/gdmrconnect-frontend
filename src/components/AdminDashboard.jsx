@@ -976,7 +976,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
 
       {/* 6. HOLIDAYS */}
-      {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar token={token} api={api} /></div>}
+      {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar token={token} api={api} canWrite /></div>}
 
       {/* ============================================================================ */}
       {/* 7. ANNOUNCEMENTS */}

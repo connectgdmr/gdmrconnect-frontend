@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FaTimes, FaPaperPlane, FaRegLightbulb, FaMicrophone, FaStop, FaCommentDots } from "react-icons/fa";
 import { GiLion } from "react-icons/gi";
-import { getNextHoliday } from "../data/holidays";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  REXOR — the GDMR Connect in-app assistant.
@@ -362,13 +361,39 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
 
   const FALLBACK_TEXT = "I'm still learning that one! 🌱 But I can instantly help with **leaves, attendance, payslips, courses, careers, announcements, holidays, password help** and more. Try one of these, or reach HR at info@gdmrfoundation.com.";
 
+  // Nearest upcoming company holiday from the live GET /api/holidays list
+  // (database.holidays_col) — was a hardcoded src/data/holidays.js import
+  // before holidays got a real backend + admin CRUD. routes/assistant.py
+  // reads next_holiday.days_away (snake_case) from this payload — the old
+  // static helper returned "daysAway" instead, which the backend silently
+  // never matched, so this also fixes a holiday nudge that was quietly
+  // broken from day one.
+  async function getNextHoliday() {
+    if (!token) return null;
+    try {
+      const holidays = await api.getHolidays(token);
+      if (!Array.isArray(holidays)) return null;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      let next = null;
+      for (const h of holidays) {
+        const d = new Date(`${h.date}T00:00:00`);
+        if (isNaN(d) || d < today) continue;
+        if (!next || d < next.dateObj) next = { ...h, dateObj: d };
+      }
+      if (!next) return null;
+      return { name: next.name, date: next.date, day: next.day, days_away: Math.round((next.dateObj - today) / 86400000) };
+    } catch {
+      return null;
+    }
+  }
+
   // Asks the backend LLM (if configured) for anything the KB doesn't recognize.
   // Returns null on any failure so the caller can fall back to FALLBACK_TEXT.
   async function askAssistant(q) {
     if (!token) return null;
     try {
       const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
-      const nextHoliday = getNextHoliday();
+      const nextHoliday = await getNextHoliday();
       const res = await fetch(`${baseUrl}/api/assistant/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

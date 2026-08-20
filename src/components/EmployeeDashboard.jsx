@@ -1164,7 +1164,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       )}
 
       {/* — Insights — */}
-      {view === "dashboard" && <InsightsBanner leaves={leaves} />}
+      {view === "dashboard" && <InsightsBanner leaves={leaves} token={token} api={api} />}
 
       {/* — Announcement Notifications — */}
       {view === "dashboard" && (

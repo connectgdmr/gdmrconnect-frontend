@@ -189,6 +189,8 @@ export default {
   // Company Holidays — single source of truth shared by the Holiday
   // Calendar tab and the Attendance Calendar's grey-out overlay.
   getHolidays: (token) => request("/holidays", "GET", null, token),
+  addHoliday: (payload, token) => request("/admin/holidays", "POST", payload, token),
+  deleteHoliday: (id, token) => request(`/admin/holidays/${id}`, "DELETE", null, token),
 
   // Attendance with Photo (+ optional geo-location captured at check-in/out)
   checkinWithPhoto: (token, imageData, location = null) =>

@@ -1290,7 +1290,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       )}
 
       {/* — Insights — */}
-      {view === "dashboard" && <InsightsBanner leaves={myLeaves} />}
+      {view === "dashboard" && <InsightsBanner leaves={myLeaves} token={token} api={api} />}
 
       {/* — Announcement Notifications — */}
       {view === "dashboard" && (

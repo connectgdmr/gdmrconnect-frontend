@@ -1,13 +1,35 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { FaLightbulb, FaGift, FaHourglassHalf, FaCalendarCheck } from "react-icons/fa";
-import { getNextHoliday } from "../data/holidays";
+
+// Finds the nearest holiday on/after `today` from the live GET /api/holidays
+// list (database.holidays_col) — used to replace the old hardcoded
+// src/data/holidays.js copy so an admin-added holiday shows up in this
+// nudge too, not just the Holiday Calendar tab and Attendance Calendar.
+function nextHolidayFrom(holidays, today) {
+  let next = null;
+  for (const h of holidays) {
+    const d = new Date(`${h.date}T00:00:00`);
+    if (isNaN(d)) continue;
+    if (d >= today && (!next || d < next.dateObj)) next = { ...h, dateObj: d };
+  }
+  if (!next) return null;
+  const daysAway = Math.round((next.dateObj - today) / 86400000);
+  return { name: next.name, date: next.dateObj, daysAway };
+}
 
 /** Rule-based dashboard nudges — no AI involved, just derived from data already on hand. */
-export default function InsightsBanner({ leaves = [] }) {
+export default function InsightsBanner({ leaves = [], token, api }) {
+  const [holidays, setHolidays] = useState([]);
+
+  useEffect(() => {
+    if (!token || !api) return;
+    api.getHolidays(token).then(d => setHolidays(Array.isArray(d) ? d : [])).catch(() => {});
+  }, [token, api]);
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const nextHoliday = getNextHoliday(today);
+  const nextHoliday = nextHolidayFrom(holidays, today);
   const pendingCount = leaves.filter((l) => l.status === "Pending").length;
 
   const nextApprovedLeave = leaves
@@ -23,7 +45,7 @@ export default function InsightsBanner({ leaves = [] }) {
       icon: <FaGift />,
       text: nextHoliday.daysAway === 0
         ? `${nextHoliday.name} is today!`
-        : `${nextHoliday.name} is coming up on ${nextHoliday.date} — ${nextHoliday.daysAway} day${nextHoliday.daysAway > 1 ? "s" : ""} away.`,
+        : `${nextHoliday.name} is coming up on ${nextHoliday.date.toLocaleDateString("en-US", { month: "long", day: "numeric" })} — ${nextHoliday.daysAway} day${nextHoliday.daysAway > 1 ? "s" : ""} away.`,
     });
   }
 
