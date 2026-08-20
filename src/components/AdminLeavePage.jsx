@@ -11,14 +11,15 @@ import {
   FaCalendarAlt,
   FaClock,
   FaSortAmountDown,
-  FaTimes
+  FaTimes,
+  FaBuilding
 } from "react-icons/fa";
 
 // ============================================================================
 // MAIN COMPONENT EXPORT: ADMIN LEAVE PAGE
 // ============================================================================
 
-export default function AdminLeavePage({ token, api }) {
+export default function AdminLeavePage({ token, api, departments = [] }) {
   // ============================================================================
   // 1. STATE MANAGEMENT
   // ============================================================================
@@ -30,6 +31,7 @@ export default function AdminLeavePage({ token, api }) {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [deptFilter, setDeptFilter] = useState("All");
   const [sortBy, setSortBy] = useState("applied_desc");
   const [dateFilter, setDateFilter] = useState(""); // "YYYY-MM-DD" — show only leaves covering this date
 
@@ -113,6 +115,26 @@ export default function AdminLeavePage({ token, api }) {
     return String(l.date || "").slice(0, 10) === dateStr;
   };
 
+  // employee_department (routes/leaves.py's admin_view_leaves) can be a
+  // plain string, an array (multi-department employee), or missing —
+  // normalize to an array everywhere so filtering/display never special-case it.
+  const deptListFor = (l) => {
+    const d = l.employee_department;
+    return Array.isArray(d) ? d.filter(Boolean) : (d ? [d] : []);
+  };
+  const deptLabelFor = (l) => {
+    const list = deptListFor(l);
+    return list.length ? list.join(", ") : "Unassigned";
+  };
+
+  // Real department list, synced from Departments (departments prop is
+  // already the roster-merged list AdminDashboard/ManagerDashboard/
+  // EmployeeDashboard load — every department in use, not just the
+  // formally-registered ones) — same convention as every other admin
+  // table's department filter this session.
+  const deptOptions = [...new Set(departments.map(d => d.name).filter(Boolean))].sort();
+  const hasUnassigned = leaves.some(l => deptListFor(l).length === 0);
+
   const filteredLeaves = leaves
     .filter(l => {
       const matchesSearch = l.employee_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -126,13 +148,17 @@ export default function AdminLeavePage({ token, api }) {
 
       const matchesDate = !dateFilter || coversDate(l, dateFilter);
 
-      return matchesSearch && matchesStatus && matchesDate;
+      const matchesDept = deptFilter === "All" ||
+                            (deptFilter === "Unassigned" ? deptListFor(l).length === 0 : deptListFor(l).includes(deptFilter));
+
+      return matchesSearch && matchesStatus && matchesDate && matchesDept;
     })
     .sort((a, b) => {
       switch (sortBy) {
         case "applied_asc":  return appliedDate(a) - appliedDate(b);
         case "leave_asc":    return leaveStartDate(a) - leaveStartDate(b);
         case "leave_desc":   return leaveStartDate(b) - leaveStartDate(a);
+        case "dept_asc":     return deptLabelFor(a).localeCompare(deptLabelFor(b)) || appliedDate(b) - appliedDate(a);
         case "applied_desc":
         default:             return appliedDate(b) - appliedDate(a);
       }
@@ -258,20 +284,27 @@ export default function AdminLeavePage({ token, api }) {
         .btn-reject { background: #ef4444; }
         
         /* Table Layout - Tighter paddings and dynamic width */
-        .styled-table { 
-          width: 100%; 
-          border-collapse: collapse; 
+        .styled-table-wrap {
+          max-height: 640px;
+          overflow-y: auto;
+        }
+        .styled-table {
+          width: 100%;
+          border-collapse: collapse;
           font-size: 13px; /* Slightly smaller base font */
-          background: #fff; 
+          background: #fff;
           table-layout: auto;
         }
-        .styled-table thead th { 
-          background-color: #f8fafc; 
-          color: #334155; 
-          text-align: left; 
+        .styled-table thead th {
+          background-color: #f8fafc;
+          color: #334155;
+          text-align: left;
           padding: 12px 10px; /* Reduced horizontal padding */
-          font-weight: 600; 
-          border-bottom: 2px solid #e2e8f0; 
+          font-weight: 600;
+          border-bottom: 2px solid #e2e8f0;
+          position: sticky;
+          top: 0;
+          z-index: 2;
           /* Removed white-space: nowrap to allow natural wrapping */
         }
         .styled-table tbody td { 
@@ -379,6 +412,18 @@ export default function AdminLeavePage({ token, api }) {
               </select>
           </div>
           <div className="filter-wrapper">
+              <FaBuilding className="search-icon" />
+              <select
+                  className="styled-input"
+                  value={deptFilter}
+                  onChange={(e) => setDeptFilter(e.target.value)}
+              >
+                  <option value="All">All Departments</option>
+                  {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                  {hasUnassigned && <option value="Unassigned">Unassigned</option>}
+              </select>
+          </div>
+          <div className="filter-wrapper">
               <FaSortAmountDown className="search-icon" />
               <select
                   className="styled-input"
@@ -389,6 +434,7 @@ export default function AdminLeavePage({ token, api }) {
                   <option value="applied_asc">Applied: Oldest First</option>
                   <option value="leave_asc">Leave Date: Earliest First</option>
                   <option value="leave_desc">Leave Date: Latest First</option>
+                  <option value="dept_asc">Department: A–Z</option>
               </select>
           </div>
           <div className="filter-wrapper date-filter-wrapper">
@@ -444,6 +490,7 @@ export default function AdminLeavePage({ token, api }) {
                   <thead>
                     <tr>
                       <th>Employee</th>
+                      <th>Department</th>
                       <th><FaClock style={{marginRight: 4, opacity: 0.7, marginBottom: -2}}/> Applied On</th>
                       <th>Leave Period</th>
                       <th>Reason & Attachments</th>
@@ -465,6 +512,11 @@ export default function AdminLeavePage({ token, api }) {
                           <div style={{ color: '#64748b', fontSize: 11, marginTop: 4, textTransform: "uppercase", fontWeight: 600 }}>
                               {l.type === 'half' ? `Half Day (${l.period || 'Any'})` : 'Full Day'}
                           </div>
+                        </td>
+
+                        {/* Department */}
+                        <td style={{ fontSize: 12.5, color: deptListFor(l).length ? "#334155" : "#94a3b8", fontStyle: deptListFor(l).length ? "normal" : "italic" }}>
+                          {deptLabelFor(l)}
                         </td>
 
                         {/* Applied Date & Time (Stacked) */}
@@ -556,6 +608,11 @@ export default function AdminLeavePage({ token, api }) {
                             <div style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>{date}</div>
                             <div style={{ fontSize: 11, color: "#94a3b8" }}>{time}</div>
                           </div>
+                        </div>
+
+                        <div className="leave-card-row">
+                          <span className="leave-card-label">Department</span>
+                          <span className="leave-card-value">{deptLabelFor(l)}</span>
                         </div>
 
                         <div className="leave-card-row">

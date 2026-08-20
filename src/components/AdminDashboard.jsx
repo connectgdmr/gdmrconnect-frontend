@@ -867,7 +867,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       )}
 
       {/* 2. LEAVES */}
-      {view === "leaves" && <div style={{ marginTop: "16px" }}><AdminLeavePage token={token} api={api} /></div>}
+      {view === "leaves" && <div style={{ marginTop: "16px" }}><AdminLeavePage token={token} api={api} departments={departments} /></div>}
 
       {/* 3. ATTENDANCE (+ Corrections, tabbed — see attendanceTab above) */}
       {view === "attendance" && (

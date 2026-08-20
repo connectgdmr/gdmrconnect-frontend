@@ -121,7 +121,7 @@ const DELEGATED_MODULES = [
     render: (ctx) => <AdminAttendancePage token={ctx.token} api={ctx.api} delegated /> },
   { key: "leaves", label: "Manage Leave Approvals", Icon: FaClipboardList,
     alert: "You are viewing the Leave Approval interface using temporary Delegated Access.",
-    render: (ctx) => <AdminLeavePage token={ctx.token} api={ctx.api} /> },
+    render: (ctx) => <AdminLeavePage token={ctx.token} api={ctx.api} departments={ctx.delegatedDepartments} /> },
   { key: "lms", label: "Manage LMS Courses", Icon: FaGraduationCap,
     alert: "You are managing LMS Courses using temporary Delegated Access — you can create courses and assign them.",
     render: (ctx) => <AdminLMS token={ctx.token} employees={ctx.delegatedEmployees} departments={ctx.delegatedDepartments} /> },
