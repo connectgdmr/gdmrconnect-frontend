@@ -1444,9 +1444,19 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
 
             {!pmsTemplate || !pmsTemplate.sessions || pmsTemplate.sessions.length === 0 ? (
               <div className="card" style={{textAlign:'center', padding:'50px 20px', color:'#94a3b8'}}>
-                <FaClipboardList size={40} style={{marginBottom:14, opacity:0.3}} />
-                <div style={{fontSize:16, fontWeight:500}}>No active evaluation available</div>
-                <div style={{fontSize:13, marginTop:6}}>Your manager hasn't assigned an evaluation form for this period yet.</div>
+                {pmsTemplate?.already_submitted ? (
+                  <>
+                    <FaCheckCircle size={40} style={{marginBottom:14, opacity:0.3, color:'#22c55e'}} />
+                    <div style={{fontSize:16, fontWeight:500, color:'#334155'}}>You're all caught up</div>
+                    <div style={{fontSize:13, marginTop:6}}>You've already submitted your evaluation for this cycle — see PMS History below.</div>
+                  </>
+                ) : (
+                  <>
+                    <FaClipboardList size={40} style={{marginBottom:14, opacity:0.3}} />
+                    <div style={{fontSize:16, fontWeight:500}}>No active evaluation available</div>
+                    <div style={{fontSize:13, marginTop:6}}>Your manager hasn't assigned an evaluation form for this period yet.</div>
+                  </>
+                )}
               </div>
             ) : (
               <>

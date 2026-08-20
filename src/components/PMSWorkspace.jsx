@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  FaEdit, FaCheckCircle, FaCheckSquare, FaRegSquare, FaUserCheck, FaClipboardList,
+  FaEdit, FaCheckCircle, FaCheckSquare, FaRegSquare, FaClipboardList,
   FaPlus, FaTrash, FaTimes, FaChartLine, FaEye, FaShareAlt, FaDownload, FaBuilding,
 } from "react-icons/fa";
 import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
@@ -432,6 +432,16 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                 .filter(e => !assignSearch || (e.name || "").toLowerCase().includes(assignSearch.toLowerCase()))
                 .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
+              // Department is already isolated once a specific filter is picked —
+              // grouping only earns its keep across the full "All Departments" list.
+              const groupedVisiblePool = assignDeptFilter === "all"
+                ? Object.entries(visiblePool.reduce((acc, e) => {
+                    const d = empDept(e) || "Unassigned";
+                    (acc[d] = acc[d] || []).push(e);
+                    return acc;
+                  }, {})).sort(([a], [b]) => a.localeCompare(b))
+                : [[assignDeptFilter, visiblePool]];
+
               return (
                 <form onSubmit={savePmsTemplate}>
                   <div className="card" style={{ marginBottom: 16 }}>
@@ -463,13 +473,32 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                     ) : visiblePool.length === 0 ? (
                       <div style={{ textAlign: "center", padding: 30, color: "#94a3b8", border: "1px dashed #e2e8f0", borderRadius: 8 }}>No employees match this filter.</div>
                     ) : (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                        {visiblePool.map(emp => (
-                          <label key={emp._id} className={`employee-chip ${assignedEmployees.includes(emp._id) ? "selected" : ""}`}>
-                            <input type="checkbox" style={{ display: "none" }} checked={assignedEmployees.includes(emp._id)} onChange={() => toggleEmployeeAssignment(emp._id)} />
-                            <FaUserCheck style={{ opacity: assignedEmployees.includes(emp._id) ? 1 : 0.35 }} />
-                            {emp.name}
-                          </label>
+                      // Grouped by department (only when a single department isn't
+                      // already isolated via the filter above) and capped to a
+                      // scrollable box — a flat wall of 40+ name-pills was the
+                      // reported "cluttered" look, this reads as a real list instead.
+                      <div style={{ maxHeight: 380, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14, background: "#fafbfc" }}>
+                        {groupedVisiblePool.map(([dept, emps]) => (
+                          <div key={dept} style={{ marginBottom: 14 }}>
+                            {assignDeptFilter === "all" && (
+                              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8, paddingBottom: 5, borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 6 }}>
+                                <FaBuilding size={10} /> {dept} <span style={{ fontWeight: 500, color: "#cbd5e1", textTransform: "none" }}>({emps.length})</span>
+                              </div>
+                            )}
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+                              {emps.map(emp => {
+                                const selected = assignedEmployees.includes(emp._id);
+                                return (
+                                  <label key={emp._id} className={`employee-row-check ${selected ? "selected" : ""}`}>
+                                    <input type="checkbox" style={{ display: "none" }} checked={selected} onChange={() => toggleEmployeeAssignment(emp._id)} />
+                                    <span className="row-check-avatar">{emp.name?.[0]?.toUpperCase() || "?"}</span>
+                                    <span className="row-check-name">{emp.name}</span>
+                                    {selected && <FaCheckCircle size={12} style={{ marginLeft: "auto", flexShrink: 0, opacity: 0.9 }} />}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
                         ))}
                       </div>
                     )}
