@@ -28,6 +28,7 @@ const AdminATS                = lazy(() => import("./AdminATS"));
 const AdminCareer             = lazy(() => import("./AdminCareer"));
 const ClientsWorkspace        = lazy(() => import("./ClientsWorkspace"));
 const AdminWorkByTeam         = lazy(() => import("./AdminWorkByTeam"));
+const WorkAndClients          = lazy(() => import("./WorkAndClients"));
 const AdminAssessment         = lazy(() => import("./AdminAssessment"));
 const AdminAttendanceSummary  = lazy(() => import("./AdminAttendanceSummary"));
 const PMSWorkspace            = lazy(() => import("./PMSWorkspace"));
@@ -78,7 +79,6 @@ import DailyQuote from "./DailyQuote";
 import DailyWorkPlan from "./DailyWorkPlan";
 import ChatBot from "./ChatBot";
 
-const WorkAnalytics = lazy(() => import("./WorkAnalytics"));
 const AdminLMS      = lazy(() => import("./AdminLMS"));
 
 
@@ -1856,9 +1856,8 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
       {view === "lms"     && <ErrorBoundary label="My Courses" resetKey={view}><EmployeeLMS token={token} /></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
-      {view === "work-analytics" && <ErrorBoundary label="My Work" resetKey={view}><WorkAnalytics token={token} user={user} /></ErrorBoundary>}
+      {view === "work-clients" && <ErrorBoundary label="Work & Clients" resetKey={view}><WorkAndClients token={token} api={api} user={user} variant="personal" ownDepartments={Array.isArray(user?.department) ? user.department : (user?.department ? [user.department] : [])} /></ErrorBoundary>}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}><EmployeePayroll token={token} /></ErrorBoundary>}
-      {view === "clients" && <ErrorBoundary label="Clients" resetKey={view}><ClientsWorkspace token={token} api={api} ownDepartments={Array.isArray(user?.department) ? user.department : (user?.department ? [user.department] : [])} /></ErrorBoundary>}
 
       {leaveModalOpen && (
         <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>

@@ -5,7 +5,7 @@ import {
   FaChartPie, FaCalendarAlt, FaBullhorn, FaUserShield, FaLaptop,
   FaHistory, FaEdit, FaChartLine, FaClipboardCheck,
   FaSignOutAlt, FaBalanceScale, FaBuilding, FaClipboardList, FaGraduationCap, FaBriefcase, FaMoneyBillWave,
-  FaTasks, FaChartArea, FaFolderOpen, FaUserTag, FaCommentDots
+  FaTasks, FaChartArea, FaUserTag, FaCommentDots
 } from "react-icons/fa";
 
 const NAV_ITEMS = {
@@ -79,13 +79,12 @@ const NAV_ITEMS = {
     { icon: <FaHistory />, label: "Attendance", view: "attendance" },
     { icon: <FaCalendarCheck />, label: "Leave", view: "leave" },
     { icon: <FaChartLine />, label: "Performance", view: "pms" },
-    { icon: <FaChartArea />, label: "Work", view: "work-analytics" },
+    { icon: <FaChartArea />, label: "Work & Clients", view: "work-clients" },
     { icon: <FaBullhorn />, label: "Announcements", view: "announcements" },
     { icon: <FaLaptop />, label: "Request Asset", view: "assets" },
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },
     { icon: <FaGraduationCap />, label: "My Courses", view: "lms" },
     { icon: <FaBriefcase />, label: "Jobs", view: "career" },
-    { icon: <FaFolderOpen />, label: "Clients", view: "clients" },
     { icon: <FaMoneyBillWave />, label: "Payroll", view: "payroll" },
     { icon: <FaUserShield />, label: "Special Access", view: "special-access" },
   ],
