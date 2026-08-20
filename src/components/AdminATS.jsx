@@ -33,7 +33,7 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const PHONE_RE = /^(?:\+?\d{1,3}[\s-]?)?\d{10}$/;
 
 const blankCandidate = () => ({
-  name: "", email: "", phone: "", source: "", source_other: "", sourced_by: "", job_role: "", job_role_other: "", skills: "", department: "", campaign: "",
+  name: "", email: "", phone: "", source: "", source_other: "", sourced_by: "", referred_by: "", job_role: "", job_role_other: "", skills: "", department: "", campaign: "",
   education: "", experience: "", current_company: "", current_ctc: "", expected_ctc: "",
   current_location: "", preferred_location: "", notice_period: "", resume_url: "", remarks: "", status: "New Application",
   employment_type: "Permanent", contract_months: "",
@@ -135,6 +135,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
   const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState({ text: "", type: "" });
   const [openJobs, setOpenJobs] = useState([]); // open postings from Jobs — feeds the Job Role picker
+  const [referrals, setReferrals] = useState([]); // Career Referrals — feeds Referred By auto-match
 
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3500); };
   const toArr = (d) => Array.isArray(d) ? d : (d?.candidates || d?.data || []);
@@ -163,7 +164,13 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
     fetch(`${BASE}/career/jobs`)
       .then(r => r.ok ? r.json() : []).then(d => setOpenJobs(Array.isArray(d) ? d : [])).catch(() => {});
   }
-  useEffect(() => { loadCandidates(); loadStats(); loadOpenJobs(); }, []);
+  function loadReferrals() {
+    // Career Referrals — separate system, linked here only by candidate
+    // email so a new candidate can be auto-matched to whoever referred them.
+    fetch(`${BASE}/admin/career/referrals`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : []).then(d => setReferrals(Array.isArray(d) ? d : [])).catch(() => {});
+  }
+  useEffect(() => { loadCandidates(); loadStats(); loadOpenJobs(); loadReferrals(); }, []);
 
   const safe = Array.isArray(candidates) ? candidates : [];
   const depts = [...new Set(safe.map(c => c.department).filter(Boolean))];
@@ -190,6 +197,23 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
       return depts.some(d => { const s = (d || "").toLowerCase(); return s.includes("hr") || s.includes("human resource"); });
     })
     .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  // "Referred By" — unlike "Sourced By", any employee can submit a referral
+  // (routes/career.py's referral form isn't HR-restricted), so this dropdown
+  // covers everyone, not just HR.
+  const referralEmployees = [...employees]
+    .filter(e => !isOffboarded(e))
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  // Auto-match: if this candidate's email already exists as a Career
+  // Referral, that referral's employee wins by default — still overridable
+  // via the dropdown below.
+  const matchedReferral = form.email.trim()
+    ? referrals.find(r => (r.candidate_email || "").trim().toLowerCase() === form.email.trim().toLowerCase())
+    : null;
+  useEffect(() => {
+    if (matchedReferral?.referred_by) {
+      setForm(f => (f.referred_by ? f : { ...f, referred_by: matchedReferral.referred_by, source: f.source || "References" }));
+    }
+  }, [matchedReferral?.referred_by]);
 
   const filtered = safe.filter(c => {
     const q = search.toLowerCase();
@@ -501,6 +525,25 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                       </select>
                     </div>
 
+                    {/* Referred By — any employee; auto-filled when this email
+                        already matches a submitted Career Referral, but still
+                        editable/selectable by hand when it doesn't. */}
+                    <div>
+                      <label style={lbl}>Referred By</label>
+                      <select className="modern-input" value={form.referred_by} onChange={e => setForm({ ...form, referred_by: e.target.value })} style={{ margin: 0 }}>
+                        <option value="">— Not a referral —</option>
+                        {referralEmployees.map(e => {
+                          const deptLabel = Array.isArray(e.department) ? e.department.join(", ") : e.department;
+                          return <option key={e._id} value={e._id}>{e.name}{deptLabel ? ` (${deptLabel})` : ""}</option>;
+                        })}
+                      </select>
+                      {matchedReferral && (
+                        <div style={{ fontSize: 11, color: "#0f766e", marginTop: 4 }}>
+                          Matched to a referral by {matchedReferral.referred_by_name || "an employee"} for this email.
+                        </div>
+                      )}
+                    </div>
+
                     {/* Department — dropdown of the company's actual departments */}
                     <div>
                       <label style={lbl}>Department *</label>
@@ -757,6 +800,7 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 18 }}>
           <Field label="Email" value={c.email} /><Field label="Phone" value={c.phone} />
           <Field label="Source" value={c.source} /><Field label="Sourced By" value={c.sourced_by_name || c.sourced_by || ""} />
+          <Field label="Referred By" value={c.referred_by_name || c.referred_by || "—"} />
           <Field label="Education" value={c.education} />
           <Field label="Experience" value={c.experience ? `${c.experience} yrs` : ""} /><Field label="Current Company" value={c.current_company} />
           <Field label="Current CTC" value={c.current_ctc} /><Field label="Expected CTC" value={c.expected_ctc} />
