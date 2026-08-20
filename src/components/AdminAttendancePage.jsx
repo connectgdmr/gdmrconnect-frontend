@@ -3,23 +3,23 @@ import { resolveAttachmentUrl } from "../utils/security";
 import { ymd, ym } from "../utils/dateUtils";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 import {
-  FaSearch,
-  FaFilter,
-  FaTimes,
-  FaList,
-  FaThLarge,
-  FaCalendarAlt,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaUserClock,
-  FaUserSlash,
-  FaMapMarkerAlt,
-  FaChartBar,
-  FaTrophy,
-  FaExclamationTriangle,
-  FaUsers,
-  FaBuilding,
-} from "react-icons/fa";
+  TbSearch,
+  TbFilter,
+  TbX,
+  TbList,
+  TbLayoutGrid,
+  TbCalendar,
+  TbCircleCheck,
+  TbCircleX,
+  TbUserPause,
+  TbUserOff,
+  TbMapPin,
+  TbChartBar,
+  TbTrophy,
+  TbAlertTriangle,
+  TbUsers,
+  TbBuilding,
+} from "react-icons/tb";
 
 // Same "offboarded" rule used elsewhere in the app (AdminPayroll, AdminInsights,
 // PMSWorkspace, etc.): notice given + last working day already passed.
@@ -50,7 +50,7 @@ const LocationCell = ({ loc, color, label }) => {
   if (!text) return <span style={{ color: '#aaa', fontSize: 12 }}>—</span>;
   return (
     <span title={label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#475569' }}>
-      <FaMapMarkerAlt size={10} color={color} /> {text}
+      <TbMapPin size={10} color={color} /> {text}
     </span>
   );
 };
@@ -708,7 +708,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
                       transition: 'all 0.2s ease'
                   }}
               >
-                  <FaThLarge /> Employee Grid
+                  <TbLayoutGrid /> Employee Grid
               </button>
               <button
                   onClick={() => setViewMode("logs")}
@@ -721,7 +721,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
                       transition: 'all 0.2s ease'
                   }}
               >
-                  <FaList /> Complete Logs
+                  <TbList /> Complete Logs
               </button>
               <button
                   onClick={() => setViewMode("analyzer")}
@@ -734,7 +734,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
                       transition: 'all 0.2s ease'
                   }}
               >
-                  <FaChartBar /> Analyzer
+                  <TbChartBar /> Analyzer
               </button>
           </div>
           )}
@@ -744,10 +744,10 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
       {/* TODAY'S STATS WIDGETS — same KPI row style as Admin Dashboard */}
       {/* ========================================================= */}
       <div className="kpi-row">
-          <KpiTile icon={<FaUsers />}       label="Total Workforce" value={activeEmployees.length} tone="brand" />
-          <KpiTile icon={<FaCheckCircle />} label="Present Today"   value={stats.present}          tone="green" loading={statsLoading} onClick={() => handleStatClick('present',        'Present Today')} />
-          <KpiTile icon={<FaUserClock />}   label="On Leave"        value={leaveCount}              tone="teal"  onClick={() => handleStatClick('leave',          'On Leave Today')} />
-          <KpiTile icon={<FaUserSlash />}   label="Not Checked In"  value={stats.not_checked_in}   tone="slate" loading={statsLoading} onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
+          <KpiTile icon={<TbUsers />}       label="Total Workforce" value={activeEmployees.length} tone="brand" />
+          <KpiTile icon={<TbCircleCheck />} label="Present Today"   value={stats.present}          tone="green" loading={statsLoading} onClick={() => handleStatClick('present',        'Present Today')} />
+          <KpiTile icon={<TbUserPause />}   label="On Leave"        value={leaveCount}              tone="teal"  onClick={() => handleStatClick('leave',          'On Leave Today')} />
+          <KpiTile icon={<TbUserOff />}   label="Not Checked In"  value={stats.not_checked_in}   tone="slate" loading={statsLoading} onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
       </div>
 
       {/* Employee roster grid is still shown under delegated access — only
@@ -759,7 +759,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
       <div className="filter-bar" style={{ marginTop: '15px' }}>
         {/* Search Input */}
         <div style={{flex: 1, position: 'relative'}}>
-           <FaSearch style={{position: 'absolute', left: 12, top: 13, color: '#999'}} />
+           <TbSearch style={{position: 'absolute', left: 12, top: 13, color: '#999'}} />
            <input 
               className="input" 
               placeholder={viewMode === "grid" ? "Search Employee..." : "Search Logs by Name..."} 
@@ -772,7 +772,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
         {/* Dynamic Second Filter based on View Mode */}
         {viewMode === "grid" ? (
             <div style={{flex: 1, position: 'relative'}}>
-               <FaFilter style={{position: 'absolute', left: 12, top: 13, color: '#999'}} />
+               <TbFilter style={{position: 'absolute', left: 12, top: 13, color: '#999'}} />
                <select 
                   className="input" 
                   style={{marginBottom:0, paddingLeft: 38}}
@@ -784,7 +784,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
             </div>
         ) : (
             <div style={{flex: 1, position: 'relative'}}>
-               <FaCalendarAlt style={{position: 'absolute', left: 12, top: 13, color: '#999'}} />
+               <TbCalendar style={{position: 'absolute', left: 12, top: 13, color: '#999'}} />
                <input 
                   type="date"
                   className="input" 
@@ -892,7 +892,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
         <div style={{ marginTop: 20 }}>
           {/* Month picker */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-            <FaCalendarAlt color="#94a3b8" />
+            <TbCalendar color="#94a3b8" />
             <input
               type="month"
               value={analyzerMonth}
@@ -912,11 +912,11 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
               {/* ── KPI Strip ─────────────────────────────────────── */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 12, marginBottom: 24 }}>
                 {[
-                  { icon: <FaUsers />, label: "Total Employees", value: analyzerData.totalEmp, color: "#0f766e", bg: "#effdf8" },
-                  { icon: <FaCheckCircle />, label: "Avg Attendance", value: `${analyzerData.avgRate}%`, color: "#16a34a", bg: "#f0fdf4" },
-                  { icon: <FaCalendarAlt />, label: "Working Days", value: analyzerData.workingDays, color: "#1d4ed8", bg: "#eff6ff" },
-                  { icon: <FaTimesCircle />, label: "Total Absences", value: analyzerData.totalAbsent, color: "#dc2626", bg: "#fef2f2" },
-                  { icon: <FaUserClock />, label: "Total On Leave", value: analyzerData.totalLeave, color: "#d97706", bg: "#fffbeb" },
+                  { icon: <TbUsers />, label: "Total Employees", value: analyzerData.totalEmp, color: "#0f766e", bg: "#effdf8" },
+                  { icon: <TbCircleCheck />, label: "Avg Attendance", value: `${analyzerData.avgRate}%`, color: "#16a34a", bg: "#f0fdf4" },
+                  { icon: <TbCalendar />, label: "Working Days", value: analyzerData.workingDays, color: "#1d4ed8", bg: "#eff6ff" },
+                  { icon: <TbCircleX />, label: "Total Absences", value: analyzerData.totalAbsent, color: "#dc2626", bg: "#fef2f2" },
+                  { icon: <TbUserPause />, label: "Total On Leave", value: analyzerData.totalLeave, color: "#d97706", bg: "#fffbeb" },
                 ].map(k => (
                   <div key={k.label} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
                     <div style={{ width: 42, height: 42, borderRadius: 10, background: k.bg, color: k.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{k.icon}</div>
@@ -933,7 +933,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
                 {/* Top workers */}
                 <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
                   <div style={{ padding: "14px 18px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 8 }}>
-                    <FaTrophy color="#d97706" size={13} />
+                    <TbTrophy color="#d97706" size={13} />
                     <span style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>Most Present</span>
                   </div>
                   <div style={{ padding: "10px 18px" }}>
@@ -959,7 +959,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
                 {/* Most absent */}
                 <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
                   <div style={{ padding: "14px 18px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 8 }}>
-                    <FaExclamationTriangle color="#dc2626" size={13} />
+                    <TbAlertTriangle color="#dc2626" size={13} />
                     <span style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>Needs Attention</span>
                   </div>
                   <div style={{ padding: "10px 18px" }}>
@@ -986,7 +986,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
               {/* ── Department Comparison ─────────────────────────── */}
               <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", marginBottom: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
                 <div style={{ padding: "14px 18px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 8 }}>
-                  <FaBuilding color="#0f766e" size={13} />
+                  <TbBuilding color="#0f766e" size={13} />
                   <span style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>Department Attendance Rate</span>
                 </div>
                 <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1144,7 +1144,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
             <div className="detail-header">
               <h3 style={{ margin: 0, color: 'var(--red)' }}>{detailTitle}</h3>
               <button className="btn ghost" onClick={() => setDetailModalOpen(false)} style={{padding:'6px', background: '#f1f5f9', borderRadius: '50%'}}>
-                <FaTimes size={14} color="#64748b"/>
+                <TbX size={14} color="#64748b"/>
               </button>
             </div>
             
@@ -1211,7 +1211,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
                 )
               ) : detailList.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
-                   <FaUserSlash size={30} style={{opacity: 0.2, marginBottom: 10}}/>
+                   <TbUserOff size={30} style={{opacity: 0.2, marginBottom: 10}}/>
                    <p style={{margin: 0}}>No employees found in this category for today.</p>
                 </div>
               ) : (
@@ -1245,7 +1245,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
                   <span className="small" style={{ color: '#666' }}>{selectedEmp.department} | {selectedEmp.position}</span>
                 </div>
                 <button className="btn ghost" onClick={() => setShowModal(false)} style={{ border:'none', background: '#fff', padding: 8, borderRadius: '50%', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
-                    <FaTimes size={18} color="#555" />
+                    <TbX size={18} color="#555" />
                 </button>
              </div>
 
