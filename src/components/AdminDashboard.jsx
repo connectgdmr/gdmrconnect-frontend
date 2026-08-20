@@ -167,7 +167,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
   // self-submitted corrections — see request_correction()'s approval_target) —
   const [corrections, setCorrections] = useState([]);
   const [correctionsLoading, setCorrectionsLoading] = useState(false);
-  const [backfilling, setBackfilling] = useState(false);
   // "Attendance" and "Corrections" used to be two separate sidebar entries;
   // Corrections is now a tab inside Attendance (same tabbed-merge pattern as
   // Leave/Work & Clients/Jobs & Recruitment).
@@ -303,28 +302,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           await loadCorrections();
       } catch (err) {
           alert(err.message || "Failed to process correction request.");
-      }
-  }
-
-  // One-time repair for corrections that were already "Approved" before the
-  // attendance_id bug fix — those never actually got their attendance record
-  // created, so the day still reads as LOP everywhere. Safe to click more
-  // than once; the backend skips anything already fixed.
-  async function backfillCorrections() {
-      setBackfilling(true);
-      const baseUrl = api.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
-      try {
-          const res = await fetch(`${baseUrl}/api/admin/corrections/backfill`, {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${token}` },
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.message || "Failed to repair stuck corrections.");
-          alert(data.message || "Done.");
-      } catch (err) {
-          alert(err.message || "Failed to repair stuck corrections.");
-      } finally {
-          setBackfilling(false);
       }
   }
 
@@ -900,15 +877,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
                   <h3 style={{ color: "var(--red)", margin: 0 }}>Attendance Corrections</h3>
                   <p className="small" style={{ margin: "4px 0 0" }}>Correction requests submitted by managers (and admins) for their own attendance — employee-submitted corrections are approved by their Reporting Manager instead.</p>
                 </div>
-                <button
-                  className="btn ghost"
-                  onClick={backfillCorrections}
-                  disabled={backfilling}
-                  title="One-time repair: some corrections approved before a recent bug fix never actually updated attendance, so the day still shows as LOP. Click to fix any still stuck."
-                  style={{ whiteSpace: "nowrap", fontSize: 12.5 }}
-                >
-                  {backfilling ? "Fixing…" : "Fix Stuck Corrections"}
-                </button>
               </div>
               <div style={{ marginBottom: 16 }} />
               <div className="table-scroll-body" style={{ maxHeight: 520 }}>
