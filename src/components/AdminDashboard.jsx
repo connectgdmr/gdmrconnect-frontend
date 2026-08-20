@@ -57,10 +57,9 @@ import { ymd, ym } from "../utils/dateUtils";
 
 const AdminAssessment = lazy(() => import("./AdminAssessment"));
 const AdminLMS        = lazy(() => import("./AdminLMS"));
-const AdminCareer     = lazy(() => import("./AdminCareer"));
 const AdminPayroll    = lazy(() => import("./AdminPayroll"));
 const WorkAndClients = lazy(() => import("./WorkAndClients"));
-const AdminATS        = lazy(() => import("./AdminATS"));
+const JobsAndRecruitment = lazy(() => import("./JobsAndRecruitment"));
 
 // ============================================================================
 // MAIN EXPORT: ADMIN DASHBOARD
@@ -935,8 +934,8 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {/* 7. LMS */}
       {view === "lms" && <ErrorBoundary label="LMS" resetKey={view}><AdminLMS token={token} employees={employees} departments={departments} /></ErrorBoundary>}
 
-      {/* 8. CAREER */}
-      {view === "career" && <ErrorBoundary label="Career" resetKey={view}><AdminCareer token={token} employees={employees} /></ErrorBoundary>}
+      {/* 8. JOBS + RECRUITMENT (one sidebar entry, two top tabs) */}
+      {view === "jobs-recruitment" && <ErrorBoundary label="Jobs & Recruitment" resetKey={view}><JobsAndRecruitment token={token} role="admin" employees={employees} departments={departments} variant="admin" /></ErrorBoundary>}
 
       {/* 9. PAYROLL */}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}><AdminPayroll token={token} employees={employees} /></ErrorBoundary>}
@@ -949,8 +948,6 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
       {view === "chat" && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
 
-      {/* 12. RECRUITMENT / ATS */}
-      {view === "ats" && <ErrorBoundary label="Recruitment" resetKey={view}><AdminATS token={token} role="admin" employees={employees} departments={departments} /></ErrorBoundary>}
 
       {/* 6. HOLIDAYS */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}

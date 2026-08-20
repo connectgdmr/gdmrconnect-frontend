@@ -13,6 +13,7 @@ const AdminWorkByTeam = lazy(() => import("./AdminWorkByTeam"));
 const ClientsWorkspace = lazy(() => import("./ClientsWorkspace"));
 const WorkAndClients = lazy(() => import("./WorkAndClients"));
 const AdminATS        = lazy(() => import("./AdminATS"));
+const JobsAndRecruitment = lazy(() => import("./JobsAndRecruitment"));
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
 import useChatUnread from "./useChatUnread";
@@ -22,7 +23,6 @@ import LeaveCalendar from "./LeaveCalendar";
 
 const EmployeeLMS         = lazy(() => import("./EmployeeLMS"));
 const ManagerLMS          = lazy(() => import("./ManagerLMS"));
-const EmployeeCareer      = lazy(() => import("./EmployeeCareer"));
 const EmployeePayroll     = lazy(() => import("./EmployeePayroll"));
 const AdminPayroll        = lazy(() => import("./AdminPayroll"));
 const AdminLeavePage      = lazy(() => import("./AdminLeavePage"));
@@ -2038,10 +2038,9 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
       {view === "chat"    && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
       {view === "lms"     && <ErrorBoundary label="LMS" resetKey={view}><Suspense fallback={<div />}><ManagerLMS token={token} user={user} myEmployees={teamMembers} /></Suspense></ErrorBoundary>}
-      {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
       {view === "work-analytics" && <ErrorBoundary label="My Work" resetKey={view}><WorkAnalytics token={token} user={user} /></ErrorBoundary>}
       {view === "work-clients"   && <ErrorBoundary label="Work & Clients" resetKey={view}><WorkAndClients token={token} api={api} role="manager" ownDepartments={Array.isArray(user?.department) ? user.department : (user?.department ? [user.department] : [])} /></ErrorBoundary>}
-      {view === "ats"            && <ErrorBoundary label="Recruitment" resetKey={view}><AdminATS token={token} role="manager" /></ErrorBoundary>}
+      {view === "jobs-recruitment" && <ErrorBoundary label="Jobs & Recruitment" resetKey={view}><JobsAndRecruitment token={token} user={user} role="manager" variant="manager" /></ErrorBoundary>}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}>
         {(() => {
           const depts = Array.isArray(user?.department) ? user.department : (user?.department ? [user.department] : []);

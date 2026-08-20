@@ -5,7 +5,7 @@ import {
   FaChartPie, FaCalendarAlt, FaBullhorn, FaUserShield, FaLaptop,
   FaHistory, FaEdit, FaChartLine, FaClipboardCheck,
   FaSignOutAlt, FaBalanceScale, FaBuilding, FaClipboardList, FaGraduationCap, FaBriefcase, FaMoneyBillWave,
-  FaTasks, FaChartArea, FaUserTag, FaCommentDots
+  FaTasks, FaChartArea, FaCommentDots
 } from "react-icons/fa";
 
 const NAV_ITEMS = {
@@ -27,8 +27,7 @@ const NAV_ITEMS = {
     { icon: <FaTasks />, label: "Work & Clients", view: "work-clients" },
     { icon: <FaClipboardList />, label: "Assessments", view: "assessment" },
     { icon: <FaGraduationCap />, label: "LMS", view: "lms" },
-    { icon: <FaBriefcase />, label: "Jobs", view: "career" },
-    { icon: <FaUserTag />, label: "Recruitment", view: "ats" },
+    { icon: <FaBriefcase />, label: "Jobs & Recruitment", view: "jobs-recruitment" },
     { icon: <FaMoneyBillWave />, label: "Payroll", view: "payroll" },
   ],
   manager: [
@@ -42,12 +41,11 @@ const NAV_ITEMS = {
     { icon: <FaChartLine />, label: "PMS", view: "pms" },
     { icon: <FaBullhorn />, label: "Announcements", view: "announcements" },
     { icon: <FaTasks />, label: "Work & Clients", view: "work-clients" },
-    { icon: <FaUserTag />, label: "Recruitment", view: "ats" },
     { icon: <FaChartArea />, label: "Work", view: "work-analytics" },
     { icon: <FaLaptop />, label: "Team Assets", view: "team-assets" },
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },
     { icon: <FaGraduationCap />, label: "LMS", view: "lms" },
-    { icon: <FaBriefcase />, label: "Jobs", view: "career" },
+    { icon: <FaBriefcase />, label: "Jobs & Recruitment", view: "jobs-recruitment" },
     { icon: <FaMoneyBillWave />, label: "Payroll", view: "payroll" },
     { icon: <FaUserShield />, label: "Special Access", view: "special-access" },
   ],
@@ -69,8 +67,7 @@ const NAV_ITEMS = {
     { icon: <FaTasks />, label: "Work & Clients", view: "work-clients" },
     { icon: <FaClipboardList />, label: "Assessments", view: "assessment" },
     { icon: <FaGraduationCap />, label: "LMS", view: "lms" },
-    { icon: <FaBriefcase />, label: "Jobs", view: "career" },
-    { icon: <FaUserTag />, label: "Recruitment", view: "ats" },
+    { icon: <FaBriefcase />, label: "Jobs & Recruitment", view: "jobs-recruitment" },
     { icon: <FaMoneyBillWave />, label: "Payroll", view: "payroll" },
   ],
   employee: [
