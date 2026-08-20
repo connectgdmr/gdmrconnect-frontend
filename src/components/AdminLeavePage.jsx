@@ -186,20 +186,30 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
           background: #fff;
           padding: 15px 20px;
           display: flex;
-          gap: 15px;
+          flex-wrap: wrap;
+          align-items: stretch;
+          gap: 12px;
           border-bottom: 1px solid #e2e8f0;
         }
-        .search-wrapper { flex: 2; position: relative; }
-        .filter-wrapper { flex: 1; position: relative; }
+        /* Explicit flex-basis (not just flex:1) so every box wraps to its own
+           readable width instead of squeezing unevenly on medium screens —
+           and every box shares the exact same 38px height/padding rhythm,
+           search input, selects, and the date field alike. */
+        .search-wrapper { flex: 2 1 220px; position: relative; }
+        .filter-wrapper { flex: 1 1 160px; position: relative; }
         .search-icon {
           position: absolute;
           left: 12px;
-          top: 10px;
+          top: 50%;
+          transform: translateY(-50%);
           color: #94a3b8;
+          pointer-events: none;
         }
         .styled-input {
           width: 100%;
-          padding: 8px 12px 8px 36px;
+          height: 38px;
+          box-sizing: border-box;
+          padding: 0 12px 0 36px;
           border: 1px solid #cbd5e1;
           border-radius: 6px;
           font-size: 14px;
@@ -208,8 +218,8 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
         }
         .styled-input:focus { border-color: var(--red); }
 
-        .date-filter-wrapper { display: flex; align-items: center; gap: 6px; }
-        .date-filter-wrapper .styled-input { width: auto; flex: 1; }
+        .date-filter-wrapper { flex: 1 1 170px; display: flex; align-items: center; gap: 6px; }
+        .date-filter-wrapper .styled-input { width: 100%; flex: 1; min-width: 0; padding-left: 12px; }
         .date-filter-clear {
           flex-shrink: 0;
           background: #f1f5f9;
@@ -227,8 +237,10 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
         .date-filter-clear:hover { background: #e2e8f0; color: #334155; }
 
         .today-quick-btn {
-          flex-shrink: 0;
-          padding: 8px 16px;
+          flex: 0 0 auto;
+          height: 38px;
+          box-sizing: border-box;
+          padding: 0 16px;
           border: 1px solid var(--red);
           background: #fff;
           color: var(--red);
@@ -438,7 +450,9 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
               </select>
           </div>
           <div className="filter-wrapper date-filter-wrapper">
-              <FaCalendarAlt className="search-icon" />
+              {/* No left icon here — a native date input already shows its
+                  own calendar icon, and a second one just past our custom
+                  left icon read as a cluttered "double calendar" look. */}
               <input
                   type="date"
                   className="styled-input"
