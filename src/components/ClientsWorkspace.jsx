@@ -43,14 +43,25 @@ function fmtWhen(iso) {
   catch { return iso; }
 }
 
-export default function ClientsWorkspace({ token, api }) {
+// `ownDepartments` — pass the current user's own department(s) for a
+// manager/employee's own dashboard (their view is fixed to just their own
+// department(s), so there's no need to ask the backend for the org-wide
+// list — and a regular, non-delegated manager/employee isn't authorized to
+// call GET /api/admin/departments anyway). Leave it undefined for admin's
+// own dashboard and every delegated-access caller — that combination always
+// gets the full org-wide department list, fetched here, and shown as
+// folders unconditionally (not just departments that already have a
+// client), so admin can open an empty department and create its first one.
+export default function ClientsWorkspace({ token, api, ownDepartments }) {
   const baseUrl     = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
   const headers     = { Authorization: `Bearer ${token}` };
   const jsonHeaders = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+  const isOwnScope  = Array.isArray(ownDepartments); // manager/employee's own dashboard
 
   const [clients, setClients]     = useState([]);
+  const [allDepartments, setAllDepartments] = useState([]); // org-wide list, admin/delegate scope only
   const [loading, setLoading]     = useState(false);
-  const [deptFilter, setDeptFilter] = useState(null); // null = show department boxes (when >1 dept present)
+  const [deptFilter, setDeptFilter] = useState(null); // null = show department boxes
   const [search, setSearch]       = useState("");
   const [msg, setMsg]             = useState({ text: "", type: "" });
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3000); };
@@ -69,8 +80,24 @@ export default function ClientsWorkspace({ token, api }) {
   }
   useEffect(() => { loadClients(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const departments = [...new Set(clients.flatMap(c => (c.departments?.length ? c.departments : ["Unassigned"])))].sort();
-  const showBoxes   = deptFilter === null && departments.length > 1;
+  useEffect(() => {
+    if (isOwnScope) return; // manager/employee: no admin-departments call, no permission to make it either
+    fetch(`${baseUrl}/api/admin/departments`, { headers })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setAllDepartments(Array.isArray(d) ? d.map(x => x.name).filter(Boolean).sort() : []))
+      .catch(() => setAllDepartments([]));
+  }, [isOwnScope]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hasUnassigned = clients.some(c => !c.departments?.length);
+  const departments = isOwnScope
+    ? [...ownDepartments].sort()
+    : [...allDepartments, ...(hasUnassigned ? ["Unassigned"] : [])];
+  // Admin/delegate always lands on the department-folder view first — the
+  // point is browsing "every department as a folder", even empty ones.
+  // Manager/employee auto-skip straight to their client grid when they only
+  // have the one department, since a box screen with a single box on it is
+  // just an extra click for no benefit.
+  const showBoxes = deptFilter === null && (isOwnScope ? departments.length > 1 : true);
 
   const visibleClients = clients.filter(c => {
     const depts = c.departments?.length ? c.departments : ["Unassigned"];
@@ -80,7 +107,11 @@ export default function ClientsWorkspace({ token, api }) {
   });
 
   function openAdd() {
-    setClientModal({ mode: "add", name: "", description: "", departments: deptFilter ? [deptFilter] : [] });
+    // "Unassigned" is a synthetic bucket for clients with no real department
+    // (deptFilter === "Unassigned" here, distinct from deptFilter === null,
+    // i.e. the box grid itself) — never pre-fill it as an actual department.
+    const prefill = deptFilter && deptFilter !== "Unassigned" ? [deptFilter] : [];
+    setClientModal({ mode: "add", name: "", description: "", departments: prefill });
   }
   function openEdit(c) {
     setClientModal({ mode: "edit", id: c._id, name: c.name, description: c.description || "", departments: c.departments || [] });

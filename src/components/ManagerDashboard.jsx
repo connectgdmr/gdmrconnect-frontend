@@ -11,6 +11,7 @@ const Chat            = lazy(() => import("./Chat"));
 const WorkAnalytics  = lazy(() => import("./WorkAnalytics"));
 const AdminWorkByTeam = lazy(() => import("./AdminWorkByTeam"));
 const ClientsWorkspace = lazy(() => import("./ClientsWorkspace"));
+const WorkAndClients = lazy(() => import("./WorkAndClients"));
 const AdminATS        = lazy(() => import("./AdminATS"));
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
@@ -2039,8 +2040,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {view === "lms"     && <ErrorBoundary label="LMS" resetKey={view}><Suspense fallback={<div />}><ManagerLMS token={token} user={user} myEmployees={teamMembers} /></Suspense></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
       {view === "work-analytics" && <ErrorBoundary label="My Work" resetKey={view}><WorkAnalytics token={token} user={user} /></ErrorBoundary>}
-      {view === "work-by-team"   && <ErrorBoundary label="Work by Team" resetKey={view}><AdminWorkByTeam token={token} role="manager" /></ErrorBoundary>}
-      {view === "clients"        && <ErrorBoundary label="Clients" resetKey={view}><ClientsWorkspace token={token} api={api} /></ErrorBoundary>}
+      {view === "work-clients"   && <ErrorBoundary label="Work & Clients" resetKey={view}><WorkAndClients token={token} api={api} role="manager" ownDepartments={Array.isArray(user?.department) ? user.department : (user?.department ? [user.department] : [])} /></ErrorBoundary>}
       {view === "ats"            && <ErrorBoundary label="Recruitment" resetKey={view}><AdminATS token={token} role="manager" /></ErrorBoundary>}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}>
         {(() => {

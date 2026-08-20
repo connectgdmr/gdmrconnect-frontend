@@ -59,8 +59,7 @@ const AdminAssessment = lazy(() => import("./AdminAssessment"));
 const AdminLMS        = lazy(() => import("./AdminLMS"));
 const AdminCareer     = lazy(() => import("./AdminCareer"));
 const AdminPayroll    = lazy(() => import("./AdminPayroll"));
-const AdminWorkByTeam = lazy(() => import("./AdminWorkByTeam"));
-const ClientsWorkspace = lazy(() => import("./ClientsWorkspace"));
+const WorkAndClients = lazy(() => import("./WorkAndClients"));
 const AdminATS        = lazy(() => import("./AdminATS"));
 
 // ============================================================================
@@ -719,7 +718,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
             <QuickLaunchItem icon={<FaBullhorn />} label="Announcements" onClick={() => setView("announcements")} />
             <QuickLaunchItem icon={<FaUserShield />} label="Grant Access" onClick={() => setView("grant-access")} />
             <QuickLaunchItem icon={<FaBuilding />} label="Departments" onClick={() => setView("departments")} />
-            <QuickLaunchItem icon={<FaTasks />} label="Work by Team" onClick={() => setView("work-by-team")} />
+            <QuickLaunchItem icon={<FaTasks />} label="Work & Clients" onClick={() => setView("work-clients")} />
             <QuickLaunchItem icon={<FaLaptop />} label="Manage Assets" onClick={() => setView("assets")} />
           </div>
         </div>
@@ -945,12 +944,10 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {/* 9b. PMS */}
       {view === "pms" && <ErrorBoundary label="PMS" resetKey={view}><div style={{ marginTop: 16 }}><PMSWorkspace token={token} api={api} user={user} scope="admin" assignablePool={employees} /></div></ErrorBoundary>}
 
-      {/* 10. WORK BY TEAM */}
-      {view === "work-by-team" && <ErrorBoundary label="Work by Team" resetKey={view}><AdminWorkByTeam token={token} role="admin" /></ErrorBoundary>}
+      {/* 10-11. WORK BY TEAM + CLIENTS (one sidebar entry, two top tabs) */}
+      {view === "work-clients" && <ErrorBoundary label="Work & Clients" resetKey={view}><WorkAndClients token={token} api={api} role="admin" /></ErrorBoundary>}
 
-      {/* 11. CLIENTS */}
       {view === "chat" && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
-      {view === "clients" && <ErrorBoundary label="Clients" resetKey={view}><ClientsWorkspace token={token} api={api} /></ErrorBoundary>}
 
       {/* 12. RECRUITMENT / ATS */}
       {view === "ats" && <ErrorBoundary label="Recruitment" resetKey={view}><AdminATS token={token} role="admin" employees={employees} departments={departments} /></ErrorBoundary>}
