@@ -1,13 +1,13 @@
 ﻿import React, { useState, useEffect } from "react";
 import {
-  FaGraduationCap, FaBook, FaVideo, FaFileAlt, FaLink,
-  FaCheckCircle, FaChevronDown, FaChevronRight, FaLock,
-} from "react-icons/fa";
+  TbSchool, TbBook, TbVideo, TbFileText, TbLink,
+  TbCircleCheck, TbChevronDown, TbChevronRight, TbLock,
+} from "react-icons/tb";
 import { SkeletonStats, SkeletonList } from "./Skeleton";
 
 import { API_URL as BASE } from "../api";
 
-const TYPE_ICON = { Video: <FaVideo size={12} />, Document: <FaFileAlt size={12} />, Article: <FaLink size={12} /> };
+const TYPE_ICON = { Video: <TbVideo size={12} />, Document: <TbFileText size={12} />, Article: <TbLink size={12} /> };
 
 const CAT_COLORS = {
   Technical:     { color: "#34a06a", bg: "#f0fdf4" },
@@ -105,7 +105,7 @@ export default function EmployeeLMS({ token }) {
   if (courses.length === 0) {
     return (
       <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8", marginTop: 16 }}>
-        <FaGraduationCap size={48} style={{ opacity: 0.15, marginBottom: 16 }} />
+        <TbSchool size={48} style={{ opacity: 0.15, marginBottom: 16 }} />
         <h4 style={{ margin: "0 0 8px", color: "#64748b" }}>No courses assigned yet</h4>
         <p style={{ margin: 0, fontSize: 13 }}>Your admin will assign learning courses to you. Check back soon.</p>
       </div>
@@ -147,20 +147,20 @@ export default function EmployeeLMS({ token }) {
                 onClick={() => setExpandedId(isOpen ? null : course._id)}
               >
                 <div style={{ width: 44, height: 44, borderRadius: 10, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <FaBook size={18} color={cat.color} />
+                  <TbBook size={18} color={cat.color} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
                     <span style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{course.title}</span>
                     <span style={{ fontSize: 10, fontWeight: 700, color: cat.color, background: cat.bg, padding: "1px 7px", borderRadius: 4 }}>{course.category}</span>
-                    {pct >= 100 && <span style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", padding: "1px 7px", borderRadius: 4, display: "flex", alignItems: "center", gap: 3 }}><FaCheckCircle size={9} /> Done</span>}
+                    {pct >= 100 && <span style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", padding: "1px 7px", borderRadius: 4, display: "flex", alignItems: "center", gap: 3 }}><TbCircleCheck size={9} /> Done</span>}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <ProgressBar pct={pct} />
                     <span style={{ fontSize: 12, fontWeight: 700, color: "#334155", flexShrink: 0 }}>{pct}%</span>
                   </div>
                 </div>
-                {isOpen ? <FaChevronDown size={13} color="#94a3b8" /> : <FaChevronRight size={13} color="#94a3b8" />}
+                {isOpen ? <TbChevronDown size={13} color="#94a3b8" /> : <TbChevronRight size={13} color="#94a3b8" />}
               </div>
 
               {/* Expanded modules */}
@@ -177,10 +177,10 @@ export default function EmployeeLMS({ token }) {
                         return (
                           <div key={li} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderTop: "1px solid #f8fafc", background: done ? "#fafffe" : "#fff" }}>
                             <span style={{ color: done ? "#16a34a" : "#94a3b8", flexShrink: 0 }}>
-                              {done ? <FaCheckCircle size={15} /> : <FaLock size={13} />}
+                              {done ? <TbCircleCheck size={15} /> : <TbLock size={13} />}
                             </span>
                             <span style={{ color: TYPE_ICON[ls.type] ? "#64748b" : "#94a3b8", flexShrink: 0 }}>
-                              {TYPE_ICON[ls.type] || <FaFileAlt size={12} />}
+                              {TYPE_ICON[ls.type] || <TbFileText size={12} />}
                             </span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 13, fontWeight: done ? 500 : 600, color: done ? "#94a3b8" : "#334155", textDecoration: done ? "line-through" : "none" }}>{ls.title}</div>
