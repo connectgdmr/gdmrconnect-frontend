@@ -38,7 +38,6 @@ const NAV_ITEMS = {
     { icon: <FaChartLine />, label: "PMS", view: "pms" },
     { icon: <FaBullhorn />, label: "Announcements", view: "announcements" },
     { icon: <FaTasks />, label: "Work & Clients", view: "work-clients" },
-    { icon: <FaChartArea />, label: "Work", view: "work-analytics" },
     { icon: <FaLaptop />, label: "Team Assets", view: "team-assets" },
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },
     { icon: <FaGraduationCap />, label: "LMS", view: "lms" },
