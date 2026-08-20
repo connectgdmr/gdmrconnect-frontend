@@ -186,6 +186,10 @@ export default {
   getManagerAttendanceCalendar: (employeeId, month, token) => request(`/manager/attendance/calendar?employee_id=${employeeId}&month=${month}`, "GET", null, token),
   getAdminAttendanceCalendar: (employeeId, month, token) => request(`/admin/attendance/calendar?employee_id=${employeeId}&month=${month}`, "GET", null, token),
 
+  // Company Holidays — single source of truth shared by the Holiday
+  // Calendar tab and the Attendance Calendar's grey-out overlay.
+  getHolidays: (token) => request("/holidays", "GET", null, token),
+
   // Attendance with Photo (+ optional geo-location captured at check-in/out)
   checkinWithPhoto: (token, imageData, location = null) =>
     request("/attendance/checkin-photo", "POST", { image: imageData, location }, token),

@@ -1,5 +1,10 @@
-// Single source of truth for the company holiday calendar.
-// Used by HolidayCalendar (table view) and InsightsBanner (upcoming-holiday nudge).
+// NOTE: the real source of truth for the company holiday calendar moved to
+// the backend (helpers.COMPANY_HOLIDAYS, served via GET /api/holidays) so
+// HolidayCalendar.jsx and AttendanceCalendar.jsx can never drift apart, and
+// so payroll's LOP auto-fill knows about holidays too. This file is now
+// used only by InsightsBanner's synchronous "upcoming holiday" nudge, which
+// doesn't have a token/api to fetch with — keep both lists in sync by hand
+// if the holiday calendar ever changes.
 const YEAR = 2026;
 
 export const HOLIDAYS = [

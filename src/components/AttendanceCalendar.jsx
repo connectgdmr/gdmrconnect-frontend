@@ -1,16 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { FaChevronLeft, FaChevronRight, FaClock } from "react-icons/fa";
 import { ymd, ym } from "../utils/dateUtils";
-import { HOLIDAYS } from "../data/holidays";
 
 const DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
-
-// holidays.js hardcodes a single year (2026) as its source of truth — same
-// limitation HolidayCalendar.jsx already has. Outside that year the overlay
-// just finds no matches and degrades gracefully (weekends still grey out
-// correctly either way, since those come from the backend, not this list).
-const HOLIDAY_YEAR = 2026;
-const HOLIDAY_DATES = new Set(HOLIDAYS.map(h => ymd(new Date(`${h.date} ${HOLIDAY_YEAR}`))));
 
 // Spec's 4-color status vocabulary, plus "pending" for today's not-yet-over day.
 const STATUS_STYLE = {
@@ -40,9 +32,19 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
+  // dateStr ("YYYY-MM-DD") -> holiday name, from the same GET /api/holidays
+  // the Holiday Calendar tab reads — single source of truth, so a holiday
+  // added there shows up here automatically, past or future.
+  const [holidayMap, setHolidayMap] = useState(new Map());
 
   const monthStr = ym(viewDate);
   const todayStr = ymd(new Date());
+
+  useEffect(() => {
+    api.getHolidays(token)
+      .then(d => setHolidayMap(new Map((Array.isArray(d) ? d : []).filter(h => h.date).map(h => [h.date, h.name]))))
+      .catch(() => {});
+  }, [api, token]);
 
   const departments = useMemo(() => {
     if (mode !== "manager") return [];
@@ -95,9 +97,10 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
   function statusFor(dateStr) {
     const entry = data?.days?.[dateStr];
     if (entry) return entry;
-    // Backend omits days outside the employment window and future days —
-    // a weekday holiday not yet reflected server-side still greys out here.
-    if (dateStr <= todayStr && HOLIDAY_DATES.has(dateStr)) return { status: "weekly_off" };
+    // Backend omits days outside the employment window and (always) future
+    // days entirely — a holiday still greys out here regardless, so
+    // upcoming holidays are visible on the calendar too, not just past ones.
+    if (holidayMap.has(dateStr)) return { status: "weekly_off", holiday_name: holidayMap.get(dateStr) };
     return null;
   }
 
@@ -164,7 +167,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                   type="button" key={i}
                   disabled={isFuture || !entry}
                   onClick={() => setSelectedDay(isSelected ? null : dateStr)}
-                  title={style?.label || ""}
+                  title={entry?.holiday_name ? `${entry.holiday_name}${style?.label ? ` (${style.label})` : ""}` : (style?.label || "")}
                   style={{
                     aspectRatio: "1.6", border: `1.5px solid ${isSelected ? "#0f172a" : (style?.border || "#f1f5f9")}`,
                     borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: (isFuture || !entry) ? "default" : "pointer",
@@ -183,7 +186,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
             <div style={{ marginTop: 14, padding: "10px 14px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
               <FaClock size={11} color="#64748b" />
               <strong>{new Date(selectedDay).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}:</strong>
-              <span>{STATUS_STYLE[statusFor(selectedDay).status]?.label}</span>
+              <span>{statusFor(selectedDay).holiday_name || STATUS_STYLE[statusFor(selectedDay).status]?.label}</span>
               {statusFor(selectedDay).checkin_time && (
                 <span style={{ color: "#64748b" }}>— checked in at {fmtTime(statusFor(selectedDay).checkin_time)}</span>
               )}

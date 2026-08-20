@@ -2045,7 +2045,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       )}
 
       {/* — Holidays & Modals — */}
-      {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
+      {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar token={token} api={api} /></div>}
       {view === "chat"    && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
       {view === "lms"     && <ErrorBoundary label="LMS" resetKey={view}><Suspense fallback={<div />}><ManagerLMS token={token} user={user} myEmployees={teamMembers} /></Suspense></ErrorBoundary>}
       {view === "work-analytics" && <ErrorBoundary label="My Work" resetKey={view}><WorkAnalytics token={token} user={user} /></ErrorBoundary>}

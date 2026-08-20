@@ -1853,7 +1853,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
 
       {/* — Holidays & Modals — */}
       {view === "chat"    && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
-      {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar /></div>}
+      {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar token={token} api={api} /></div>}
       {view === "lms"     && <ErrorBoundary label="My Courses" resetKey={view}><EmployeeLMS token={token} /></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
       {view === "work-clients" && <ErrorBoundary label="Work & Clients" resetKey={view}><WorkAndClients token={token} api={api} user={user} variant="personal" ownDepartments={Array.isArray(user?.department) ? user.department : (user?.department ? [user.department] : [])} /></ErrorBoundary>}
