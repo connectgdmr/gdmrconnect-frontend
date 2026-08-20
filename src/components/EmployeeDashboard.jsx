@@ -26,7 +26,7 @@ const EmployeeForm           = lazy(() => import("./EmployeeForm"));
 const RegisterManager        = lazy(() => import("./RegisterManager"));
 const AdminATS                = lazy(() => import("./AdminATS"));
 const AdminCareer             = lazy(() => import("./AdminCareer"));
-const AdminClients            = lazy(() => import("./AdminClients"));
+const ClientsWorkspace        = lazy(() => import("./ClientsWorkspace"));
 const AdminWorkByTeam         = lazy(() => import("./AdminWorkByTeam"));
 const AdminAssessment         = lazy(() => import("./AdminAssessment"));
 const AdminAttendanceSummary  = lazy(() => import("./AdminAttendanceSummary"));
@@ -140,7 +140,7 @@ const DELEGATED_MODULES = [
     render: (ctx) => <AdminCareer token={ctx.token} employees={ctx.delegatedEmployees} /> },
   { key: "clients", label: "Manage Clients", Icon: FaFolderOpen,
     alert: "You are managing Clients using temporary Delegated Access.",
-    render: (ctx) => <AdminClients token={ctx.token} /> },
+    render: (ctx) => <ClientsWorkspace token={ctx.token} api={ctx.api} /> },
   { key: "work-by-team", label: "Work by Team", Icon: FaTasks,
     alert: "You are viewing Work by Team using temporary Delegated Access.",
     render: (ctx) => <AdminWorkByTeam token={ctx.token} role="admin" /> },
@@ -1858,6 +1858,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
       {view === "work-analytics" && <ErrorBoundary label="My Work" resetKey={view}><WorkAnalytics token={token} user={user} /></ErrorBoundary>}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}><EmployeePayroll token={token} /></ErrorBoundary>}
+      {view === "clients" && <ErrorBoundary label="Clients" resetKey={view}><ClientsWorkspace token={token} api={api} /></ErrorBoundary>}
 
       {leaveModalOpen && (
         <div className="modal-overlay" onClick={() => setLeaveModalOpen(false)}>

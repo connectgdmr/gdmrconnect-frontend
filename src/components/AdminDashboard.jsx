@@ -60,7 +60,7 @@ const AdminLMS        = lazy(() => import("./AdminLMS"));
 const AdminCareer     = lazy(() => import("./AdminCareer"));
 const AdminPayroll    = lazy(() => import("./AdminPayroll"));
 const AdminWorkByTeam = lazy(() => import("./AdminWorkByTeam"));
-const AdminClients    = lazy(() => import("./AdminClients"));
+const ClientsWorkspace = lazy(() => import("./ClientsWorkspace"));
 const AdminATS        = lazy(() => import("./AdminATS"));
 
 // ============================================================================
@@ -950,7 +950,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
 
       {/* 11. CLIENTS */}
       {view === "chat" && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
-      {view === "clients" && <ErrorBoundary label="Clients" resetKey={view}><AdminClients token={token} /></ErrorBoundary>}
+      {view === "clients" && <ErrorBoundary label="Clients" resetKey={view}><ClientsWorkspace token={token} api={api} /></ErrorBoundary>}
 
       {/* 12. RECRUITMENT / ATS */}
       {view === "ats" && <ErrorBoundary label="Recruitment" resetKey={view}><AdminATS token={token} role="admin" employees={employees} departments={departments} /></ErrorBoundary>}

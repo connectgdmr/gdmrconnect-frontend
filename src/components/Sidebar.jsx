@@ -88,6 +88,7 @@ const NAV_ITEMS = {
     { icon: <FaCalendarAlt />, label: "Holidays", view: "holidays" },
     { icon: <FaGraduationCap />, label: "My Courses", view: "lms" },
     { icon: <FaBriefcase />, label: "Jobs", view: "career" },
+    { icon: <FaFolderOpen />, label: "Clients", view: "clients" },
     { icon: <FaMoneyBillWave />, label: "Payroll", view: "payroll" },
     { icon: <FaUserShield />, label: "Special Access", view: "special-access" },
   ],

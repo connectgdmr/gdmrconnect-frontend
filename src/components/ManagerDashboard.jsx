@@ -10,7 +10,7 @@ import ChatBot from "./ChatBot";
 const Chat            = lazy(() => import("./Chat"));
 const WorkAnalytics  = lazy(() => import("./WorkAnalytics"));
 const AdminWorkByTeam = lazy(() => import("./AdminWorkByTeam"));
-const AdminClients    = lazy(() => import("./AdminClients"));
+const ClientsWorkspace = lazy(() => import("./ClientsWorkspace"));
 const AdminATS        = lazy(() => import("./AdminATS"));
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
@@ -135,7 +135,7 @@ const DELEGATED_MODULES = [
     render: (ctx) => <AdminCareer token={ctx.token} employees={ctx.delegatedEmployees} /> },
   { key: "clients", label: "Manage Clients", Icon: FaFolderOpen,
     alert: "You are managing Clients using temporary Delegated Access.",
-    render: (ctx) => <AdminClients token={ctx.token} /> },
+    render: (ctx) => <ClientsWorkspace token={ctx.token} api={ctx.api} /> },
   { key: "work-by-team", label: "Work by Team (All Depts)", Icon: FaTasks,
     alert: "You are viewing Work by Team (all departments) using temporary Delegated Access.",
     render: (ctx) => <AdminWorkByTeam token={ctx.token} role="admin" /> },
@@ -2040,7 +2040,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}
       {view === "work-analytics" && <ErrorBoundary label="My Work" resetKey={view}><WorkAnalytics token={token} user={user} /></ErrorBoundary>}
       {view === "work-by-team"   && <ErrorBoundary label="Work by Team" resetKey={view}><AdminWorkByTeam token={token} role="manager" /></ErrorBoundary>}
-      {view === "clients"        && <ErrorBoundary label="Clients" resetKey={view}><AdminClients token={token} /></ErrorBoundary>}
+      {view === "clients"        && <ErrorBoundary label="Clients" resetKey={view}><ClientsWorkspace token={token} api={api} /></ErrorBoundary>}
       {view === "ats"            && <ErrorBoundary label="Recruitment" resetKey={view}><AdminATS token={token} role="manager" /></ErrorBoundary>}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}>
         {(() => {
