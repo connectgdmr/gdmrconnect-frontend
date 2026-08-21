@@ -1,7 +1,29 @@
 import React, { useState, useEffect } from "react";
-import { TbCircleCheck, TbCircleX } from "react-icons/tb";
+import { TbCircleCheck, TbCircleX, TbDeviceLaptop, TbHourglass, TbSearch } from "react-icons/tb";
 
 const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
+
+// Same KPI tile used on Attendance/the Admin Dashboard — kept local here
+// (rather than imported, since neither exports it) but uses the shared
+// .kpi-row/.kpi-tile styles from styles.css so it renders identically.
+function KpiTile({ icon, label, value, tone = "brand" }) {
+  const tones = {
+    brand: { color: "var(--brand)", bg: "var(--brand-light)" },
+    green: { color: "#16a34a", bg: "#f0fdf4" },
+    amber: { color: "#d97706", bg: "#fffbeb" },
+    red:   { color: "#dc2626", bg: "#fef2f2" },
+  };
+  const t = tones[tone] || tones.brand;
+  return (
+    <div className="kpi-tile">
+      <div className="kpi-icon" style={{ color: t.color, background: t.bg }}>{icon}</div>
+      <div className="kpi-meta">
+        <span className="kpi-value">{value ?? 0}</span>
+        <span className="kpi-label">{label}</span>
+      </div>
+    </div>
+  );
+}
 
 // Full "Manage Organization Assets" UI — originally AdminDashboard.jsx's
 // `view === "assets"` block. Extracted so a delegated "assets" grant gets
@@ -14,6 +36,8 @@ const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
 export default function AdminAssets({ token, api, canWrite = true }) {
   const [allAssets, setAllAssets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
 
@@ -27,6 +51,17 @@ export default function AdminAssets({ token, api, canWrite = true }) {
   }
 
   useEffect(() => { loadAssets(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pendingCount  = allAssets.filter(a => getStatusClass(a.admin_status) === "pending").length;
+  const approvedCount = allAssets.filter(a => getStatusClass(a.admin_status) === "approved").length;
+  const rejectedCount = allAssets.filter(a => getStatusClass(a.admin_status) === "rejected").length;
+
+  const q = search.trim().toLowerCase();
+  const filteredAssets = allAssets.filter(a => {
+    if (statusFilter !== "All" && getStatusClass(a.admin_status || "Pending") !== statusFilter.toLowerCase()) return false;
+    if (!q) return true;
+    return (a.employee_name || "").toLowerCase().includes(q) || (a.asset_name || "").toLowerCase().includes(q);
+  });
 
   async function updateAdminAssetStatus(id, status) {
     if (!window.confirm(`Are you sure you want to mark this request as ${status}?`)) return;
@@ -52,10 +87,44 @@ export default function AdminAssets({ token, api, canWrite = true }) {
   }
 
   return (
-    <div className="card" style={{ marginTop: 16 }}>
-      <h3 style={{ color: "var(--brand)" }}>Manage Organization Assets</h3>
-      <p className="small" style={{ marginBottom: 20 }}>Review and provide final authorization for all hardware and equipment requests across the company. Requests must be approved by the Department Manager before final Admin processing.</p>
+    <div style={{ marginTop: 16 }}>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3 style={{ margin: 0, color: "var(--brand)" }}>Manage Organization Assets</h3>
+        <p className="small" style={{ margin: "4px 0 0" }}>Review and provide final authorization for all hardware and equipment requests across the company. Requests must be approved by the Department Manager before final Admin processing.</p>
+      </div>
 
+      <div className="kpi-row" style={{ marginBottom: 16 }}>
+        <KpiTile icon={<TbDeviceLaptop />} label="Total Requests" value={allAssets.length} tone="brand" />
+        <KpiTile icon={<TbHourglass />}    label="Pending"        value={pendingCount}     tone="amber" />
+        <KpiTile icon={<TbCircleCheck />}  label="Approved"       value={approvedCount}    tone="green" />
+        <KpiTile icon={<TbCircleX />}      label="Rejected"       value={rejectedCount}    tone="red" />
+      </div>
+
+      <div className="filter-bar" style={{ marginBottom: 16 }}>
+        <div style={{ flex: 1, position: "relative" }}>
+          <TbSearch style={{ position: "absolute", left: 12, top: 13, color: "#999" }} />
+          <input
+            className="input"
+            placeholder="Search by employee or asset…"
+            style={{ marginBottom: 0, paddingLeft: 38 }}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <select
+          className="input"
+          style={{ marginBottom: 0, flex: "0 0 160px" }}
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+        >
+          <option value="All">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+      </div>
+
+      <div className="card">
       <div style={{ overflowX: "auto" }}>
         <table className="styled-table-global">
           <thead>
@@ -70,10 +139,12 @@ export default function AdminAssets({ token, api, canWrite = true }) {
             </tr>
           </thead>
           <tbody>
-            {allAssets.length === 0 ? (
-              <tr><td colSpan={canWrite ? 7 : 6} style={{ textAlign: "center", padding: 40, color: "#999" }}>No asset requests found in the system.</td></tr>
+            {filteredAssets.length === 0 ? (
+              <tr><td colSpan={canWrite ? 7 : 6} style={{ textAlign: "center", padding: 40, color: "#999" }}>
+                {allAssets.length === 0 ? "No asset requests found in the system." : "No requests match your search/filter."}
+              </td></tr>
             ) : (
-              allAssets.map(asset => (
+              filteredAssets.map(asset => (
                 <tr key={asset._id}>
                   <td>{new Date(asset.created_at).toLocaleDateString("en-GB")}</td>
                   <td>
@@ -131,6 +202,7 @@ export default function AdminAssets({ token, api, canWrite = true }) {
             )}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );
