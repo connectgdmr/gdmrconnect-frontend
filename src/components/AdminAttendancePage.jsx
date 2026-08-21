@@ -19,6 +19,14 @@ import {
   TbAlertTriangle,
   TbUsers,
   TbBuilding,
+  TbDotsVertical,
+  TbMessageDots,
+  TbUserCircle,
+  TbDownload,
+  TbChevronLeft,
+  TbChevronRight,
+  TbMail,
+  TbCopy,
 } from "react-icons/tb";
 
 // Same "offboarded" rule used elsewhere in the app (AdminPayroll, AdminInsights,
@@ -54,6 +62,36 @@ const LocationCell = ({ loc, color, label }) => {
     </span>
   );
 };
+
+// Deterministic avatar colour from a name (same idea as Chat.jsx's colorFor,
+// gives each card a varied colour like Jampack's contact cards instead of
+// every avatar being the same flat brand tint).
+const EMP_AVATAR_COLORS = ["#34a06a", "#0f766e", "#2563eb", "#7c3aed", "#db2777", "#ea580c", "#0891b2", "#65a30d"];
+function empAvatarColor(name) {
+  const k = name || "";
+  let h = 0;
+  for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0;
+  return EMP_AVATAR_COLORS[h % EMP_AVATAR_COLORS.length];
+}
+
+// Builds a downloadable CSV from the given employee rows and clicks a
+// temporary link to save it — pure client-side, no backend endpoint needed
+// since the data driving this grid is already loaded in the browser.
+function downloadEmployeesCSV(rows) {
+  const cols = ["Name", "Position", "Department", "Email", "Phone"];
+  const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [cols.join(",")];
+  rows.forEach(e => {
+    lines.push([e.name, e.position, e.department, e.email, e.phone].map(esc).join(","));
+  });
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `attendance-employees-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
 
 // ============================================================================
 // HELPER FUNCTIONS & DATA FORMATTING
@@ -122,12 +160,19 @@ function KpiTile({ icon, label, value, tone = "brand", onClick, loading }) {
   );
 }
 
-export default function AdminAttendancePage({ token, api, delegated = false }) {
+export default function AdminAttendancePage({ token, api, delegated = false, setView }) {
   // --- Employee Data States ---
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
+
+  // --- Grid toolbar: sort / bulk-select / pagination (Jampack "Contact Cards") ---
+  const [gridSort, setGridSort] = useState("name"); // name | department | position
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [cardMenuOpen, setCardMenuOpen] = useState(null); // employee _id whose kebab menu is open
+  const [pageSize, setPageSize] = useState(25);
+  const [gridPage, setGridPage] = useState(1);
   
   // --- Master Logs States (COMPLETE VISIBILITY FEATURE) ---
   const [viewMode, setViewMode] = useState("grid"); // Toggles between "grid", "logs", "analyzer"
@@ -483,8 +528,49 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
       );
     }
 
-    setFilteredEmployees([...result].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
-  }, [searchTerm, selectedDept, activeEmployees]);
+    const sorted = [...result].sort((a, b) => {
+      if (gridSort === "department") return (a.department || "").localeCompare(b.department || "") || (a.name || "").localeCompare(b.name || "");
+      if (gridSort === "position")   return (a.position   || "").localeCompare(b.position   || "") || (a.name || "").localeCompare(b.name || "");
+      return (a.name || "").localeCompare(b.name || "");
+    });
+    setFilteredEmployees(sorted);
+  }, [searchTerm, selectedDept, activeEmployees, gridSort]);
+
+  // Reset to page 1 whenever the result set, sort, or page size changes —
+  // otherwise a filter/sort change could strand the view on an empty page.
+  useEffect(() => { setGridPage(1); }, [searchTerm, selectedDept, gridSort, pageSize]);
+
+  const gridTotalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
+  const pagedEmployees = useMemo(() => {
+    const start = (gridPage - 1) * pageSize;
+    return filteredEmployees.slice(start, start + pageSize);
+  }, [filteredEmployees, gridPage, pageSize]);
+
+  function toggleSelect(id) {
+    setSelectedIds(s => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  // Exports the checked rows, or — if nothing's checked — everything
+  // currently visible under the active search/department filter, so the
+  // button is always useful rather than dead until something's selected.
+  function exportEmployeesCSV() {
+    const rows = selectedIds.size > 0
+      ? filteredEmployees.filter(e => selectedIds.has(e._id))
+      : filteredEmployees;
+    downloadEmployeesCSV(rows);
+  }
+
+  // Deep-links into the Messages view and hands Chat.jsx who to open —
+  // same "global flag, consumed on next mount" pattern Chat.jsx already
+  // uses internally for the active-conversation id.
+  function messageEmployee(emp) {
+    window.__gdmrChatOpenTarget = { _id: emp._id, name: emp.name };
+    setView?.("chat");
+  }
 
   // Filter Logic for Complete Logs View
   const filteredLogs = allAttendanceLogs.filter(log => {
@@ -808,18 +894,94 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
                     No employees found matching your filter criteria.
                 </div>
               ) : (
-                <div className="emp-grid" style={{ marginTop: 20 }}>
-                  {filteredEmployees.map(emp => (
-                    <div key={emp._id} className="emp-card" onClick={() => openEmployeeDetails(emp)} style={{ cursor: 'pointer', transition: 'transform 0.2s', border: '1px solid #eaeaea' }}>
-                       <div className="emp-avatar" style={{ background: 'var(--red)', color: 'white' }}>
-                          {emp.name.charAt(0).toUpperCase()}
-                       </div>
-                       <h4 style={{ marginBottom: 5 }}>{emp.name}</h4>
-                       <div className="emp-role" style={{ color: '#555', fontSize: 13 }}>{emp.position || "Employee"}</div>
-                       <div className="emp-dept" style={{ color: '#888', fontSize: 12 }}>{emp.department || "General"}</div>
+                <>
+                  {/* ── Grid toolbar: bulk export / sort / page size + pagination ── */}
+                  <div className="emp-toolbar">
+                    <div className="emp-toolbar-left">
+                      <button type="button" className="btn ghost sm" onClick={exportEmployeesCSV}>
+                        <TbDownload size={13} />
+                        {selectedIds.size > 0 ? `Export Selected (${selectedIds.size})` : "Export to CSV"}
+                      </button>
+                      {selectedIds.size > 0 && (
+                        <button type="button" className="btn ghost sm" onClick={() => setSelectedIds(new Set())}>Clear selection</button>
+                      )}
+                      <div className="emp-toolbar-sort">
+                        <label>Sort by</label>
+                        <select value={gridSort} onChange={e => setGridSort(e.target.value)}>
+                          <option value="name">Name (A–Z)</option>
+                          <option value="department">Department</option>
+                          <option value="position">Position</option>
+                        </select>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                    <div className="emp-toolbar-right">
+                      <div className="emp-toolbar-sort">
+                        <label>View</label>
+                        <select value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
+                          <option value={10}>10</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                      </div>
+                      <span className="emp-toolbar-count">
+                        {Math.min(filteredEmployees.length, (gridPage - 1) * pageSize + 1)}–{Math.min(filteredEmployees.length, gridPage * pageSize)} of {filteredEmployees.length}
+                      </span>
+                      <div className="emp-toolbar-pager">
+                        <button type="button" disabled={gridPage <= 1} onClick={() => setGridPage(p => Math.max(1, p - 1))}><TbChevronLeft size={14} /></button>
+                        <span>{gridPage} / {gridTotalPages}</span>
+                        <button type="button" disabled={gridPage >= gridTotalPages} onClick={() => setGridPage(p => Math.min(gridTotalPages, p + 1))}><TbChevronRight size={14} /></button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="emp-grid" style={{ marginTop: 12 }}>
+                    {pagedEmployees.map(emp => (
+                      <div key={emp._id} className="emp-card" onClick={() => openEmployeeDetails(emp)}>
+                         <input
+                            type="checkbox"
+                            className="emp-card-check"
+                            checked={selectedIds.has(emp._id)}
+                            onClick={e => e.stopPropagation()}
+                            onChange={() => toggleSelect(emp._id)}
+                            title="Select"
+                         />
+                         <div className="emp-card-menu-wrap">
+                           <button
+                              type="button" className="emp-card-menu-btn" title="More"
+                              onClick={e => { e.stopPropagation(); setCardMenuOpen(m => m === emp._id ? null : emp._id); }}
+                           >
+                             <TbDotsVertical size={14} />
+                           </button>
+                           {cardMenuOpen === emp._id && (
+                             <>
+                               <div className="emp-card-menu-backdrop" onClick={e => { e.stopPropagation(); setCardMenuOpen(null); }} />
+                               <div className="emp-card-menu" onClick={e => e.stopPropagation()}>
+                                 <button onClick={() => { setCardMenuOpen(null); openEmployeeDetails(emp); }}><TbUserCircle size={13} /> View Attendance</button>
+                                 <button onClick={() => { setCardMenuOpen(null); messageEmployee(emp); }}><TbMessageDots size={13} /> Message</button>
+                                 {emp.email && (
+                                   <button onClick={() => { setCardMenuOpen(null); navigator.clipboard?.writeText(emp.email); }}><TbCopy size={13} /> Copy Email</button>
+                                 )}
+                               </div>
+                             </>
+                           )}
+                         </div>
+                         <div className="emp-avatar" style={{ background: empAvatarColor(emp.name), color: '#fff' }}>
+                            {emp.name.charAt(0).toUpperCase()}
+                         </div>
+                         <h4 style={{ marginBottom: 5 }}>{emp.name}</h4>
+                         <div className="emp-role" style={{ color: '#555', fontSize: 13 }}>{emp.position || "Employee"}</div>
+                         <div className="emp-dept" style={{ color: '#888', fontSize: 12 }}>{emp.department || "General"}</div>
+                         {emp.email && <div className="emp-email"><TbMail size={10} /> {emp.email}</div>}
+                         <div className="emp-card-footer" onClick={e => e.stopPropagation()}>
+                           <button type="button" onClick={() => messageEmployee(emp)}><TbMessageDots size={13} /> Message</button>
+                           <span className="emp-card-footer-sep" />
+                           <button type="button" onClick={() => openEmployeeDetails(emp)}><TbUserCircle size={13} /> Profile</button>
+                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
           </>
       )}

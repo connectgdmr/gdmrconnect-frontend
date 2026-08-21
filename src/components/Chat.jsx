@@ -235,6 +235,20 @@ export default function Chat({ token, api, user }) {
     return () => clearInterval(id);
   }, [loadList]);
 
+  // ── deep-link: another page can ask Chat to open a specific person ────
+  // (e.g. the "Message" action on an Attendance/employee card). Same
+  // "global flag, consumed once on load" pattern as window.__gdmrActiveChatConvId.
+  const consumedOpenTarget = useRef(false);
+  useEffect(() => {
+    if (loadingList || consumedOpenTarget.current) return;
+    const target = window.__gdmrChatOpenTarget;
+    if (target && (target._id || target.id)) {
+      consumedOpenTarget.current = true;
+      window.__gdmrChatOpenTarget = null;
+      openPerson(target);
+    }
+  }, [loadingList]);
+
   // ── load messages for active conversation + poll ──────────────
   const loadMessages = useCallback(async (convId, showSpinner) => {
     if (!convId) return;

@@ -706,26 +706,63 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 .text-dark-red { color: #0f766e; background: #effdf8 !important; }
 .text-orange { color: var(--warning); background: var(--warning-bg) !important; }
 
-/* ── 16. EMPLOYEE CARDS ────────────────────────────── */
+/* ── 16. EMPLOYEE CARDS (Jampack "Contact Cards" reference) ─────── */
 .emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
 .emp-card {
   background: var(--surface); border: 1px solid var(--slate-200);
-  border-radius: var(--radius-lg); padding: 22px 16px; text-align: center;
+  border-radius: var(--radius-lg); padding: 30px 16px 0; text-align: center;
   transition: all 0.22s ease; cursor: pointer;
   position: relative; box-shadow: var(--shadow-xs);
+  display: flex; flex-direction: column; align-items: center;
 }
-.emp-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: rgba(185,28,28,0.2); }
+.emp-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--brand-ring); }
 .emp-avatar {
   width: 70px; height: 70px; border-radius: 50%;
-  background: linear-gradient(135deg, #fde8e8, #fff0f0); color: var(--brand);
   display: flex; align-items: center; justify-content: center;
   font-size: 26px; font-weight: 700; margin: 0 auto 14px;
   border: 3px solid #fff;
-  box-shadow: 0 0 0 2px rgba(185,28,28,0.1), 0 4px 10px rgba(0,0,0,0.07);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.06), 0 4px 10px rgba(0,0,0,0.07);
 }
 .emp-card h4 { margin: 0 0 4px; color: var(--slate-900); font-size: 15px; font-weight: 700; }
 .emp-role { font-size: 12.5px; color: var(--slate-500); margin-bottom: 3px; font-weight: 500; }
 .emp-dept { font-size: 10.5px; color: var(--slate-400); text-transform: uppercase; font-weight: 700; letter-spacing: 0.6px; }
+.emp-email { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: var(--slate-400); margin-top: 6px; }
+
+/* select-for-bulk checkbox, top-left */
+.emp-card-check { position: absolute; top: 12px; left: 12px; width: 15px; height: 15px; cursor: pointer; accent-color: var(--brand); }
+
+/* per-card kebab menu, top-right */
+.emp-card-menu-wrap { position: absolute; top: 8px; right: 8px; }
+.emp-card-menu-btn { width: 26px; height: 26px; border-radius: 7px; border: none; background: transparent; color: var(--slate-400); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.emp-card-menu-btn:hover { background: var(--slate-100); color: var(--slate-700); }
+.emp-card-menu-backdrop { position: fixed; inset: 0; z-index: 40; }
+.emp-card-menu { position: absolute; right: 0; top: 30px; z-index: 41; background: #fff; border: 1px solid var(--slate-200); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 6px; min-width: 168px; text-align: left; }
+.emp-card-menu button { width: 100%; display: flex; align-items: center; gap: 9px; padding: 8px 10px; background: none; border: none; border-radius: 7px; cursor: pointer; font-size: 12.5px; color: var(--slate-700); text-align: left; }
+.emp-card-menu button:hover { background: var(--slate-50); }
+
+/* footer action row — Message / Profile, matching the reference's two-link footer */
+.emp-card-footer { display: flex; align-items: center; width: calc(100% + 32px); margin: 16px -16px 0; border-top: 1px solid var(--slate-100); border-radius: 0 0 var(--radius-lg) var(--radius-lg); overflow: hidden; }
+.emp-card-footer button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 6px; background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--slate-500); }
+.emp-card-footer button:hover { color: var(--brand); background: var(--brand-light); }
+.emp-card-footer-sep { width: 1px; align-self: stretch; background: var(--slate-100); margin: 8px 0; }
+
+/* grid toolbar — bulk export / sort / page size + pagination */
+.emp-toolbar {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  background: var(--surface); border: 1px solid var(--slate-200); border-radius: var(--radius-lg);
+  padding: 10px 14px; box-shadow: var(--shadow-xs);
+}
+.emp-toolbar-left, .emp-toolbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.emp-toolbar-sort { display: flex; align-items: center; gap: 7px; }
+.emp-toolbar-sort label { font-size: 12px; color: var(--slate-500); font-weight: 500; white-space: nowrap; }
+.emp-toolbar-sort select { height: 32px; padding: 0 26px 0 10px; font-size: 12.5px; border-radius: var(--radius-xs); border: 1.5px solid var(--slate-300); background-position: right 9px center; }
+.emp-toolbar-count { font-size: 12px; color: var(--slate-500); white-space: nowrap; }
+.emp-toolbar-pager { display: flex; align-items: center; gap: 8px; }
+.emp-toolbar-pager span { font-size: 12px; color: var(--slate-600); font-weight: 600; white-space: nowrap; }
+.emp-toolbar-pager button { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--slate-200); background: #fff; color: var(--slate-600); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.emp-toolbar-pager button:hover:not(:disabled) { background: var(--slate-50); }
+.emp-toolbar-pager button:disabled { opacity: 0.4; cursor: default; }
+.btn.ghost.sm { padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
 
 /* ── 16b. EMPLOYEE CHIP SELECTOR (PMS assign-to, etc.) ─ */
 .employee-chip {

@@ -892,7 +892,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
             </button>
           </div>
 
-          {attendanceTab === "log" && <AdminAttendancePage token={token} api={api} />}
+          {attendanceTab === "log" && <AdminAttendancePage token={token} api={api} setView={setView} />}
 
           {/* Corrections — manager/admin/owner self-submitted, routed here for approval */}
           {attendanceTab === "corrections" && (
