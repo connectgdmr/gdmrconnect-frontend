@@ -982,7 +982,12 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                              </>
                            )}
                          </div>
-                         <div className="emp-avatar" style={{ background: emp.photo_url ? 'transparent' : empAvatarColor(emp.name), color: '#fff', padding: emp.photo_url ? 0 : undefined, overflow: emp.photo_url ? 'hidden' : undefined }}>
+                         <div
+                            className="emp-avatar"
+                            title="View attendance log"
+                            onClick={e => { e.stopPropagation(); openEmployeeDetails(emp); }}
+                            style={{ background: emp.photo_url ? 'transparent' : empAvatarColor(emp.name), color: '#fff', padding: emp.photo_url ? 0 : undefined, overflow: emp.photo_url ? 'hidden' : undefined, cursor: 'pointer' }}
+                         >
                             {emp.photo_url
                               ? <img src={emp.photo_url} alt={emp.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                               : emp.name.charAt(0).toUpperCase()}
