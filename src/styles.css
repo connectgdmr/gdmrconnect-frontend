@@ -675,6 +675,29 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
   background: var(--brand-light); width: 52px; height: 52px;
   display: flex; align-items: center; justify-content: center; border-radius: 12px;
 }
+
+/* ── 14b. NEEDS YOUR ATTENTION (Admin dashboard) ──── */
+.attention-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.attention-tile {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  padding: 14px 16px; border-radius: 10px; cursor: pointer; width: 100%;
+  background: var(--slate-50); border: 1px solid var(--slate-200);
+  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+.attention-tile:hover { background: var(--surface); border-color: var(--slate-300); box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+.attention-tile.has-count { background: #fffbeb; border-color: #fde68a; }
+.attention-tile.has-count:hover { background: #fef3c7; }
+.attention-icon {
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+  background: var(--brand-light); color: var(--brand);
+}
+.attention-tile.has-count .attention-icon { background: #fef3c7; color: #b45309; }
+.attention-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.attention-count { font-size: 19px; font-weight: 800; color: var(--slate-900); line-height: 1.15; }
+.attention-tile.has-count .attention-count { color: #b45309; }
+.attention-label { font-size: 12px; color: var(--slate-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.attention-arrow { flex-shrink: 0; color: var(--slate-400); }
 .quick-launch-label { font-size: 12px; color: var(--slate-700); font-weight: 600; line-height: 1.35; }
 .icon-badge {
   position: absolute; top: 7px; right: 7px; min-width: 16px; height: 16px;

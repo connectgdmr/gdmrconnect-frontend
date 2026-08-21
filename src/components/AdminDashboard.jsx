@@ -42,7 +42,9 @@ import {
   TbGift,
   TbBuilding,
   TbChecklist,
-  TbSettings
+  TbSettings,
+  TbClipboardCheck,
+  TbArrowRight
 } from "react-icons/tb";
 import ProfilePanel from "./ProfilePanel";
 import SettingsModal from "./SettingsModal";
@@ -63,11 +65,19 @@ const JobsAndRecruitment = lazy(() => import("./JobsAndRecruitment"));
 // ============================================================================
 // MAIN EXPORT: ADMIN DASHBOARD
 // ============================================================================
-function QuickLaunchItem({ icon, label, onClick, color = "var(--red)" }) {
+// Clickable "pending count" tile for the Needs Your Attention widget —
+// zero reads as a calm, done-for-now state; a real count reads as amber
+// so it stands out as something to act on.
+function AttentionTile({ icon, label, count, onClick }) {
+  const has = count > 0;
   return (
-    <button type="button" className="quick-launch-item" onClick={onClick} aria-label={label}>
-      <div className="quick-launch-icon" style={{color}}>{icon}</div>
-      <div className="quick-launch-label">{label}</div>
+    <button type="button" className={`attention-tile${has ? " has-count" : ""}`} onClick={onClick}>
+      <div className="attention-icon">{icon}</div>
+      <div className="attention-meta">
+        <span className="attention-count">{count}</span>
+        <span className="attention-label">{label}</span>
+      </div>
+      <TbArrowRight className="attention-arrow" size={14} />
     </button>
   );
 }
@@ -692,22 +702,32 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
           <KpiTile icon={<TbUserOff />}    label="Not Checked In"   value={adjNotCheckedIn}      tone="slate" onClick={() => handleStatClick('not_checked_in', 'Not Checked In')} />
         </div>
 
-        {/* Quick Launch */}
+        {/* Needs Your Attention — replaces the old Quick Launch shortcut grid,
+            which mostly duplicated links already in the sidebar. This shows
+            the same three real pending-approval counts already polled for
+            the sidebar's notification badges (notifCounts), as clickable
+            action tiles instead of static nav shortcuts. Announcements isn't
+            included — the backend only ever populates that count for the
+            manager role (routes/notifications.py), it's always 0 for
+            admin/owner, so showing it here would be a permanently-empty tile. */}
         <div className="card" style={{ marginTop: 16 }}>
-          <h4 className="widget-title">Quick Launch</h4>
-          <div className="quick-launch-grid">
-            <QuickLaunchItem icon={<TbUserPlus />} label="Add Employee" onClick={() => { setView("workforce"); setWorkforceTab("employees"); setSubView("add"); }} />
-            <QuickLaunchItem icon={<TbUsers />} label="Employee List" onClick={() => { setView("workforce"); setWorkforceTab("employees"); setSubView("list"); }} />
-            <QuickLaunchItem icon={<TbCalendarCheck />} label="Leave Requests" onClick={() => setView("leaves")} />
-            <QuickLaunchItem icon={<TbClock />} label="Attendance Logs" onClick={() => setView("attendance")} />
-            <QuickLaunchItem icon={<TbUserBolt />} label="Managers" onClick={() => { setView("workforce"); setWorkforceTab("managers"); }} />
-            <QuickLaunchItem icon={<TbChartPie />} label="Reports" onClick={() => setView("summary")} />
-            <QuickLaunchItem icon={<TbCalendar />} label="Holidays" onClick={() => setView("holidays")} />
-            <QuickLaunchItem icon={<TbSpeakerphone />} label="Announcements" onClick={() => setView("announcements")} />
-            <QuickLaunchItem icon={<TbShieldLock />} label="Grant Access" onClick={() => setView("grant-access")} />
-            <QuickLaunchItem icon={<TbBuilding />} label="Departments" onClick={() => setView("departments")} />
-            <QuickLaunchItem icon={<TbChecklist />} label="Work & Clients" onClick={() => setView("work-clients")} />
-            <QuickLaunchItem icon={<TbDeviceLaptop />} label="Manage Assets" onClick={() => setView("assets")} />
+          <h4 className="widget-title">Needs Your Attention</h4>
+          <div className="attention-grid">
+            <AttentionTile
+              icon={<TbCalendarCheck />} label="Pending Leave Requests"
+              count={notifCounts?.leaves || 0}
+              onClick={() => setView("leaves")}
+            />
+            <AttentionTile
+              icon={<TbClipboardCheck />} label="Attendance Corrections"
+              count={notifCounts?.corrections || 0}
+              onClick={() => { setView("attendance"); setAttendanceTab("corrections"); }}
+            />
+            <AttentionTile
+              icon={<TbDeviceLaptop />} label="Asset Requests"
+              count={notifCounts?.assets || 0}
+              onClick={() => setView("assets")}
+            />
           </div>
         </div>
 
