@@ -35,13 +35,7 @@
 
   /* legacy compat — now green so every var(--red) usage re-themes */
   --red: #34a06a; --dark-red: #226e48; --muted: #d6f0e2;
-  /* Jampack's own reference theme runs the whole page canvas as pure white
-     (--bs-body-bg: $white, no separate grey backdrop behind cards) — this
-     was a pale blue-grey (#edf0f4) which read as "off-white" next to the
-     cards already sitting on true white. Cards/tables/etc. still separate
-     from the canvas via border + shadow, same as before, just without the
-     tint underneath. */
-  --bg: #ffffff; --text: #0f172a; --card: #ffffff; --accent: #34a06a;
+  --bg: #edf0f4; --text: #0f172a; --card: #ffffff; --accent: #34a06a;
   --surface: #ffffff;
 
   /* Tighter, crisper shadows — matches the Jampack reference theme's card
@@ -481,11 +475,20 @@ body {
    draw a plain CSS arrow instead, so it's fully under our own styling. */
 select {
   appearance: none; -webkit-appearance: none; -moz-appearance: none;
-  color-scheme: light;
+  color-scheme: light !important;
+  forced-color-adjust: none;
   padding-right: 34px; cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 13px center;
 }
+/* Chromium's native <select> popup list (the options, not the closed box)
+   is rendered by a separate OS-level layer on Windows and has historically
+   only partially honoured page CSS — color-scheme is supposed to tell it
+   to stay light, but on some Edge/Chrome builds the popup still paints a
+   dark strip if the OS itself is in dark mode. Styling the options directly
+   is the belt-and-suspenders fix: even if the popup shell ignores our CSS,
+   each option forces its own light background/dark text. */
+select option { background-color: #fff; color: var(--slate-900); }
 .input:focus, select:focus { border-color: var(--brand); background-color: var(--surface); box-shadow: 0 0 0 3px var(--brand-ring); }
 .input { width: 100%; margin-bottom: 1rem; }
 textarea { min-height: 90px; resize: vertical; height: auto !important; }
