@@ -262,12 +262,4 @@ export default {
   getTeamWorkPlans:  (query, token)       => request(`/admin/work-plans?${query}`, "GET", null, token),
   getTeamWorkAnalytics:(range, token)     => request(`/admin/work-analytics?range=${range}`, "GET", null, token),
   addPlanComment:    (planId, comment, token) => request(`/admin/work-plans/${planId}/comment`, "POST", { comment }, token),
-
-  // ── Personal Mail (Gmail App Password) ──────────────────────────────────
-  mailStatus:     (token) => request("/mail/status", "GET", null, token),
-  mailConnect:    (email, appPassword, token) => request("/mail/connect", "POST", { email, app_password: appPassword }, token),
-  mailDisconnect: (token) => request("/mail/disconnect", "DELETE", null, token),
-  mailInbox:      (limit, offset, token) => request(`/mail/inbox?limit=${limit}&offset=${offset}`, "GET", null, token),
-  mailMessage:    (uid, token) => request(`/mail/message/${encodeURIComponent(uid)}`, "GET", null, token),
-  mailSend:       (payload, token) => request("/mail/send", "POST", payload, token),
 };

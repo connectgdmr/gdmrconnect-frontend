@@ -14,7 +14,6 @@ import SettingsModal from "./SettingsModal";
 import InsightsBanner from "./InsightsBanner";
 
 const Chat                = lazy(() => import("./Chat"));
-const Mail                = lazy(() => import("./Mail"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
 const EmployeeLMS         = lazy(() => import("./EmployeeLMS"));
 const EmployeeCareer      = lazy(() => import("./EmployeeCareer"));
@@ -1873,7 +1872,6 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
 
       {/* — Holidays & Modals — */}
       {view === "chat"    && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
-      {view === "mail"    && <ErrorBoundary label="Mail" resetKey={view}><Mail token={token} api={api} /></ErrorBoundary>}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar token={token} api={api} /></div>}
       {view === "lms"     && <ErrorBoundary label="My Courses" resetKey={view}><EmployeeLMS token={token} /></ErrorBoundary>}
       {view === "career"  && <ErrorBoundary label="Career" resetKey={view}><EmployeeCareer token={token} user={user} /></ErrorBoundary>}

@@ -10,14 +10,13 @@ import {
   TbChartPie, TbCalendar, TbSpeakerphone, TbShieldLock, TbDeviceLaptop,
   TbHistory, TbChartLine,
   TbLogout, TbBuilding, TbClipboardList, TbSchool, TbBriefcase, TbCurrencyDollar,
-  TbChecklist, TbChartArea, TbMessageDots, TbMail
+  TbChecklist, TbChartArea, TbMessageDots
 } from "react-icons/tb";
 
 const NAV_ITEMS = {
   admin: [
     { icon: <TbLayoutDashboard />, label: "Dashboard", view: "dashboard" },
     { icon: <TbMessageDots />, label: "Messages", view: "chat" },
-    { icon: <TbMail />, label: "Mail", view: "mail" },
     { icon: <TbUsers />, label: "Workforce", view: "workforce" },
     { icon: <TbCalendarCheck />, label: "Leave Requests", view: "leaves" },
     { icon: <TbClock />, label: "Attendance", view: "attendance" },
@@ -37,7 +36,6 @@ const NAV_ITEMS = {
   manager: [
     { icon: <TbLayoutDashboard />, label: "Dashboard", view: "dashboard" },
     { icon: <TbMessageDots />, label: "Messages", view: "chat" },
-    { icon: <TbMail />, label: "Mail", view: "mail" },
     { icon: <TbHistory />, label: "Attendance", view: "attendance" },
     { icon: <TbCalendarCheck />, label: "Leave", view: "leave" },
     { icon: <TbUsers />, label: "Team", view: "dept-dashboard" },
@@ -55,7 +53,6 @@ const NAV_ITEMS = {
   owner: [
     { icon: <TbLayoutDashboard />, label: "Dashboard", view: "dashboard" },
     { icon: <TbMessageDots />, label: "Messages", view: "chat" },
-    { icon: <TbMail />, label: "Mail", view: "mail" },
     { icon: <TbUsers />, label: "Workforce", view: "workforce" },
     { icon: <TbCalendarCheck />, label: "Leave Requests", view: "leaves" },
     { icon: <TbClock />, label: "Attendance", view: "attendance" },
@@ -75,7 +72,6 @@ const NAV_ITEMS = {
   employee: [
     { icon: <TbLayoutDashboard />, label: "Dashboard", view: "dashboard" },
     { icon: <TbMessageDots />, label: "Messages", view: "chat" },
-    { icon: <TbMail />, label: "Mail", view: "mail" },
     { icon: <TbHistory />, label: "Attendance", view: "attendance" },
     { icon: <TbCalendarCheck />, label: "Leave", view: "leave" },
     { icon: <TbChartLine />, label: "Performance", view: "pms" },
