@@ -136,6 +136,20 @@ export default {
   deleteEmployee: (id, token) => request(`/admin/employees/${id}`, "DELETE", null, token),
   editEmployee: (id, payload, token) => request(`/admin/employees/${id}`, "PUT", payload, token),
 
+  uploadMyProfilePicture: async (file, token) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${FETCH_BASE}/my/profile-picture`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw data;
+    return data;
+  },
+  removeMyProfilePicture: (token) => request("/my/profile-picture", "DELETE", null, token),
+
   uploadEmployeeDocument: async (empId, name, file, token, type, expiryDate) => {
     const formData = new FormData();
     formData.append("name", name);

@@ -180,7 +180,7 @@ const DELEGATED_MODULES = [
     render: (ctx) => <AdminAssets token={ctx.token} api={ctx.api} canWrite={ctx.canWriteAssets} /> },
 ];
 
-export default function ManagerDashboard({ token, api, user, onLogout, passwordChanged = true }) {
+export default function ManagerDashboard({ token, api, user, setUser, onLogout, passwordChanged = true }) {
 
   const chatUnread = useChatUnread(token, api);
   // Insights banner / daily quote / "what are you working on" — visible for
@@ -1163,7 +1163,11 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               <TbSettings size={14} />
             </button>
             <button className="topbar-profile-btn" onClick={() => setProfileOpen(true)}>
-              <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
+              <div className="topbar-avatar" style={user?.photo_url ? { padding: 0, overflow: "hidden" } : undefined}>
+                {user?.photo_url
+                  ? <img src={user.photo_url} alt={user?.name || "User"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : user?.name?.[0]?.toUpperCase()}
+              </div>
               <span className="topbar-user-name">{user?.name}</span>
             </button>
           </div>
@@ -2304,7 +2308,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       </div>
     </div>
 
-    <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
+    <ProfilePanel user={user} setUser={setUser} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
     {settingsOpen && <SettingsModal token={token} api={api} onClose={() => setSettingsOpen(false)} />}
     <ChatBot token={token} api={api} user={user} role="manager" onNavigate={(v, subView) => {
       if (v === "leave" && subView) setLeaveSubView(subView);

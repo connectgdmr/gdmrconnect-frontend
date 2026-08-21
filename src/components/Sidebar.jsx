@@ -133,8 +133,10 @@ export default function Sidebar({ role, user, view, setView, onLogout, navBadges
 
         <div className="sidebar-footer">
           <div className="sidebar-user-pill">
-            <div className="sidebar-avatar">
-              {user?.name?.[0]?.toUpperCase() || "?"}
+            <div className="sidebar-avatar" style={user?.photo_url ? { padding: 0, overflow: "hidden" } : undefined}>
+              {user?.photo_url
+                ? <img src={user.photo_url} alt={user?.name || "User"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : (user?.name?.[0]?.toUpperCase() || "?")}
             </div>
             <div style={{ overflow: "hidden", flex: 1 }}>
               <div className="sidebar-user-name">{user?.name || "User"}</div>

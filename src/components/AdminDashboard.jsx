@@ -122,7 +122,7 @@ function StatItem({ icon, label, count, colorClass, onClick }) {
   );
 }
 
-export default function AdminDashboard({ token, api, user, onLogout }) {
+export default function AdminDashboard({ token, api, user, setUser, onLogout }) {
 
   const chatUnread = useChatUnread(token, api);
 
@@ -611,7 +611,11 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
               <TbSettings size={14} />
             </button>
             <button className="topbar-profile-btn" onClick={() => setProfileOpen(true)}>
-              <div className="topbar-avatar">{user?.name?.[0]?.toUpperCase()}</div>
+              <div className="topbar-avatar" style={user?.photo_url ? { padding: 0, overflow: "hidden" } : undefined}>
+                {user?.photo_url
+                  ? <img src={user.photo_url} alt={user?.name || "User"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : user?.name?.[0]?.toUpperCase()}
+              </div>
               <span className="topbar-user-name">{user?.name}</span>
             </button>
           </div>
@@ -1128,7 +1132,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       </div>
     </div>
 
-    <ProfilePanel user={user} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
+    <ProfilePanel user={user} setUser={setUser} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
     {settingsOpen && <SettingsModal token={token} api={api} onClose={() => setSettingsOpen(false)} />}
     <ChatBot token={token} api={api} user={user} role="admin" onNavigate={setView} />
     </>

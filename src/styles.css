@@ -1051,7 +1051,21 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 .profile-panel-close { background: var(--slate-100); border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--slate-500); transition: background var(--transition); }
 .profile-panel-close:hover { background: var(--slate-200); }
 .profile-panel-hero { display: flex; align-items: center; gap: 14px; padding: 20px; background: linear-gradient(135deg, #0d1520 0%, #1e293b 100%); flex-shrink: 0; }
-.profile-panel-avatar { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, var(--brand), var(--teal-800)); color: #fff; font-size: 22px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 6px 16px rgba(0,125,136,0.3); }
+.profile-panel-avatar { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, var(--brand), var(--teal-800)); color: #fff; font-size: 22px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 6px 16px rgba(0,125,136,0.3); position: relative; }
+.profile-panel-avatar-wrap { position: relative; flex-shrink: 0; }
+.profile-panel-avatar-loading { position: absolute; inset: 0; background: rgba(15,23,42,0.55); display: flex; align-items: center; justify-content: center; border-radius: 16px; }
+.profile-panel-avatar-edit {
+  position: absolute; bottom: -4px; right: -4px; width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; border: 2px solid #1e293b; color: var(--brand); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+}
+.profile-panel-avatar-edit:hover { background: var(--brand-light); }
+.profile-panel-avatar-edit:disabled { opacity: 0.6; cursor: default; }
+.profile-panel-remove-photo {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; padding: 0;
+  background: none; border: none; cursor: pointer; font-size: 11px; color: rgba(255,255,255,0.65);
+}
+.profile-panel-remove-photo:hover { color: #fca5a5; }
 .profile-panel-name { font-size: 15.5px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .profile-panel-role { font-size: 12px; color: var(--slate-400); margin-top: 3px; text-transform: capitalize; }
 .profile-panel-info-row { display: flex; flex-direction: column; gap: 7px; padding: 14px 20px; background: var(--slate-50); border-bottom: 1px solid var(--slate-100); flex-shrink: 0; }

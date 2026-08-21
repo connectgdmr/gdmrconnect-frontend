@@ -118,11 +118,11 @@ export default function App() {
       <ErrorBoundary label="GDMR Connect" resetKey={role}>
         <Suspense fallback={<div className="loader-container"><div className="loader"></div></div>}>
           {role === "admin" || role === "owner" ? (
-            <AdminDashboard token={token} api={api} user={user} onLogout={onLogout} />
+            <AdminDashboard token={token} api={api} user={user} setUser={setUser} onLogout={onLogout} />
           ) : role === "manager" ? (
-            <ManagerDashboard token={token} api={api} user={user} onLogout={onLogout} />
+            <ManagerDashboard token={token} api={api} user={user} setUser={setUser} onLogout={onLogout} />
           ) : (
-            <EmployeeDashboard token={token} api={api} user={user} onLogout={onLogout} />
+            <EmployeeDashboard token={token} api={api} user={user} setUser={setUser} onLogout={onLogout} />
           )}
         </Suspense>
       </ErrorBoundary>
