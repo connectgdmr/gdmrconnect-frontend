@@ -754,7 +754,7 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 }
 .emp-toolbar-left, .emp-toolbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .emp-toolbar-sort { display: flex; align-items: center; gap: 7px; }
-.emp-toolbar-sort label { font-size: 12px; color: var(--slate-500); font-weight: 500; white-space: nowrap; }
+.emp-toolbar-sort label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--slate-500); font-weight: 500; white-space: nowrap; }
 .emp-toolbar-sort select { height: 32px; padding: 0 26px 0 10px; font-size: 12.5px; border-radius: var(--radius-xs); border: 1.5px solid var(--slate-300); background-position: right 9px center; }
 .emp-toolbar-count { font-size: 12px; color: var(--slate-500); white-space: nowrap; }
 .emp-toolbar-pager { display: flex; align-items: center; gap: 8px; }

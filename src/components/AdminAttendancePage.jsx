@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { resolveAttachmentUrl } from "../utils/security";
 import { ymd, ym } from "../utils/dateUtils";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
+import EmployeeJourneyModal from "./EmployeeJourneyModal";
 import {
   TbSearch,
   TbFilter,
@@ -27,6 +28,7 @@ import {
   TbChevronRight,
   TbMail,
   TbCopy,
+  TbArrowsSort,
 } from "react-icons/tb";
 
 // Same "offboarded" rule used elsewhere in the app (AdminPayroll, AdminInsights,
@@ -63,6 +65,15 @@ const LocationCell = ({ loc, color, label }) => {
   );
 };
 
+// Some employee records store department (occasionally position) as an
+// array rather than a joined string — .localeCompare (a String method)
+// throws on those, which is what crashed the new "Sort by Department"
+// option. Coerce to a display/comparable string regardless of shape.
+function asStr(v) {
+  if (Array.isArray(v)) return v.filter(Boolean).join(", ");
+  return v || "";
+}
+
 // Deterministic avatar colour from a name (same idea as Chat.jsx's colorFor,
 // gives each card a varied colour like Jampack's contact cards instead of
 // every avatar being the same flat brand tint).
@@ -82,7 +93,7 @@ function downloadEmployeesCSV(rows) {
   const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const lines = [cols.join(",")];
   rows.forEach(e => {
-    lines.push([e.name, e.position, e.department, e.email, e.phone].map(esc).join(","));
+    lines.push([e.name, asStr(e.position), asStr(e.department), e.email, e.phone].map(esc).join(","));
   });
   const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -188,6 +199,10 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
   const [showModal, setShowModal] = useState(false);
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [attendance, setAttendance] = useState([]);
+  // Full employee profile popup (career journey, documents, achievements —
+  // the same EmployeeJourneyModal used elsewhere in the app), separate from
+  // the attendance-log modal above.
+  const [journeyEmp, setJourneyEmp] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   
   // --- Today's Stats States ---
@@ -281,7 +296,7 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
       // active staff only, so off-boarded employees' departments don't
       // clutter the filter once nobody active remains in them.
       const activeList = list.filter(e => !isOffboarded(e));
-      const deptNames = [...new Set(activeList.map(e => e.department).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+      const deptNames = [...new Set(activeList.map(e => asStr(e.department)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
       setDepartments(["All", ...deptNames]);
 
       // Load today's leave roster with fresh employee data so the KPI and
@@ -519,7 +534,7 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
     let result = activeEmployees;
 
     if (selectedDept !== "All") {
-      result = result.filter(e => e.department === selectedDept);
+      result = result.filter(e => asStr(e.department) === selectedDept);
     }
 
     if (searchTerm) {
@@ -529,8 +544,8 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
     }
 
     const sorted = [...result].sort((a, b) => {
-      if (gridSort === "department") return (a.department || "").localeCompare(b.department || "") || (a.name || "").localeCompare(b.name || "");
-      if (gridSort === "position")   return (a.position   || "").localeCompare(b.position   || "") || (a.name || "").localeCompare(b.name || "");
+      if (gridSort === "department") return asStr(a.department).localeCompare(asStr(b.department)) || (a.name || "").localeCompare(b.name || "");
+      if (gridSort === "position")   return asStr(a.position).localeCompare(asStr(b.position))     || (a.name || "").localeCompare(b.name || "");
       return (a.name || "").localeCompare(b.name || "");
     });
     setFilteredEmployees(sorted);
@@ -858,14 +873,16 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
         {/* Dynamic Second Filter based on View Mode */}
         {viewMode === "grid" ? (
             <div style={{flex: 1, position: 'relative'}}>
-               <TbFilter style={{position: 'absolute', left: 12, top: 13, color: '#999'}} />
-               <select 
-                  className="input" 
+               <TbArrowsSort style={{position: 'absolute', left: 12, top: 13, color: '#999'}} />
+               <select
+                  className="input"
                   style={{marginBottom:0, paddingLeft: 38}}
-                  value={selectedDept}
-                  onChange={e => setSelectedDept(e.target.value)}
+                  value={gridSort}
+                  onChange={e => setGridSort(e.target.value)}
                >
-                  {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                  <option value="name">Sort: Name (A–Z)</option>
+                  <option value="department">Sort: Department</option>
+                  <option value="position">Sort: Position</option>
                </select>
             </div>
         ) : (
@@ -906,11 +923,10 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                         <button type="button" className="btn ghost sm" onClick={() => setSelectedIds(new Set())}>Clear selection</button>
                       )}
                       <div className="emp-toolbar-sort">
-                        <label>Sort by</label>
-                        <select value={gridSort} onChange={e => setGridSort(e.target.value)}>
-                          <option value="name">Name (A–Z)</option>
-                          <option value="department">Department</option>
-                          <option value="position">Position</option>
+                        <label><TbFilter size={12} /> Department</label>
+                        <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)}>
+                          <option value="All">All Departments</option>
+                          {departments.filter(d => d !== "All").map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
                       </div>
                     </div>
@@ -937,7 +953,7 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
 
                   <div className="emp-grid" style={{ marginTop: 12 }}>
                     {pagedEmployees.map(emp => (
-                      <div key={emp._id} className="emp-card" onClick={() => openEmployeeDetails(emp)}>
+                      <div key={emp._id} className="emp-card" onClick={() => setJourneyEmp(emp)}>
                          <input
                             type="checkbox"
                             className="emp-card-check"
@@ -970,13 +986,13 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                             {emp.name.charAt(0).toUpperCase()}
                          </div>
                          <h4 style={{ marginBottom: 5 }}>{emp.name}</h4>
-                         <div className="emp-role" style={{ color: '#555', fontSize: 13 }}>{emp.position || "Employee"}</div>
-                         <div className="emp-dept" style={{ color: '#888', fontSize: 12 }}>{emp.department || "General"}</div>
+                         <div className="emp-role" style={{ color: '#555', fontSize: 13 }}>{asStr(emp.position) || "Employee"}</div>
+                         <div className="emp-dept" style={{ color: '#888', fontSize: 12 }}>{asStr(emp.department) || "General"}</div>
                          {emp.email && <div className="emp-email"><TbMail size={10} /> {emp.email}</div>}
                          <div className="emp-card-footer" onClick={e => e.stopPropagation()}>
                            <button type="button" onClick={() => messageEmployee(emp)}><TbMessageDots size={13} /> Message</button>
                            <span className="emp-card-footer-sep" />
-                           <button type="button" onClick={() => openEmployeeDetails(emp)}><TbUserCircle size={13} /> Profile</button>
+                           <button type="button" onClick={() => setJourneyEmp(emp)}><TbUserCircle size={13} /> Profile</button>
                          </div>
                       </div>
                     ))}
@@ -1392,6 +1408,19 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL: FULL EMPLOYEE PROFILE (career journey / docs / awards) */}
+      {/* ========================================================= */}
+      {journeyEmp && (
+        <EmployeeJourneyModal
+          emp={journeyEmp}
+          onClose={() => setJourneyEmp(null)}
+          onRefresh={loadEmployees}
+          api={api}
+          token={token}
+        />
       )}
 
       {/* ========================================================= */}
