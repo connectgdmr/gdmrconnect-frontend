@@ -128,6 +128,13 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
 
   // — Core States —
   const [employees, setEmployees] = useState([]);
+  // Off-boarded staff (notice given + last working day passed) excluded —
+  // for assignment/selection dropdowns fed by `employees` (LMS, Payroll,
+  // Jobs & Recruitment, Departments' member pickers, etc.) where an
+  // ex-employee showing up as a selectable option isn't useful. Views that
+  // legitimately need the full roster (e.g. AdminAttendancePage's own
+  // historical log) fetch/filter independently and are unaffected.
+  const activeEmployees = employees.filter(e => empExitStatus(e) !== "offboarded");
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState("dashboard");
   const [subView, setSubView] = useState("list");
@@ -741,7 +748,7 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
             leave:          leaveCount,
             not_checked_in: adjNotCheckedIn,
           }}
-          employees={employees}
+          employees={activeEmps}
           api={api}
           token={token}
         />
@@ -973,7 +980,7 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
       {view === "assessment" && <ErrorBoundary label="Assessments" resetKey={view}><AdminAssessment token={token} /></ErrorBoundary>}
 
       {/* 7. LMS */}
-      {view === "lms" && <ErrorBoundary label="LMS" resetKey={view}><AdminLMS token={token} employees={employees} departments={departments} /></ErrorBoundary>}
+      {view === "lms" && <ErrorBoundary label="LMS" resetKey={view}><AdminLMS token={token} employees={activeEmployees} departments={departments} /></ErrorBoundary>}
 
       {/* 8. JOBS + RECRUITMENT (one sidebar entry, two top tabs) */}
       {view === "jobs-recruitment" && <ErrorBoundary label="Jobs & Recruitment" resetKey={view}><JobsAndRecruitment token={token} role="admin" employees={employees} departments={departments} variant="admin" /></ErrorBoundary>}

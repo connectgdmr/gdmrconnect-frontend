@@ -529,14 +529,23 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 }
 
 /* ── 10. TABLES ────────────────────────────────────── */
+/* overflow:hidden used to live here for the rounded-corner look, but that
+   clips position:sticky headers below — a sticky element can't stick
+   past an ancestor that hides overflow. Corners are rounded via
+   first/last-child radii on the header/last-row cells instead (below),
+   so the header can stay position:sticky and the table still reads as
+   a single rounded card. */
 .table, .leave-table, .styled-table, .styled-table-global {
   width: 100%; border-collapse: separate; border-spacing: 0;
   margin-top: 8px; background: var(--surface);
-  border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--slate-200);
+  border-radius: var(--radius-lg); border: 1px solid var(--slate-200);
 }
 /* Header treatment matches the Jampack reference theme's tables: medium
    weight + capitalize (not bold/uppercase), a more classic admin-table
-   read than the previous all-caps small-print header. */
+   read than the previous all-caps small-print header. Sticky so the
+   header stays put while a long table's rows scroll underneath it —
+   sticks relative to whatever scrolling ancestor it's inside (usually
+   .main-content, or a table's own overflow wrapper when it has one). */
 .table th, .leave-table th,
 .styled-table thead th, .styled-table-global thead th {
   background: var(--slate-50); color: var(--slate-800);
@@ -544,6 +553,23 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
   font-weight: 500; font-size: 13px;
   text-transform: capitalize; letter-spacing: 0;
   border-bottom: 1px solid var(--slate-200);
+  position: sticky; top: 0; z-index: 2;
+}
+.table thead tr:first-child th:first-child, .leave-table thead tr:first-child th:first-child,
+.styled-table thead tr:first-child th:first-child, .styled-table-global thead tr:first-child th:first-child {
+  border-top-left-radius: var(--radius-lg);
+}
+.table thead tr:first-child th:last-child, .leave-table thead tr:first-child th:last-child,
+.styled-table thead tr:first-child th:last-child, .styled-table-global thead tr:first-child th:last-child {
+  border-top-right-radius: var(--radius-lg);
+}
+.table tbody tr:last-child td:first-child, .leave-table tbody tr:last-child td:first-child,
+.styled-table tbody tr:last-child td:first-child, .styled-table-global tbody tr:last-child td:first-child {
+  border-bottom-left-radius: var(--radius-lg);
+}
+.table tbody tr:last-child td:last-child, .leave-table tbody tr:last-child td:last-child,
+.styled-table tbody tr:last-child td:last-child, .styled-table-global tbody tr:last-child td:last-child {
+  border-bottom-right-radius: var(--radius-lg);
 }
 .table td, .leave-table td,
 .styled-table tbody td, .styled-table-global tbody td {
@@ -707,6 +733,20 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 
 /* ── 15. STAT ROWS ─────────────────────────────────── */
 .stats-list { display: flex; flex-direction: column; gap: 10px; justify-content: center; flex: 1; }
+
+/* ── Recent Activity (dashboard-home) ─────────────── */
+.activity-list { display: flex; flex-direction: column; margin-top: 6px; }
+.activity-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--slate-100); }
+.activity-row:last-child { border-bottom: none; padding-bottom: 0; }
+.activity-icon {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--brand-light); color: var(--brand);
+}
+.activity-icon.correction { background: #eff6ff; color: #2563eb; }
+.activity-body { flex: 1; min-width: 0; }
+.activity-title { font-size: 13px; font-weight: 600; color: var(--slate-900); }
+.activity-sub { font-size: 11.5px; color: var(--slate-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .stat-row {
   display: flex; align-items: center; gap: 14px; padding: 13px 16px;
   border-radius: var(--radius-md); background: var(--slate-50) !important;

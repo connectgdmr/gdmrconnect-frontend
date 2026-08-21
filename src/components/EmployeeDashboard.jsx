@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from "react";
+import React, { useEffect, useState, useRef, useCallback, useReducer, lazy, Suspense } from "react";
 import { useShowDailyWidgets } from "../utils/dailyWidgetWindow";
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
@@ -13,7 +13,6 @@ import { ym, ymd } from "../utils/dateUtils";
 import LeaveCalendar from "./LeaveCalendar";
 import SettingsModal from "./SettingsModal";
 import InsightsBanner from "./InsightsBanner";
-import { BarChart } from "./Charts";
 
 const Chat                = lazy(() => import("./Chat"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
@@ -218,10 +217,6 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
   // the big Promise.allSettled loader below so a problem here can't affect
   // any of that existing data.
   const [monthCalendarSummary, setMonthCalendarSummary] = useState(null);
-  // Last 6 months' "days present" for the dashboard-home trend chart —
-  // built from the same per-month calendar summary endpoint above, just
-  // called once per month instead of only the current one.
-  const [attendanceTrend, setAttendanceTrend] = useState([]);
   
   // ============================================================================
   // 2. ASSET MANAGEMENT STATES (NEW)
@@ -271,6 +266,10 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
   // 6. NAVIGATION & UI STATES
   // ============================================================================
   const [view, setView] = useState("dashboard");
+  // Forces one extra render after opening Announcements auto-dismisses the
+  // red sidebar dot below — dismissedAnn/hasNewAnnouncements read straight
+  // from localStorage on every render, so this just triggers a re-read.
+  const [, forceAnnDotRefresh] = useReducer(c => c + 1, 0);
   // Attendance and Leave each used to be two separate sidebar items that
   // landed on the same kind of page (a log/record view + an action view) —
   // consolidated into one sidebar entry per topic with an in-page tab strip,
@@ -333,6 +332,28 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
   const pendingLeaves = leaves.filter(l => l.status === 'Pending');
   const approvedLeaves = leaves.filter(l => l.status === 'Approved');
   const rejectedLeaves = leaves.filter(l => l.status === 'Rejected');
+
+  // Recent Activity — replaces the old "Attendance Trend" bar chart, which
+  // looked visually out of place next to the rest of the dashboard's clean
+  // stat-list cards and wasn't especially actionable. This merges the
+  // employee's own leave requests + attendance corrections into one real,
+  // status-aware timeline instead — same data already loaded for the two
+  // cards above, no new fetching.
+  const recentActivity = [
+    ...leaves.map(l => ({
+      id: l._id, kind: "leave", date: l.from_date || l.date, status: l.status || "Pending",
+      title: "Leave request",
+      sub: l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : (l.from_date || l.date || ""),
+    })),
+    ...correctionHistory.map(c => ({
+      id: c._id, kind: "correction", date: c.created_at, status: c.status || "Pending",
+      title: "Attendance correction",
+      sub: c.reason || "",
+    })),
+  ]
+    .filter(a => a.date)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 6);
   
   const MAX_WORDS = 30;
   const MAX_FILE_SIZE_MB = 5;
@@ -419,22 +440,6 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
       .catch(() => setMonthCalendarSummary(null));
   }, [token, api]);
 
-  // Last 6 months' days-present, for the dashboard-home trend chart — same
-  // per-month calendar-summary endpoint as above, called once per month.
-  useEffect(() => {
-    if (!token || !api?.getMyAttendanceCalendar) return;
-    let alive = true;
-    const months = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - (5 - i));
-      return d;
-    });
-    Promise.all(months.map(d =>
-      api.getMyAttendanceCalendar(ym(d), token)
-        .then(res => ({ label: d.toLocaleDateString("en-GB", { month: "short" }), value: res?.summary?.present ?? 0 }))
-        .catch(() => ({ label: d.toLocaleDateString("en-GB", { month: "short" }), value: 0 }))
-    )).then(rows => { if (alive) setAttendanceTrend(rows); });
-    return () => { alive = false; };
-  }, [token, api]);
 
   // Fetch the employee directory only when a delegated sub-view is actually
   // opened, not eagerly on every dashboard load. Every DELEGATED_MODULES
@@ -985,6 +990,24 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
 
   const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
 
+  // Opening Announcements should clear the sidebar's red "new activity" dot
+  // — it used to only clear per-announcement, via the dismiss (X) button on
+  // each banner in AnnouncementNotifications, so the dot kept showing even
+  // after the user had already seen everything by visiting the page itself.
+  useEffect(() => {
+    if (view !== "announcements" || !Array.isArray(announcements) || announcements.length === 0) return;
+    try {
+      const key = `dismissed_ann_${user?._id || "guest"}`;
+      const existing = new Set(JSON.parse(localStorage.getItem(key) || "[]"));
+      let changed = false;
+      announcements.forEach(a => { if (a._id && !existing.has(a._id)) { existing.add(a._id); changed = true; } });
+      if (changed) {
+        localStorage.setItem(key, JSON.stringify([...existing]));
+        forceAnnDotRefresh();
+      }
+    } catch { /* localStorage unavailable — dot just won't auto-clear */ }
+  }, [view, announcements, user?._id]);
+
   // QuickLaunchItem and StatItem are defined above the component for performance
 
   // ============================================================================
@@ -1268,8 +1291,25 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
           </div>
 
           <div className="card dashboard-widget" style={{ gridColumn: "1 / -1" }}>
-            <h4 className="widget-title">Attendance Trend — Last 6 Months</h4>
-            <BarChart data={attendanceTrend} height={160} multicolor={false} color="var(--brand)" />
+            <h4 className="widget-title">Recent Activity</h4>
+            {recentActivity.length === 0 ? (
+              <p style={{ color: "#94a3b8", fontSize: 12.5, margin: "10px 0 0" }}>No leave requests or attendance corrections yet.</p>
+            ) : (
+              <div className="activity-list">
+                {recentActivity.map(a => (
+                  <div key={`${a.kind}-${a.id}`} className="activity-row">
+                    <div className={`activity-icon ${a.kind}`}>
+                      {a.kind === "leave" ? <TbCalendarCheck size={14} /> : <TbHistory size={14} />}
+                    </div>
+                    <div className="activity-body">
+                      <div className="activity-title">{a.title}</div>
+                      {a.sub && <div className="activity-sub">{a.sub}</div>}
+                    </div>
+                    <span className={`status-badge ${getStatusClass(a.status)}`}>{a.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

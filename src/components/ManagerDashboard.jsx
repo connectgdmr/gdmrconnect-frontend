@@ -7,7 +7,6 @@ import AnnouncementNotifications from "./AnnouncementNotifications";
 import InsightsBanner from "./InsightsBanner";
 import DailyQuote from "./DailyQuote";
 import DailyWorkPlan from "./DailyWorkPlan";
-import { BarChart } from "./Charts";
 import ChatBot from "./ChatBot";
 
 const Chat            = lazy(() => import("./Chat"));
@@ -330,12 +329,9 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
   const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
   const [myCorrectionsHistory, setMyCorrectionsHistory] = useState([]);
 
-  // Manager's own current-month attendance summary + last-6-months trend
-  // for the dashboard-home widgets — same /my/attendance/calendar endpoint
-  // EmployeeDashboard.jsx uses, called once for this month and once per
-  // month for the trend chart.
+  // Manager's own current-month attendance summary for the dashboard-home
+  // widget — same /my/attendance/calendar endpoint EmployeeDashboard.jsx uses.
   const [monthCalendarSummary, setMonthCalendarSummary] = useState(null);
-  const [attendanceTrend, setAttendanceTrend] = useState([]);
 
   // Modal display states
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
@@ -366,6 +362,25 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
   const pendingLeaves = myLeaves.filter(l => l.status === 'Pending');
   const approvedLeaves = myLeaves.filter(l => l.status === 'Approved');
   const rejectedLeaves = myLeaves.filter(l => l.status === 'Rejected');
+
+  // Recent Activity — replaces the old "Attendance Trend" bar chart (see
+  // EmployeeDashboard.jsx for the same change/rationale). Merges the
+  // manager's own leave requests + attendance corrections, no new fetching.
+  const recentActivity = [
+    ...myLeaves.map(l => ({
+      id: l._id, kind: "leave", date: l.from_date || l.date, status: l.status || "Pending",
+      title: "Leave request",
+      sub: l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : (l.from_date || l.date || ""),
+    })),
+    ...myCorrectionsHistory.map(c => ({
+      id: c._id, kind: "correction", date: c.created_at, status: c.status || "Pending",
+      title: "Attendance correction",
+      sub: c.reason || "",
+    })),
+  ]
+    .filter(a => a.date)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 6);
 
   // Always filter team leaves by CURRENT team members so that when an employee
   // transfers to another department the old manager stops seeing their leaves and
@@ -483,22 +498,6 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
       .catch(() => setMonthCalendarSummary(null));
   }, [token, api]);
 
-  // Last 6 months' days-present, for the dashboard-home trend chart — same
-  // per-month calendar-summary endpoint as above, called once per month.
-  useEffect(() => {
-    if (!token || !api?.getMyAttendanceCalendar) return;
-    let alive = true;
-    const months = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - (5 - i));
-      return d;
-    });
-    Promise.all(months.map(d =>
-      api.getMyAttendanceCalendar(ym(d), token)
-        .then(res => ({ label: d.toLocaleDateString("en-GB", { month: "short" }), value: res?.summary?.present ?? 0 }))
-        .catch(() => ({ label: d.toLocaleDateString("en-GB", { month: "short" }), value: 0 }))
-    )).then(rows => { if (alive) setAttendanceTrend(rows); });
-    return () => { alive = false; };
-  }, [token, api]);
 
   useEffect(() => {
     return () => {
@@ -1400,8 +1399,25 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
           </div>
 
           <div className="card dashboard-widget" style={{ gridColumn: "1 / -1" }}>
-            <h4 className="widget-title">Attendance Trend — Last 6 Months</h4>
-            <BarChart data={attendanceTrend} height={160} multicolor={false} color="var(--brand)" />
+            <h4 className="widget-title">Recent Activity</h4>
+            {recentActivity.length === 0 ? (
+              <p style={{ color: "#94a3b8", fontSize: 12.5, margin: "10px 0 0" }}>No leave requests or attendance corrections yet.</p>
+            ) : (
+              <div className="activity-list">
+                {recentActivity.map(a => (
+                  <div key={`${a.kind}-${a.id}`} className="activity-row">
+                    <div className={`activity-icon ${a.kind}`}>
+                      {a.kind === "leave" ? <TbCalendarCheck size={14} /> : <TbHistory size={14} />}
+                    </div>
+                    <div className="activity-body">
+                      <div className="activity-title">{a.title}</div>
+                      {a.sub && <div className="activity-sub">{a.sub}</div>}
+                    </div>
+                    <span className={`status-badge ${getStatusClass(a.status)}`}>{a.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
