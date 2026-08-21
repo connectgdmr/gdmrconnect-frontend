@@ -128,17 +128,17 @@ function tenure(dateStr) {
   return m === 0 ? `${y} year${y !== 1 ? "s" : ""}` : `${y}y ${m}m`;
 }
 
-function Avatar({ name, size = 56 }) {
+function Avatar({ name, size = 56, photoUrl = null }) {
   const initials = (name || "?").split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
   return (
     <div style={{
       width: size, height: size, borderRadius: "50%", flexShrink: 0,
-      background: "linear-gradient(135deg, #34a06a 0%, #1c5249 100%)",
+      background: photoUrl ? "transparent" : "linear-gradient(135deg, #34a06a 0%, #1c5249 100%)",
       color: "#fff", fontWeight: 800, fontSize: Math.round(size * 0.33),
-      display: "flex", alignItems: "center", justifyContent: "center",
+      display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
       border: "3px solid rgba(255,255,255,0.85)", boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
     }}>
-      {initials}
+      {photoUrl ? <img src={photoUrl} alt={name || ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
     </div>
   );
 }
@@ -572,7 +572,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
             </button>
           </div>
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-            <Avatar name={empData.name} size={64} />
+            <Avatar name={empData.name} size={64} photoUrl={empData.photo_url} />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 3, lineHeight: 1.2 }}>{empData.name}</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.80)", marginBottom: 6 }}>

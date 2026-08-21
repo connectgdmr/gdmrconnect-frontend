@@ -25,6 +25,14 @@ export default function ProfilePanel({ user, setUser, token, api, isOpen, onClos
           setPhone(data.phone || "");
           setBio(data.bio || "");
           setPhotoUrl(data.photo_url || "");
+          // Keeps the app-wide user object (sidebar/topbar avatars) in sync
+          // with what's actually saved — the login response only carries a
+          // snapshot from sign-in time, so without this a photo uploaded in
+          // a previous session wouldn't show up in the chrome until this
+          // panel was opened once, even though it's really saved.
+          if (data.photo_url !== undefined) {
+            setUser?.(u => (u && u.photo_url !== data.photo_url) ? { ...u, photo_url: data.photo_url } : u);
+          }
         }
       })
       .catch(() => {});

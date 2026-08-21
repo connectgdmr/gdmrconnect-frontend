@@ -982,8 +982,10 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                              </>
                            )}
                          </div>
-                         <div className="emp-avatar" style={{ background: empAvatarColor(emp.name), color: '#fff' }}>
-                            {emp.name.charAt(0).toUpperCase()}
+                         <div className="emp-avatar" style={{ background: emp.photo_url ? 'transparent' : empAvatarColor(emp.name), color: '#fff', padding: emp.photo_url ? 0 : undefined, overflow: emp.photo_url ? 'hidden' : undefined }}>
+                            {emp.photo_url
+                              ? <img src={emp.photo_url} alt={emp.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : emp.name.charAt(0).toUpperCase()}
                          </div>
                          <h4 style={{ marginBottom: 5 }}>{emp.name}</h4>
                          <div className="emp-role" style={{ color: '#555', fontSize: 13 }}>{asStr(emp.position) || "Employee"}</div>
@@ -1395,8 +1397,10 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
               ) : (
                 detailList.map((emp, idx) => (
                   <div key={emp._id || idx} className="detail-item">
-                    <div className="detail-avatar">
-                      {emp.name ? emp.name.charAt(0).toUpperCase() : "?"}
+                    <div className="detail-avatar" style={emp.photo_url ? { padding: 0, overflow: 'hidden' } : undefined}>
+                      {emp.photo_url
+                        ? <img src={emp.photo_url} alt={emp.name || ""} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : (emp.name ? emp.name.charAt(0).toUpperCase() : "?")}
                     </div>
                     <div>
                       <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '15px' }}>{emp.name || "Unknown Employee"}</div>

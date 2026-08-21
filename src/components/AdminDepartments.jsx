@@ -37,8 +37,10 @@ function MemberRow({ emp, badge, exitLabel }) {
       opacity: isFormer ? 0.45 : 1,
       filter: isFormer ? "grayscale(60%)" : "none",
     }}>
-      <div style={{ width: 38, height: 38, borderRadius: "50%", background: isFormer ? "#94a3b8" : "linear-gradient(135deg,#334155,#1e293b)", color: "#fff", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        {emp.name?.charAt(0).toUpperCase() || "?"}
+      <div style={{ width: 38, height: 38, borderRadius: "50%", background: emp.photo_url ? "transparent" : (isFormer ? "#94a3b8" : "linear-gradient(135deg,#334155,#1e293b)"), color: "#fff", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+        {emp.photo_url
+          ? <img src={emp.photo_url} alt={emp.name || ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : (emp.name?.charAt(0).toUpperCase() || "?")}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600, fontSize: 13.5, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: isFormer ? "line-through" : "none" }}>{emp.name}</div>

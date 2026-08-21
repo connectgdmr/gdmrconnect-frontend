@@ -160,10 +160,12 @@ export default function AdminManagers({ token, api }) {
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div style={{
                           width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                          background: avatarColor(m.name), color: "#fff", fontWeight: 700, fontSize: 13,
-                          display: "flex", alignItems: "center", justifyContent: "center",
+                          background: m.photo_url ? "transparent" : avatarColor(m.name), color: "#fff", fontWeight: 700, fontSize: 13,
+                          display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
                         }}>
-                          {(m.name || "?").charAt(0).toUpperCase()}
+                          {m.photo_url
+                            ? <img src={m.photo_url} alt={m.name || ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            : (m.name || "?").charAt(0).toUpperCase()}
                         </div>
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

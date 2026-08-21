@@ -32,7 +32,7 @@ function initials(name) {
   return ((p[0]?.[0] || "") + (p[1]?.[0] || "")).toUpperCase() || "?";
 }
 
-function Avatar({ name, size = 38, isChannel = false, online = false }) {
+function Avatar({ name, size = 38, isChannel = false, online = false, photoUrl = null }) {
   const safeName = typeof name === "string" ? name : (name ? String(name) : "");
   const bg = isChannel ? "#1c5249" : colorFor(safeName);
   return (
@@ -40,9 +40,11 @@ function Avatar({ name, size = 38, isChannel = false, online = false }) {
       <div style={{
         width: size, height: size, borderRadius: isChannel ? 10 : "50%", background: bg,
         color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-        fontWeight: 700, fontSize: size * 0.38,
+        fontWeight: 700, fontSize: size * 0.38, overflow: "hidden",
       }}>
-        {isChannel ? <TbHash size={size * 0.42} /> : initials(safeName)}
+        {photoUrl && !isChannel
+          ? <img src={photoUrl} alt={safeName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : isChannel ? <TbHash size={size * 0.42} /> : initials(safeName)}
       </div>
       {online && !isChannel && (
         <span style={{
@@ -335,7 +337,10 @@ export default function Chat({ token, api, user }) {
     if (explicit) {
       const id = explicit._id || explicit.id || explicit;
       const idStr = String(id || "");
-      return { id, name: explicit.name || conv.peer_name || peopleById.get(idStr)?.name || "Team member", dept: explicit.department };
+      return {
+        id, name: explicit.name || conv.peer_name || peopleById.get(idStr)?.name || "Team member",
+        dept: explicit.department, photoUrl: explicit.photo_url || peopleById.get(idStr)?.photo_url,
+      };
     }
     const members = conv.members || conv.participants || [];
     // Find the member whose ID is not the current user — string comparison handles type mismatches.
@@ -353,7 +358,10 @@ export default function Chat({ token, api, user }) {
       || (idStr ? peopleById.get(idStr)?.name : undefined)
       || conv.name || conv.title
       || "Team member";
-    return { id, name, dept: other?.department || (idStr ? peopleById.get(idStr)?.department : undefined) };
+    return {
+      id, name, dept: other?.department || (idStr ? peopleById.get(idStr)?.department : undefined),
+      photoUrl: other?.photo_url || (idStr ? peopleById.get(idStr)?.photo_url : undefined),
+    };
   }
 
   const q = search.trim().toLowerCase();
@@ -371,7 +379,7 @@ export default function Chat({ token, api, user }) {
   dmConvos.forEach(c => {
     const pi = peerInfo(c);
     const peerKey = pi.id ? String(pi.id) : `conv:${c._id}`;
-    const entry = { key: c._id, conv: c, id: pi.id, name: pi.name, dept: pi.dept, last_at: c.last_at, last_message: c.last_message, unread: c.unread || 0 };
+    const entry = { key: c._id, conv: c, id: pi.id, name: pi.name, dept: pi.dept, photoUrl: pi.photoUrl, last_at: c.last_at, last_message: c.last_message, unread: c.unread || 0 };
     if (!dmByPeer.has(peerKey) || ts(c.last_at) > ts(dmByPeer.get(peerKey).last_at)) {
       dmByPeer.set(peerKey, entry);
     }
@@ -381,7 +389,7 @@ export default function Chat({ token, api, user }) {
   people.forEach(p => {
     const id = p._id || p.id;
     if (id && seenPeers.has(String(id))) return; // already shown via its conversation
-    dmEntries.push({ key: String(id || p.name || ""), person: p, id, name: p.name || "", dept: p.department || p.role || "" });
+    dmEntries.push({ key: String(id || p.name || ""), person: p, id, name: p.name || "", dept: p.department || p.role || "", photoUrl: p.photo_url });
   });
   const filteredDms = dmEntries
     .filter(e => matchQ(e.name) || matchQ(e.dept))
@@ -585,7 +593,7 @@ export default function Chat({ token, api, user }) {
           <div className={`gchat-row ${mine ? "mine" : ""}`}>
             {!mine && (grouped
               ? <div style={{ width: 32, flexShrink: 0 }} />
-              : <Avatar name={m.sender_name || "?"} size={32} />)}
+              : <Avatar name={m.sender_name || "?"} size={32} photoUrl={peopleById.get(String(sid))?.photo_url} />)}
             <div className="gchat-bubble-wrap">
               {!mine && !grouped && <div className="gchat-sender">{m.sender_name || "Member"}</div>}
               {editingId === m._id ? (
@@ -650,7 +658,7 @@ export default function Chat({ token, api, user }) {
   const channelMembers = active?.type === "channel"
     ? (activeConv?.members || []).map(mid => {
         const idStr = String(mid);
-        if (idStr === myIdStr) return { _id: mid, name: user?.name || "You", role: "You", isMe: true };
+        if (idStr === myIdStr) return { _id: mid, name: user?.name || "You", role: "You", isMe: true, photo_url: user?.photo_url };
         return peopleById.get(idStr) || null;
       }).filter(Boolean)
     : [];
@@ -700,7 +708,7 @@ export default function Chat({ token, api, user }) {
               <div className="gchat-online-row">
                 {onlinePeople.map(e => (
                   <button key={e.id} className="gchat-online-avatar" title={e.name} onClick={() => openDmEntry(e)}>
-                    <Avatar name={e.name} size={44} online />
+                    <Avatar name={e.name} size={44} online photoUrl={e.photoUrl} />
                     <span className="gchat-online-name">{(e.name || "").split(" ")[0]}</span>
                   </button>
                 ))}
@@ -736,7 +744,7 @@ export default function Chat({ token, api, user }) {
               {filteredDms.length === 0 && <div className="gchat-rail-hint">No people found</div>}
               {filteredDms.map(e => (
                 <button key={e.key} className={`gchat-item ${active?.peerId === e.id || active?.id === e.conv?._id ? "active" : ""}`} onClick={() => openDmEntry(e)}>
-                  <Avatar name={e.name} size={38} online={isOnline(e.id)} />
+                  <Avatar name={e.name} size={38} online={isOnline(e.id)} photoUrl={e.photoUrl} />
                   <div className="gchat-item-body">
                     <div className="gchat-item-top">
                       <span className="gchat-item-name">{e.name}</span>
@@ -766,7 +774,7 @@ export default function Chat({ token, api, user }) {
               <button className="gchat-back" onClick={() => { setActive(null); setMobilePane("list"); }}>
                 <TbArrowLeft />
               </button>
-              <Avatar name={active.title} size={36} isChannel={active.type === "channel"} online={active.type === "dm" && isOnline(active.peerId)} />
+              <Avatar name={active.title} size={36} isChannel={active.type === "channel"} online={active.type === "dm" && isOnline(active.peerId)} photoUrl={active.type === "dm" ? peopleById.get(String(active.peerId))?.photo_url : null} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="gchat-thread-title">{active.type === "channel" ? `#${active.title}` : active.title}</div>
                 <div className="gchat-thread-sub">
@@ -866,7 +874,7 @@ export default function Chat({ token, api, user }) {
         <aside className="gchat-info">
           <button className="gchat-info-close" onClick={() => setInfoOpen(false)} title="Close"><TbX size={14} /></button>
           <div className="gchat-info-head">
-            <Avatar name={active.title} size={72} isChannel={active.type === "channel"} online={active.type === "dm" && isOnline(active.peerId)} />
+            <Avatar name={active.title} size={72} isChannel={active.type === "channel"} online={active.type === "dm" && isOnline(active.peerId)} photoUrl={active.type === "dm" ? peopleById.get(String(active.peerId))?.photo_url : null} />
             <div className="gchat-info-name">{active.type === "channel" ? `#${active.title}` : active.title}</div>
             <div className="gchat-info-sub">
               {active.type === "channel"
@@ -912,7 +920,7 @@ export default function Chat({ token, api, user }) {
                     {channelMembers.length === 0 && <div className="gchat-info-empty">No members.</div>}
                     {channelMembers.map(m => (
                       <div key={String(m._id)} className="gchat-info-member">
-                        <Avatar name={m.name} size={28} online={!m.isMe && isOnline(m._id)} />
+                        <Avatar name={m.name} size={28} online={!m.isMe && isOnline(m._id)} photoUrl={m.photo_url} />
                         <div className="gchat-info-member-body">
                           <div className="gchat-info-member-name">{m.name}{m.isMe ? " (You)" : ""}</div>
                           {(m.role || m.department) && <div className="gchat-info-member-sub">{m.role || m.department}</div>}
@@ -1043,7 +1051,7 @@ function NewChannelModal({ api, token, people, onClose, onCreated }) {
                     width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
                     background: on ? "#f0fdf4" : "transparent", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left",
                   }}>
-                  <Avatar name={p.name} size={30} />
+                  <Avatar name={p.name} size={30} photoUrl={p.photo_url} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{p.name}</div>
                     <div style={{ fontSize: 11, color: "#94a3b8" }}>{p.role || p.department || ""}</div>
