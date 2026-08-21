@@ -5,6 +5,15 @@
 
 /* ── 1. DESIGN TOKENS ─────────────────────────────── */
 :root {
+  /* This app is light-themed only — no dark mode built yet. Without this,
+     a browser running on an OS set to dark mode paints native form-control
+     chrome (the closed <select> box, its OS-level affordance) using dark
+     UA styling underneath our own CSS, which is what produced the stray
+     black bar under filter dropdowns even after appearance:none + a custom
+     chevron were added — appearance:none removes the OS skin's visible
+     arrow/border but doesn't stop the browser from still color-scheming
+     the control's paint layer to the OS preference. */
+  color-scheme: light;
   --brand: #34a06a;
   --brand-hover: #2b885a;
   --brand-dark: #226e48;
@@ -466,6 +475,7 @@ body {
    draw a plain CSS arrow instead, so it's fully under our own styling. */
 select {
   appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  color-scheme: light;
   padding-right: 34px; cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 13px center;
