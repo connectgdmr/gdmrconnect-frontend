@@ -35,7 +35,13 @@
 
   /* legacy compat — now green so every var(--red) usage re-themes */
   --red: #34a06a; --dark-red: #226e48; --muted: #d6f0e2;
-  --bg: #edf0f4; --text: #0f172a; --card: #ffffff; --accent: #34a06a;
+  /* Jampack's own reference theme runs the whole page canvas as pure white
+     (--bs-body-bg: $white, no separate grey backdrop behind cards) — this
+     was a pale blue-grey (#edf0f4) which read as "off-white" next to the
+     cards already sitting on true white. Cards/tables/etc. still separate
+     from the canvas via border + shadow, same as before, just without the
+     tint underneath. */
+  --bg: #ffffff; --text: #0f172a; --card: #ffffff; --accent: #34a06a;
   --surface: #ffffff;
 
   /* Tighter, crisper shadows — matches the Jampack reference theme's card
