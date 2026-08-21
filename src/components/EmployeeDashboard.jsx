@@ -1743,7 +1743,7 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
                     {selectedDates.map(d => (
                       <span key={d} style={{
                         display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
-                        background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: 20, padding: "4px 10px",
+                        background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: 8, padding: "4px 10px",
                       }}>
                         {new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                         <button type="button" onClick={() => toggleLeaveDate(d)} style={{ border: "none", background: "none", cursor: "pointer", color: "#16a34a", fontWeight: 800, padding: 0, lineHeight: 1 }}>×</button>

@@ -42,9 +42,9 @@ function AIAnalytics({ token }) {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 99, padding: 4 }}>
+          <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 10, padding: 4 }}>
             {RANGES.map(r => (
-              <button key={r.k} onClick={() => setRange(r.k)} style={{ padding: "5px 13px", borderRadius: 99, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: range === r.k ? "var(--brand)" : "transparent", color: range === r.k ? "#fff" : "#64748b" }}>{r.label}</button>
+              <button key={r.k} onClick={() => setRange(r.k)} style={{ padding: "5px 13px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: range === r.k ? "var(--brand)" : "transparent", color: range === r.k ? "#fff" : "#64748b" }}>{r.label}</button>
             ))}
           </div>
           <button onClick={load} title="Refresh" style={{ background: "#f1f5f9", border: "none", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#64748b" }}>

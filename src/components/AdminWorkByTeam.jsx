@@ -219,7 +219,7 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
                         <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{p.employee_name}</div>
                         <div style={{ fontSize: 12, color: "#64748b" }}>{p.department || "—"} {p.check_in_time && `· checked in ${p.check_in_time}`}</div>
                       </div>
-                      <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "3px 10px", borderRadius: 99, flexShrink: 0 }}>{done}/{p.tasks?.length || 0} done</span>
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "3px 10px", borderRadius: 8, flexShrink: 0 }}>{done}/{p.tasks?.length || 0} done</span>
                       {open ? <TbChevronDown size={12} color="#94a3b8" /> : <TbChevronRight size={12} color="#94a3b8" />}
                     </div>
                     {open && (

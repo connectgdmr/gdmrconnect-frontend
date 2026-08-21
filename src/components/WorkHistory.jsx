@@ -120,9 +120,9 @@ export default function WorkHistory({ token, user }) {
           <p className="small" style={{ margin: "3px 0 0" }}>Everything you've worked on, day by day, with status</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 99, padding: 4 }}>
+          <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 10, padding: 4 }}>
             {RANGES.map(r => (
-              <button key={r.k} onClick={() => setRange(r.k)} style={{ padding: "6px 14px", borderRadius: 99, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: range === r.k ? "var(--brand)" : "transparent", color: range === r.k ? "#fff" : "#64748b" }}>{r.label}</button>
+              <button key={r.k} onClick={() => setRange(r.k)} style={{ padding: "6px 14px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: range === r.k ? "var(--brand)" : "transparent", color: range === r.k ? "#fff" : "#64748b" }}>{r.label}</button>
             ))}
           </div>
           <button className="btn ghost" onClick={exportCSV} disabled={rows.length === 0} style={{ fontSize: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
@@ -199,7 +199,7 @@ export default function WorkHistory({ token, user }) {
                   <tr key={`${r.planId}-${r.taskId}-${i}`}>
                     <td style={{ whiteSpace: "nowrap", fontSize: 13, color: "#64748b" }}>{fmtDate(r.date)}</td>
                     <td style={{ fontSize: 13.5, color: r.status === "Completed" ? "#94a3b8" : "#334155", textDecoration: r.status === "Completed" ? "line-through" : "none" }}>{r.title}</td>
-                    <td>{r.work_type ? <span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", borderRadius: 99, padding: "2px 9px" }}>{r.work_type}</span> : <span style={{ color: "#cbd5e1" }}>—</span>}</td>
+                    <td>{r.work_type ? <span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", borderRadius: 8, padding: "2px 9px" }}>{r.work_type}</span> : <span style={{ color: "#cbd5e1" }}>—</span>}</td>
                     <td style={{ fontSize: 12.5, color: "#0f766e", fontWeight: 600 }}>{r.client || <span style={{ color: "#cbd5e1", fontWeight: 400 }}>—</span>}</td>
                     <td>
                       {(() => {
@@ -211,7 +211,7 @@ export default function WorkHistory({ token, user }) {
                               autoFocus defaultValue={r.status} placeholder="Type a status…" title="Custom status"
                               onKeyDown={e => { if (e.key !== "Enter") return; const v = e.target.value.trim(); setCustomStatusIds(s => { const n = new Set(s); n.delete(rowKey); return n; }); if (v) changeStatus(r.planId, r.taskId, v); }}
                               onBlur={e => { const v = e.target.value.trim(); setCustomStatusIds(s => { const n = new Set(s); n.delete(rowKey); return n; }); if (v) changeStatus(r.planId, r.taskId, v); }}
-                              style={{ fontSize: 10.5, fontWeight: 700, color: "#334155", background: "#fff", border: "1px solid #cbd5e1", borderRadius: 99, padding: "4px 9px", width: 120, textAlign: "center" }}
+                              style={{ fontSize: 10.5, fontWeight: 700, color: "#334155", background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: "4px 9px", width: 120, textAlign: "center" }}
                             />
                           );
                         }
@@ -220,7 +220,7 @@ export default function WorkHistory({ token, user }) {
                             value={r.status}
                             onChange={e => { if (e.target.value === "__custom__") setCustomStatusIds(s => new Set(s).add(rowKey)); else changeStatus(r.planId, r.taskId, e.target.value); }}
                             title="Change status"
-                            style={{ fontSize: 10.5, fontWeight: 700, color: sm.color, background: sm.bg, border: `1px solid ${sm.color}33`, borderRadius: 99, padding: "4px 9px", cursor: "pointer", appearance: "none", textAlign: "center" }}>
+                            style={{ fontSize: 10.5, fontWeight: 700, color: sm.color, background: sm.bg, border: `1px solid ${sm.color}33`, borderRadius: 8, padding: "4px 9px", cursor: "pointer", appearance: "none", textAlign: "center" }}>
                             {TASK_STATUSES.map(s => <option key={s.v} value={s.v} style={{ color: "#334155", background: "#fff" }}>{s.v}</option>)}
                             <option value="__custom__" style={{ color: "#334155", background: "#fff" }}>Custom…</option>
                           </select>

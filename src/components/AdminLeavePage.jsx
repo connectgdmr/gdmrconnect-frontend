@@ -254,10 +254,10 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
         .today-quick-btn:hover { background: var(--red); color: #fff; }
 
         /* Status Badges - Reduced padding to save width */
-        .status-badge { 
-          padding: 4px 8px; 
-          border-radius: 20px; 
-          font-size: 11px; 
+        .status-badge {
+          padding: 4px 8px;
+          border-radius: 8px;
+          font-size: 11px;
           font-weight: 700; 
           display: inline-block; 
           text-transform: capitalize; 

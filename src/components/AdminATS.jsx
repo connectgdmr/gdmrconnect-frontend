@@ -429,7 +429,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                           <td style={{ fontSize: 13 }}>{c.experience ? `${c.experience} yrs` : "—"}</td>
                           <td style={{ fontSize: 13 }}>{c.current_location || "—"}</td>
                           <td style={{ fontSize: 13 }}>{(c.employment_type || "Permanent") === "Contract" ? `Contract${c.contract_months ? ` (${c.contract_months}m)` : ""}` : "Permanent"}</td>
-                          <td><span style={{ fontSize: 11, fontWeight: 700, color: sc.c, background: sc.b, padding: "3px 9px", borderRadius: 99 }}>{c.status || "New Application"}</span></td>
+                          <td><span style={{ fontSize: 11, fontWeight: 700, color: sc.c, background: sc.b, padding: "3px 9px", borderRadius: 8 }}>{c.status || "New Application"}</span></td>
                           <td style={{ textAlign: "center" }} onClick={e => e.stopPropagation()}>
                             <div style={{ display: "inline-flex", gap: 6 }}>
                               <button title="View profile" onClick={() => setDetail(c)}
@@ -756,7 +756,7 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <h3 style={{ margin: 0, color: "#0f172a", fontSize: 17 }}>{c.name}</h3>
-                {c.applicant_code && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "2px 8px", borderRadius: 99 }}>{c.applicant_code}</span>}
+                {c.applicant_code && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "2px 8px", borderRadius: 8 }}>{c.applicant_code}</span>}
               </div>
               <div style={{ fontSize: 13, color: "#64748b" }}>{c.job_role || "—"} {c.department && `· ${c.department}`}</div>
             </div>
@@ -775,7 +775,7 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
             <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>Current Status</span>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <select value={c.status || "New Application"} onChange={e => changeStatus(e.target.value)} disabled={busy}
-                style={{ fontSize: 12.5, fontWeight: 700, color: sc.c, background: sc.b, border: `1px solid ${sc.c}33`, borderRadius: 99, padding: "6px 12px", cursor: "pointer" }}>
+                style={{ fontSize: 12.5, fontWeight: 700, color: sc.c, background: sc.b, border: `1px solid ${sc.c}33`, borderRadius: 8, padding: "6px 12px", cursor: "pointer" }}>
                 {STATUSES.map(s => <option key={s} value={s} style={{ color: "#334155", background: "#fff" }}>{s}</option>)}
               </select>
               <button onClick={sendStatusEmail} disabled={busy} title="Manually send status update email to candidate"
@@ -809,7 +809,7 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
           <Field label="Employment Type" value={c.employment_type || "Permanent"} />
           {(c.employment_type || "Permanent") === "Contract" && <Field label="Contract Duration" value={c.contract_months ? `${c.contract_months} months` : ""} />}
         </div>
-        {skills.length > 0 && <div style={{ marginBottom: 16 }}><div style={{ fontSize: 10.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 6 }}>Skills</div><div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{skills.map((s, i) => <span key={i} style={{ fontSize: 12, padding: "3px 10px", background: "var(--brand-light)", color: "var(--brand)", borderRadius: 99, fontWeight: 600 }}>{s}</span>)}</div></div>}
+        {skills.length > 0 && <div style={{ marginBottom: 16 }}><div style={{ fontSize: 10.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 6 }}>Skills</div><div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{skills.map((s, i) => <span key={i} style={{ fontSize: 12, padding: "3px 10px", background: "var(--brand-light)", color: "var(--brand)", borderRadius: 8, fontWeight: 600 }}>{s}</span>)}</div></div>}
         {c.remarks && <div style={{ marginBottom: 16, padding: "10px 14px", background: "#f8fafc", borderRadius: 8, fontSize: 13, color: "#475569" }}><b>Remarks:</b> {c.remarks}</div>}
         {c.resume_url && (
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>

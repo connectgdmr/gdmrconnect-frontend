@@ -206,7 +206,7 @@ export default function DailyWorkPlan({ token, user }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 500, color: done ? "#94a3b8" : "#334155", textDecoration: done ? "line-through" : "none" }}>{t.title}</div>
                   <div style={{ display: "flex", gap: 10, marginTop: 3, flexWrap: "wrap" }}>
-                    {t.work_type && <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", borderRadius: 99, padding: "1px 8px" }}>{t.work_type}</span>}
+                    {t.work_type && <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", borderRadius: 8, padding: "1px 8px" }}>{t.work_type}</span>}
                     {t.client && <span style={{ fontSize: 11, color: "#0f766e", fontWeight: 600 }}>🏢 {t.client}</span>}
                   </div>
                 </div>
@@ -228,14 +228,14 @@ export default function DailyWorkPlan({ token, user }) {
                       setCustomStatusIds(s => { const n = new Set(s); n.delete(t.id); return n; });
                       if (v) changeStatus(v);
                     }}
-                    style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, color: "#334155", background: "#fff", border: "1px solid #cbd5e1", borderRadius: 99, padding: "5px 10px", width: 120, textAlign: "center" }}
+                    style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, color: "#334155", background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: "5px 10px", width: 120, textAlign: "center" }}
                   />
                 ) : (
                   <select
                     value={t.status || "Pending"}
                     onChange={e => { if (e.target.value === "__custom__") setCustomStatusIds(s => new Set(s).add(t.id)); else changeStatus(e.target.value); }}
                     title="Change status"
-                    style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, color: sm.color, background: sm.bg, border: `1px solid ${sm.color}33`, borderRadius: 99, padding: "5px 10px", cursor: "pointer", appearance: "none", textAlign: "center" }}
+                    style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, color: sm.color, background: sm.bg, border: `1px solid ${sm.color}33`, borderRadius: 8, padding: "5px 10px", cursor: "pointer", appearance: "none", textAlign: "center" }}
                   >
                     {TASK_STATUSES.map(s => <option key={s.v} value={s.v} style={{ color: "#334155", background: "#fff" }}>{s.v}</option>)}
                     <option value="__custom__" style={{ color: "#334155", background: "#fff" }}>Custom…</option>

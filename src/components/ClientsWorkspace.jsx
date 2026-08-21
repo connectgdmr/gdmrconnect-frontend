@@ -245,7 +245,7 @@ export default function ClientsWorkspace({ token, api, ownDepartments }) {
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: "auto" }}>
                       {(c.departments?.length ? c.departments : ["Unassigned"]).map(d => (
-                        <span key={d} style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: t.bg, color: t.color }}>{d}</span>
+                        <span key={d} style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: t.bg, color: t.color }}>{d}</span>
                       ))}
                     </div>
                     {c.task_count != null && <div style={{ fontSize: 11.5, color: "#94a3b8" }}>{c.task_count} work item{c.task_count === 1 ? "" : "s"}</div>}
@@ -336,7 +336,7 @@ function ClientDetail({ clientId, baseUrl, headers, jsonHeaders, onBack }) {
         {client?.description && <p className="small" style={{ marginTop: 4 }}>{client.description}</p>}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
           {(client?.departments?.length ? client.departments : ["Unassigned"]).map(d => (
-            <span key={d} style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "#f0fdf4", color: "#226e48" }}>{d}</span>
+            <span key={d} style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#f0fdf4", color: "#226e48" }}>{d}</span>
           ))}
         </div>
       </div>
@@ -532,7 +532,7 @@ function UpdatesTab({ clientId, baseUrl, headers, jsonHeaders, canWrite }) {
             <div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: "#effdf8", border: "1px solid #b6e6d6" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                 <span style={{ fontWeight: 700, fontSize: 13, color: "#0f766e" }}>{u.title || "Task"}</span>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0f766e", background: "#fff", padding: "2px 8px", borderRadius: 20, whiteSpace: "nowrap" }}>{u.status || "Pending"}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0f766e", background: "#fff", padding: "2px 8px", borderRadius: 8, whiteSpace: "nowrap" }}>{u.status || "Pending"}</span>
               </div>
               <div style={{ fontSize: 11.5, color: "#0f766e", marginTop: 4 }}>
                 {u.employee_name || "—"}{u.work_type ? ` · ${u.work_type}` : ""} · {u.department || "—"} · {u.date || fmtWhen(u.at)}

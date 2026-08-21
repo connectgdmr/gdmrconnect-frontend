@@ -1041,7 +1041,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
                             </div>
                           </td>
                           <td style={{ padding: "10px 14px" }}>
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: emp.rate >= 80 ? "#f0fdf4" : emp.rate >= 60 ? "#fffbeb" : "#fef2f2", color: emp.rate >= 80 ? "#16a34a" : emp.rate >= 60 ? "#d97706" : "#dc2626", border: `1px solid ${emp.rate >= 80 ? "#bbf7d0" : emp.rate >= 60 ? "#fde68a" : "#fecaca"}` }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 8, background: emp.rate >= 80 ? "#f0fdf4" : emp.rate >= 60 ? "#fffbeb" : "#fef2f2", color: emp.rate >= 80 ? "#16a34a" : emp.rate >= 60 ? "#d97706" : "#dc2626", border: `1px solid ${emp.rate >= 80 ? "#bbf7d0" : emp.rate >= 60 ? "#fde68a" : "#fecaca"}` }}>
                               {emp.rate >= 80 ? "Good" : emp.rate >= 60 ? "Fair" : "Low"}
                             </span>
                           </td>
@@ -1076,7 +1076,7 @@ export default function AdminAttendancePage({ token, api, delegated = false }) {
                           try { return new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); } catch { return d; }
                         };
                         const tag = (label, color, bg) => (
-                          <span style={{ display: "inline-block", fontSize: 10.5, fontWeight: 600, padding: "1px 7px", borderRadius: 999, background: bg, color, marginRight: 4, marginBottom: 3 }}>{label}</span>
+                          <span style={{ display: "inline-block", fontSize: 10.5, fontWeight: 600, padding: "1px 7px", borderRadius: 8, background: bg, color, marginRight: 4, marginBottom: 3 }}>{label}</span>
                         );
                         return (
                           <React.Fragment key={day.date}>

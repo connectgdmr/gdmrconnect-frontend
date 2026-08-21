@@ -45,11 +45,11 @@ function MemberRow({ emp, badge, exitLabel }) {
         <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 1 }}>{emp.position || emp.email || "—"}</div>
       </div>
       {exitLabel ? (
-        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "#f1f5f9", color: "#64748b", border: "1px solid #cbd5e1", flexShrink: 0 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 8, background: "#f1f5f9", color: "#64748b", border: "1px solid #cbd5e1", flexShrink: 0 }}>
           {exitLabel}
         </span>
       ) : badge ? (
-        <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 999, background: badge.bg, color: badge.color, flexShrink: 0 }}>
+        <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: badge.bg, color: badge.color, flexShrink: 0 }}>
           {badge.label}
         </span>
       ) : null}

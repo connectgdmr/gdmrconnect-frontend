@@ -978,8 +978,8 @@ function ChatStyles() {
 
       .gchat-messages { flex:1; min-height:0; overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:3px; background:linear-gradient(#fcfdfc,#fafbfc); }
       .gchat-day { text-align:center; margin:14px 0 8px; }
-      .gchat-day span { font-size:11px; font-weight:600; color:#94a3b8; background:#eef2f1; padding:3px 12px; border-radius:20px; }
-      .gchat-call-log { display:flex; align-items:center; justify-content:center; gap:7px; margin:8px auto; padding:6px 14px; background:#f8fafc; border:1px solid #eef1f4; border-radius:20px; color:#64748b; font-size:12px; font-weight:500; width:fit-content; max-width:80%; }
+      .gchat-day span { font-size:11px; font-weight:600; color:#94a3b8; background:#eef2f1; padding:3px 12px; border-radius:8px; }
+      .gchat-call-log { display:flex; align-items:center; justify-content:center; gap:7px; margin:8px auto; padding:6px 14px; background:#f8fafc; border:1px solid #eef1f4; border-radius:8px; color:#64748b; font-size:12px; font-weight:500; width:fit-content; max-width:80%; }
       .gchat-call-log-time { color:#b6c0cc; font-size:10.5px; }
       .gchat-row { display:flex; gap:8px; align-items:flex-end; max-width:78%; }
       .gchat-row.mine { margin-left:auto; flex-direction:row-reverse; }

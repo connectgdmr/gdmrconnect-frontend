@@ -463,7 +463,7 @@ export default function AdminInsights({ stats, employees = [], api, token }) {
               {deptData.slice(0, 4).map(([name, count], i) => (
                 <span key={name} style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
-                  fontSize: 11.5, fontWeight: 600, padding: "4px 10px", borderRadius: 99,
+                  fontSize: 11.5, fontWeight: 600, padding: "4px 10px", borderRadius: 8,
                   background: `${DEPT_PALETTE[i % DEPT_PALETTE.length]}18`,
                   color: DEPT_PALETTE[i % DEPT_PALETTE.length],
                 }}>

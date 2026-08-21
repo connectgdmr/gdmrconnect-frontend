@@ -233,7 +233,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
 
   const tabBtn = (t) => (
     <button key={t.key} onClick={() => setTab(t.key)} style={{
-      padding: "7px 16px", borderRadius: 99, border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 600,
+      padding: "7px 16px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 600,
       background: tab === t.key ? "var(--brand)" : "transparent", color: tab === t.key ? "#fff" : "#64748b",
     }}>{t.label}</button>
   );
@@ -244,7 +244,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
       <td>{p.cycle_name ? `${p.cycle_name} · ${p.month}` : p.month}</td>
       <td>
         {p.overall_rating
-          ? <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "#f0fdf4", color: "#166534", border: "1px solid #86efac", fontWeight: 600 }}>{p.overall_rating}</span>
+          ? <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 8, background: "#f0fdf4", color: "#166534", border: "1px solid #86efac", fontWeight: 600 }}>{p.overall_rating}</span>
           : <span style={{ color: "#94a3b8", fontSize: 12 }}>—</span>}
       </td>
       <td>
@@ -277,7 +277,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 99, padding: 4 }}>
+          <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 10, padding: 4 }}>
             {TABS.map(tabBtn)}
           </div>
           <input type="month" className="modern-input" style={{ margin: 0, width: "auto" }} value={reportMonth} onChange={e => setReportMonth(e.target.value)} />
@@ -517,7 +517,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                   </div>
                   {templateSessions.length > 0 && (
                     <div style={{
-                      padding: "6px 16px", borderRadius: 20, fontSize: 13, fontWeight: 700,
+                      padding: "6px 16px", borderRadius: 8, fontSize: 13, fontWeight: 700,
                       background: totalWeight === 100 ? "#dcfce7" : totalWeight > 100 ? "#fee2e2" : "#fff7ed",
                       color: totalWeight === 100 ? "#166534" : totalWeight > 100 ? "#991b1b" : "#92400e",
                       border: `1px solid ${totalWeight === 100 ? "#86efac" : totalWeight > 100 ? "#fca5a5" : "#fcd34d"}`,
@@ -627,11 +627,11 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                       <tr key={idx}>
                         <td style={{ fontWeight: 600 }}>{row.employee_name}</td>
                         <td style={{ textAlign: "center" }}>
-                          <span style={{ padding: "3px 10px", borderRadius: 20, background: "#eff6ff", color: "#1d4ed8", fontWeight: 700, fontSize: 13 }}>{row.self_avg?.toFixed(1)}/5</span>
+                          <span style={{ padding: "3px 10px", borderRadius: 8, background: "#eff6ff", color: "#1d4ed8", fontWeight: 700, fontSize: 13 }}>{row.self_avg?.toFixed(1)}/5</span>
                         </td>
                         <td style={{ textAlign: "center" }}>
                           {row.manager_avg != null
-                            ? <span style={{ padding: "3px 10px", borderRadius: 20, background: "#fdf4ff", color: "#7e22ce", fontWeight: 700, fontSize: 13 }}>{row.manager_avg?.toFixed(1)}/5</span>
+                            ? <span style={{ padding: "3px 10px", borderRadius: 8, background: "#fdf4ff", color: "#7e22ce", fontWeight: 700, fontSize: 13 }}>{row.manager_avg?.toFixed(1)}/5</span>
                             : <span style={{ color: "#94a3b8", fontSize: 12 }}>Pending</span>}
                         </td>
                         <td style={{ textAlign: "center" }}>
@@ -641,7 +641,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                         </td>
                         <td>
                           {row.overall_rating
-                            ? <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", fontWeight: 600 }}>{row.overall_rating}</span>
+                            ? <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 8, background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", fontWeight: 600 }}>{row.overall_rating}</span>
                             : <span style={{ color: "#94a3b8", fontSize: 12 }}>Not Set</span>}
                         </td>
                       </tr>
@@ -684,24 +684,24 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     {!isAdmin && !["admin", "owner"].includes(selectedPMS.owner_role) && (
                       selectedPMS.shared_with_admin ? (
-                        <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 99, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
                           <TbCircleCheck size={10} /> Shared with Admin
                         </span>
                       ) : (
                         <button disabled={sharing} onClick={() => shareWithAdmin(selectedPMS._id)}
-                          style={{ fontSize: 11.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", border: "1px solid #bbf7d0", borderRadius: 99, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                          style={{ fontSize: 11.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", border: "1px solid #bbf7d0", borderRadius: 8, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
                           <TbShare size={10} /> {sharing ? "Sharing…" : "Share with Admin"}
                         </button>
                       )
                     )}
                     {isAdmin && ["admin", "owner"].includes(selectedPMS.owner_role) && (
                       selectedPMS.shared_with_manager ? (
-                        <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 99, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
                           <TbCircleCheck size={10} /> Shared with Manager
                         </span>
                       ) : (
                         <button disabled={sharing} onClick={() => shareWithManager(selectedPMS._id)}
-                          style={{ fontSize: 11.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", border: "1px solid #bbf7d0", borderRadius: 99, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                          style={{ fontSize: 11.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", border: "1px solid #bbf7d0", borderRadius: 8, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
                           <TbShare size={10} /> {sharing ? "Sharing…" : "Share with Manager"}
                         </button>
                       )
@@ -747,7 +747,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, paddingBottom: 10, borderBottom: "2px solid #fecaca" }}>
                           <h5 style={{ margin: 0, color: "var(--red)", fontSize: 15, textTransform: "uppercase", letterSpacing: "0.04em", flex: 1 }}>{sessionName}</h5>
                           {sessionTemplate?.weight && (
-                            <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "#fef2f2", color: "var(--red)", border: "1px solid #fecaca", fontWeight: 700 }}>
+                            <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 8, background: "#fef2f2", color: "var(--red)", border: "1px solid #fecaca", fontWeight: 700 }}>
                               {sessionTemplate.weight}% weight
                             </span>
                           )}

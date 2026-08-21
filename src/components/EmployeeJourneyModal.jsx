@@ -591,11 +591,11 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                 )}
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <span style={{ fontSize: 11.5, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: statusBadge.bg, color: statusBadge.color }}>
+                <span style={{ fontSize: 11.5, fontWeight: 700, padding: "3px 10px", borderRadius: 8, background: statusBadge.bg, color: statusBadge.color }}>
                   {statusBadge.label}
                 </span>
                 {tenureStr !== "—" && (
-                  <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.90)" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 10px", borderRadius: 8, background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.90)" }}>
                     <TbClock size={9} /> {tenureStr} tenure
                   </span>
                 )}
@@ -605,7 +605,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                   </span>
                 )}
                 {empData.source_candidate_id && (
-                  <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.90)" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 10px", borderRadius: 8, background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.90)" }}>
                     <TbBriefcase size={9} /> Recruitment Hire
                   </span>
                 )}
@@ -766,9 +766,9 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                           <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{d.name}</div>
                           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             {fmtDateTime(d.uploaded_at)}
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: b.bg, color: b.color }}>{b.label}</span>
-                            {d.type && <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: "#f5f3ff", color: "#7c3aed" }}>{d.type}</span>}
-                            {expiryBadge && <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: expiryBadge.bg, color: expiryBadge.color }}>{expiryBadge.label}</span>}
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 8, background: b.bg, color: b.color }}>{b.label}</span>
+                            {d.type && <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 8, background: "#f5f3ff", color: "#7c3aed" }}>{d.type}</span>}
+                            {expiryBadge && <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 8, background: expiryBadge.bg, color: expiryBadge.color }}>{expiryBadge.label}</span>}
                             {history.length > 0 && (
                               <button type="button" onClick={() => setExpandedHistoryId(isHistoryOpen ? null : d.id)}
                                 style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2, padding: 0 }}>
@@ -1005,7 +1005,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                             {lv.reason ? ` — ${lv.reason}` : ""}
                           </div>
                         </div>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: sc.bg, color: sc.color, whiteSpace: "nowrap", flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 8, background: sc.bg, color: sc.color, whiteSpace: "nowrap", flexShrink: 0 }}>
                           {lv.status || "Pending"}
                         </span>
                       </div>
@@ -1028,7 +1028,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                     <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0f172a" }}>{fmtDate(lv.from_date)} → {fmtDate(lv.to_date)}</div>
                     <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 2 }}>{lv.type || "Sabbatical"}</div>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: "#f5f3ff", color: "#7c3aed" }}>Extended Leave</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 8, background: "#f5f3ff", color: "#7c3aed" }}>Extended Leave</span>
                 </div>
               ))}
             </div>

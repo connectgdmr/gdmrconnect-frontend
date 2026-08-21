@@ -236,7 +236,7 @@ export default function AdminCareer({ token, employees = [] }) {
           <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
             {[["all", "All"], ["active", "Active"], ["closed", "Closed"]].map(([v, l]) => (
               <button key={v} onClick={() => setBoardFilter(v)} style={{
-                padding: "6px 16px", borderRadius: 99, border: "1.5px solid", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                padding: "6px 16px", borderRadius: 7, border: "1.5px solid", fontSize: 13, fontWeight: 600, cursor: "pointer",
                 borderColor: boardFilter === v ? "var(--red)" : "#e2e8f0",
                 background: boardFilter === v ? "#fef2f2" : "#fff",
                 color: boardFilter === v ? "var(--red)" : "#64748b",

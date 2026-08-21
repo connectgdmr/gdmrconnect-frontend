@@ -79,7 +79,7 @@ export default function WorkTypesManager({ token, department, canEdit = true }) 
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
         {types.map(t => (
-          <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--brand-light)", color: "var(--brand)", borderRadius: 99, padding: "5px 10px 5px 12px", fontSize: 12.5, fontWeight: 600 }}>
+          <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--brand-light)", color: "var(--brand)", borderRadius: 8, padding: "5px 10px 5px 12px", fontSize: 12.5, fontWeight: 600 }}>
             {t}
             {canEdit && (
               <button onClick={() => removeType(t)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--brand)", display: "flex", padding: 0 }}>
