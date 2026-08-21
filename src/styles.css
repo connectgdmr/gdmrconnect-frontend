@@ -583,7 +583,7 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
 .styled-table tbody tr:hover td,
 .styled-table-global tbody tr:hover td { background: var(--slate-50); }
 .table tr.active-row td { background: #fef2f2 !important; }
-.leave-table-wrapper { overflow-x: auto; margin-top: 8px; display: block; border-radius: var(--radius-lg); }
+.leave-table-wrapper { overflow-x: auto; overflow-y: visible; margin-top: 8px; display: block; border-radius: var(--radius-lg); }
 
 /* Long report tables: header stays put, only the rows scroll. Opt in per-table
    with a max-height scroll wrapper + this class on each <th> (sticky on the
