@@ -378,7 +378,7 @@ export default function AdminPayroll({ token, employees = [] }) {
           </div>
 
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "auto", overflowY: "visible" }}>
               <table className="styled-table-global">
                 <thead><tr><th>Employee</th><th>Department</th><th>Gross / mo</th><th>Net / mo</th><th>Action</th></tr></thead>
                 <tbody>
@@ -584,7 +584,7 @@ export default function AdminPayroll({ token, employees = [] }) {
             </div>
           ) : (
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ overflowX: "auto", overflowY: "visible" }}>
                 <table className="styled-table-global">
                   <thead><tr><th>Employee</th><th>Department</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th></tr></thead>
                   <tbody>
@@ -792,7 +792,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                       No salary changes on record yet.
                     </div>
                   ) : (
-                    <div style={{ overflowX: "auto" }}>
+                    <div style={{ overflowX: "auto", overflowY: "visible" }}>
                       <table className="styled-table-global">
                         <thead>
                           <tr><th>Effective Date</th><th>Type</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Reason</th></tr>
@@ -824,7 +824,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                       No payslips generated for this employee yet.
                     </div>
                   ) : (
-                    <div style={{ overflowX: "auto" }}>
+                    <div style={{ overflowX: "auto", overflowY: "visible" }}>
                       <table className="styled-table-global">
                         <thead><tr><th>Period</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th></tr></thead>
                         <tbody>

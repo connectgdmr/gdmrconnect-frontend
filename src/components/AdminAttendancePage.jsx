@@ -1194,12 +1194,12 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                 <div style={{ padding: "14px 18px", borderBottom: "1px solid #f1f5f9" }}>
                   <span style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>All Employees — Attendance Breakdown</span>
                 </div>
-                <div style={{ overflowX: "auto" }}>
+                <div style={{ overflowX: "auto", overflowY: "visible" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: "#f8fafc" }}>
                         {["Employee", "Dept", "Present", "Absent", "On Leave", "Not Checked-in", "Rate", ""].map(h => (
-                          <th key={h} style={{ padding: "10px 14px", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", textAlign: "left", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
+                          <th key={h} style={{ padding: "10px 14px", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", textAlign: "left", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap", position: "sticky", top: 0, zIndex: 2, background: "#f8fafc" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1238,12 +1238,12 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                   <span style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>Daily Breakdown — Who Was Where</span>
                   <span style={{ fontSize: 12, color: "#94a3b8", marginLeft: 8 }}>Click a row to see names</span>
                 </div>
-                <div style={{ overflowX: "auto" }}>
+                <div style={{ overflowX: "auto", overflowY: "visible" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: "#f8fafc" }}>
                         {["Date", "Present", "Absent", "On Leave", "Not Checked-in", "Attendance %"].map(h => (
-                          <th key={h} style={{ padding: "10px 14px", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", textAlign: "left", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
+                          <th key={h} style={{ padding: "10px 14px", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", textAlign: "left", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap", position: "sticky", top: 0, zIndex: 2, background: "#f8fafc" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>

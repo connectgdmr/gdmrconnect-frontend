@@ -529,7 +529,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
             </div>
           ) : (
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ overflowX: "auto", overflowY: "visible" }}>
                 <table className="styled-table-global">
                   <thead>
                     <tr><th>Employee</th><th>Course</th><th>Progress</th><th>Last Activity</th><th>Status</th></tr>

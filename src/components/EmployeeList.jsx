@@ -479,7 +479,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
       </div>
 
       {/* Data table */}
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ overflowX: "auto", overflowY: "visible" }}>
         <table className="styled-table-global">
           <thead>
             <tr>

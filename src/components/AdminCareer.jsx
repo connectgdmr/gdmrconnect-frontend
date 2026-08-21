@@ -420,7 +420,7 @@ export default function AdminCareer({ token, employees = [] }) {
             </div>
           ) : (
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ overflowX: "auto", overflowY: "visible" }}>
                 <table className="styled-table-global">
                   <thead>
                     <tr>

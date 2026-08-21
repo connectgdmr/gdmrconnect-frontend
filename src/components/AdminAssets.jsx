@@ -125,7 +125,7 @@ export default function AdminAssets({ token, api, canWrite = true }) {
       </div>
 
       <div className="card">
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ overflowX: "auto", overflowY: "visible" }}>
         <table className="styled-table-global">
           <thead>
             <tr>

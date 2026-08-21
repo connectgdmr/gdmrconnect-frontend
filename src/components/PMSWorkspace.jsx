@@ -384,7 +384,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
               {reviews.filter(p => p.status === "Manager Review Completed").length === 0 ? (
                 <div style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>No completed reviews yet.</div>
               ) : (
-                <div style={{ overflowX: "auto" }}>
+                <div style={{ overflowX: "auto", overflowY: "visible" }}>
                   <table className="styled-table-global">
                     <thead><tr><th>Employee</th><th>Cycle / Month</th><th>Overall Rating</th><th>Shared</th><th>Action</th></tr></thead>
                     <tbody>
@@ -615,7 +615,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
               <div style={{ fontSize: 13, marginTop: 4 }}>Complete PMS reviews to see calibration data here</div>
             </div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "auto", overflowY: "visible" }}>
               <table className="styled-table-global">
                 <thead>
                   <tr><th>Employee</th><th style={{ textAlign: "center" }}>Self Avg</th><th style={{ textAlign: "center" }}>Manager Avg</th><th style={{ textAlign: "center" }}>Variance</th><th>Overall Rating</th></tr>

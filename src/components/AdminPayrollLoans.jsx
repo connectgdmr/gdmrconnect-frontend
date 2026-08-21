@@ -292,7 +292,7 @@ export default function AdminPayrollLoans({ token, employees = [] }) {
       {/* Table */}
       {loading ? <SkeletonTable rows={5} cols={8} /> : (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-          <div style={{ overflowX: "auto" }}>
+          <div style={{ overflowX: "auto", overflowY: "visible" }}>
             <table className="styled-table-global">
               <thead>
                 <tr>

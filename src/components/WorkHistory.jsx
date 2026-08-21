@@ -180,7 +180,7 @@ export default function WorkHistory({ token, user }) {
           <p style={{ margin: 0 }}>No work history matches your filters.</p>
         </div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
+        <div style={{ overflowX: "auto", overflowY: "visible" }}>
           <table className="styled-table-global">
             <thead>
               <tr>

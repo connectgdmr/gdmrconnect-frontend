@@ -46,7 +46,7 @@ export function SkeletonCards({ count = 6, minWidth = 280, height = 150 }) {
 export function SkeletonTable({ rows = 6, cols = 5 }) {
   return (
     <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ overflowX: "auto", overflowY: "visible" }}>
         <table className="styled-table-global">
           <tbody>
             {Array.from({ length: rows }).map((_, r) => (

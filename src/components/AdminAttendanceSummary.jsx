@@ -960,7 +960,7 @@ export default function AdminAttendanceSummary({ token, api }) {
               <TbTable size={12} color="var(--slate-400)" />
               <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate-400)" }}>Daily Log — working days only (Mon–Fri + last Saturday)</span>
             </div>
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "auto", overflowY: "visible" }}>
               <table className="styled-table">
                 <thead>
                   <tr>

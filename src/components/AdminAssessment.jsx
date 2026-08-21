@@ -376,7 +376,7 @@ export default function AdminAssessment({ token }) {
               <p>No candidates invited yet.</p>
             </div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "auto", overflowY: "visible" }}>
               <table className="styled-table-global">
                 <thead><tr><th>Candidate</th><th>Assessment</th><th>Status</th><th>Invited</th><th>Action</th></tr></thead>
                 <tbody>

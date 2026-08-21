@@ -670,7 +670,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
             </div>
           ) : (
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ overflowX: "auto", overflowY: "visible" }}>
                 <table className="styled-table-global">
                   <thead>
                     <tr><th>Employee</th><th>Department</th><th>Course</th><th>Progress</th><th>Last Activity</th><th>Status</th></tr>

@@ -86,7 +86,7 @@ export default function HolidayCalendar({ token, api, canWrite = false }) {
         </form>
       )}
 
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ overflowX: "auto", overflowY: "visible" }}>
         <table className="styled-table">
           <thead>
             <tr>

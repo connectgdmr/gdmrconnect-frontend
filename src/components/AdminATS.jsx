@@ -415,7 +415,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
             </div>
           ) : (
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ overflowX: "auto", overflowY: "visible" }}>
                 <table className="styled-table-global">
                   <thead><tr><th>Code</th><th>Candidate</th><th>Role / Skills</th><th>Experience</th><th>Location</th><th>Employment</th><th>Status</th><th style={{ textAlign: "center" }}>Actions</th></tr></thead>
                   <tbody>
