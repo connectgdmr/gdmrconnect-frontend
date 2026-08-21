@@ -9,6 +9,7 @@ import DailyWorkPlan from "./DailyWorkPlan";
 import ChatBot from "./ChatBot";
 
 const Chat            = lazy(() => import("./Chat"));
+const Mail            = lazy(() => import("./Mail"));
 const AdminWorkByTeam = lazy(() => import("./AdminWorkByTeam"));
 const ClientsWorkspace = lazy(() => import("./ClientsWorkspace"));
 const WorkAndClients = lazy(() => import("./WorkAndClients"));
@@ -2080,6 +2081,7 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
       {/* — Holidays & Modals — */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar token={token} api={api} /></div>}
       {view === "chat"    && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
+      {view === "mail"    && <ErrorBoundary label="Mail" resetKey={view}><Mail token={token} api={api} /></ErrorBoundary>}
       {view === "lms"     && <ErrorBoundary label="LMS" resetKey={view}><Suspense fallback={<div />}><ManagerLMS token={token} user={user} myEmployees={teamMembers} /></Suspense></ErrorBoundary>}
       {view === "work-clients"   && <ErrorBoundary label="Work & Clients" resetKey={view}><WorkAndClients token={token} api={api} role="manager" ownDepartments={Array.isArray(user?.department) ? user.department : (user?.department ? [user.department] : [])} /></ErrorBoundary>}
       {view === "jobs-recruitment" && <ErrorBoundary label="Jobs & Recruitment" resetKey={view}><JobsAndRecruitment token={token} user={user} role="manager" variant="manager" /></ErrorBoundary>}

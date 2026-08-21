@@ -5,6 +5,7 @@ import Sidebar from "./Sidebar";
 // COMPONENT IMPORTS — view-specific pages are lazy-loaded on demand
 // ============================================================================
 const Chat                   = lazy(() => import("./Chat"));
+const Mail                   = lazy(() => import("./Mail"));
 const EmployeeForm           = lazy(() => import("./EmployeeForm"));
 const EmployeeList           = lazy(() => import("./EmployeeList"));
 const RegisterAdmin          = lazy(() => import("./RegisterAdmin"));
@@ -964,6 +965,7 @@ export default function AdminDashboard({ token, api, user, onLogout }) {
       {view === "work-clients" && <ErrorBoundary label="Work & Clients" resetKey={view}><WorkAndClients token={token} api={api} role="admin" /></ErrorBoundary>}
 
       {view === "chat" && <ErrorBoundary label="Messages" resetKey={view}><Chat token={token} api={api} user={user} /></ErrorBoundary>}
+      {view === "mail" && <ErrorBoundary label="Mail" resetKey={view}><Mail token={token} api={api} /></ErrorBoundary>}
 
 
       {/* 6. HOLIDAYS */}
