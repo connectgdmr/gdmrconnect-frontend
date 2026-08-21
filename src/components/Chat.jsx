@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   TbSearch, TbSend, TbHash, TbArrowLeft, TbPlus, TbX,
-  TbUsers, TbMessageDots, TbCheck, TbCircle, TbPencil, TbTrash, TbDotsVertical, TbLogout, TbPhone
+  TbUsers, TbMessageDots, TbCheck, TbCircle, TbPencil, TbTrash, TbDotsVertical, TbLogout, TbPhone,
+  TbInfoCircle, TbBriefcase, TbMail, TbMapPin, TbFolderOpen,
 } from "react-icons/tb";
 import { playNotifSound, showBrowserNotif, requestNotifPermission, prewarmAudio } from "../utils/notifications";
 import { useCall, CALL_LOG_PREFIX } from "./CallContext";
@@ -143,6 +144,8 @@ export default function Chat({ token, api, user }) {
   const [editingId, setEditingId]       = useState(null);   // message being edited
   const [editText, setEditText]         = useState("");
   const [headerMenu, setHeaderMenu]     = useState(false);   // thread header kebab menu
+  const [infoOpen, setInfoOpen]         = useState(false);   // right-side conversation info panel
+  const [infoTab, setInfoTab]           = useState("info");  // info | files (inside the panel)
   const [confirm, setConfirm]           = useState(null);    // { title, message, danger, onConfirm }
   const [toast, setToast]               = useState("");      // transient toast message
   const [msgMenu, setMsgMenu]           = useState(null);    // message id whose action menu is open
@@ -175,6 +178,9 @@ export default function Chat({ token, api, user }) {
 
   // Clear on unmount
   useEffect(() => () => { window.__gdmrActiveChatConvId = null; }, []);
+
+  // Reset the info panel's own tab (not its open/closed state) when switching conversations
+  useEffect(() => { setInfoTab("info"); }, [active?.id]);
 
   // ── presence: heartbeat + poll who's online ───────────────────
   useEffect(() => {
@@ -625,8 +631,18 @@ export default function Chat({ token, api, user }) {
 
   const hasBanner = notifPerm !== "granted" && notifPerm !== "unsupported";
 
+  // ── conversation info panel content (DM peer detail, or channel roster) ──
+  const activePeerDetail = active?.type === "dm" && active.peerId ? peopleById.get(String(active.peerId)) : null;
+  const channelMembers = active?.type === "channel"
+    ? (activeConv?.members || []).map(mid => {
+        const idStr = String(mid);
+        if (idStr === myIdStr) return { _id: mid, name: user?.name || "You", role: "You", isMe: true };
+        return peopleById.get(idStr) || null;
+      }).filter(Boolean)
+    : [];
+
   return (
-    <div className={`gchat${hasBanner ? " has-banner" : ""}${active ? " has-active" : ""}`} data-pane={mobilePane}>
+    <div className={`gchat${hasBanner ? " has-banner" : ""}${active ? " has-active" : ""}${infoOpen && active ? " info-open" : ""}`} data-pane={mobilePane}>
       <ChatStyles />
 
       {/* Notification permission banner */}
@@ -764,6 +780,13 @@ export default function Chat({ token, api, user }) {
                   <TbPhone size={14} />
                 </button>
               )}
+              <button
+                className={`gchat-menu-btn ${infoOpen ? "active" : ""}`}
+                title="Conversation info"
+                onClick={() => setInfoOpen(v => !v)}
+              >
+                <TbInfoCircle size={16} />
+              </button>
               <div className="gchat-menu-wrap">
                 <button className="gchat-menu-btn" title="Conversation options" onClick={() => setHeaderMenu(v => !v)}>
                   <TbDotsVertical size={15} />
@@ -823,6 +846,99 @@ export default function Chat({ token, api, user }) {
           </>
         )}
       </section>
+
+      {/* ── Conversation info panel ── */}
+      {active && infoOpen && (
+        <aside className="gchat-info">
+          <button className="gchat-info-close" onClick={() => setInfoOpen(false)} title="Close"><TbX size={14} /></button>
+          <div className="gchat-info-head">
+            <Avatar name={active.title} size={72} isChannel={active.type === "channel"} online={active.type === "dm" && isOnline(active.peerId)} />
+            <div className="gchat-info-name">{active.type === "channel" ? `#${active.title}` : active.title}</div>
+            <div className="gchat-info-sub">
+              {active.type === "channel"
+                ? `${channelMembers.length} member${channelMembers.length === 1 ? "" : "s"}`
+                : (activePeerDetail?.position || activePeerDetail?.role || activePeerDetail?.department || (isOnline(active.peerId) ? "Online" : "Offline"))}
+            </div>
+          </div>
+
+          <div className="gchat-info-tabs">
+            <button className={infoTab === "info" ? "active" : ""} onClick={() => setInfoTab("info")}>Info</button>
+            <button className={infoTab === "files" ? "active" : ""} onClick={() => setInfoTab("files")}>Files</button>
+          </div>
+
+          <div className="gchat-info-body">
+            {infoTab === "info" ? (
+              <>
+                {active.type === "dm" ? (
+                  <div className="gchat-info-card">
+                    <div className="gchat-info-card-title">General Info</div>
+                    {(activePeerDetail?.position || activePeerDetail?.role) && (
+                      <div className="gchat-info-row"><TbBriefcase size={13} /> {activePeerDetail.position || activePeerDetail.role}</div>
+                    )}
+                    {activePeerDetail?.department && (
+                      <div className="gchat-info-row"><TbUsers size={13} /> {activePeerDetail.department}</div>
+                    )}
+                    {activePeerDetail?.email && (
+                      <div className="gchat-info-row"><TbMail size={13} /> <a href={`mailto:${activePeerDetail.email}`}>{activePeerDetail.email}</a></div>
+                    )}
+                    {activePeerDetail?.phone && (
+                      <div className="gchat-info-row"><TbPhone size={13} /> {activePeerDetail.phone}</div>
+                    )}
+                    {activePeerDetail?.location && (
+                      <div className="gchat-info-row"><TbMapPin size={13} /> {activePeerDetail.location}</div>
+                    )}
+                    {!activePeerDetail?.position && !activePeerDetail?.role && !activePeerDetail?.department &&
+                      !activePeerDetail?.email && !activePeerDetail?.phone && !activePeerDetail?.location && (
+                      <div className="gchat-info-empty">No profile info on file yet.</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="gchat-info-card">
+                    <div className="gchat-info-card-title">Members</div>
+                    {channelMembers.length === 0 && <div className="gchat-info-empty">No members.</div>}
+                    {channelMembers.map(m => (
+                      <div key={String(m._id)} className="gchat-info-member">
+                        <Avatar name={m.name} size={28} online={!m.isMe && isOnline(m._id)} />
+                        <div className="gchat-info-member-body">
+                          <div className="gchat-info-member-name">{m.name}{m.isMe ? " (You)" : ""}</div>
+                          {(m.role || m.department) && <div className="gchat-info-member-sub">{m.role || m.department}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="gchat-info-card">
+                  <div className="gchat-info-card-title">Settings</div>
+                  <button className="gchat-info-action" onClick={() => setConfirm({ title: "Clear chat for me", message: "Hide all messages in this conversation for you only? The other person keeps their copy.", onConfirm: clearForMe })}>
+                    Clear chat for me
+                  </button>
+                  {canClearAll && (
+                    <button className="gchat-info-action danger" onClick={() => setConfirm({ title: "Clear chat for everyone", message: "Delete all messages in this conversation for everyone? This cannot be undone.", danger: true, onConfirm: clearForEveryone })}>
+                      Clear chat for everyone
+                    </button>
+                  )}
+                  {active.type === "channel" && (
+                    <button className="gchat-info-action" onClick={() => setConfirm({ title: "Leave channel", message: `Leave "#${active.title}"? You'll stop receiving its messages.`, onConfirm: leaveChannel })}>
+                      Leave channel
+                    </button>
+                  )}
+                  {canDeleteChan && (
+                    <button className="gchat-info-action danger" onClick={() => setConfirm({ title: "Delete channel", message: `Delete the channel "#${active.title}" and all its messages for everyone? This cannot be undone.`, danger: true, onConfirm: deleteChannel })}>
+                      Delete channel
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="gchat-info-files-empty">
+                <TbFolderOpen size={28} color="#cbd5e1" />
+                <p>No files have been shared in this conversation yet.</p>
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
 
       {/* ── New channel modal ── */}
       {showNewChannel && (
@@ -940,8 +1056,9 @@ function ChatStyles() {
   return (
     <style>{`
       .gchat { display:grid; grid-template-columns: 320px 1fr; grid-template-rows: 1fr; height: calc(100vh - 140px); min-height: 520px;
-        background:#fff; border:1px solid #e6eaef; border-radius:16px; overflow:hidden; box-shadow:0 4px 24px rgba(16,40,30,0.05); }
+        background:#fff; border:1px solid #e6eaef; border-radius:16px; overflow:hidden; box-shadow:0 4px 24px rgba(16,40,30,0.05); position:relative; }
       .gchat.has-banner { grid-template-rows: auto 1fr; }
+      .gchat.info-open { grid-template-columns: 320px 1fr 300px; }
       .gchat-rail { border-right:1px solid #eef1f4; display:flex; flex-direction:column; background:#fafbfc; min-width:0; min-height:0; overflow:hidden; }
       .gchat-rail-head { display:flex; align-items:center; justify-content:space-between; padding:16px 16px 10px; }
       .gchat-rail-head h3 { margin:0; font-size:18px; color:#0f172a; }
@@ -1014,8 +1131,38 @@ function ChatStyles() {
 
       /* thread header kebab menu */
       .gchat-menu-wrap { position:relative; flex-shrink:0; }
-      .gchat-menu-btn { background:none; border:none; cursor:pointer; color:#94a3b8; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; }
+      .gchat-menu-btn { background:none; border:none; cursor:pointer; color:#94a3b8; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
       .gchat-menu-btn:hover { background:#f1f5f4; color:#475569; }
+      .gchat-menu-btn.active { background:var(--brand-light); color:var(--brand); }
+
+      /* conversation info panel */
+      .gchat-info { border-left:1px solid #eef1f4; background:#fafbfc; display:flex; flex-direction:column; min-width:0; overflow-y:auto; position:relative; }
+      .gchat-info-close { position:absolute; top:12px; right:12px; width:26px; height:26px; border-radius:7px; border:none; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.08); color:#64748b; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+      .gchat-info-close:hover { color:#0f172a; }
+      .gchat-info-head { display:flex; flex-direction:column; align-items:center; text-align:center; padding:28px 18px 16px; }
+      .gchat-info-name { font-size:15px; font-weight:700; color:#0f172a; margin-top:10px; }
+      .gchat-info-sub { font-size:12px; color:#94a3b8; margin-top:2px; }
+      .gchat-info-tabs { display:flex; gap:4px; margin:0 18px 14px; background:#f1f5f9; border-radius:10px; padding:3px; }
+      .gchat-info-tabs button { flex:1; border:none; background:none; padding:7px 0; font-size:12.5px; font-weight:600; color:#64748b; border-radius:7px; cursor:pointer; transition:background .12s,color .12s; }
+      .gchat-info-tabs button.active { background:#fff; color:var(--brand); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+      .gchat-info-body { flex:1; padding:0 18px 18px; }
+      .gchat-info-card { background:#fff; border:1px solid #eef1f4; border-radius:10px; padding:14px; margin-bottom:12px; }
+      .gchat-info-card-title { font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#94a3b8; margin-bottom:10px; }
+      .gchat-info-row { display:flex; align-items:center; gap:9px; font-size:12.5px; color:#334155; padding:6px 0; }
+      .gchat-info-row svg { color:#94a3b8; flex-shrink:0; }
+      .gchat-info-row a { color:var(--brand); text-decoration:none; word-break:break-all; }
+      .gchat-info-row a:hover { text-decoration:underline; }
+      .gchat-info-empty { font-size:12px; color:#b6c0cc; font-style:italic; }
+      .gchat-info-member { display:flex; align-items:center; gap:9px; padding:6px 0; }
+      .gchat-info-member-name { font-size:12.5px; font-weight:600; color:#0f172a; }
+      .gchat-info-member-sub { font-size:11px; color:#94a3b8; }
+      .gchat-info-action { display:block; width:100%; text-align:left; background:none; border:none; padding:8px 0; font-size:12.5px; font-weight:500; color:#334155; cursor:pointer; border-top:1px solid #f1f5f9; }
+      .gchat-info-action:first-of-type { border-top:none; }
+      .gchat-info-action:hover { color:var(--brand); }
+      .gchat-info-action.danger { color:#dc2626; }
+      .gchat-info-action.danger:hover { color:#b91c1c; }
+      .gchat-info-files-empty { display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; color:#94a3b8; font-size:12.5px; padding:40px 10px; }
+      .gchat-info-files-empty p { margin:0; }
       .gchat-menu-backdrop { position:fixed; inset:0; z-index:40; }
       .gchat-menu { position:absolute; right:0; top:40px; z-index:41; background:#fff; border:1px solid #e6eaef; border-radius:10px; box-shadow:0 8px 24px rgba(16,40,30,.14); padding:6px; min-width:170px; }
       .gchat-menu button { width:100%; display:flex; align-items:center; gap:10px; padding:9px 10px; background:none; border:none; border-radius:7px; cursor:pointer; font-size:13px; color:#334155; text-align:left; }
@@ -1039,6 +1186,10 @@ function ChatStyles() {
       .gchat-send { width:42px; height:42px; border-radius:12px; border:none; background:var(--brand); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:opacity .15s; }
       .gchat-send:disabled { opacity:.45; cursor:default; }
 
+      @media (max-width: 1100px) {
+        .gchat.info-open { grid-template-columns: 320px 1fr; }
+        .gchat-info { position:absolute; inset:0; z-index:30; width:100%; }
+      }
       @media (max-width: 820px) {
         .gchat { grid-template-columns: 1fr; height: calc(100vh - 120px); position:relative; }
         .gchat-rail { border-right:none; }
@@ -1046,6 +1197,7 @@ function ChatStyles() {
         .gchat[data-pane="list"] .gchat-thread { display:none; }
         .gchat-back { display:inline-flex; align-items:center; }
         .gchat-row { max-width:86%; }
+        .gchat-info { border-left:none; }
       }
     `}</style>
   );
