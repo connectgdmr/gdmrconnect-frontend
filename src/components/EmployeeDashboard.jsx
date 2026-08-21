@@ -13,6 +13,7 @@ import { ym, ymd } from "../utils/dateUtils";
 import LeaveCalendar from "./LeaveCalendar";
 import SettingsModal from "./SettingsModal";
 import InsightsBanner from "./InsightsBanner";
+import { BarChart } from "./Charts";
 
 const Chat                = lazy(() => import("./Chat"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
@@ -217,6 +218,10 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // the big Promise.allSettled loader below so a problem here can't affect
   // any of that existing data.
   const [monthCalendarSummary, setMonthCalendarSummary] = useState(null);
+  // Last 6 months' "days present" for the dashboard-home trend chart —
+  // built from the same per-month calendar summary endpoint above, just
+  // called once per month instead of only the current one.
+  const [attendanceTrend, setAttendanceTrend] = useState([]);
   
   // ============================================================================
   // 2. ASSET MANAGEMENT STATES (NEW)
@@ -412,6 +417,23 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
     api.getMyAttendanceCalendar(ym(), token)
       .then(res => setMonthCalendarSummary(res?.summary || null))
       .catch(() => setMonthCalendarSummary(null));
+  }, [token, api]);
+
+  // Last 6 months' days-present, for the dashboard-home trend chart — same
+  // per-month calendar-summary endpoint as above, called once per month.
+  useEffect(() => {
+    if (!token || !api?.getMyAttendanceCalendar) return;
+    let alive = true;
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - (5 - i));
+      return d;
+    });
+    Promise.all(months.map(d =>
+      api.getMyAttendanceCalendar(ym(d), token)
+        .then(res => ({ label: d.toLocaleDateString("en-GB", { month: "short" }), value: res?.summary?.present ?? 0 }))
+        .catch(() => ({ label: d.toLocaleDateString("en-GB", { month: "short" }), value: 0 }))
+    )).then(rows => { if (alive) setAttendanceTrend(rows); });
+    return () => { alive = false; };
   }, [token, api]);
 
   // Fetch the employee directory only when a delegated sub-view is actually
@@ -1239,6 +1261,11 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
             <div style={{ marginTop: 10, fontSize: 12.5, color: "#64748b", display: "flex", alignItems: "center", gap: 6 }}>
               🛠 Attendance Corrections: <strong style={{ color: "#0f172a" }}>{correctionHistory.filter(c => c.month === ym()).length} / 3 Used</strong> this month
             </div>
+          </div>
+
+          <div className="card dashboard-widget" style={{ gridColumn: "1 / -1" }}>
+            <h4 className="widget-title">Attendance Trend — Last 6 Months</h4>
+            <BarChart data={attendanceTrend} height={160} multicolor={false} color="var(--brand)" />
           </div>
         </div>
       )}

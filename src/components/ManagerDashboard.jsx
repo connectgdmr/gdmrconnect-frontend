@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from "react";
 import { resolveAttachmentUrl } from "../utils/security";
-import { ymd } from "../utils/dateUtils";
+import { ymd, ym } from "../utils/dateUtils";
 import { useShowDailyWidgets } from "../utils/dailyWidgetWindow";
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
 import InsightsBanner from "./InsightsBanner";
 import DailyQuote from "./DailyQuote";
 import DailyWorkPlan from "./DailyWorkPlan";
+import { BarChart } from "./Charts";
 import ChatBot from "./ChatBot";
 
 const Chat            = lazy(() => import("./Chat"));
@@ -329,6 +330,13 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
   const [myCorrectionsHistory, setMyCorrectionsHistory] = useState([]);
 
+  // Manager's own current-month attendance summary + last-6-months trend
+  // for the dashboard-home widgets — same /my/attendance/calendar endpoint
+  // EmployeeDashboard.jsx uses, called once for this month and once per
+  // month for the trend chart.
+  const [monthCalendarSummary, setMonthCalendarSummary] = useState(null);
+  const [attendanceTrend, setAttendanceTrend] = useState([]);
+
   // Modal display states
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
@@ -466,6 +474,31 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
   useEffect(() => {
       load();
   }, [load]);
+
+  // Current month's attendance-calendar summary for the dashboard-home stat card.
+  useEffect(() => {
+    if (!token || !api?.getMyAttendanceCalendar) return;
+    api.getMyAttendanceCalendar(ym(), token)
+      .then(res => setMonthCalendarSummary(res?.summary || null))
+      .catch(() => setMonthCalendarSummary(null));
+  }, [token, api]);
+
+  // Last 6 months' days-present, for the dashboard-home trend chart — same
+  // per-month calendar-summary endpoint as above, called once per month.
+  useEffect(() => {
+    if (!token || !api?.getMyAttendanceCalendar) return;
+    let alive = true;
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - (5 - i));
+      return d;
+    });
+    Promise.all(months.map(d =>
+      api.getMyAttendanceCalendar(ym(d), token)
+        .then(res => ({ label: d.toLocaleDateString("en-GB", { month: "short" }), value: res?.summary?.present ?? 0 }))
+        .catch(() => ({ label: d.toLocaleDateString("en-GB", { month: "short" }), value: 0 }))
+    )).then(rows => { if (alive) setAttendanceTrend(rows); });
+    return () => { alive = false; };
+  }, [token, api]);
 
   useEffect(() => {
     return () => {
@@ -1351,6 +1384,20 @@ export default function ManagerDashboard({ token, api, user, onLogout, passwordC
               <StatItem icon={<TbCircleCheck />} label="Approved" count={approvedLeaves.length} colorClass="text-green" onClick={() => handleStatClick("My Approved", approvedLeaves)} />
               <StatItem icon={<TbCircleX />} label="Rejected" count={rejectedLeaves.length} colorClass="text-red" onClick={() => handleStatClick("My Rejected", rejectedLeaves)} />
             </div>
+          </div>
+
+          <div className="card dashboard-widget">
+            <h4 className="widget-title">This Month's Attendance</h4>
+            <div className="stats-list">
+              <StatItem icon={<TbHistory />} label="Present" count={monthCalendarSummary?.present ?? "—"} colorClass="text-green" onClick={() => { setAttendanceSubView("attendance-log"); setView("attendance"); }} />
+              <StatItem icon={<TbCalendarCheck />} label="Approved Leave" count={monthCalendarSummary?.approved_leave ?? "—"} colorClass="text-orange" onClick={() => { setAttendanceSubView("attendance-log"); setView("attendance"); }} />
+              <StatItem icon={<TbCircleX />} label="LOP" count={monthCalendarSummary?.lop ?? "—"} colorClass="text-red" onClick={() => { setAttendanceSubView("attendance-log"); setView("attendance"); }} />
+            </div>
+          </div>
+
+          <div className="card dashboard-widget" style={{ gridColumn: "1 / -1" }}>
+            <h4 className="widget-title">Attendance Trend — Last 6 Months</h4>
+            <BarChart data={attendanceTrend} height={160} multicolor={false} color="var(--brand)" />
           </div>
         </div>
       )}
