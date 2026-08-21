@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from "react";
+import { useShowDailyWidgets } from "../utils/dailyWidgetWindow";
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
 import ErrorBoundary from "./ErrorBoundary";
@@ -203,6 +204,9 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
   // 1. CORE DATA STATES
   // ============================================================================
   const chatUnread = useChatUnread(token, api);
+  // Insights banner / daily quote / "what are you working on" — visible for
+  // the first 30 minutes after today's first dashboard view, then hidden.
+  const showDailyWidgets = useShowDailyWidgets(user?._id);
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [pmsHistory, setPmsHistory] = useState([]);
@@ -1167,19 +1171,19 @@ export default function EmployeeDashboard({ token, api, user, onLogout, password
         </div>
       )}
 
-      {/* — Insights — */}
-      {view === "dashboard" && <InsightsBanner leaves={leaves} token={token} api={api} />}
+      {/* — Insights — visible for the first 30 min after today's first dashboard view */}
+      {view === "dashboard" && showDailyWidgets && <InsightsBanner leaves={leaves} token={token} api={api} />}
 
       {/* — Announcement Notifications — */}
       {view === "dashboard" && (
         <AnnouncementNotifications announcements={announcements} userId={user?._id} />
       )}
 
-      {/* — Daily Quote — */}
-      {view === "dashboard" && <DailyQuote />}
+      {/* — Daily Quote — visible for the first 30 min after today's first dashboard view */}
+      {view === "dashboard" && showDailyWidgets && <DailyQuote />}
 
-      {/* — Daily Work Plan — */}
-      {view === "dashboard" && <DailyWorkPlan token={token} user={user} />}
+      {/* — Daily Work Plan — visible for the first 30 min after today's first dashboard view */}
+      {view === "dashboard" && showDailyWidgets && <DailyWorkPlan token={token} user={user} />}
 
       {/* — Dashboard Widgets — */}
       {view === "dashboard" && (
