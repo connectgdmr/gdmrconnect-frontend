@@ -988,7 +988,7 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                          <h4 style={{ marginBottom: 5 }}>{emp.name}</h4>
                          <div className="emp-role" style={{ color: '#555', fontSize: 13 }}>{asStr(emp.position) || "Employee"}</div>
                          <div className="emp-dept" style={{ color: '#888', fontSize: 12 }}>{asStr(emp.department) || "General"}</div>
-                         {emp.email && <div className="emp-email"><TbMail size={10} /> {emp.email}</div>}
+                         {emp.email && <div className="emp-card-email"><TbMail size={10} /> {emp.email}</div>}
                          <div className="emp-card-footer" onClick={e => e.stopPropagation()}>
                            <button type="button" onClick={() => messageEmployee(emp)}><TbMessageDots size={13} /> Message</button>
                            <span className="emp-card-footer-sep" />
