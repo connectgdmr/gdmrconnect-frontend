@@ -456,11 +456,21 @@ body {
   padding: 10px 13px; border-radius: var(--radius-xs);
   border: 1.5px solid var(--slate-300); flex: 1;
   font-size: 13.5px; color: var(--slate-900); background: var(--surface);
-  font-family: var(--font); height: 42px;
+  font-family: var(--font); height: 42px; box-sizing: border-box;
   transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
   outline: none;
 }
-.input:focus, select:focus { border-color: var(--brand); background: var(--surface); box-shadow: 0 0 0 3px var(--brand-ring); }
+/* Native <select> chrome (its own arrow + dropdown list rendering) fighting
+   a forced height/border/radius on top of it is what caused the stray dark
+   bar under filter dropdowns — strip the OS-native appearance entirely and
+   draw a plain CSS arrow instead, so it's fully under our own styling. */
+select {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  padding-right: 34px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 13px center;
+}
+.input:focus, select:focus { border-color: var(--brand); background-color: var(--surface); box-shadow: 0 0 0 3px var(--brand-ring); }
 .input { width: 100%; margin-bottom: 1rem; }
 textarea { min-height: 90px; resize: vertical; height: auto !important; }
 textarea:focus { border-color: var(--brand); background: var(--surface); box-shadow: 0 0 0 3px var(--brand-ring); }
@@ -473,7 +483,7 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
   transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
   box-sizing: border-box;
 }
-.modern-input:focus { border-color: var(--brand); background: var(--surface); box-shadow: 0 0 0 3px var(--brand-ring); }
+.modern-input:focus { border-color: var(--brand); background-color: var(--surface); box-shadow: 0 0 0 3px var(--brand-ring); }
 
 .modern-label { font-size: 12.5px; font-weight: 600; color: var(--slate-700); margin-bottom: 6px; display: block; }
 
@@ -491,7 +501,7 @@ label { font-size: 13px; color: var(--slate-600); margin-bottom: 6px; display: b
   background: var(--surface); font-family: var(--font); font-size: 13.5px;
   color: var(--slate-900); outline: none; transition: all var(--transition);
 }
-.search:focus { border-color: var(--brand); background: var(--surface); box-shadow: 0 0 0 3px var(--brand-ring); }
+.search:focus { border-color: var(--brand); background-color: var(--surface); box-shadow: 0 0 0 3px var(--brand-ring); }
 
 .filter-bar {
   display: flex; gap: 12px; background: var(--surface); padding: 14px 16px;
