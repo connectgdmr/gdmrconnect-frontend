@@ -89,6 +89,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
       const s = status.toLowerCase();
       if (s.includes('approved')) return "approved";
       if (s.includes('rejected')) return "rejected";
+      if (s.includes('cancelled') || s.includes('revoked')) return "cancelled";
       return "pending";
   };
 
@@ -267,6 +268,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
         .status-badge.approved { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
         .status-badge.rejected { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
         .status-badge.pending { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+        .status-badge.cancelled { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
         
         /* Action Buttons - side by side, compact */
         .action-btn-group {
