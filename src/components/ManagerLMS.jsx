@@ -190,8 +190,9 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
       const r = await fetch(`${BASE}/manager/lms/courses/${assignCourseId}/assign`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
       });
-      if (r.ok) { setAssignMsg("Course assigned to team successfully!"); setAssignCourseId(""); setAssignEmpIds([]); setAssignSchedule(""); }
-      else { const d = await r.json().catch(() => ({})); setAssignMsg(d.message || "Assignment failed."); }
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { setAssignMsg(d.message || "Course assigned to team successfully!"); setAssignCourseId(""); setAssignEmpIds([]); setAssignSchedule(""); }
+      else { setAssignMsg(d.message || "Assignment failed."); }
     } catch { setAssignMsg("Network error."); } finally { setAssignSaving(false); }
   }
 

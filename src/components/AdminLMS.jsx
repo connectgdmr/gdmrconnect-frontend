@@ -208,8 +208,9 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
       const r = await fetch(`${BASE}/admin/lms/courses/${assignCourseId}/assign`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
       });
-      if (r.ok) { setAssignMsg("Course assigned successfully!"); setAssignCourseId(""); setAssignEmpIds([]); setAssignDepts([]); setAssignSchedule(""); }
-      else { const d = await r.json(); setAssignMsg(d.message || "Assignment failed."); }
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { setAssignMsg(d.message || "Course assigned successfully!"); setAssignCourseId(""); setAssignEmpIds([]); setAssignDepts([]); setAssignSchedule(""); }
+      else { setAssignMsg(d.message || "Assignment failed."); }
     } catch { setAssignMsg("Network error."); } finally { setAssignSaving(false); }
   }
 
