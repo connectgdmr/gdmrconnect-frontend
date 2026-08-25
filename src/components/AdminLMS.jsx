@@ -152,13 +152,21 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
     if (!courseForm.title) return flash("Course title required.", "error");
     setSaving(true);
 
-    // Build a clean modules array — drop blank lessons, keep explicit field names
+    // Build a clean modules array — drop blank lessons, keep explicit field
+    // names. Must preserve each lesson's existing _id (startEdit() already
+    // loads it via normalizeModules) — dropping it here made every save
+    // treat every lesson as brand new (see _normalize_modules() server-
+    // side: no _id means it mints a fresh one), which permanently orphaned
+    // every employee's prior lesson-completion records on any edit at all,
+    // even a trivial one — their progress was tied to the old lesson _ids
+    // and silently stopped matching anything.
     const cleanModules = modules
       .map(m => ({
         title: (m.title || "").trim(),
         lessons: (m.lessons || [])
           .filter(l => (l.title || "").trim() || (l.url || "").trim())
           .map(l => ({
+            ...(l._id ? { _id: l._id } : {}),
             title:   (l.title || "").trim(),
             type:    l.type || "Video",
             url:     (l.url || "").trim(),

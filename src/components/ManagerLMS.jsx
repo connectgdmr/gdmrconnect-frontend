@@ -140,12 +140,15 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
     e.preventDefault();
     if (!courseForm.title) return flash("Course title required.", "error");
     setSaving(true);
+    // Preserve each lesson's existing _id (see AdminLMS.jsx's saveCourse for
+    // the full explanation) — omitting it made every save mint brand new
+    // lesson IDs, permanently orphaning everyone's prior completion records.
     const cleanModules = modules
       .map(m => ({
         title: (m.title || "").trim(),
         lessons: (m.lessons || [])
           .filter(l => (l.title || "").trim() || (l.url || "").trim())
-          .map(l => ({ title: (l.title || "").trim(), type: l.type || "Video", url: (l.url || "").trim(), content: (l.content || "").trim() })),
+          .map(l => ({ ...(l._id ? { _id: l._id } : {}), title: (l.title || "").trim(), type: l.type || "Video", url: (l.url || "").trim(), content: (l.content || "").trim() })),
       }))
       .filter(m => m.title || m.lessons.length);
 
