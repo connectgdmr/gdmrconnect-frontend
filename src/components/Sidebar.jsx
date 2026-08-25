@@ -45,7 +45,7 @@ const NAV_ITEMS = {
     { icon: <TbChecklist />, label: "Work & Clients", view: "work-clients" },
     { icon: <TbDeviceLaptop />, label: "Team Assets", view: "team-assets" },
     { icon: <TbCalendar />, label: "Holidays", view: "holidays" },
-    { icon: <TbSchool />, label: "LMS", view: "lms" },
+    { icon: <TbSchool />, label: "My Courses", view: "lms" },
     { icon: <TbBriefcase />, label: "Jobs & Recruitment", view: "jobs-recruitment" },
     { icon: <TbCurrencyDollar />, label: "Payroll", view: "payroll" },
     { icon: <TbShieldLock />, label: "Special Access", view: "special-access" },
