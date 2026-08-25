@@ -224,6 +224,7 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
   const [myAssets, setMyAssets] = useState([]);
   const [assetName, setAssetName] = useState("");
   const [assetReason, setAssetReason] = useState("");
+  const [assetRequestType, setAssetRequestType] = useState("New Asset"); // "New Asset" | "Damage/Service"
 
   // ============================================================================
   // 3. PASSWORD MANAGEMENT STATES
@@ -484,9 +485,10 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
                   'Content-Type': 'application/json', 
                   'Authorization': `Bearer ${token}` 
               },
-              body: JSON.stringify({ 
-                  asset_name: assetName, 
-                  reason: assetReason 
+              body: JSON.stringify({
+                  asset_name: assetName,
+                  reason: assetReason,
+                  request_type: assetRequestType,
               })
           });
 
@@ -498,7 +500,8 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
           alert("Asset Request Submitted Successfully! It will now be reviewed by your Manager.");
           setAssetName("");
           setAssetReason("");
-          await load(); 
+          setAssetRequestType("New Asset");
+          await load();
       } catch (err) {
           alert("Error requesting asset: " + err.message);
       } finally {
@@ -1323,33 +1326,41 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
               {/* Asset Request Form */}
               <form onSubmit={submitAssetRequest} style={{background: '#f8fafc', padding: 20, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 30}}>
                   <h4 style={{marginTop: 0, color: 'var(--red)', borderBottom: '1px solid #cbd5e1', paddingBottom: 10}}>Submit New Request</h4>
+                  <div style={{display: "flex", gap: 4, marginBottom: 16, background: "#e2e8f0", borderRadius: 10, padding: 4, width: "fit-content"}}>
+                      {["New Asset", "Damage/Service"].map(t => (
+                          <button key={t} type="button" onClick={() => setAssetRequestType(t)} style={{
+                              padding: "8px 16px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+                              background: assetRequestType === t ? "var(--red)" : "transparent", color: assetRequestType === t ? "#fff" : "#64748b", transition: "all 0.15s",
+                          }}>{t === "New Asset" ? "Request New Asset" : "Report Damage / Service"}</button>
+                      ))}
+                  </div>
                   <div style={{display: 'flex', gap: 15, flexWrap: 'wrap', marginBottom: 15}}>
                       <div style={{flex: 1, minWidth: '250px'}}>
-                          <label className="modern-label">Asset Required (e.g., MacBook Pro, External Monitor)</label>
-                          <input 
-                              className="modern-input" 
-                              type="text" 
-                              value={assetName} 
-                              onChange={(e) => setAssetName(e.target.value)} 
-                              required 
-                              placeholder="Enter exact asset name..."
+                          <label className="modern-label">{assetRequestType === "New Asset" ? "Asset Required (e.g., MacBook Pro, External Monitor)" : "Which device/asset needs service?"}</label>
+                          <input
+                              className="modern-input"
+                              type="text"
+                              value={assetName}
+                              onChange={(e) => setAssetName(e.target.value)}
+                              required
+                              placeholder={assetRequestType === "New Asset" ? "Enter exact asset name..." : "e.g., MacBook Pro (issued 2024), Office Chair..."}
                           />
                       </div>
                   </div>
                   <div style={{marginBottom: 15}}>
-                      <label className="modern-label">Business Justification / Reason</label>
-                      <textarea 
-                          className="modern-input" 
-                          style={{minHeight: "80px", resize: "vertical"}} 
-                          value={assetReason} 
-                          onChange={(e) => setAssetReason(e.target.value)} 
-                          required 
-                          placeholder="Explain why this asset is necessary for your role..." 
+                      <label className="modern-label">{assetRequestType === "New Asset" ? "Business Justification / Reason" : "Describe the issue / damage"}</label>
+                      <textarea
+                          className="modern-input"
+                          style={{minHeight: "80px", resize: "vertical"}}
+                          value={assetReason}
+                          onChange={(e) => setAssetReason(e.target.value)}
+                          required
+                          placeholder={assetRequestType === "New Asset" ? "Explain why this asset is necessary for your role..." : "What's wrong with it? When did it start? Any error messages or visible damage?"}
                       />
                   </div>
                   <div style={{display:'flex', justifyContent:'flex-end'}}>
                       <button className="btn" type="submit">
-                          {loading ? 'Submitting...' : 'Submit Request to Manager'}
+                          {loading ? 'Submitting...' : (assetRequestType === "New Asset" ? 'Submit Request to Manager' : 'Report Issue to Manager')}
                       </button>
                   </div>
               </form>
@@ -1361,7 +1372,8 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
                       <thead>
                           <tr>
                               <th>Date</th>
-                              <th>Asset Requested</th>
+                              <th>Type</th>
+                              <th>Asset</th>
                               <th>Reason</th>
                               <th>Manager Status</th>
                               <th>Admin Status</th>
@@ -1370,11 +1382,16 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
                       </thead>
                       <tbody>
                           {myAssets.length === 0 ? (
-                              <tr><td colSpan="6" style={{textAlign:'center', padding:20, color:'#999'}}>No asset requests found.</td></tr>
+                              <tr><td colSpan="7" style={{textAlign:'center', padding:20, color:'#999'}}>No asset requests found.</td></tr>
                           ) : (
                               myAssets.map(asset => (
                                   <tr key={asset._id}>
                                       <td>{new Date(asset.created_at).toLocaleDateString('en-GB')}</td>
+                                      <td>
+                                          <span style={{fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, color: asset.request_type === "Damage/Service" ? "#b45309" : "#0f766e", background: asset.request_type === "Damage/Service" ? "#fffbeb" : "#effdf8"}}>
+                                              {asset.request_type === "Damage/Service" ? "Repair" : "New"}
+                                          </span>
+                                      </td>
                                       <td style={{fontWeight: 'bold', color: '#1e293b'}}>{asset.asset_name}</td>
                                       <td>{asset.reason}</td>
                                       <td>

@@ -130,6 +130,7 @@ export default function AdminAssets({ token, api, canWrite = true }) {
           <thead>
             <tr>
               <th>Date</th>
+              <th>Type</th>
               <th>Employee (Dept)</th>
               <th>Requested Asset</th>
               <th>Reason</th>
@@ -140,13 +141,18 @@ export default function AdminAssets({ token, api, canWrite = true }) {
           </thead>
           <tbody>
             {filteredAssets.length === 0 ? (
-              <tr><td colSpan={canWrite ? 7 : 6} style={{ textAlign: "center", padding: 40, color: "#999" }}>
+              <tr><td colSpan={canWrite ? 8 : 7} style={{ textAlign: "center", padding: 40, color: "#999" }}>
                 {allAssets.length === 0 ? "No asset requests found in the system." : "No requests match your search/filter."}
               </td></tr>
             ) : (
               filteredAssets.map(asset => (
                 <tr key={asset._id}>
                   <td>{new Date(asset.created_at).toLocaleDateString("en-GB")}</td>
+                  <td>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, color: asset.request_type === "Damage/Service" ? "#b45309" : "#0f766e", background: asset.request_type === "Damage/Service" ? "#fffbeb" : "#effdf8" }}>
+                      {asset.request_type === "Damage/Service" ? "Repair" : "New"}
+                    </span>
+                  </td>
                   <td>
                     <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 13 }}>{asset.employee_name}</div>
                     <div style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>{asset.department || "No Dept"}</div>

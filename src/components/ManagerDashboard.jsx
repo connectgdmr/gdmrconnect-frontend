@@ -216,10 +216,24 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
    */
   const [teamLeaves, setTeamLeaves] = useState([]); 
   
-  /** 
-   * NEW: Stores hardware/equipment requests submitted by the team 
+  /**
+   * NEW: Stores hardware/equipment requests submitted by the team
    */
   const [teamAssets, setTeamAssets] = useState([]);
+
+  // Manager's own asset requests — new hardware or a damage/service report
+  // for something they already have. Previously the manager had no
+  // self-service request form at all (only the team-approval table above);
+  // this reuses the same /api/assets/request + /api/assets/my-requests
+  // endpoints EmployeeDashboard.jsx already uses (both are scoped to the
+  // caller's own user_id regardless of role, so nothing backend-side
+  // needed changing for this part).
+  const [assetsSubTab, setAssetsSubTab]   = useState("team"); // "team" | "my-requests"
+  const [myOwnAssets, setMyOwnAssets]     = useState([]);
+  const [myAssetName, setMyAssetName]     = useState("");
+  const [myAssetReason, setMyAssetReason] = useState("");
+  const [myAssetRequestType, setMyAssetRequestType] = useState("New Asset");
+  const [myAssetSubmitting, setMyAssetSubmitting]   = useState(false);
 
   /**
    * Asset assignment-to-email state (manager now owns the final provisioning step).
@@ -426,6 +440,10 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
         // deliberately excludes admin-routed requests) never showed up
         // anywhere on their own dashboard once submitted.
         fetch(`${baseUrl}/api/my/corrections`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        // Manager's own asset requests (new hardware or a damage/service
+        // report) — same endpoint EmployeeDashboard.jsx uses, scoped to the
+        // caller's own user_id.
+        fetch(`${baseUrl}/api/assets/my-requests`, { headers }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
       ]);
 
       // Map results to state safely avoiding any undefined crashes
@@ -477,6 +495,11 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
       // My own submitted correction requests (self-submitted, routed to admin)
       if (results[11].status === 'fulfilled' && Array.isArray(results[11].value)) {
           setMyCorrectionsHistory(results[11].value);
+      }
+
+      // My own asset requests (new hardware / damage-service reports)
+      if (results[12].status === 'fulfilled' && Array.isArray(results[12].value)) {
+          setMyOwnAssets(results[12].value);
       }
 
     } catch (err) {
@@ -981,6 +1004,38 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
           alert(`Asset Request ${status} successfully. It will now pend Admin approval.`);
       } catch (err) {
           alert("Error updating asset: " + err.message);
+      }
+  }
+
+  /**
+   * Manager's own asset request — new hardware for themselves, or a
+   * damage/service report for something they already have. Goes through
+   * the same admin approval queue as any employee's request (the
+   * "manager_status" step is skipped implicitly since there's no manager
+   * above a manager in this flow — admin sees and actions it directly).
+   */
+  async function submitMyAssetRequest(e) {
+      e.preventDefault();
+      if (!myAssetName.trim() || !myAssetReason.trim()) return;
+      setMyAssetSubmitting(true);
+      try {
+          const baseUrl = api?.baseUrl || 'https://gdmrconnect-backend-production.up.railway.app';
+          const res = await fetch(`${baseUrl}/api/assets/request`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ asset_name: myAssetName, reason: myAssetReason, request_type: myAssetRequestType }),
+          });
+          if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(errData.message || "Failed to submit request");
+          }
+          alert("Request submitted successfully.");
+          setMyAssetName(""); setMyAssetReason(""); setMyAssetRequestType("New Asset");
+          await load(true);
+      } catch (err) {
+          alert("Error submitting request: " + err.message);
+      } finally {
+          setMyAssetSubmitting(false);
       }
   }
 
@@ -1689,14 +1744,100 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
       {/* — Team Assets — */}
       {view === "team-assets" && (
           <div className="card" style={{marginTop: 16}}>
-              <h3>Team Hardware & Asset Requests</h3>
-              <p className="small" style={{marginBottom: 20}}>Review and approve equipment requests from your department employees. Approved requests will be forwarded to Administration for final provisioning.</p>
-              
+              <h3>Hardware & Asset Requests</h3>
+              <p className="small" style={{marginBottom: 20}}>Review your team's equipment requests, or submit your own — a new asset, or a damage/service report for something you already have.</p>
+
+              <div style={{ display: "flex", gap: 4, marginBottom: 18, background: "#f1f5f9", borderRadius: 10, padding: 4, width: "fit-content" }}>
+                  <button onClick={() => setAssetsSubTab("team")} style={{
+                      padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+                      background: assetsSubTab === "team" ? "var(--red)" : "transparent", color: assetsSubTab === "team" ? "#fff" : "#64748b", transition: "all 0.15s",
+                  }}>Team Requests</button>
+                  <button onClick={() => setAssetsSubTab("my-requests")} style={{
+                      padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+                      background: assetsSubTab === "my-requests" ? "var(--red)" : "transparent", color: assetsSubTab === "my-requests" ? "#fff" : "#64748b", transition: "all 0.15s",
+                  }}>My Requests</button>
+              </div>
+
+              {assetsSubTab === "my-requests" ? (
+                <>
+                  <form onSubmit={submitMyAssetRequest} style={{background: '#f8fafc', padding: 20, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 24}}>
+                      <h4 style={{marginTop: 0, color: 'var(--red)', borderBottom: '1px solid #cbd5e1', paddingBottom: 10}}>Submit New Request</h4>
+                      <div style={{display: "flex", gap: 4, marginBottom: 16, background: "#e2e8f0", borderRadius: 10, padding: 4, width: "fit-content"}}>
+                          {["New Asset", "Damage/Service"].map(t => (
+                              <button key={t} type="button" onClick={() => setMyAssetRequestType(t)} style={{
+                                  padding: "8px 16px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+                                  background: myAssetRequestType === t ? "var(--red)" : "transparent", color: myAssetRequestType === t ? "#fff" : "#64748b", transition: "all 0.15s",
+                              }}>{t === "New Asset" ? "Request New Asset" : "Report Damage / Service"}</button>
+                          ))}
+                      </div>
+                      <div style={{marginBottom: 15}}>
+                          <label className="modern-label">{myAssetRequestType === "New Asset" ? "Asset Required (e.g., MacBook Pro, External Monitor)" : "Which device/asset needs service?"}</label>
+                          <input
+                              className="modern-input" type="text" value={myAssetName}
+                              onChange={(e) => setMyAssetName(e.target.value)} required
+                              placeholder={myAssetRequestType === "New Asset" ? "Enter exact asset name..." : "e.g., MacBook Pro (issued 2024), Office Chair..."}
+                          />
+                      </div>
+                      <div style={{marginBottom: 15}}>
+                          <label className="modern-label">{myAssetRequestType === "New Asset" ? "Business Justification / Reason" : "Describe the issue / damage"}</label>
+                          <textarea
+                              className="modern-input" style={{minHeight: "80px", resize: "vertical"}} value={myAssetReason}
+                              onChange={(e) => setMyAssetReason(e.target.value)} required
+                              placeholder={myAssetRequestType === "New Asset" ? "Explain why this asset is necessary for your role..." : "What's wrong with it? When did it start? Any error messages or visible damage?"}
+                          />
+                      </div>
+                      <div style={{display:'flex', justifyContent:'flex-end'}}>
+                          <button className="btn" type="submit" disabled={myAssetSubmitting}>
+                              {myAssetSubmitting ? 'Submitting...' : (myAssetRequestType === "New Asset" ? 'Submit Request' : 'Report Issue')}
+                          </button>
+                      </div>
+                  </form>
+
+                  <h4 style={{color: '#334155'}}>My Request History</h4>
+                  <div style={{overflowX: 'auto'}}>
+                      <table className="styled-table-global">
+                          <thead>
+                              <tr>
+                                  <th>Date</th>
+                                  <th>Type</th>
+                                  <th>Asset</th>
+                                  <th>Reason</th>
+                                  <th style={{textAlign:'center'}}>Admin Status</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {myOwnAssets.length === 0 ? (
+                                  <tr><td colSpan="5" style={{textAlign:'center', padding:40, color:'#999'}}>No requests submitted yet.</td></tr>
+                              ) : (
+                                  myOwnAssets.map(asset => (
+                                  <tr key={asset._id}>
+                                      <td>{new Date(asset.created_at).toLocaleDateString('en-GB')}</td>
+                                      <td>
+                                          <span style={{fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, color: asset.request_type === "Damage/Service" ? "#b45309" : "#0f766e", background: asset.request_type === "Damage/Service" ? "#fffbeb" : "#effdf8"}}>
+                                              {asset.request_type === "Damage/Service" ? "Repair" : "New"}
+                                          </span>
+                                      </td>
+                                      <td style={{ fontWeight: 600, color: '#334155' }}>{asset.asset_name}</td>
+                                      <td style={{maxWidth:'250px', fontSize:12, color:'#475569'}}>{asset.reason}</td>
+                                      <td style={{textAlign:'center'}}>
+                                          <span className={`status-badge ${getStatusClass(asset.admin_status || 'Pending')}`}>
+                                              {asset.admin_status || 'Pending'}
+                                          </span>
+                                      </td>
+                                  </tr>
+                                  ))
+                              )}
+                          </tbody>
+                      </table>
+                  </div>
+                </>
+              ) : (
               <div style={{overflowX: 'auto'}}>
                 <table className="styled-table-global">
                     <thead>
                         <tr>
                             <th>Employee</th>
+                            <th>Type</th>
                             <th>Requested Asset</th>
                             <th>Justification / Reason</th>
                             <th style={{textAlign:'center'}}>Manager Status</th>
@@ -1706,13 +1847,18 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
                     </thead>
                     <tbody>
                         {teamAssets.length === 0 ? (
-                            <tr><td colSpan="6" style={{textAlign:'center', padding:40, color:'#999'}}>No pending asset requests from your team.</td></tr>
+                            <tr><td colSpan="7" style={{textAlign:'center', padding:40, color:'#999'}}>No pending asset requests from your team.</td></tr>
                         ) : (
                             teamAssets.map(asset => (
                             <tr key={asset._id}>
                                 <td>
                                     <div style={{fontWeight:700, color: "#0f172a", fontSize: 13}}>{asset.employee_name}</div>
                                     <div style={{fontSize:10, color:'#64748b', marginTop: 4}}>{new Date(asset.created_at).toLocaleDateString('en-GB')}</div>
+                                </td>
+                                <td>
+                                    <span style={{fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, color: asset.request_type === "Damage/Service" ? "#b45309" : "#0f766e", background: asset.request_type === "Damage/Service" ? "#fffbeb" : "#effdf8"}}>
+                                        {asset.request_type === "Damage/Service" ? "Repair" : "New"}
+                                    </span>
                                 </td>
                                 <td style={{ fontWeight: 600, color: '#334155' }}>
                                     {asset.asset_name}
@@ -1789,6 +1935,7 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
                     </tbody>
                 </table>
               </div>
+              )}
           </div>
       )}
 
