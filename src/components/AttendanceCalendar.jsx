@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { TbChevronLeft, TbChevronRight, TbClock } from "react-icons/tb";
+import { TbChevronLeft, TbChevronRight, TbClock, TbCalendarPlus, TbEdit } from "react-icons/tb";
 import { ymd, ym } from "../utils/dateUtils";
 
 const DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -25,7 +25,7 @@ function fmtTime(iso) {
  * component against the three /attendance/calendar endpoints, which all
  * share one backend classification (helpers.classify_attendance_day).
  */
-export default function AttendanceCalendar({ token, api, mode = "self", employeeId, employees = [] }) {
+export default function AttendanceCalendar({ token, api, mode = "self", employeeId, employees = [], onApplyLeave, onRequestCorrection }) {
   const [viewDate, setViewDate] = useState(new Date());
   const [deptFilter, setDeptFilter] = useState("All");
   const [selectedEmpId, setSelectedEmpId] = useState(employeeId || "");
@@ -182,16 +182,52 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
             })}
           </div>
 
-          {selectedDay && statusFor(selectedDay) && (
-            <div style={{ marginTop: 14, padding: "10px 14px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
-              <TbClock size={11} color="#64748b" />
-              <strong>{new Date(selectedDay).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}:</strong>
-              <span>{statusFor(selectedDay).holiday_name || STATUS_STYLE[statusFor(selectedDay).status]?.label}</span>
-              {statusFor(selectedDay).checkin_time && (
-                <span style={{ color: "#64748b" }}>— checked in at {fmtTime(statusFor(selectedDay).checkin_time)}</span>
-              )}
-            </div>
-          )}
+          {selectedDay && statusFor(selectedDay) && (() => {
+            const entry = statusFor(selectedDay);
+            const niceDate = new Date(selectedDay).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+            // Every fact this day actually has, rendered as plain lines —
+            // not just the status label, so a click tells the full story
+            // (leave reason/type, both punch times, any correction filed).
+            const lines = [];
+            lines.push(entry.holiday_name || STATUS_STYLE[entry.status]?.label);
+            if (entry.checkin_time)  lines.push(`Checked in at ${fmtTime(entry.checkin_time)}`);
+            if (entry.checkout_time) lines.push(`Checked out at ${fmtTime(entry.checkout_time)}`);
+            if (entry.status === "approved_leave") {
+              const kind = entry.leave_type === "half" ? `Half Day (${entry.leave_period || "—"})` : "Full Day";
+              lines.push(`Leave type: ${kind}`);
+              if (entry.leave_reason) lines.push(`Reason: ${entry.leave_reason}`);
+            }
+            (entry.corrections || []).forEach(c => {
+              lines.push(`Correction requested (${c.status}): new time ${fmtTime(c.new_time)}${c.reason ? ` — ${c.reason}` : ""}`);
+            });
+
+            return (
+              <div style={{ marginTop: 14, padding: "12px 14px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13 }}>
+                  <TbClock size={13} color="#64748b" style={{ marginTop: 2, flexShrink: 0 }} />
+                  <div>
+                    <strong>{niceDate}</strong>
+                    {lines.map((l, i) => <div key={i} style={{ color: i === 0 ? "#0f172a" : "#64748b", marginTop: 3 }}>{l}</div>)}
+                  </div>
+                </div>
+
+                {(onApplyLeave || onRequestCorrection) && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+                    {onApplyLeave && (
+                      <button type="button" onClick={() => onApplyLeave(selectedDay)} className="btn" style={{ padding: "6px 12px", fontSize: 12 }}>
+                        <TbCalendarPlus size={12} /> Apply Leave for this Date
+                      </button>
+                    )}
+                    {onRequestCorrection && (
+                      <button type="button" onClick={() => onRequestCorrection(selectedDay)} className="btn" style={{ padding: "6px 12px", fontSize: 12, background: "#f59e0b" }}>
+                        <TbEdit size={12} /> Request Correction for this Date
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </>
       )}
     </div>

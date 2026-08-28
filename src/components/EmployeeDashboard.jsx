@@ -1955,7 +1955,19 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
         <div style={{ marginTop: 16 }}>
           <ErrorBoundary label="Attendance Calendar" resetKey={view}>
             <Suspense fallback={<SkeletonTable rows={6} cols={7} />}>
-              <AttendanceCalendar token={token} api={api} mode="self" employeeId={user?._id} />
+              <AttendanceCalendar
+                token={token} api={api} mode="self" employeeId={user?._id}
+                onApplyLeave={(dateStr) => {
+                  setLeaveDuration("single");
+                  setStartDate(dateStr);
+                  setLeaveSubView("apply-leave");
+                  setView("leave");
+                }}
+                onRequestCorrection={(dateStr) => {
+                  setCorrectionData({ newTime: `${dateStr}T09:00`, reason: "" });
+                  setView("correction");
+                }}
+              />
             </Suspense>
           </ErrorBoundary>
         </div>
