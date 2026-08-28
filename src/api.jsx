@@ -169,7 +169,11 @@ export default {
   replaceEmployeeDocument: async (empId, docId, file, expiryDate, token) => {
     const formData = new FormData();
     formData.append("file", file);
-    if (expiryDate) formData.append("expiry_date", expiryDate);
+    // Always send the key, even blank — the backend uses its presence to
+    // tell "leave expiry as-is" apart from "clear it", so an admin who
+    // deliberately empties this field needs that to actually take effect
+    // instead of silently keeping the old (possibly already-expired) date.
+    formData.append("expiry_date", expiryDate || "");
     const res = await fetch(`${FETCH_BASE}/admin/employees/${empId}/documents/${docId}/replace`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
