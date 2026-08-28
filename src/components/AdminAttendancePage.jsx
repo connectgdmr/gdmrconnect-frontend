@@ -1021,7 +1021,7 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                      No attendance logs found matching the selected criteria. Try adjusting the date filter.
                  </div>
               ) : (
-                 <div style={{ overflowX: 'auto' }}>
+                 <div style={{ overflowX: 'auto', overflowY: 'visible' }}>
                      <table className="styled-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                          <thead>
                              <tr style={{ background: '#f8f9fa', color: 'var(--red)' }}>
