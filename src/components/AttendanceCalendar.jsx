@@ -185,12 +185,16 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
               return (
                 <button
                   type="button" key={i}
-                  disabled={isFuture || !entry}
+                  // A future day is only clickable when it's a known-in-advance
+                  // weekend/holiday (the backend now sends those ahead of
+                  // time) — a future regular working day still has nothing
+                  // to show, so it stays disabled/blank same as before.
+                  disabled={!entry}
                   onClick={() => setSelectedDay(isSelected ? null : dateStr)}
                   title={entry ? (entry.status === "weekly_off" ? offDayLabel(dateStr, entry) : (style?.label || "")) : ""}
                   style={{
                     aspectRatio: "1.3", border: `1.5px solid ${isSelected ? "#0f172a" : (style?.border || "#f1f5f9")}`,
-                    borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: (isFuture || !entry) ? "default" : "pointer",
+                    borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: !entry ? "default" : "pointer",
                     background: style?.bg || "#fff", color: isFuture ? "#cbd5e1" : "#0f172a",
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, padding: "4px 2px",
                   }}
@@ -246,7 +250,11 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                   </div>
                 </div>
 
-                {(onApplyLeave || onRequestCorrection) && (
+                {/* Only offered for a day you should have checked in for but
+                    didn't (LOP) — the "forgot to check in" case these two
+                    actions actually resolve. Present/leave/off/pending days
+                    have nothing to fix, so no buttons on those. */}
+                {entry.status === "lop" && (onApplyLeave || onRequestCorrection) && (
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
                     {onApplyLeave && (
                       <button type="button" onClick={() => onApplyLeave(selectedDay)} className="btn" style={{ padding: "6px 12px", fontSize: 12 }}>
