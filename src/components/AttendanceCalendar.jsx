@@ -106,6 +106,17 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
     return null;
   }
 
+  // Text only — a Saturday with no named holiday is still counted and
+  // treated identically to any other weekly_off day (no attendance
+  // required, no LOP), it just reads as "Unofficial Working Day" instead
+  // of a plain "Off" since Saturday isn't the fixed official day off the
+  // way Sunday is. Named holidays (any day of week) keep their real name.
+  function offDayLabel(dateStr, entry) {
+    if (entry.holiday_name) return entry.holiday_name;
+    const isSaturday = new Date(`${dateStr}T00:00:00`).getDay() === 6;
+    return isSaturday ? "Unofficial Working Day" : "Off";
+  }
+
   return (
     <div className="card" style={{ padding: 18, width: "100%", maxWidth: 900, margin: "0 auto" }}>
       {mode === "manager" && (
@@ -176,7 +187,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                   type="button" key={i}
                   disabled={isFuture || !entry}
                   onClick={() => setSelectedDay(isSelected ? null : dateStr)}
-                  title={entry?.holiday_name ? `${entry.holiday_name}${style?.label ? ` (${style.label})` : ""}` : (style?.label || "")}
+                  title={entry ? (entry.status === "weekly_off" ? offDayLabel(dateStr, entry) : (style?.label || "")) : ""}
                   style={{
                     aspectRatio: "1.3", border: `1.5px solid ${isSelected ? "#0f172a" : (style?.border || "#f1f5f9")}`,
                     borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: (isFuture || !entry) ? "default" : "pointer",
@@ -193,12 +204,12 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                   {style && (
                     <span style={{
                       fontSize: 9, fontWeight: 700, letterSpacing: 0.2, color: style.dot,
-                      textTransform: entry.holiday_name ? "none" : "uppercase",
+                      textTransform: entry.status === "weekly_off" ? "none" : "uppercase",
                       maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "0 2px",
                     }}>
                       {entry.status === "present" && entry.checkin_time
                         ? fmtTime(entry.checkin_time)
-                        : entry.holiday_name || style.short}
+                        : entry.status === "weekly_off" ? offDayLabel(dateStr, entry) : style.short}
                     </span>
                   )}
                 </button>
@@ -213,7 +224,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
             // not just the status label, so a click tells the full story
             // (leave reason/type, both punch times, any correction filed).
             const lines = [];
-            lines.push(entry.holiday_name || STATUS_STYLE[entry.status]?.label);
+            lines.push(entry.status === "weekly_off" ? offDayLabel(selectedDay, entry) : STATUS_STYLE[entry.status]?.label);
             if (entry.checkin_time)  lines.push(`Checked in at ${fmtTime(entry.checkin_time)}`);
             if (entry.checkout_time) lines.push(`Checked out at ${fmtTime(entry.checkout_time)}`);
             if (entry.status === "approved_leave") {
