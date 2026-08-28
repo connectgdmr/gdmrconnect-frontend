@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { TbCircleCheck, TbCircleX, TbDeviceLaptop, TbHourglass, TbSearch } from "react-icons/tb";
+import { TbCircleCheck, TbCircleX, TbDeviceLaptop, TbHourglass, TbSearch, TbMailForward, TbX, TbDeviceFloppy } from "react-icons/tb";
 
 const getStatusClass = (status) => (status ? status.toLowerCase() : "pending");
 
@@ -38,6 +38,15 @@ export default function AdminAssets({ token, api, canWrite = true }) {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+
+  // Final provisioning step — mirrors ManagerDashboard.jsx's "Assign to
+  // Mail" flow exactly, just hitting the admin-side endpoint. Both sides can
+  // do this once an asset clears both approvals; whichever one does it
+  // first is what shows on the row afterward.
+  const [assignAsset, setAssignAsset]     = useState(null);
+  const [assignEmails, setAssignEmails]   = useState("");
+  const [assignSending, setAssignSending] = useState(false);
+  const [assignMsg, setAssignMsg]         = useState("");
 
   const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
 
@@ -84,6 +93,37 @@ export default function AdminAssets({ token, api, canWrite = true }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function sendAssetAssignment(e) {
+    e.preventDefault();
+    const emails = assignEmails.split(/[,\s]+/).map(x => x.trim()).filter(x => x.includes("@"));
+    if (emails.length === 0) return setAssignMsg("Enter at least one valid email address.");
+    setAssignSending(true); setAssignMsg("");
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/assets/${assignAsset._id}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          emails,
+          asset: {
+            employee_name: assignAsset.employee_name,
+            department:    assignAsset.department,
+            asset_name:    assignAsset.asset_name,
+            reason:        assignAsset.reason,
+          },
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setAssignMsg("Email sent successfully!");
+        loadAssets(); // refresh so the row picks up the persisted assigned_at/assigned_to_emails
+        setTimeout(() => { setAssignAsset(null); setAssignEmails(""); setAssignMsg(""); }, 1500);
+      } else {
+        setAssignMsg(d.message || "Failed to send email.");
+      }
+    } catch { setAssignMsg("Network error. Please try again."); }
+    finally { setAssignSending(false); }
   }
 
   return (
@@ -190,15 +230,25 @@ export default function AdminAssets({ token, api, canWrite = true }) {
                         >
                           <TbCircleX /> Reject
                         </button>
-                        {(asset.admin_status || "").toLowerCase() === "approved" && (
-                          <span style={{
-                            display: "inline-flex", alignItems: "center", gap: 5,
-                            padding: "5px 10px", borderRadius: 6,
-                            background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0",
-                            fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
-                          }}>
-                            <TbCircleCheck size={10} /> Approved — manager assigns
-                          </span>
+                        {(asset.admin_status || "").toLowerCase() === "approved" && (asset.manager_status || "").toLowerCase() === "approved" && (
+                          asset.assigned_at ? (
+                            <span title={new Date(asset.assigned_at).toLocaleString()} style={{
+                              display: "inline-flex", alignItems: "center", gap: 5,
+                              padding: "5px 10px", borderRadius: 6,
+                              background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0",
+                              fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
+                            }}>
+                              <TbCircleCheck size={10} /> Assigned to {(asset.assigned_to_emails || []).join(", ") || "—"}
+                            </span>
+                          ) : (
+                            <button
+                              className="action-btn" disabled={loading}
+                              style={{ background: "var(--brand-light)", color: "var(--brand)", border: "1px solid #bbf7d0" }}
+                              onClick={() => { setAssignAsset(asset); setAssignEmails(""); setAssignMsg(""); }}
+                            >
+                              <TbMailForward size={12} /> Assign
+                            </button>
+                          )
                         )}
                       </div>
                     </td>
@@ -210,6 +260,63 @@ export default function AdminAssets({ token, api, canWrite = true }) {
         </table>
       </div>
       </div>
+
+      {/* ── Assign to Mail modal — mirrors ManagerDashboard.jsx's version ── */}
+      {assignAsset && (
+        <div className="modal-overlay" onClick={() => setAssignAsset(null)}>
+          <div className="modal-box" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ margin: 0, color: "#0f766e", fontSize: 16 }}>Assign Asset by Email</h3>
+              <button onClick={() => setAssignAsset(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}>
+                <TbX size={18} />
+              </button>
+            </div>
+
+            <div style={{ background: "#f8fafc", borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 12 }}>
+              {[
+                { label: "Employee",   value: assignAsset.employee_name },
+                { label: "Department", value: assignAsset.department || "—" },
+                { label: "Asset",      value: assignAsset.asset_name },
+                { label: "Reason",     value: assignAsset.reason },
+              ].map(row => (
+                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+                  <span style={{ color: "#64748b" }}>{row.label}</span>
+                  <span style={{ fontWeight: 600, color: "#334155", textAlign: "right" }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+
+            {assignMsg && (
+              <div style={{
+                padding: "8px 12px", borderRadius: 8, marginBottom: 12, fontSize: 12, fontWeight: 600,
+                background: assignMsg.includes("success") ? "#f0fdf4" : "#fef2f2",
+                color:      assignMsg.includes("success") ? "#16a34a"  : "#b91c1c",
+                border: `1px solid ${assignMsg.includes("success") ? "#bbf7d0" : "#fecaca"}`,
+              }}>
+                {assignMsg}
+              </div>
+            )}
+
+            <form onSubmit={sendAssetAssignment}>
+              <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>
+                Recipient email(s) <span style={{ color: "#94a3b8", fontWeight: 400 }}>(comma-separated)</span>
+              </label>
+              <input
+                className="modern-input" type="text" placeholder="procurement@company.com"
+                value={assignEmails}
+                onChange={e => setAssignEmails(e.target.value)}
+                style={{ marginBottom: 14 }}
+              />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn" type="submit" disabled={assignSending} style={{ flex: 1 }}>
+                  <TbDeviceFloppy size={11} /> {assignSending ? "Sending…" : "Send Email"}
+                </button>
+                <button className="btn ghost" type="button" onClick={() => setAssignAsset(null)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

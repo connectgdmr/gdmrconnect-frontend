@@ -1915,19 +1915,30 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
                                         >
                                             <TbCircleX /> Reject
                                         </button>
-                                        {(asset.manager_status || "").toLowerCase() === "approved" && (
-                                            <button
-                                                onClick={() => { setAssignAsset(asset); setAssignEmails(""); setAssignMsg(""); }}
-                                                style={{
-                                                    display: "flex", alignItems: "center", gap: 5,
-                                                    padding: "5px 10px", borderRadius: 6, border: "none",
-                                                    background: "#0f766e", color: "#fff",
-                                                    fontSize: 12, fontWeight: 600, cursor: "pointer",
-                                                    whiteSpace: "nowrap",
-                                                }}
-                                            >
-                                                <TbDeviceFloppy size={10} /> Assign to Mail
-                                            </button>
+                                        {(asset.manager_status || "").toLowerCase() === "approved" && (asset.admin_status || "").toLowerCase() === "approved" && (
+                                            asset.assigned_at ? (
+                                                <span title={new Date(asset.assigned_at).toLocaleString()} style={{
+                                                    display: "inline-flex", alignItems: "center", gap: 5,
+                                                    padding: "5px 10px", borderRadius: 6,
+                                                    background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0",
+                                                    fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
+                                                }}>
+                                                    <TbCircleCheck size={10} /> Assigned to {(asset.assigned_to_emails || []).join(", ") || "—"}
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => { setAssignAsset(asset); setAssignEmails(""); setAssignMsg(""); }}
+                                                    style={{
+                                                        display: "flex", alignItems: "center", gap: 5,
+                                                        padding: "5px 10px", borderRadius: 6, border: "none",
+                                                        background: "#0f766e", color: "#fff",
+                                                        fontSize: 12, fontWeight: 600, cursor: "pointer",
+                                                        whiteSpace: "nowrap",
+                                                    }}
+                                                >
+                                                    <TbDeviceFloppy size={10} /> Assign to Mail
+                                                </button>
+                                            )
                                         )}
                                     </div>
                                 </td>
