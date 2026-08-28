@@ -137,14 +137,25 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
     if (!deptForm.name.trim()) return;
     setDeptSaving(true);
     try {
-      const method = deptEditId ? "PUT" : "POST";
-      const url = deptEditId
+      // A department only ever known via employee records (never formalized
+      // as its own departments_col document) gets a synthetic card whose
+      // _id is just its name string, not a real ObjectId (see the byName
+      // merge above) — PUTing that straight to /departments/<id> 500s with
+      // "Invalid department ID" since it isn't one. Editing one of these
+      // needs to CREATE the real record instead, and tell the backend what
+      // legacy name to move existing employees off of.
+      const isRealId = /^[0-9a-f]{24}$/i.test(deptEditId || "");
+      const method = deptEditId && isRealId ? "PUT" : "POST";
+      const url = deptEditId && isRealId
         ? `${baseUrl}/api/admin/departments/${deptEditId}`
         : `${baseUrl}/api/admin/departments`;
+      const body = deptEditId && !isRealId
+        ? { ...deptForm, legacy_name: deptEditId }
+        : deptForm;
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(deptForm),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         setDeptModal(false);
