@@ -169,6 +169,7 @@ const DELEGATED_MODULES = [
       <AdminDepartments
         employees={ctx.delegatedEmployees} token={ctx.token} api={ctx.api}
         canWrite={ctx.canWriteDepartments} canDelete={false}
+        onRefresh={ctx.loadDelegatedEmployees}
       />
     ) },
   { key: "announcements", label: "Manage Announcements", Icon: TbSpeakerphone,

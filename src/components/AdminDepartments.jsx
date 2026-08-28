@@ -71,7 +71,7 @@ const PALETTE = [
 ];
 const getColor = name => PALETTE[(name || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % PALETTE.length];
 
-export default function AdminDepartments({ employees = [], token, api, canWrite = true, canDelete = true }) {
+export default function AdminDepartments({ employees = [], token, api, canWrite = true, canDelete = true, onRefresh }) {
   const [departments, setDepartments] = useState([]);
   const [deptLoading, setDeptLoading] = useState(false);
   const [deptModal, setDeptModal] = useState(false);
@@ -162,6 +162,13 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
         setDeptEditId(null);
         setDeptForm({ name: "", description: "", head_id: "" });
         loadDepartments();
+        // Renaming/formalizing a department moves employees onto the new
+        // name server-side, but this component only owns departments_col
+        // data — the `employees` prop it renders counts/heads from comes
+        // from the parent dashboard and goes stale the moment that happens
+        // (the old and new department cards showed wrong counts/heads until
+        // a full page reload, even though the rename itself worked fine).
+        onRefresh?.();
       } else {
         const data = await res.json().catch(() => ({}));
         alert(data.message || "Failed to save department.");
@@ -180,7 +187,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) loadDepartments();
+      if (res.ok) { loadDepartments(); onRefresh?.(); }
       else { const data = await res.json().catch(() => ({})); alert(data.message || "Failed to delete department."); }
     } catch { alert("Network error — failed to delete department."); }
   }
@@ -193,7 +200,13 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
 
   function openEditDept(dept) {
     setDeptEditId(dept._id);
-    setDeptForm({ name: dept.name, description: dept.description || "", head_id: dept.head_id || "" });
+    // A legacy (never-formalized) department always has head_id: null by
+    // construction (see the byName merge above) even when the card is
+    // visibly showing a head — that head was resolved separately, from a
+    // manager whose own department field happens to match this department's
+    // name. Falling back to dept.manager._id here means editing one of
+    // these doesn't silently blank out the head it was already showing.
+    setDeptForm({ name: dept.name, description: dept.description || "", head_id: dept.head_id || dept.manager?._id || "" });
     setDeptModal(true);
   }
 

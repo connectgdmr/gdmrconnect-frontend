@@ -1121,7 +1121,7 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
       {/* ============================================================================ */}
       {view === "departments" && (
         <ErrorBoundary label="Departments" resetKey={view}>
-          <AdminDepartments employees={employees} token={token} api={api} />
+          <AdminDepartments employees={employees} token={token} api={api} onRefresh={loadEmployees} />
         </ErrorBoundary>
       )}
 
