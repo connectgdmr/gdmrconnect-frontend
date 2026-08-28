@@ -13,6 +13,7 @@ const STATUS_STYLE = {
   lop:            { label: "LOP",             short: "LOP",     dot: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
   weekly_off:     { label: "Weekly Off / Holiday", short: "Off", dot: "#94a3b8", bg: "#f1f5f9", border: "#e2e8f0" },
   pending:        { label: "Not Checked In Yet", short: "Pending", dot: "#94a3b8", bg: "#fff", border: "#e2e8f0" },
+  future:         { label: "Upcoming",        short: "",        dot: "#94a3b8", bg: "#fff", border: "#f1f5f9" },
 };
 
 function fmtTime(iso) {
@@ -236,9 +237,20 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
               lines.push(`Leave type: ${kind}`);
               if (entry.leave_reason) lines.push(`Reason: ${entry.leave_reason}`);
             }
-            (entry.corrections || []).forEach(c => {
-              lines.push(`Correction requested (${c.status}): new time ${fmtTime(c.new_time)}${c.reason ? ` — ${c.reason}` : ""}`);
-            });
+            // Rendered inline with a colored status word instead of a plain
+            // grey line — Approved reads green, Rejected red, Pending
+            // amber, matching the status colors used everywhere else.
+            const CORRECTION_COLOR = { Approved: "#16a34a", Rejected: "#dc2626", Pending: "#d97706" };
+
+            // Apply Leave makes sense any time there's nothing already
+            // resolved for the day — a missed check-in (lop), today before
+            // you've checked in (pending), or a future date you're planning
+            // ahead for. Request Correction only ever makes sense after the
+            // day is actually over and you should have checked in but
+            // didn't (lop) — there's nothing to "correct" on a day that
+            // hasn't happened yet.
+            const canApplyLeave      = ["lop", "pending", "future"].includes(entry.status);
+            const canRequestCorrection = entry.status === "lop";
 
             return (
               <div style={{ marginTop: 14, padding: "12px 14px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8 }}>
@@ -247,21 +259,23 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                   <div>
                     <strong>{niceDate}</strong>
                     {lines.map((l, i) => <div key={i} style={{ color: i === 0 ? "#0f172a" : "#64748b", marginTop: 3 }}>{l}</div>)}
+                    {(entry.corrections || []).map((c, i) => (
+                      <div key={`c${i}`} style={{ color: "#64748b", marginTop: 3 }}>
+                        Correction requested: <span style={{ color: CORRECTION_COLOR[c.status] || "#64748b", fontWeight: 700 }}>{c.status}</span>
+                        {" "}— new time {fmtTime(c.new_time)}{c.reason ? ` — ${c.reason}` : ""}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* Only offered for a day you should have checked in for but
-                    didn't (LOP) — the "forgot to check in" case these two
-                    actions actually resolve. Present/leave/off/pending days
-                    have nothing to fix, so no buttons on those. */}
-                {entry.status === "lop" && (onApplyLeave || onRequestCorrection) && (
+                {((onApplyLeave && canApplyLeave) || (onRequestCorrection && canRequestCorrection)) && (
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
-                    {onApplyLeave && (
+                    {onApplyLeave && canApplyLeave && (
                       <button type="button" onClick={() => onApplyLeave(selectedDay)} className="btn" style={{ padding: "6px 12px", fontSize: 12 }}>
                         <TbCalendarPlus size={12} /> Apply Leave for this Date
                       </button>
                     )}
-                    {onRequestCorrection && (
+                    {onRequestCorrection && canRequestCorrection && (
                       <button type="button" onClick={() => onRequestCorrection(selectedDay)} className="btn" style={{ padding: "6px 12px", fontSize: 12, background: "#f59e0b" }}>
                         <TbEdit size={12} /> Request Correction for this Date
                       </button>
