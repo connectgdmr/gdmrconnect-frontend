@@ -187,10 +187,18 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                   {d}
                   {/* Status shown as text right on the cell — no click
                       needed to see what a day was, the click is only for
-                      the fuller breakdown + action buttons below. */}
+                      the fuller breakdown + action buttons below. A named
+                      holiday shows its actual name instead of a generic
+                      "Off", same name the Holiday Calendar tab uses. */}
                   {style && (
-                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.2, textTransform: "uppercase", color: style.dot }}>
-                      {entry.status === "present" && entry.checkin_time ? fmtTime(entry.checkin_time) : style.short}
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, letterSpacing: 0.2, color: style.dot,
+                      textTransform: entry.holiday_name ? "none" : "uppercase",
+                      maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "0 2px",
+                    }}>
+                      {entry.status === "present" && entry.checkin_time
+                        ? fmtTime(entry.checkin_time)
+                        : entry.holiday_name || style.short}
                     </span>
                   )}
                 </button>
