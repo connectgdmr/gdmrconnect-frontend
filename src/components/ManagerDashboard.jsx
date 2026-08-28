@@ -2208,6 +2208,10 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
               padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
               background: attendanceSubView === "attendance-log" ? "var(--red)" : "transparent", color: attendanceSubView === "attendance-log" ? "#fff" : "#64748b", transition: "all 0.15s",
             }}>Attendance Log</button>
+            <button onClick={() => setAttendanceSubView("my-calendar")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: attendanceSubView === "my-calendar" ? "var(--red)" : "transparent", color: attendanceSubView === "my-calendar" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>My Calendar</button>
             <button onClick={() => setAttendanceSubView("team-calendar")} style={{
               padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
               background: attendanceSubView === "team-calendar" ? "var(--red)" : "transparent", color: attendanceSubView === "team-calendar" ? "#fff" : "#64748b", transition: "all 0.15s",
@@ -2251,6 +2255,28 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
                   </tbody>
                 </table>
             </div>
+        </div>
+      )}
+
+      {attendanceSubView === "my-calendar" && (
+        <div style={{ marginTop: 16 }}>
+          <ErrorBoundary label="My Calendar" resetKey={view}>
+            <Suspense fallback={<div />}>
+              <AttendanceCalendar
+                token={token} api={api} mode="self" employeeId={user?._id}
+                onApplyLeave={(dateStr) => {
+                  setLeaveDuration("single");
+                  setStartDate(dateStr);
+                  setLeaveSubView("apply-leave");
+                  setView("leave");
+                }}
+                onRequestCorrection={(dateStr) => {
+                  setCorrectionData({ newTime: `${dateStr}T09:00`, reason: "" });
+                  setView("correction");
+                }}
+              />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       )}
 
