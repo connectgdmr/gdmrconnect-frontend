@@ -208,15 +208,23 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
     });
   });
 
-  const enriched = departments.map(d => ({
-    ...d,
-    members: (deptEmployeeMap[d.name] || []).slice().sort((a, b) => (a.name || "").localeCompare(b.name || "")),
-    manager: employees.find(e => e._id === d.head_id || (e.role === "manager" && (
-      Array.isArray(e.department) ? e.department.includes(d.name) : e.department === d.name
-    ))) || null,
-  })).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  const enriched = departments.map(d => {
+    const members = (deptEmployeeMap[d.name] || []).slice().sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    return {
+      ...d,
+      members, // full roster including former staff — the member drawer deliberately still shows them, grayed out
+      // Card headcount excludes offboarded staff, per the standing
+      // "offboarded employees don't count toward current totals" rule
+      // (they were still inflating this number even though the drawer
+      // correctly grays them out as "Former").
+      activeCount: members.filter(e => empExitStatus(e) !== "offboarded").length,
+      manager: employees.find(e => e._id === d.head_id || (e.role === "manager" && (
+        Array.isArray(e.department) ? e.department.includes(d.name) : e.department === d.name
+      ))) || null,
+    };
+  }).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
-  const totalEmployees = employees.length;
+  const totalEmployees = employees.filter(e => empExitStatus(e) !== "offboarded").length;
   const noManager = enriched.filter(d => !d.manager).length;
 
   return (
@@ -289,7 +297,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
 
                   <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
                     <div style={{ flex: 1, background: clr.bg, borderRadius: 9, padding: "8px 12px", textAlign: "center" }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: clr.text }}>{dept.members.length}</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: clr.text }}>{dept.activeCount}</div>
                       <div style={{ fontSize: 10, color: clr.text, opacity: 0.75, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.4px" }}>Employees</div>
                     </div>
                     <div style={{ flex: 2, background: "#f8fafc", borderRadius: 9, padding: "8px 12px" }}>
