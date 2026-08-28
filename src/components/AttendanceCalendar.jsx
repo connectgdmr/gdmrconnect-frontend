@@ -5,12 +5,14 @@ import { ymd, ym } from "../utils/dateUtils";
 const DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 
 // Spec's 4-color status vocabulary, plus "pending" for today's not-yet-over day.
+// `short` is what fits directly on a calendar cell without a click; `label`
+// is the fuller wording used in the legend and the day-detail panel.
 const STATUS_STYLE = {
-  present:        { label: "Present",        dot: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
-  approved_leave: { label: "Approved Leave",  dot: "#d97706", bg: "#fffbeb", border: "#fde68a" },
-  lop:            { label: "LOP",             dot: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
-  weekly_off:     { label: "Weekly Off / Holiday", dot: "#94a3b8", bg: "#f1f5f9", border: "#e2e8f0" },
-  pending:        { label: "Not Checked In Yet", dot: "#94a3b8", bg: "#fff", border: "#e2e8f0" },
+  present:        { label: "Present",        short: "Present", dot: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
+  approved_leave: { label: "Approved Leave",  short: "Leave",   dot: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+  lop:            { label: "LOP",             short: "LOP",     dot: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+  weekly_off:     { label: "Weekly Off / Holiday", short: "Off", dot: "#94a3b8", bg: "#f1f5f9", border: "#e2e8f0" },
+  pending:        { label: "Not Checked In Yet", short: "Pending", dot: "#94a3b8", bg: "#fff", border: "#e2e8f0" },
 };
 
 function fmtTime(iso) {
@@ -141,11 +143,18 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
       ) : (
         <>
           {data?.summary && (
-            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 14, fontSize: 12.5 }}>
-              <span style={{ color: STATUS_STYLE.present.dot, fontWeight: 700 }}>🟢 Present: {data.summary.present}</span>
-              <span style={{ color: STATUS_STYLE.approved_leave.dot, fontWeight: 700 }}>🟠 Approved Leave: {data.summary.approved_leave}</span>
-              <span style={{ color: STATUS_STYLE.lop.dot, fontWeight: 700 }}>🔴 LOP: {data.summary.lop}</span>
-              <span style={{ color: "#64748b", fontWeight: 700 }}>⚪ Weekly Off/Holiday: {data.summary.weekly_off}</span>
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
+              {[
+                { key: "present",        count: data.summary.present },
+                { key: "approved_leave", count: data.summary.approved_leave },
+                { key: "lop",            count: data.summary.lop },
+                { key: "weekly_off",     count: data.summary.weekly_off },
+              ].map(row => (
+                <span key={row.key} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: "#334155" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: STATUS_STYLE[row.key].dot, flexShrink: 0 }} />
+                  {STATUS_STYLE[row.key].label}: {row.count}
+                </span>
+              ))}
             </div>
           )}
 
@@ -169,14 +178,21 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                   onClick={() => setSelectedDay(isSelected ? null : dateStr)}
                   title={entry?.holiday_name ? `${entry.holiday_name}${style?.label ? ` (${style.label})` : ""}` : (style?.label || "")}
                   style={{
-                    aspectRatio: "1.6", border: `1.5px solid ${isSelected ? "#0f172a" : (style?.border || "#f1f5f9")}`,
-                    borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: (isFuture || !entry) ? "default" : "pointer",
+                    aspectRatio: "1.3", border: `1.5px solid ${isSelected ? "#0f172a" : (style?.border || "#f1f5f9")}`,
+                    borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: (isFuture || !entry) ? "default" : "pointer",
                     background: style?.bg || "#fff", color: isFuture ? "#cbd5e1" : "#0f172a",
-                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, padding: 0,
+                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, padding: "4px 2px",
                   }}
                 >
                   {d}
-                  {style && <span style={{ width: 4, height: 4, borderRadius: "50%", background: style.dot }} />}
+                  {/* Status shown as text right on the cell — no click
+                      needed to see what a day was, the click is only for
+                      the fuller breakdown + action buttons below. */}
+                  {style && (
+                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.2, textTransform: "uppercase", color: style.dot }}>
+                      {entry.status === "present" && entry.checkin_time ? fmtTime(entry.checkin_time) : style.short}
+                    </span>
+                  )}
                 </button>
               );
             })}
