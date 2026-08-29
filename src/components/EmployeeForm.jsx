@@ -169,6 +169,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
             <select className="input" value={employmentType} onChange={e=>setEmploymentType(e.target.value)}>
               <option value="Permanent">Permanent</option>
               <option value="Contract">Contract</option>
+              <option value="Internship">Internship</option>
             </select>
           </div>
           {employmentType === "Contract" && (

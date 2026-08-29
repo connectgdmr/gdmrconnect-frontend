@@ -428,7 +428,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                           <td style={{ fontSize: 13 }}>{c.job_role || "—"}<div style={{ fontSize: 11, color: "#94a3b8" }}>{Array.isArray(c.skills) ? c.skills.join(", ") : c.skills}</div></td>
                           <td style={{ fontSize: 13 }}>{c.experience ? `${c.experience} yrs` : "—"}</td>
                           <td style={{ fontSize: 13 }}>{c.current_location || "—"}</td>
-                          <td style={{ fontSize: 13 }}>{(c.employment_type || "Permanent") === "Contract" ? `Contract${c.contract_months ? ` (${c.contract_months}m)` : ""}` : "Permanent"}</td>
+                          <td style={{ fontSize: 13 }}>{(c.employment_type || "Permanent") === "Contract" ? `Contract${c.contract_months ? ` (${c.contract_months}m)` : ""}` : (c.employment_type || "Permanent")}</td>
                           <td><span style={{ fontSize: 11, fontWeight: 700, color: sc.c, background: sc.b, padding: "3px 9px", borderRadius: 8 }}>{c.status || "New Application"}</span></td>
                           <td style={{ textAlign: "center" }} onClick={e => e.stopPropagation()}>
                             <div style={{ display: "inline-flex", gap: 6 }}>
@@ -582,12 +582,13 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                     <div><label style={lbl}>Preferred Location *</label>{inp("preferred_location","text",true)}</div>
                     <div><label style={lbl}>Notice Period *</label>{inp("notice_period","text",true)}</div>
 
-                    {/* Employment Type — Permanent gets a portal login; Contract is data-only */}
+                    {/* Employment Type — Permanent and Internship both get a portal login; Contract is data-only */}
                     <div>
                       <label style={lbl}>Employment Type *</label>
                       <select className="modern-input" value={form.employment_type || "Permanent"} onChange={e => setForm({ ...form, employment_type: e.target.value })} style={{ margin: 0 }} required>
                         <option value="Permanent">Permanent</option>
                         <option value="Contract">Contract</option>
+                        <option value="Internship">Internship</option>
                       </select>
                     </div>
                     {form.employment_type === "Contract" && (

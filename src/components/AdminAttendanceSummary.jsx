@@ -1208,6 +1208,7 @@ export default function AdminAttendanceSummary({ token, api }) {
                 <option value="All">All Employee Types</option>
                 <option value="Permanent">Permanent</option>
                 <option value="Contract">Contract</option>
+                <option value="Internship">Internship</option>
               </select>
               <select value={hrLocation} onChange={e => setHrLocation(e.target.value)} className="modern-input" style={{ width: "auto", margin: 0, fontSize: 12.5, height: 38 }}>
                 <option value="All">All Locations</option>
