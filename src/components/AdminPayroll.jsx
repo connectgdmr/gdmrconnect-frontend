@@ -33,6 +33,12 @@ const DEDUCTIONS = [
 const STRUCTURE_FIXED_KEYS = ["pf", "professional_tax", "gratuity"];
 const STRUCTURE_DEDUCTIONS = DEDUCTIONS.filter(d => STRUCTURE_FIXED_KEYS.includes(d.key));
 const MONTHLY_DEDUCTIONS   = DEDUCTIONS.filter(d => !STRUCTURE_FIXED_KEYS.includes(d.key));
+// ESI and TDS stay part of MONTHLY_DEDUCTIONS (and still get submitted as 0
+// with every run — no calculation change) but are no longer shown as input
+// boxes on the Run Payroll screen itself, since they don't vary per run in
+// practice — only LOP, the loan EMI (informational, see activeLoanEmi
+// below), and Other Deductions actually need HR's attention every month.
+const RUN_PAYROLL_COLUMNS = MONTHLY_DEDUCTIONS.filter(d => d.key !== "esi" && d.key !== "tds");
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const INCREMENT_TYPES = ["New Hire", "Annual Increment", "Promotion", "Performance Bonus", "Correction", "Other"];
@@ -112,6 +118,25 @@ export default function AdminPayroll({ token, employees = [] }) {
   // selected month. Kept separate from runAdjustments so the "Auto: Xd" hint
   // stays visible next to the LOP input even after HR edits/overrides it.
   const [lopPreview, setLopPreview] = useState({});
+
+  // Active loan/advance EMIs, keyed by employee id — informational only,
+  // shown so HR can see what run_payroll() is about to auto-deduct for
+  // each person before generating payslips. Not an editable input: the EMI
+  // is already applied server-side straight from payroll_loans_col, so a
+  // manual override field here would just be a box that does nothing.
+  const [activeLoanEmi, setActiveLoanEmi] = useState({});
+  useEffect(() => {
+    fetch(`${BASE}/admin/payroll/loans?status=active`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(rows => {
+        const byEmp = {};
+        (Array.isArray(rows) ? rows : []).forEach(l => {
+          byEmp[l.employee_id] = (byEmp[l.employee_id] || 0) + (Number(l.emi_per_month) || 0);
+        });
+        setActiveLoanEmi(byEmp);
+      })
+      .catch(() => setActiveLoanEmi({}));
+  }, [token]);
 
   // Adjustments are month-specific — clear them when the selected month/year
   // changes, then re-seed LOP from the auto-computed preview. HR can still
@@ -433,7 +458,12 @@ export default function AdminPayroll({ token, employees = [] }) {
           const id = s.employee_id || s._id;
           const a = runAdjustments[id] || {};
           const monthlyDed = MONTHLY_DEDUCTIONS.reduce((sum, d) => sum + (Number(a[d.key]) || 0), 0);
-          return grossOf(s.salary) + (Number(s.salary.bonus) || 0) - structureDedOf(s.salary) - monthlyDed;
+          // Loan/advance EMI isn't in runAdjustments (it's not an editable
+          // field here) but run_payroll() deducts it automatically — include
+          // it so this preview doesn't undercount what the actual payslip
+          // will show right next to the "Loan (EMI)" column now displaying it.
+          const loanEmi = Number(activeLoanEmi[id]) || 0;
+          return grossOf(s.salary) + (Number(s.salary.bonus) || 0) - structureDedOf(s.salary) - monthlyDed - loanEmi;
         };
         const estimatedPayout = allRunSalaries.reduce((sum, s) => sum + netPreviewOf(s), 0);
         const runBtn = (
@@ -450,8 +480,8 @@ export default function AdminPayroll({ token, employees = [] }) {
               <div>
                 <h4 style={{ margin: "0 0 6px", color: "#0f172a" }}>Run Monthly Payroll</h4>
                 <p style={{ margin: 0, fontSize: 13, color: "#64748b", maxWidth: 480 }}>
-                  Set this month's ESI, LOP, TDS, Other Deductions and a remark per employee, then generate payslips.
-                  Base salary stays untouched — these values apply only to this run.
+                  Set this month's LOP and Other Deductions and a remark per employee, then generate payslips —
+                  any active loan/advance EMI is applied automatically. Base salary stays untouched — these values apply only to this run.
                 </p>
               </div>
               {runBtn}
@@ -497,14 +527,21 @@ export default function AdminPayroll({ token, employees = [] }) {
                     <thead>
                       <tr>
                         <th style={{ position: "sticky", top: 0, background: "#f8fafc", zIndex: 1 }}>Employee</th>
-                        {MONTHLY_DEDUCTIONS.map(d => <th key={d.key} style={{ position: "sticky", top: 0, background: "#f8fafc", zIndex: 1 }}>{d.label}</th>)}
+                        {RUN_PAYROLL_COLUMNS.map(d => (
+                          <React.Fragment key={d.key}>
+                            <th style={{ position: "sticky", top: 0, background: "#f8fafc", zIndex: 1 }}>{d.label}</th>
+                            {d.key === "lop" && (
+                              <th style={{ position: "sticky", top: 0, background: "#f8fafc", zIndex: 1 }}>Loan (EMI)</th>
+                            )}
+                          </React.Fragment>
+                        ))}
                         <th style={{ position: "sticky", top: 0, background: "#f8fafc", zIndex: 1, minWidth: 180 }}>Remark</th>
                         <th style={{ position: "sticky", top: 0, background: "#f8fafc", zIndex: 1 }}>Net Preview</th>
                       </tr>
                     </thead>
                     <tbody>
                       {runSalaries.length === 0 ? (
-                        <tr><td colSpan={MONTHLY_DEDUCTIONS.length + 3} style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>No employees match "{runSearch}".</td></tr>
+                        <tr><td colSpan={RUN_PAYROLL_COLUMNS.length + 4} style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>No employees match "{runSearch}".</td></tr>
                       ) : runSalaries.map(row => {
                         const id = row.employee_id || row._id;
                         const a = runAdjustments[id] || {};
@@ -514,8 +551,9 @@ export default function AdminPayroll({ token, employees = [] }) {
                               {row.employee_name}
                               <div style={{ fontSize: 11.5, color: "#94a3b8", fontWeight: 500 }}>{row.department || "—"}</div>
                             </td>
-                            {MONTHLY_DEDUCTIONS.map(d => (
-                              <td key={d.key}>
+                            {RUN_PAYROLL_COLUMNS.map(d => (
+                              <React.Fragment key={d.key}>
+                              <td>
                                 <input
                                   className="modern-input" type="number" min="0" step="0.01" placeholder="0"
                                   value={a[d.key] ?? ""}
@@ -528,6 +566,12 @@ export default function AdminPayroll({ token, employees = [] }) {
                                   </div>
                                 )}
                               </td>
+                              {d.key === "lop" && (
+                                <td style={{ color: activeLoanEmi[id] ? "#b45309" : "#94a3b8", fontWeight: activeLoanEmi[id] ? 700 : 400 }} title="Auto-deducted from any active loan/advance — set up under Loans & Advances, not editable here">
+                                  {activeLoanEmi[id] ? inr(activeLoanEmi[id]) : "—"}
+                                </td>
+                              )}
+                              </React.Fragment>
                             ))}
                             <td>
                               <input
@@ -699,7 +743,7 @@ export default function AdminPayroll({ token, employees = [] }) {
                     </div>
                   ))}
                   <p style={{ fontSize: 11, color: "#94a3b8", margin: "10px 0 0", lineHeight: 1.5 }}>
-                    ESI, LOP, TDS and Other Deductions vary every month — set them in
+                    LOP and Other Deductions vary every month — set them in
                     <strong style={{ color: "#64748b" }}> Run Payroll</strong> instead, right before generating that month's payslips.
                   </p>
                 </div>
