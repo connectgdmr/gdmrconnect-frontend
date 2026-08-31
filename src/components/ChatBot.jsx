@@ -179,57 +179,49 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   const bargedInRef  = useRef(false);
   const bargeInRecogRef = useRef(null);
 
-  // ── Voice picker — up to 3 selectable English voices (Indian-accented
-  // ones surface first when installed), persisted across sessions. Web
-  // Speech only exposes whatever voices the OS/browser actually has, so
-  // this can't guarantee 3 or a specific accent exists on every device —
-  // it just ranks and exposes what's really there. Malayalam replies keep
-  // auto-picking whatever Malayalam voice is installed, since substituting
-  // an English voice for Malayalam script wouldn't read correctly anyway.
-  const [availableVoices, setAvailableVoices] = useState([]);
-  const [voiceURI, setVoiceURI] = useState(() => {
-    try { return localStorage.getItem("rexor_voice_uri") || ""; } catch { return ""; }
+  // ── Voice picker — the 6 real neural voice personas Groq's Orpheus model
+  // serves (English only). Malayalam has no Orpheus voice, so it always
+  // uses the browser's own speechSynthesis instead, same as before.
+  const TTS_VOICES = ["hannah", "autumn", "diana", "austin", "daniel", "troy"];
+  const [ttsVoice, setTtsVoice] = useState(() => {
+    try { return localStorage.getItem("rexor_tts_voice") || "hannah"; } catch { return "hannah"; }
   });
+  const currentAudioRef = useRef(null); // the neural-voice <audio> currently playing, if any
 
-  function rankEnglishVoices(all) {
-    const en = all.filter(v => v.lang?.toLowerCase().startsWith("en"));
-    const isIndian = (v) => v.lang?.toLowerCase() === "en-in" || /india/i.test(v.name);
-    return [...en].sort((a, b) => (isIndian(b) ? 1 : 0) - (isIndian(a) ? 1 : 0)).slice(0, 3);
+  function cycleVoice() {
+    const idx = TTS_VOICES.indexOf(ttsVoice);
+    const next = TTS_VOICES[(idx + 1) % TTS_VOICES.length];
+    setTtsVoice(next);
+    try { localStorage.setItem("rexor_tts_voice", next); } catch { /* ignore */ }
   }
 
-  function refreshVoiceList() {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    const ranked = rankEnglishVoices(window.speechSynthesis.getVoices());
-    setAvailableVoices(ranked);
-    setVoiceURI(prev => {
-      if (prev && ranked.some(v => v.voiceURI === prev)) return prev;
-      const fallback = ranked[0]?.voiceURI || "";
-      try { localStorage.setItem("rexor_voice_uri", fallback); } catch { /* ignore */ }
-      return fallback;
+  // Barge-in (talk over Rexor to interrupt it) is OFF by default. On a
+  // laptop/phone without headphones, the mic can hear Rexor's own voice
+  // through the speaker and self-trigger on almost every reply — that's
+  // not a rare edge case, it's the common case without echo-cancelling
+  // hardware. Admins with headphones (where it actually works reliably)
+  // can turn it on from the HUD; everyone else gets the safe default:
+  // mic off while Rexor is talking, same as a normal turn-based call.
+  const [bargeInEnabled, setBargeInEnabled] = useState(() => {
+    try { return localStorage.getItem("rexor_barge_in") === "1"; } catch { return false; }
+  });
+  const bargeInEnabledRef = useRef(bargeInEnabled);
+  useEffect(() => { bargeInEnabledRef.current = bargeInEnabled; }, [bargeInEnabled]);
+  function toggleBargeIn() {
+    setBargeInEnabled(v => {
+      const next = !v;
+      try { localStorage.setItem("rexor_barge_in", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
     });
   }
 
-  function cycleVoice() {
-    if (availableVoices.length < 2) return;
-    const idx = availableVoices.findIndex(v => v.voiceURI === voiceURI);
-    const next = availableVoices[(idx + 1) % availableVoices.length];
-    setVoiceURI(next.voiceURI);
-    try { localStorage.setItem("rexor_voice_uri", next.voiceURI); } catch { /* ignore */ }
-  }
-
   // Lightweight "is someone talking over Rexor" detector — runs only while
-  // speaking. Deliberately doesn't try to use its own transcript once it
-  // fires; it just confirms real speech happened, kills the TTS instantly,
-  // and hands off to startListening() for a clean, full-quality capture of
-  // whatever's said next, rather than a partial mid-utterance guess.
-  //
-  // Known limitation, same one every browser-based (non-headset) voice UI
-  // has: without echo-cancelling hardware/headphones, the mic can pick up
-  // Rexor's own voice from the speaker. The 2-word minimum below is a
-  // cheap filter against short blips, not a real fix — for reliable
-  // barge-in, headphones (or a headset mic) make the biggest difference.
+  // speaking, and only when bargeInEnabled. Deliberately doesn't try to use
+  // its own transcript once it fires; it just confirms real speech
+  // happened, kills the audio instantly, and hands off to startListening()
+  // for a clean, full-quality capture of whatever's said next.
   function startBargeInWatcher(lang) {
-    if (!SpeechRecognitionAPI) return;
+    if (!SpeechRecognitionAPI || !bargeInEnabledRef.current) return;
     stopBargeInWatcher();
     const watcher = new SpeechRecognitionAPI();
     watcher.lang = lang === "ml" ? "ml-IN" : "en-IN";
@@ -241,6 +233,8 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
       if (words.length >= 2) {
         bargedInRef.current = true;
         stopBargeInWatcher();
+        currentAudioRef.current?.pause();
+        currentAudioRef.current = null;
         window.speechSynthesis?.cancel();
         startListening();
       }
@@ -260,19 +254,17 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     bargeInRecogRef.current = null;
   }
 
-  function speak(text, lang, onEnd) {
+  // Fallback path — the browser's own (robotic) voice. Used for Malayalam
+  // (Orpheus has no Malayalam voice) and as a safety net if the neural
+  // voice call below fails for any reason, so a network hiccup never
+  // means Rexor goes completely silent.
+  function speakBrowser(text, lang, onEnd) {
     if (typeof window === "undefined" || !window.speechSynthesis) { onEnd?.(); return; }
     window.speechSynthesis.cancel();
-    bargedInRef.current = false;
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = lang === "ml" ? "ml-IN" : "en-IN";
     const voices = window.speechSynthesis.getVoices();
-    // English replies honor the admin's chosen voice when available;
-    // Malayalam always auto-picks a Malayalam-capable voice.
-    const chosen = lang === "en" ? voices.find(v => v.voiceURI === voiceURI) : null;
-    const match = chosen
-      || voices.find(v => v.lang === utter.lang)
-      || voices.find(v => v.lang?.startsWith(lang === "ml" ? "ml" : "en"));
+    const match = voices.find(v => v.lang === utter.lang) || voices.find(v => v.lang?.startsWith(lang === "ml" ? "ml" : "en"));
     if (match) utter.voice = match;
     setSpeaking(true);
     speakingRef.current = true;
@@ -280,18 +272,57 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
       setSpeaking(false);
       speakingRef.current = false;
       stopBargeInWatcher();
-      // If the watcher already caught an interrupt and kicked off a fresh
-      // listen, don't ALSO run the normal "finished speaking, start
-      // listening" callback — that would try to start a second recognizer
-      // on top of the one the barge-in already started.
       if (!bargedInRef.current) onEnd?.();
     };
     utter.onerror = () => { setSpeaking(false); speakingRef.current = false; stopBargeInWatcher(); };
     window.speechSynthesis.speak(utter);
-    // Give speech synthesis a beat to actually start before arming the
-    // watcher — dodges the mic catching the audio engine's own startup
-    // click/silence and misreading it as speech.
     setTimeout(() => { if (speakingRef.current && voiceActiveRef.current) startBargeInWatcher(lang); }, 350);
+  }
+
+  // Real neural voice for English (Groq's Orpheus, via the backend so the
+  // API key never touches the browser) — this is what actually fixes
+  // "sounds robotic". Malayalam has no Orpheus voice yet, so it goes
+  // straight to the browser fallback instead.
+  async function speak(text, lang, onEnd) {
+    bargedInRef.current = false;
+    if (lang !== "en" || !token) { speakBrowser(text, lang, onEnd); return; }
+    try {
+      const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+      const res = await fetch(`${baseUrl}/api/assistant/speak`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text, voice: ttsVoice }),
+      });
+      if (!res.ok) throw new Error("tts request failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      currentAudioRef.current = audio;
+      setSpeaking(true);
+      speakingRef.current = true;
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        if (currentAudioRef.current === audio) currentAudioRef.current = null;
+        setSpeaking(false);
+        speakingRef.current = false;
+        stopBargeInWatcher();
+        if (!bargedInRef.current) onEnd?.();
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        if (currentAudioRef.current === audio) currentAudioRef.current = null;
+        setSpeaking(false);
+        speakingRef.current = false;
+        stopBargeInWatcher();
+      };
+      await audio.play();
+      // Give playback a beat to actually start before arming the barge-in
+      // watcher — dodges the mic catching the audio engine's own startup
+      // silence and misreading it as speech.
+      setTimeout(() => { if (speakingRef.current && voiceActiveRef.current) startBargeInWatcher(lang); }, 350);
+    } catch {
+      speakBrowser(text, lang, onEnd);
+    }
   }
 
   async function askVoiceAssistant(q, lang, history) {
@@ -351,6 +382,8 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     }
     if (!open) setOpen(true);
     window.speechSynthesis?.cancel();
+    currentAudioRef.current?.pause();
+    currentAudioRef.current = null;
     stopBargeInWatcher(); // never run two recognizer sessions at once
     const recog = new SpeechRecognitionAPI();
     // Sticks to whatever language was last detected, so a Malayalam
@@ -419,20 +452,14 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, typing]);
 
-  // Chrome loads TTS voices asynchronously — prime the list (and build the
-  // ranked voice picker) so the first speak() call has a chance of finding
-  // a matching-language voice.
+  // Cleanup on unmount — stop anything still playing/listening.
   useEffect(() => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    refreshVoiceList();
-    window.speechSynthesis.addEventListener?.("voiceschanged", refreshVoiceList);
     return () => {
-      window.speechSynthesis.removeEventListener?.("voiceschanged", refreshVoiceList);
-      window.speechSynthesis.cancel();
+      window.speechSynthesis?.cancel();
+      currentAudioRef.current?.pause();
       recognitionRef.current?.stop();
       stopBargeInWatcher();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const FALLBACK_TEXT = "I'm still learning that one! 🌱 But I can instantly help with **leaves, attendance, payslips, courses, careers, announcements, holidays, password help** and more. Try one of these, or reach HR at info@gdmrfoundation.com.";
@@ -499,6 +526,8 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   function closePanel() {
     stopListening();
     window.speechSynthesis?.cancel();
+    currentAudioRef.current?.pause();
+    currentAudioRef.current = null;
     setOpen(false);
   }
 
@@ -545,21 +574,30 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
                 </div>
               </div>
 
-              {availableVoices.length > 0 && (
-                <div className="hud-voice-row">
-                  <span>VOICE</span>
-                  <button
-                    type="button"
-                    className="hud-voice-picker"
-                    onClick={cycleVoice}
-                    disabled={availableVoices.length < 2}
-                    title="Cycle voice (English replies only — Malayalam auto-picks its own)"
-                  >
-                    {(availableVoices.find(v => v.voiceURI === voiceURI)?.name || "Default").replace(/^Google\s*/i, "")}
-                    {availableVoices.length > 1 && <span className="hud-voice-next">›</span>}
-                  </button>
-                </div>
-              )}
+              <div className="hud-voice-row">
+                <span>VOICE</span>
+                <button
+                  type="button"
+                  className="hud-voice-picker"
+                  onClick={cycleVoice}
+                  title="Cycle voice (English replies only — Malayalam auto-picks its own)"
+                >
+                  {ttsVoice.charAt(0).toUpperCase() + ttsVoice.slice(1)}
+                  <span className="hud-voice-next">›</span>
+                </button>
+              </div>
+
+              <div className="hud-voice-row">
+                <span>BARGE-IN</span>
+                <button
+                  type="button"
+                  className="hud-voice-picker"
+                  onClick={toggleBargeIn}
+                  title="Talk over Rexor to interrupt it — most reliable with headphones, since without echo-cancelling hardware the mic can hear Rexor's own voice"
+                >
+                  {bargeInEnabled ? "On" : "Off"}
+                </button>
+              </div>
 
               {panelMode === "voice" ? (
                 <div className="hud-stage" data-state={hudState}>
