@@ -168,6 +168,16 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   const voiceActiveRef = useRef(false);
   const panelModeRef = useRef(panelMode);
   useEffect(() => { panelModeRef.current = panelMode; }, [panelMode]);
+  // Barge-in: talk over Rexor while it's speaking and it stops immediately
+  // instead of finishing its sentence, like Alexa/Siri/ChatGPT voice mode
+  // do. speakingRef mirrors `speaking` state for synchronous reads inside
+  // recognizer callbacks (state updates aren't visible there until the
+  // next render). bargedInRef.current gets set the instant an interrupt is
+  // detected, so the utterance's own onend handler knows not to also fire
+  // its normal "start listening again" callback — the watcher already did.
+  const speakingRef  = useRef(false);
+  const bargedInRef  = useRef(false);
+  const bargeInRecogRef = useRef(null);
 
   // ── Voice picker — up to 3 selectable English voices (Indian-accented
   // ones surface first when installed), persisted across sessions. Web
@@ -207,9 +217,53 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     try { localStorage.setItem("rexor_voice_uri", next.voiceURI); } catch { /* ignore */ }
   }
 
+  // Lightweight "is someone talking over Rexor" detector — runs only while
+  // speaking. Deliberately doesn't try to use its own transcript once it
+  // fires; it just confirms real speech happened, kills the TTS instantly,
+  // and hands off to startListening() for a clean, full-quality capture of
+  // whatever's said next, rather than a partial mid-utterance guess.
+  //
+  // Known limitation, same one every browser-based (non-headset) voice UI
+  // has: without echo-cancelling hardware/headphones, the mic can pick up
+  // Rexor's own voice from the speaker. The 2-word minimum below is a
+  // cheap filter against short blips, not a real fix — for reliable
+  // barge-in, headphones (or a headset mic) make the biggest difference.
+  function startBargeInWatcher(lang) {
+    if (!SpeechRecognitionAPI) return;
+    stopBargeInWatcher();
+    const watcher = new SpeechRecognitionAPI();
+    watcher.lang = lang === "ml" ? "ml-IN" : "en-IN";
+    watcher.continuous = true;
+    watcher.interimResults = true;
+    watcher.onresult = (e) => {
+      const last = e.results?.[e.results.length - 1];
+      const words = (last?.[0]?.transcript || "").trim().split(/\s+/).filter(Boolean);
+      if (words.length >= 2) {
+        bargedInRef.current = true;
+        stopBargeInWatcher();
+        window.speechSynthesis?.cancel();
+        startListening();
+      }
+    };
+    watcher.onerror = () => {};
+    watcher.onend = () => {
+      // Some browsers stop a continuous session on their own after a
+      // while even with nothing wrong — keep it alive as long as Rexor
+      // is still actually talking.
+      if (speakingRef.current && voiceActiveRef.current) startBargeInWatcher(lang);
+    };
+    try { watcher.start(); bargeInRecogRef.current = watcher; } catch { /* another recognizer may already be starting — fine, next speak() call retries */ }
+  }
+
+  function stopBargeInWatcher() {
+    try { bargeInRecogRef.current?.stop(); } catch { /* ignore */ }
+    bargeInRecogRef.current = null;
+  }
+
   function speak(text, lang, onEnd) {
     if (typeof window === "undefined" || !window.speechSynthesis) { onEnd?.(); return; }
     window.speechSynthesis.cancel();
+    bargedInRef.current = false;
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = lang === "ml" ? "ml-IN" : "en-IN";
     const voices = window.speechSynthesis.getVoices();
@@ -221,9 +275,23 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
       || voices.find(v => v.lang?.startsWith(lang === "ml" ? "ml" : "en"));
     if (match) utter.voice = match;
     setSpeaking(true);
-    utter.onend = () => { setSpeaking(false); onEnd?.(); };
-    utter.onerror = () => setSpeaking(false);
+    speakingRef.current = true;
+    utter.onend = () => {
+      setSpeaking(false);
+      speakingRef.current = false;
+      stopBargeInWatcher();
+      // If the watcher already caught an interrupt and kicked off a fresh
+      // listen, don't ALSO run the normal "finished speaking, start
+      // listening" callback — that would try to start a second recognizer
+      // on top of the one the barge-in already started.
+      if (!bargedInRef.current) onEnd?.();
+    };
+    utter.onerror = () => { setSpeaking(false); speakingRef.current = false; stopBargeInWatcher(); };
     window.speechSynthesis.speak(utter);
+    // Give speech synthesis a beat to actually start before arming the
+    // watcher — dodges the mic catching the audio engine's own startup
+    // click/silence and misreading it as speech.
+    setTimeout(() => { if (speakingRef.current && voiceActiveRef.current) startBargeInWatcher(lang); }, 350);
   }
 
   async function askVoiceAssistant(q, lang, history) {
@@ -283,6 +351,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     }
     if (!open) setOpen(true);
     window.speechSynthesis?.cancel();
+    stopBargeInWatcher(); // never run two recognizer sessions at once
     const recog = new SpeechRecognitionAPI();
     // Sticks to whatever language was last detected, so a Malayalam
     // conversation gets progressively better recognized turn to turn.
@@ -317,6 +386,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   function stopListening() {
     voiceActiveRef.current = false;
     recognitionRef.current?.stop();
+    stopBargeInWatcher();
     setListening(false);
   }
 
@@ -360,6 +430,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
       window.speechSynthesis.removeEventListener?.("voiceschanged", refreshVoiceList);
       window.speechSynthesis.cancel();
       recognitionRef.current?.stop();
+      stopBargeInWatcher();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -436,7 +507,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
     setPanelMode("chat");
   }
 
-  const hudCaption = { idle: "TAP TO SPEAK", listening: "LISTENING", speaking: "SPEAKING", thinking: "THINKING" }[hudState];
+  const hudCaption = { idle: "TAP TO SPEAK", listening: "LISTENING", speaking: "SPEAKING · TALK TO INTERRUPT", thinking: "THINKING" }[hudState];
 
   return (
     <>
