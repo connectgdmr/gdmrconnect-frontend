@@ -349,6 +349,8 @@ function buildPDFHtml(summary, month, idMap = {}) {
 // check-ins, and payroll-related LOP are all the same underlying "absent" bucket from
 // the day-classification data (see helpers.classify_attendance_day on the backend), so
 // they're one report rather than four duplicate tables with identical numbers.
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
 const HR_REPORT_TYPES = [
   { id: "employee-wise",     label: "Employee-wise Attendance" },
   { id: "department-wise",   label: "Department-wise Attendance" },
@@ -449,6 +451,38 @@ export default function AdminAttendanceSummary({ token, api }) {
   const [empSort, setEmpSort] = useState("name");
   const [empFilter, setEmpFilter] = useState("all");
   const [journeyEmp, setJourneyEmp] = useState(null); // employee object to show in Journey modal
+
+  // — Spreadsheet-style PDF reports (Monthly Report / Master Tracker) —
+  // Company-wide, real generated PDF files matching the HR team's existing
+  // reference spreadsheets — separate from the six filtered CSV/print
+  // reports below, which don't need a real backend file.
+  const now = new Date();
+  const [pdfReportMonth, setPdfReportMonth] = useState(now.getMonth() + 1);
+  const [pdfReportYear,  setPdfReportYear]  = useState(now.getFullYear());
+  const [trackerYear,    setTrackerYear]    = useState(now.getFullYear());
+  const [pdfDownloading, setPdfDownloading] = useState(null); // "monthly" | "tracker" | null
+
+  async function downloadReportPdf(kind) {
+    setPdfDownloading(kind);
+    try {
+      const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+      const url = kind === "monthly"
+        ? `${baseUrl}/api/admin/reports/monthly-attendance-pdf?month=${pdfReportMonth}&year=${pdfReportYear}`
+        : `${baseUrl}/api/admin/reports/master-tracker-pdf?year=${trackerYear}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { alert("Failed to generate the report."); return; }
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = kind === "monthly"
+        ? `Monthly_Attendance_Report_${pdfReportMonth}_${pdfReportYear}.pdf`
+        : `Attendance_Master_Tracker_${trackerYear}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(objUrl);
+    } catch { alert("Network error — failed to generate the report."); }
+    finally { setPdfDownloading(null); }
+  }
 
   // — HR Reports (Stage 2) —
   const [hrDept, setHrDept] = useState("All");
@@ -1189,6 +1223,39 @@ export default function AdminAttendanceSummary({ token, api }) {
       {/* ═══════════════════════════════════ HR REPORTS ══════════════════════════════════ */}
       {activeTab === "hr-reports" && (
         <div>
+          {/* Spreadsheet-style PDF reports — company-wide, real generated PDF
+              files matching the exact layout of the HR team's existing
+              reference spreadsheets, not filtered by the six reports below. */}
+          <div className="card" style={{ marginBottom: 16, padding: 18 }}>
+            <h4 style={{ margin: "0 0 4px", color: "#0f172a" }}>Spreadsheet-style Reports</h4>
+            <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#64748b" }}>
+              Real downloadable PDF files matching the team's existing attendance spreadsheets.
+            </p>
+            <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Monthly Report</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <select className="modern-input" style={{ margin: 0, width: "auto" }} value={pdfReportMonth} onChange={e => setPdfReportMonth(+e.target.value)}>
+                    {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                  </select>
+                  <input className="modern-input" type="number" style={{ margin: 0, width: 90 }} value={pdfReportYear} onChange={e => setPdfReportYear(+e.target.value)} />
+                  <button className="btn" onClick={() => downloadReportPdf("monthly")} disabled={pdfDownloading === "monthly"}>
+                    {pdfDownloading === "monthly" ? "Generating…" : "Download PDF"}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Master Tracker</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input className="modern-input" type="number" style={{ margin: 0, width: 90 }} value={trackerYear} onChange={e => setTrackerYear(+e.target.value)} />
+                  <button className="btn" onClick={() => downloadReportPdf("tracker")} disabled={pdfDownloading === "tracker"}>
+                    {pdfDownloading === "tracker" ? "Generating…" : "Download PDF"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>
             {/* Filter bar — mirrors EmployeeList.jsx's .filter-select styling */}
             <div className="filter-bar" style={{ margin: 0, borderRadius: "14px 14px 0 0", borderBottom: "1px solid var(--slate-200)", gap: 10, flexWrap: "wrap" }}>
