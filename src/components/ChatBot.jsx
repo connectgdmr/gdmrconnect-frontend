@@ -151,6 +151,10 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   // question being answered as if asked in isolation. Reset whenever the
   // panel closes — a fresh open starts a fresh conversation.
   const voiceHistoryRef = useRef([]);
+  // Same rolling-memory idea for the text panel — every role gets it now
+  // that the backend is a real tool-calling orchestrator, not just admin
+  // voice mode. Reset alongside voiceHistoryRef when the panel closes.
+  const chatHistoryRef = useRef([]);
   const SpeechRecognitionAPI = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
   const voiceSupported = isAdmin && !!SpeechRecognitionAPI;
   // Idle / listening / speaking / thinking — drives the HUD orb + caption.
@@ -337,6 +341,7 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
   useEffect(() => {
     if (!open) {
       voiceHistoryRef.current = []; // fresh conversation memory next time it's opened
+      chatHistoryRef.current = [];
     }
   }, [open]);
 
@@ -361,46 +366,29 @@ export default function ChatBot({ user, role = "employee", onNavigate, token, ap
 
   const FALLBACK_TEXT = "I'm still learning that one! 🌱 But I can instantly help with **leaves, attendance, payslips, courses, careers, announcements, holidays, password help** and more. Try one of these, or reach HR at info@gdmrfoundation.com.";
 
-  // Nearest upcoming company holiday from the live GET /api/holidays list
-  // (database.holidays_col) — was a hardcoded src/data/holidays.js import
-  // before holidays got a real backend + admin CRUD. routes/assistant.py
-  // reads next_holiday.days_away (snake_case) from this payload — the old
-  // static helper returned "daysAway" instead, which the backend silently
-  // never matched, so this also fixes a holiday nudge that was quietly
-  // broken from day one.
-  async function getNextHoliday() {
-    if (!token) return null;
-    try {
-      const holidays = await api.getHolidays(token);
-      if (!Array.isArray(holidays)) return null;
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      let next = null;
-      for (const h of holidays) {
-        const d = new Date(`${h.date}T00:00:00`);
-        if (isNaN(d) || d < today) continue;
-        if (!next || d < next.dateObj) next = { ...h, dateObj: d };
-      }
-      if (!next) return null;
-      return { name: next.name, date: next.date, day: next.day, days_away: Math.round((next.dateObj - today) / 86400000) };
-    } catch {
-      return null;
-    }
-  }
-
-  // Asks the backend LLM (if configured) for anything the KB doesn't recognize.
+  // Asks the backend orchestrator (if configured) for anything the KB
+  // doesn't recognize — it has live tool access to the whole ERP now, so
+  // there's no need to pre-fetch things like the next holiday client-side
+  // any more; that's just another tool call it makes itself when relevant.
   // Returns null on any failure so the caller can fall back to FALLBACK_TEXT.
   async function askAssistant(q) {
     if (!token) return null;
     try {
       const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
-      const nextHoliday = await getNextHoliday();
       const res = await fetch(`${baseUrl}/api/assistant/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message: q, context: nextHoliday ? { next_holiday: nextHoliday } : {} }),
+        body: JSON.stringify({ message: q, history: chatHistoryRef.current }),
       });
       if (!res.ok) return null;
       const data = await res.json();
+      if (data.reply) {
+        chatHistoryRef.current = [
+          ...chatHistoryRef.current,
+          { role: "user", content: q },
+          { role: "assistant", content: data.reply },
+        ].slice(-10);
+      }
       return data.reply || null;
     } catch {
       return null;
