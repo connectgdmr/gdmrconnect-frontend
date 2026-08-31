@@ -460,15 +460,16 @@ export default function AdminAttendanceSummary({ token, api }) {
   const [pdfReportMonth, setPdfReportMonth] = useState(now.getMonth() + 1);
   const [pdfReportYear,  setPdfReportYear]  = useState(now.getFullYear());
   const [trackerYear,    setTrackerYear]    = useState(now.getFullYear());
-  const [pdfDownloading, setPdfDownloading] = useState(null); // "monthly" | "tracker" | null
+  const [pdfDownloading, setPdfDownloading] = useState(null); // "monthly-pdf" | "monthly-csv" | "tracker-pdf" | "tracker-csv" | null
 
-  async function downloadReportPdf(kind) {
-    setPdfDownloading(kind);
+  async function downloadReport(kind, format) {
+    const key = `${kind}-${format}`;
+    setPdfDownloading(key);
     try {
       const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
       const url = kind === "monthly"
-        ? `${baseUrl}/api/admin/reports/monthly-attendance-pdf?month=${pdfReportMonth}&year=${pdfReportYear}`
-        : `${baseUrl}/api/admin/reports/master-tracker-pdf?year=${trackerYear}`;
+        ? `${baseUrl}/api/admin/reports/monthly-attendance-${format}?month=${pdfReportMonth}&year=${pdfReportYear}`
+        : `${baseUrl}/api/admin/reports/master-tracker-${format}?year=${trackerYear}`;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) { alert("Failed to generate the report."); return; }
       const blob = await res.blob();
@@ -476,8 +477,8 @@ export default function AdminAttendanceSummary({ token, api }) {
       const a = document.createElement("a");
       a.href = objUrl;
       a.download = kind === "monthly"
-        ? `Monthly_Attendance_Report_${pdfReportMonth}_${pdfReportYear}.pdf`
-        : `Attendance_Master_Tracker_${trackerYear}.pdf`;
+        ? `Monthly_Attendance_Report_${pdfReportMonth}_${pdfReportYear}.${format}`
+        : `Attendance_Master_Tracker_${trackerYear}.${format}`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(objUrl);
     } catch { alert("Network error — failed to generate the report."); }
@@ -1223,13 +1224,13 @@ export default function AdminAttendanceSummary({ token, api }) {
       {/* ═══════════════════════════════════ HR REPORTS ══════════════════════════════════ */}
       {activeTab === "hr-reports" && (
         <div>
-          {/* Spreadsheet-style PDF reports — company-wide, real generated PDF
+          {/* Spreadsheet-style reports — company-wide, real generated PDF/CSV
               files matching the exact layout of the HR team's existing
               reference spreadsheets, not filtered by the six reports below. */}
           <div className="card" style={{ marginBottom: 16, padding: 18 }}>
             <h4 style={{ margin: "0 0 4px", color: "#0f172a" }}>Spreadsheet-style Reports</h4>
             <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#64748b" }}>
-              Real downloadable PDF files matching the team's existing attendance spreadsheets.
+              Real downloadable PDF or CSV files matching the team's existing attendance spreadsheets.
             </p>
             <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
               <div>
@@ -1239,8 +1240,11 @@ export default function AdminAttendanceSummary({ token, api }) {
                     {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
                   </select>
                   <input className="modern-input" type="number" style={{ margin: 0, width: 90 }} value={pdfReportYear} onChange={e => setPdfReportYear(+e.target.value)} />
-                  <button className="btn" onClick={() => downloadReportPdf("monthly")} disabled={pdfDownloading === "monthly"}>
-                    {pdfDownloading === "monthly" ? "Generating…" : "Download PDF"}
+                  <button className="btn" onClick={() => downloadReport("monthly", "pdf")} disabled={pdfDownloading === "monthly-pdf"}>
+                    {pdfDownloading === "monthly-pdf" ? "Generating…" : "PDF"}
+                  </button>
+                  <button className="btn ghost" onClick={() => downloadReport("monthly", "csv")} disabled={pdfDownloading === "monthly-csv"}>
+                    {pdfDownloading === "monthly-csv" ? "Generating…" : "CSV"}
                   </button>
                 </div>
               </div>
@@ -1248,8 +1252,11 @@ export default function AdminAttendanceSummary({ token, api }) {
                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Master Tracker</div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <input className="modern-input" type="number" style={{ margin: 0, width: 90 }} value={trackerYear} onChange={e => setTrackerYear(+e.target.value)} />
-                  <button className="btn" onClick={() => downloadReportPdf("tracker")} disabled={pdfDownloading === "tracker"}>
-                    {pdfDownloading === "tracker" ? "Generating…" : "Download PDF"}
+                  <button className="btn" onClick={() => downloadReport("tracker", "pdf")} disabled={pdfDownloading === "tracker-pdf"}>
+                    {pdfDownloading === "tracker-pdf" ? "Generating…" : "PDF"}
+                  </button>
+                  <button className="btn ghost" onClick={() => downloadReport("tracker", "csv")} disabled={pdfDownloading === "tracker-csv"}>
+                    {pdfDownloading === "tracker-csv" ? "Generating…" : "CSV"}
                   </button>
                 </div>
               </div>
