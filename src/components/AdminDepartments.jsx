@@ -414,8 +414,10 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
                   onChange={e => setDeptForm({ ...deptForm, head_id: e.target.value })}
                 >
                   <option value="">— Select a manager —</option>
-                  {employees.filter(e => e.role === "manager").map(m => (
-                    <option key={m._id} value={m._id}>{m.name} · {Array.isArray(m.department) ? m.department.join(", ") : m.department}</option>
+                  {/* A Business Owner can also head a department, same as
+                      any manager — only employees/former staff are excluded. */}
+                  {employees.filter(e => e.role === "manager" || e.role === "owner").map(m => (
+                    <option key={m._id} value={m._id}>{m.name} · {Array.isArray(m.department) ? m.department.join(", ") : (m.department || "Owner")}</option>
                   ))}
                 </select>
               </div>
