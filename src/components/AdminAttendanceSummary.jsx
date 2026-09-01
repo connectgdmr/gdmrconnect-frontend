@@ -460,7 +460,7 @@ export default function AdminAttendanceSummary({ token, api }) {
   const [pdfReportMonth, setPdfReportMonth] = useState(now.getMonth() + 1);
   const [pdfReportYear,  setPdfReportYear]  = useState(now.getFullYear());
   const [trackerYear,    setTrackerYear]    = useState(now.getFullYear());
-  const [pdfDownloading, setPdfDownloading] = useState(null); // "monthly-pdf" | "monthly-csv" | "tracker-pdf" | "tracker-csv" | null
+  const [pdfDownloading, setPdfDownloading] = useState(null); // "monthly-pdf" | "monthly-csv" | "tracker-pdf" | "tracker-xlsx" | "tracker-csv" | null
 
   async function downloadReport(kind, format) {
     const key = `${kind}-${format}`;
@@ -1250,10 +1250,16 @@ export default function AdminAttendanceSummary({ token, api }) {
               </div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Master Tracker</div>
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>
+                  PDF / Excel include Master Sheet, Dep wise, Leave Monitoring &amp; Late Coming.
+                </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <input className="modern-input" type="number" style={{ margin: 0, width: 90 }} value={trackerYear} onChange={e => setTrackerYear(+e.target.value)} />
                   <button className="btn" onClick={() => downloadReport("tracker", "pdf")} disabled={pdfDownloading === "tracker-pdf"}>
                     {pdfDownloading === "tracker-pdf" ? "Generating…" : "PDF"}
+                  </button>
+                  <button className="btn" onClick={() => downloadReport("tracker", "xlsx")} disabled={pdfDownloading === "tracker-xlsx"}>
+                    {pdfDownloading === "tracker-xlsx" ? "Generating…" : "Excel"}
                   </button>
                   <button className="btn ghost" onClick={() => downloadReport("tracker", "csv")} disabled={pdfDownloading === "tracker-csv"}>
                     {pdfDownloading === "tracker-csv" ? "Generating…" : "CSV"}
