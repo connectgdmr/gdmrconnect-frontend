@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import {
   TbEdit, TbCircleCheck, TbSquareCheck, TbSquare, TbClipboardList,
   TbPlus, TbTrash, TbX, TbChartLine, TbEye, TbShare, TbDownload, TbBuilding,
@@ -18,6 +18,41 @@ function isOffboarded(emp) {
   if (!emp?.resignation?.notice_date || !lwd) return false;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   return new Date(lwd) < today;
+}
+
+// Multi-line text field that grows with its content and lets Enter add a
+// new line. A plain <input> is single-line and Enter there submits the
+// surrounding form instead of adding a line break — this is what the PMS
+// builder's Section Title and Question boxes use so a full KRA block (a
+// description line plus a numbered list) can be typed into one field.
+//
+// The height is set with setProperty(..., "important") on purpose: the
+// global stylesheet has `textarea { height: auto !important }`, which would
+// otherwise win over a normal inline height and freeze the box at one row.
+const AUTOGROW_MIN_H = 42;
+function AutoGrowTextarea({ value, style, onChange, ...rest }) {
+  const ref = useRef(null);
+  const resize = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.setProperty("height", "auto", "important");
+    const h = Math.max(el.scrollHeight, AUTOGROW_MIN_H);
+    el.style.setProperty("height", `${h}px`, "important");
+  }, []);
+  useLayoutEffect(() => { resize(); }, [value, resize]);
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      onChange={e => { onChange?.(e); resize(); }}
+      style={{
+        resize: "none", overflow: "hidden", whiteSpace: "pre-wrap",
+        wordBreak: "break-word", lineHeight: 1.5, minHeight: AUTOGROW_MIN_H, ...style,
+      }}
+      {...rest}
+    />
+  );
 }
 
 /**
@@ -537,38 +572,38 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
 
                 {templateSessions.map((session, sIdx) => (
                   <div key={sIdx} style={{ marginBottom: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "12px 14px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                      <div style={{ width: 26, height: 26, borderRadius: 6, background: "var(--red)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "12px 14px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                      <div style={{ width: 26, height: 26, borderRadius: 6, background: "var(--red)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0, marginTop: 5 }}>
                         {sIdx + 1}
                       </div>
-                      <input className="modern-input" style={{ flex: 2, background: "#fff" }}
-                        placeholder="Section Title (e.g., Work Quality, Communication Skills)"
+                      <AutoGrowTextarea className="modern-input" style={{ flex: 2, background: "#fff" }}
+                        placeholder="Section Title / KRA — type the heading, description and numbered list here. Press Enter for a new line."
                         value={session.name} onChange={e => handleSessionNameChange(sIdx, e.target.value)} required />
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 3 }}>
                         <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600, whiteSpace: "nowrap" }}>Weight %</span>
                         <input type="number" min="0" max="100" className="modern-input" style={{ width: 72, textAlign: "center", background: "#fff" }}
                           value={session.weight ?? ""} onChange={e => handleSessionWeightChange(sIdx, e.target.value)} placeholder="20" />
                       </div>
-                      <button type="button" style={{ background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 6, padding: "7px 10px", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }} onClick={() => handleRemoveSession(sIdx)}>
+                      <button type="button" style={{ background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 6, padding: "7px 10px", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", marginTop: 3 }} onClick={() => handleRemoveSession(sIdx)}>
                         <TbTrash size={12} />
                       </button>
                     </div>
                     <div style={{ padding: 14 }}>
                       {session.questions.map((q, qIdx) => (
-                        <div key={qIdx} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
-                          <div style={{ width: 20, height: 20, borderRadius: 4, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#64748b", fontWeight: 600, flexShrink: 0 }}>
+                        <div key={qIdx} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-start" }}>
+                          <div style={{ width: 20, height: 20, borderRadius: 4, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#64748b", fontWeight: 600, flexShrink: 0, marginTop: 9 }}>
                             {qIdx + 1}
                           </div>
-                          <input className="modern-input" style={{ flex: 2 }}
-                            placeholder="Question text..." value={q.text}
+                          <AutoGrowTextarea className="modern-input" style={{ flex: 2 }}
+                            placeholder="Question text — press Enter for a new line" value={q.text}
                             onChange={e => handleQuestionChange(sIdx, qIdx, "text", e.target.value)} required />
-                          <select className="modern-input" style={{ flex: 1 }}
+                          <select className="modern-input" style={{ flex: 1, marginTop: 3 }}
                             value={q.type} onChange={e => handleQuestionChange(sIdx, qIdx, "type", e.target.value)}>
                             <option value="scale">Rating Scale (1–5)</option>
                             <option value="descriptive">Descriptive Answer</option>
                             <option value="goals">Goals & Objectives</option>
                           </select>
-                          <button type="button" style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8", padding: "8px 6px", flexShrink: 0 }} onClick={() => handleRemoveQuestion(sIdx, qIdx)}>
+                          <button type="button" style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8", padding: "8px 6px", flexShrink: 0, marginTop: 3 }} onClick={() => handleRemoveQuestion(sIdx, qIdx)}>
                             <TbX />
                           </button>
                         </div>
@@ -762,7 +797,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
 
                           return (
                             <div key={idx} style={{ marginBottom: 16, background: "#fff", padding: 18, borderRadius: 10, border: "1px solid #e2e8f0", borderLeft: "4px solid var(--red)", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                              <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 14, marginBottom: 14 }}>{resp.question}</div>
+                              <div style={{ fontWeight: 600, color: "#1e293b", fontSize: 14, marginBottom: 14, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{resp.question}</div>
 
                               {resp.self_score && (
                                 <div style={{ marginBottom: 12 }}>

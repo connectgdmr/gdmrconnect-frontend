@@ -1578,7 +1578,7 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
                           {sIdx + 1}
                         </div>
                         <div style={{flex:1}}>
-                          <h4 style={{margin:0, color:'#0f172a', fontSize:16}}>{session.name}</h4>
+                          <h4 style={{margin:0, color:'#0f172a', fontSize:16, whiteSpace:'pre-wrap', wordBreak:'break-word'}}>{session.name}</h4>
                         </div>
                         {session.weight && (
                           <span style={{fontSize:11, padding:'3px 10px', borderRadius:20, background:'#fef2f2', color:'var(--red)', border:'1px solid #fecaca', fontWeight:700}}>{session.weight}%</span>
@@ -1596,7 +1596,7 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
                               <div style={{width:20, height:20, borderRadius:4, background: isAnswered ? '#22c55e' : '#e2e8f0', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1}}>
                                 {isAnswered ? <TbCircleCheck color="#fff" size={11} /> : <span style={{fontSize:11, color:'#64748b', fontWeight:600}}>{qIdx+1}</span>}
                               </div>
-                              <label style={{fontSize:14, color:'#1e293b', fontWeight:500, lineHeight:1.5}}>{q.text}</label>
+                              <label style={{fontSize:14, color:'#1e293b', fontWeight:500, lineHeight:1.5, whiteSpace:'pre-wrap', wordBreak:'break-word'}}>{q.text}</label>
                             </div>
 
                             {q.type === 'scale' && (
@@ -2188,7 +2188,7 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
 
                         return (
                           <div key={idx} style={{marginBottom:12, padding:16, background:'#fff', borderRadius:10, border:'1px solid #e2e8f0', borderLeft:'4px solid var(--red)'}}>
-                            <div style={{fontWeight:600, color:'#1e293b', fontSize:13, marginBottom:12}}>{resp.question}</div>
+                            <div style={{fontWeight:600, color:'#1e293b', fontSize:13, marginBottom:12, whiteSpace:'pre-wrap', wordBreak:'break-word'}}>{resp.question}</div>
 
                             {resp.self_score && (
                               <div style={{display:'flex', gap:16, flexWrap:'wrap', marginBottom: mgrCommentObj?.comment ? 12 : 0}}>
