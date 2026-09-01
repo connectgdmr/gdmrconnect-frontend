@@ -192,7 +192,13 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                   // to show, so it stays disabled/blank same as before.
                   disabled={!entry}
                   onClick={() => setSelectedDay(isSelected ? null : dateStr)}
-                  title={entry ? (entry.status === "weekly_off" ? offDayLabel(dateStr, entry) : (style?.label || "")) : ""}
+                  title={
+                    !entry ? "" :
+                    entry.status === "weekly_off" ? offDayLabel(dateStr, entry) :
+                    entry.status === "present" && entry.checkin_time
+                      ? `In ${fmtTime(entry.checkin_time)}${entry.checkout_time ? ` · Out ${fmtTime(entry.checkout_time)}` : " · No check-out"}`
+                      : (style?.label || "")
+                  }
                   style={{
                     aspectRatio: "1.3", border: `1.5px solid ${isSelected ? "#0f172a" : (style?.border || "#f1f5f9")}`,
                     borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: !entry ? "default" : "pointer",
@@ -205,17 +211,32 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                       needed to see what a day was, the click is only for
                       the fuller breakdown + action buttons below. A named
                       holiday shows its actual name instead of a generic
-                      "Off", same name the Holiday Calendar tab uses. */}
+                      "Off", same name the Holiday Calendar tab uses. For a
+                      present day both punch times sit on the cell: check-in
+                      on top, check-out (↑) below in a lighter shade. */}
                   {style && (
-                    <span style={{
-                      fontSize: 9, fontWeight: 700, letterSpacing: 0.2, color: style.dot,
-                      textTransform: entry.status === "weekly_off" ? "none" : "uppercase",
-                      maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "0 2px",
-                    }}>
-                      {entry.status === "present" && entry.checkin_time
-                        ? fmtTime(entry.checkin_time)
-                        : entry.status === "weekly_off" ? offDayLabel(dateStr, entry) : style.short}
-                    </span>
+                    entry.status === "present" && entry.checkin_time ? (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, letterSpacing: 0.2, color: style.dot,
+                        maxWidth: "100%", overflow: "hidden", padding: "0 2px",
+                        display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1.25,
+                      }}>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
+                          ↓ {fmtTime(entry.checkin_time)}
+                        </span>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%", opacity: 0.6 }}>
+                          {entry.checkout_time ? `↑ ${fmtTime(entry.checkout_time)}` : "↑ —"}
+                        </span>
+                      </span>
+                    ) : (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, letterSpacing: 0.2, color: style.dot,
+                        textTransform: entry.status === "weekly_off" ? "none" : "uppercase",
+                        maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "0 2px",
+                      }}>
+                        {entry.status === "weekly_off" ? offDayLabel(dateStr, entry) : style.short}
+                      </span>
+                    )
                   )}
                 </button>
               );
@@ -232,6 +253,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
             lines.push(entry.status === "weekly_off" ? offDayLabel(selectedDay, entry) : STATUS_STYLE[entry.status]?.label);
             if (entry.checkin_time)  lines.push(`Checked in at ${fmtTime(entry.checkin_time)}`);
             if (entry.checkout_time) lines.push(`Checked out at ${fmtTime(entry.checkout_time)}`);
+            else if (entry.status === "present" && entry.checkin_time) lines.push("No check-out recorded");
             if (entry.status === "approved_leave") {
               const kind = entry.leave_type === "half" ? `Half Day (${entry.leave_period || "—"})` : "Full Day";
               lines.push(`Leave type: ${kind}`);
