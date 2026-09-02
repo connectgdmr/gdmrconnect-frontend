@@ -726,8 +726,9 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
             </div>
           ) : (
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ overflowX: "auto", overflowY: "visible" }}>
-                <table className="styled-table-global">
+              <style>{`.lms-progress-table thead th{position:sticky;top:0;z-index:3;background:#f8fafc;box-shadow:inset 0 -1px 0 #e2e8f0}`}</style>
+              <div style={{ overflow: "auto", maxHeight: "calc(100vh - 230px)" }}>
+                <table className="styled-table-global lms-progress-table">
                   <thead>
                     <tr><th>Employee</th><th>Department</th><th>Course</th><th>Assigned</th><th>Scheduled</th><th>Due</th><th>Progress</th><th>Last Activity</th><th>Status</th><th>Actions</th></tr>
                   </thead>
