@@ -1236,36 +1236,30 @@ export default function AdminAttendanceSummary({ token, api }) {
             <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#64748b" }}>
               Real downloadable PDF or Excel files matching the team's existing attendance spreadsheets.
             </p>
-            <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Monthly Report</div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <select className="modern-input" style={{ margin: 0, width: "auto" }} value={pdfReportMonth} onChange={e => setPdfReportMonth(+e.target.value)}>
-                    {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                  </select>
-                  <input className="modern-input" type="number" style={{ margin: 0, width: 90 }} value={pdfReportYear} onChange={e => setPdfReportYear(+e.target.value)} />
-                  <button className="btn" onClick={() => downloadReport("monthly", "pdf")} disabled={pdfDownloading === "monthly-pdf"}>
-                    {pdfDownloading === "monthly-pdf" ? "Generating…" : "PDF"}
-                  </button>
-                  <button className="btn" onClick={() => downloadReport("monthly", "xlsx")} disabled={pdfDownloading === "monthly-xlsx"}>
-                    {pdfDownloading === "monthly-xlsx" ? "Generating…" : "Excel"}
-                  </button>
-                </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 700, fontSize: 13, width: 110, flexShrink: 0 }}>Monthly Report</span>
+                <select className="modern-input" style={{ margin: 0, width: "auto" }} value={pdfReportMonth} onChange={e => setPdfReportMonth(+e.target.value)}>
+                  {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                </select>
+                <input className="modern-input" type="number" style={{ margin: 0, width: 90 }} value={pdfReportYear} onChange={e => setPdfReportYear(+e.target.value)} />
+                <button className="btn" onClick={() => downloadReport("monthly", "pdf")} disabled={pdfDownloading === "monthly-pdf"}>
+                  {pdfDownloading === "monthly-pdf" ? "Generating…" : "PDF"}
+                </button>
+                <button className="btn" onClick={() => downloadReport("monthly", "xlsx")} disabled={pdfDownloading === "monthly-xlsx"}>
+                  {pdfDownloading === "monthly-xlsx" ? "Generating…" : "Excel"}
+                </button>
               </div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Master Tracker</div>
-                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>
-                  PDF / Excel include Master Sheet, Dep wise, Leave Monitoring &amp; Late Coming.
-                </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input className="modern-input" type="number" style={{ margin: 0, width: 90 }} value={trackerYear} onChange={e => setTrackerYear(+e.target.value)} />
-                  <button className="btn" onClick={() => downloadReport("tracker", "pdf")} disabled={pdfDownloading === "tracker-pdf"}>
-                    {pdfDownloading === "tracker-pdf" ? "Generating…" : "PDF"}
-                  </button>
-                  <button className="btn" onClick={() => downloadReport("tracker", "xlsx")} disabled={pdfDownloading === "tracker-xlsx"}>
-                    {pdfDownloading === "tracker-xlsx" ? "Generating…" : "Excel"}
-                  </button>
-                </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 700, fontSize: 13, width: 110, flexShrink: 0 }}>Master Tracker</span>
+                <input className="modern-input" type="number" style={{ margin: 0, width: 90 }} value={trackerYear} onChange={e => setTrackerYear(+e.target.value)} />
+                <button className="btn" onClick={() => downloadReport("tracker", "pdf")} disabled={pdfDownloading === "tracker-pdf"}>
+                  {pdfDownloading === "tracker-pdf" ? "Generating…" : "PDF"}
+                </button>
+                <button className="btn" onClick={() => downloadReport("tracker", "xlsx")} disabled={pdfDownloading === "tracker-xlsx"}>
+                  {pdfDownloading === "tracker-xlsx" ? "Generating…" : "Excel"}
+                </button>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>· includes Master Sheet, Dep wise, Leave Monitoring &amp; Late Coming</span>
               </div>
             </div>
           </div>

@@ -138,6 +138,7 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
   const activeEmployees = employees.filter(e => empExitStatus(e) !== "offboarded");
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState("dashboard");
+  const [leavesSubTab, setLeavesSubTab] = useState("requests"); // "requests" | "comp-off"
   const [subView, setSubView] = useState("list");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -901,8 +902,22 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
       )}
 
       {/* 2. LEAVES */}
-      {view === "leaves" && <div style={{ marginTop: "16px" }}><AdminLeavePage token={token} api={api} departments={departments} /></div>}
-      {view === "comp-off" && <div style={{ marginTop: "16px" }}><CompOffManager token={token} api={api} scope="admin" /></div>}
+      {view === "leaves" && (
+        <div style={{ marginTop: "16px" }}>
+          <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 10, padding: 4, width: "fit-content", marginBottom: 16 }}>
+            {[["requests", "Leave Requests"], ["comp-off", "Comp-Off"]].map(([k, label]) => (
+              <button key={k} onClick={() => setLeavesSubTab(k)} style={{
+                padding: "7px 16px", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: 600,
+                background: leavesSubTab === k ? "var(--brand, #34a06a)" : "transparent",
+                color: leavesSubTab === k ? "#fff" : "#64748b",
+              }}>{label}</button>
+            ))}
+          </div>
+          {leavesSubTab === "requests"
+            ? <AdminLeavePage token={token} api={api} departments={departments} />
+            : <CompOffManager token={token} api={api} scope="admin" />}
+        </div>
+      )}
 
       {/* 3. ATTENDANCE (+ Corrections, tabbed — see attendanceTab above) */}
       {view === "attendance" && (

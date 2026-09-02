@@ -322,6 +322,7 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
   // reasoning as EmployeeDashboard.jsx's attendanceSubView/leaveSubView.
   const [attendanceSubView, setAttendanceSubView] = useState("attendance-log");
   const [leaveSubView, setLeaveSubView] = useState("my-leaves");
+  const [teamLeavesTab, setTeamLeavesTab] = useState("requests"); // "requests" | "comp-off"
   const [loadError, setLoadError] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -1622,11 +1623,22 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
       )}
 
       {/* — Team Leaves — */}
-      {view === "comp-off" && (
-        <CompOffManager token={token} api={api} scope="manager" />
+      {view === "team-leaves" && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 10, padding: 4, width: "fit-content", marginBottom: 16 }}>
+            {[["requests", "Team Leave Requests"], ["comp-off", "Comp-Off"]].map(([k, label]) => (
+              <button key={k} onClick={() => setTeamLeavesTab(k)} style={{
+                padding: "7px 16px", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: 600,
+                background: teamLeavesTab === k ? "var(--red)" : "transparent",
+                color: teamLeavesTab === k ? "#fff" : "#64748b",
+              }}>{label}</button>
+            ))}
+          </div>
+          {teamLeavesTab === "comp-off" && <CompOffManager token={token} api={api} scope="manager" />}
+        </div>
       )}
 
-      {view === "team-leaves" && (
+      {view === "team-leaves" && teamLeavesTab === "requests" && (
           <div className="card" style={{marginTop: 16}}>
               <h3>Team Leave Requests</h3>
               <div style={{overflowX: 'auto'}}>

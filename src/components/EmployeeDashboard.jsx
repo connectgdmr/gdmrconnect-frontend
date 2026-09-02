@@ -245,6 +245,7 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
   // ============================================================================
   const [pmsTemplate, setPmsTemplate] = useState({ sessions: [] }); 
   const [pmsResponses, setPmsResponses] = useState({});
+  const [pmsFormOpen, setPmsFormOpen] = useState(false); // self-eval form starts collapsed
 
   // ============================================================================
   // 5. SPECIAL ACCESS (DELEGATED ADMIN) STATE
@@ -1571,6 +1572,26 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
               </div>
             ) : (
               <>
+                {/* Collapsed summary — click to open the full evaluation form */}
+                <div className="card" onClick={() => setPmsFormOpen(o => !o)}
+                  style={{marginBottom:16, padding:'16px 18px', cursor:'pointer', display:'flex', alignItems:'center', gap:14}}>
+                  <div style={{width:38, height:38, borderRadius:10, background:'#fef2f2', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
+                    <TbClipboardList color="var(--red)" size={18} />
+                  </div>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontWeight:700, fontSize:15, color:'#0f172a'}}>
+                      {pmsTemplate.cycle_name || 'Self-Evaluation Form'}
+                    </div>
+                    <div style={{fontSize:12.5, color:'#64748b', marginTop:2}}>
+                      {pmsTemplate.sessions.length} section{pmsTemplate.sessions.length === 1 ? '' : 's'} · {totalQuestions} question{totalQuestions === 1 ? '' : 's'} · {answeredQuestions}/{totalQuestions} answered ({progressPct}%)
+                    </div>
+                  </div>
+                  <span style={{fontSize:13, fontWeight:700, color:'var(--red)', flexShrink:0}}>
+                    {pmsFormOpen ? 'Hide ▲' : (answeredQuestions > 0 ? 'Continue ▼' : 'Start ▼')}
+                  </span>
+                </div>
+
+                {pmsFormOpen && (<>
                 {/* Progress Bar */}
                 {totalQuestions > 0 && (
                   <div className="card" style={{marginBottom:16, padding:'14px 18px'}}>
@@ -1677,6 +1698,7 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
                     </button>
                   </div>
                 </form>
+                </>)}
               </>
             )}
 
@@ -1796,6 +1818,10 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
               padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
               background: leaveSubView === "my-leaves" ? "var(--red)" : "transparent", color: leaveSubView === "my-leaves" ? "#fff" : "#64748b", transition: "all 0.15s",
             }}>My Leaves</button>
+            <button onClick={() => setLeaveSubView("comp-off")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: leaveSubView === "comp-off" ? "var(--red)" : "transparent", color: leaveSubView === "comp-off" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>Comp-Off</button>
           </div>
 
       {leaveSubView === "apply-leave" && (
@@ -1954,8 +1980,8 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
         </>
       )}
 
-      {/* — Comp-Off (balance + history) — */}
-      {view === "comp-off" && (
+      {/* — Comp-Off (balance + history) — a sub-tab of the Leave view — */}
+      {view === "leave" && leaveSubView === "comp-off" && (
         <div className="card" style={{ marginTop: 16, maxWidth: 720 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
             <h3 style={{ margin: 0 }}>Comp-Off</h3>
