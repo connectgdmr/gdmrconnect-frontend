@@ -89,6 +89,20 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const [cycleName, setCycleName] = useState("");
   const [cycleDueDate, setCycleDueDate] = useState("");
 
+  // ── Existing assigned PMS forms (shown at the top of the builder) ──────
+  const [pmsTemplates, setPmsTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [expandedTemplate, setExpandedTemplate] = useState(null);
+
+  const loadTemplates = useCallback(async () => {
+    setLoadingTemplates(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/pms-templates`, { headers: { Authorization: `Bearer ${token}` } });
+      setPmsTemplates(res.ok ? await res.json() : []);
+    } catch { setPmsTemplates([]); }
+    finally { setLoadingTemplates(false); }
+  }, [baseUrl, token]);
+
   // ── Review/scoring modal state ─────────────────────────────────────────
   const [managerScores, setManagerScores] = useState({});
   const [managerFeedback, setManagerFeedback] = useState("");
@@ -114,6 +128,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   }, [baseUrl, token, isAdmin]);
 
   useEffect(() => { loadReviews(); }, [loadReviews]);
+  useEffect(() => { loadTemplates(); }, [loadTemplates]);
 
   useEffect(() => {
     if (tab !== "calibration") return;
@@ -153,7 +168,9 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
       if (res.ok) {
         alert("Success! PMS Evaluation Form has been assigned and saved.");
         setTemplateSessions([]); setAssignedEmployees([]); setCycleName(""); setCycleDueDate("");
-        setTab("reviews");
+        // Stay on the builder tab and refresh the list above so the form
+        // that was just assigned is visibly there.
+        loadTemplates();
         loadReviews();
       } else {
         const errData = await res.json().catch(() => ({}));
@@ -438,6 +455,69 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
         const totalWeight = templateSessions.reduce((sum, s) => sum + (parseInt(s.weight) || 0), 0);
         return (
           <div style={{ maxWidth: 960, margin: "0 auto" }}>
+            {/* Active PMS forms — every template the user has assigned, so a
+                freshly built one is visibly here instead of seeming to vanish. */}
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: pmsTemplates.length || loadingTemplates ? 12 : 0 }}>
+                <h4 style={{ margin: 0, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>
+                  <TbClipboardList size={16} color="var(--brand)" /> Active PMS Forms
+                  {pmsTemplates.length > 0 && (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b", background: "#f1f5f9", borderRadius: 999, padding: "2px 9px" }}>{pmsTemplates.length}</span>
+                  )}
+                </h4>
+                <button type="button" className="btn ghost" style={{ padding: "5px 11px", fontSize: 12 }} onClick={loadTemplates} disabled={loadingTemplates}>
+                  {loadingTemplates ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
+
+              {loadingTemplates && pmsTemplates.length === 0 ? (
+                <div style={{ fontSize: 13, color: "#94a3b8", padding: "8px 0" }}>Loading…</div>
+              ) : pmsTemplates.length === 0 ? (
+                <div style={{ fontSize: 13, color: "#94a3b8", padding: "8px 0" }}>
+                  No PMS forms assigned yet. Build one below and it will appear here.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {pmsTemplates.map(t => {
+                    const open = expandedTemplate === t._id;
+                    const pct = t.assigned_count ? Math.round((t.submitted_count / t.assigned_count) * 100) : 0;
+                    const dept = Array.isArray(t.department) ? t.department.join(", ") : (t.department || "All");
+                    return (
+                      <div key={t._id} style={{ border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+                        <button type="button" onClick={() => setExpandedTemplate(open ? null : t._id)}
+                          style={{ width: "100%", textAlign: "left", background: "#fff", border: "none", cursor: "pointer", padding: "11px 13px", display: "flex", alignItems: "center", gap: 12 }}>
+                          <span style={{ fontSize: 11, color: "#94a3b8", width: 12, flexShrink: 0 }}>{open ? "▾" : "▸"}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {t.cycle_name || "Untitled cycle"}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 2 }}>
+                              {dept} · {t.section_count} section{t.section_count === 1 ? "" : "s"} · {t.question_count} question{t.question_count === 1 ? "" : "s"}
+                              {t.due_date ? ` · due ${new Date(t.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+                            </div>
+                          </div>
+                          <span style={{ fontSize: 11.5, fontWeight: 700, color: pct === 100 ? "#16a34a" : "#64748b", background: pct === 100 ? "#f0fdf4" : "#f1f5f9", border: `1px solid ${pct === 100 ? "#bbf7d0" : "#e2e8f0"}`, borderRadius: 8, padding: "4px 10px", flexShrink: 0 }}>
+                            {t.submitted_count}/{t.assigned_count} submitted
+                          </span>
+                        </button>
+                        {open && (
+                          <div style={{ padding: "10px 13px 12px 37px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {(t.assignees || []).length === 0 && <span style={{ fontSize: 12, color: "#94a3b8" }}>No one assigned.</span>}
+                            {(t.assignees || []).map(a => (
+                              <span key={a.id} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: a.submitted ? "#166534" : "#475569", background: a.submitted ? "#f0fdf4" : "#fff", border: `1px solid ${a.submitted ? "#bbf7d0" : "#e2e8f0"}`, borderRadius: 999, padding: "3px 10px" }}>
+                                {a.submitted ? <TbCircleCheck size={12} color="#16a34a" /> : <TbSquare size={12} color="#cbd5e1" />}
+                                {a.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div className="card" style={{ marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
                 <div style={{ width: 46, height: 46, borderRadius: 12, background: "linear-gradient(135deg, var(--brand), var(--teal-800))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
