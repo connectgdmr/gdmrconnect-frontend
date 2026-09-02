@@ -10,7 +10,7 @@ import {
   TbChartPie, TbCalendar, TbSpeakerphone, TbShieldLock, TbDeviceLaptop,
   TbHistory, TbChartLine,
   TbLogout, TbBuilding, TbClipboardList, TbSchool, TbBriefcase, TbCurrencyDollar,
-  TbChecklist, TbChartArea, TbMessageDots
+  TbChecklist, TbChartArea, TbMessageDots, TbGift
 } from "react-icons/tb";
 
 const NAV_ITEMS = {
@@ -19,6 +19,7 @@ const NAV_ITEMS = {
     { icon: <TbMessageDots />, label: "Messages", view: "chat" },
     { icon: <TbUsers />, label: "Workforce", view: "workforce" },
     { icon: <TbCalendarCheck />, label: "Leave Requests", view: "leaves" },
+    { icon: <TbGift />, label: "Comp-Off", view: "comp-off" },
     { icon: <TbClock />, label: "Attendance", view: "attendance" },
     { icon: <TbBuilding />, label: "Departments", view: "departments" },
     { icon: <TbChartPie />, label: "Reports", view: "summary" },
@@ -40,6 +41,7 @@ const NAV_ITEMS = {
     { icon: <TbCalendarCheck />, label: "Leave", view: "leave" },
     { icon: <TbUsers />, label: "Team", view: "dept-dashboard" },
     { icon: <TbCalendarCheck />, label: "Team Leaves", view: "team-leaves" },
+    { icon: <TbGift />, label: "Comp-Off", view: "comp-off" },
     { icon: <TbChartLine />, label: "PMS", view: "pms" },
     { icon: <TbSpeakerphone />, label: "Announcements", view: "announcements" },
     { icon: <TbChecklist />, label: "Work & Clients", view: "work-clients" },
@@ -55,6 +57,7 @@ const NAV_ITEMS = {
     { icon: <TbMessageDots />, label: "Messages", view: "chat" },
     { icon: <TbUsers />, label: "Workforce", view: "workforce" },
     { icon: <TbCalendarCheck />, label: "Leave Requests", view: "leaves" },
+    { icon: <TbGift />, label: "Comp-Off", view: "comp-off" },
     { icon: <TbClock />, label: "Attendance", view: "attendance" },
     { icon: <TbBuilding />, label: "Departments", view: "departments" },
     { icon: <TbChartPie />, label: "Reports", view: "summary" },
@@ -74,6 +77,7 @@ const NAV_ITEMS = {
     { icon: <TbMessageDots />, label: "Messages", view: "chat" },
     { icon: <TbHistory />, label: "Attendance", view: "attendance" },
     { icon: <TbCalendarCheck />, label: "Leave", view: "leave" },
+    { icon: <TbGift />, label: "Comp-Off", view: "comp-off" },
     { icon: <TbChartLine />, label: "Performance", view: "pms" },
     { icon: <TbChartArea />, label: "Work & Clients", view: "work-clients" },
     { icon: <TbSpeakerphone />, label: "Announcements", view: "announcements" },

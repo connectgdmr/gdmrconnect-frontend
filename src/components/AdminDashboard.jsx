@@ -9,6 +9,7 @@ const EmployeeForm           = lazy(() => import("./EmployeeForm"));
 const EmployeeList           = lazy(() => import("./EmployeeList"));
 const RegisterAdmin          = lazy(() => import("./RegisterAdmin"));
 const AdminLeavePage         = lazy(() => import("./AdminLeavePage"));
+const CompOffManager         = lazy(() => import("./CompOffManager"));
 const AdminAttendancePage    = lazy(() => import("./AdminAttendancePage"));
 const RegisterManager        = lazy(() => import("./RegisterManager"));
 const AdminAttendanceSummary = lazy(() => import("./AdminAttendanceSummary"));
@@ -901,6 +902,7 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
 
       {/* 2. LEAVES */}
       {view === "leaves" && <div style={{ marginTop: "16px" }}><AdminLeavePage token={token} api={api} departments={departments} /></div>}
+      {view === "comp-off" && <div style={{ marginTop: "16px" }}><CompOffManager token={token} api={api} scope="admin" /></div>}
 
       {/* 3. ATTENDANCE (+ Corrections, tabbed — see attendanceTab above) */}
       {view === "attendance" && (

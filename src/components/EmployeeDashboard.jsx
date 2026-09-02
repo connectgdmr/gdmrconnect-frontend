@@ -303,6 +303,7 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
   const [submittingLeave, setSubmittingLeave] = useState(false);
   const [useCompOff, setUseCompOff] = useState(false);
   const [compOffBalance, setCompOffBalance] = useState(null);
+  const [compOffEntries, setCompOffEntries] = useState([]);
   const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
 
   // ============================================================================
@@ -401,6 +402,7 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
       if (attData)      setAttendance(attData);
       if (leaveData)    setLeaves(leaveData);
       if (compOffData && typeof compOffData.balance === "number") setCompOffBalance(compOffData.balance);
+      if (compOffData && Array.isArray(compOffData.entries)) setCompOffEntries(compOffData.entries);
       if (pmsData)      setPmsHistory(pmsData);
       if (corrData)     setCorrectionHistory(corrData);
       if (templateData) setPmsTemplate(templateData);
@@ -1950,6 +1952,45 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
         </div>
       )}
         </>
+      )}
+
+      {/* — Comp-Off (balance + history) — */}
+      {view === "comp-off" && (
+        <div className="card" style={{ marginTop: 16, maxWidth: 720 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
+            <h3 style={{ margin: 0 }}>Comp-Off</h3>
+            <span style={{
+              fontSize: 13, fontWeight: 700, padding: "6px 14px", borderRadius: 8,
+              background: (compOffBalance || 0) > 0 ? "#f0fdf4" : "#f1f5f9",
+              color: (compOffBalance || 0) > 0 ? "#166534" : "#64748b",
+              border: `1px solid ${(compOffBalance || 0) > 0 ? "#bbf7d0" : "#e2e8f0"}`,
+            }}>
+              Balance: {compOffBalance == null ? "…" : `${compOffBalance} day${compOffBalance === 1 ? "" : "s"}`}
+            </span>
+          </div>
+          <p className="small" style={{ margin: "0 0 16px" }}>
+            Comp-off days are granted by your manager (e.g. for working a holiday or weekend). Redeem them by ticking
+            “Apply against my Comp-Off balance” on the Leave page.
+          </p>
+          <div style={{ overflowX: "auto" }}>
+            <table className="styled-table" style={{ minWidth: 420 }}>
+              <thead><tr><th>Date</th><th>Change</th><th>Type</th><th>Note</th><th>By</th></tr></thead>
+              <tbody>
+                {(!compOffEntries || compOffEntries.length === 0) ? (
+                  <tr><td colSpan={5} style={{ textAlign: "center", padding: 20, color: "#94a3b8" }}>No comp-off activity yet.</td></tr>
+                ) : compOffEntries.map(e => (
+                  <tr key={e._id}>
+                    <td>{e.created_at ? new Date(e.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"}</td>
+                    <td style={{ fontWeight: 700, color: e.days >= 0 ? "#166534" : "#b91c1c" }}>{e.days >= 0 ? `+${e.days}` : e.days}</td>
+                    <td style={{ textTransform: "capitalize" }}>{e.kind === "reserve" ? "Leave applied" : e.kind === "refund" ? "Refund" : "Granted"}</td>
+                    <td style={{ color: "#64748b" }}>{e.reason || "—"}</td>
+                    <td style={{ color: "#64748b" }}>{e.granted_by_name || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {/* — Attendance (Log + Calendar, tabbed) — */}

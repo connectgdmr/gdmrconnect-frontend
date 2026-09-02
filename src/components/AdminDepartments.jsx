@@ -76,7 +76,9 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
   const [deptLoading, setDeptLoading] = useState(false);
   const [deptModal, setDeptModal] = useState(false);
   const [deptEditId, setDeptEditId] = useState(null);
-  const [deptForm, setDeptForm] = useState({ name: "", description: "", head_id: "" });
+  const [deptForm, setDeptForm] = useState({ name: "", description: "", head_ids: [] });
+  const [headPickerOpen, setHeadPickerOpen] = useState(false);
+  const [headPickerSearch, setHeadPickerSearch] = useState("");
   const [deptSaving, setDeptSaving] = useState(false);
   const [deptMembersOpen, setDeptMembersOpen] = useState(null); // dept object for quick-view
   const [workTypesDept, setWorkTypesDept] = useState(null); // department name for Work Types modal
@@ -126,7 +128,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
       const deptVal = emp.department;
       const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
       depts.forEach(d => {
-        if (!byName[d]) byName[d] = { _id: d, name: d, description: "", head_id: null };
+        if (!byName[d]) byName[d] = { _id: d, name: d, description: "", head_id: null, head_ids: [] };
       });
     });
     setDepartments(Object.values(byName));
@@ -160,7 +162,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
       if (res.ok) {
         setDeptModal(false);
         setDeptEditId(null);
-        setDeptForm({ name: "", description: "", head_id: "" });
+        setDeptForm({ name: "", description: "", head_ids: [] });
         loadDepartments();
         // Renaming/formalizing a department moves employees onto the new
         // name server-side, but this component only owns departments_col
@@ -194,7 +196,8 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
 
   function openAddDept() {
     setDeptEditId(null);
-    setDeptForm({ name: "", description: "", head_id: "" });
+    setDeptForm({ name: "", description: "", head_ids: [] });
+    setHeadPickerOpen(false); setHeadPickerSearch("");
     setDeptModal(true);
   }
 
@@ -206,7 +209,8 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
     // manager whose own department field happens to match this department's
     // name. Falling back to dept.manager._id here means editing one of
     // these doesn't silently blank out the head it was already showing.
-    setDeptForm({ name: dept.name, description: dept.description || "", head_id: dept.head_id || dept.manager?._id || "" });
+    setHeadPickerOpen(false); setHeadPickerSearch("");
+    setDeptForm({ name: dept.name, description: dept.description || "", head_ids: (dept.head_ids && dept.head_ids.length) ? [...dept.head_ids] : (dept.head_id ? [dept.head_id] : (dept.manager?._id ? [dept.manager._id] : [])) });
     setDeptModal(true);
   }
 
@@ -407,19 +411,49 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
                 />
               </div>
               <div style={{ marginBottom: 24 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6, display: "block" }}>Department Head <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional)</span></label>
-                <select
-                  className="modern-input"
-                  value={deptForm.head_id}
-                  onChange={e => setDeptForm({ ...deptForm, head_id: e.target.value })}
-                >
-                  <option value="">— Select a manager —</option>
-                  {/* A Business Owner can also head a department, same as
-                      any manager — only employees/former staff are excluded. */}
-                  {employees.filter(e => e.role === "manager" || e.role === "owner").map(m => (
-                    <option key={m._id} value={m._id}>{m.name} · {Array.isArray(m.department) ? m.department.join(", ") : (m.department || "Owner")}</option>
-                  ))}
-                </select>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6, display: "block" }}>
+                  Department Head(s) <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional — pick one or more; each is treated as a manager of this department)</span>
+                </label>
+                {(() => {
+                  const eligible = (employees || []).filter(e => !e.exit_status && !e.resignation?.last_working_day);
+                  const picked = deptForm.head_ids || [];
+                  const pickedNames = eligible.filter(e => picked.includes(e._id)).map(e => e.name);
+                  const q = headPickerSearch.trim().toLowerCase();
+                  const shown = q ? eligible.filter(e => (e.name || "").toLowerCase().includes(q)) : eligible;
+                  const toggle = (id) => setDeptForm(f => ({ ...f, head_ids: (f.head_ids || []).includes(id) ? f.head_ids.filter(x => x !== id) : [...(f.head_ids || []), id] }));
+                  return (
+                    <div style={{ position: "relative" }}>
+                      <button type="button" onClick={() => setHeadPickerOpen(o => !o)}
+                        style={{ width: "100%", textAlign: "left", background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: "10px 13px", cursor: "pointer", fontSize: 13.5, color: picked.length ? "#0f172a" : "#94a3b8" }}>
+                        {picked.length === 0 ? "— Select department head(s) —"
+                          : picked.length <= 3 ? pickedNames.join(", ")
+                          : `${picked.length} selected`}
+                      </button>
+                      {headPickerOpen && (
+                        <div style={{ position: "absolute", zIndex: 30, top: "100%", left: 0, right: 0, marginTop: 4, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 10px 28px rgba(0,0,0,0.15)", maxHeight: 260, display: "flex", flexDirection: "column" }}>
+                          <div style={{ padding: 8, borderBottom: "1px solid #f1f5f9" }}>
+                            <input autoFocus className="modern-input" style={{ margin: 0 }} placeholder="Search people…" value={headPickerSearch} onChange={e => setHeadPickerSearch(e.target.value)} />
+                          </div>
+                          <div style={{ overflowY: "auto", padding: 4 }}>
+                            {shown.length === 0 ? (
+                              <div style={{ padding: 14, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No matches.</div>
+                            ) : shown.map(e => (
+                              <label key={e._id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 6, cursor: "pointer", fontSize: 13 }}>
+                                <input type="checkbox" checked={picked.includes(e._id)} onChange={() => toggle(e._id)} />
+                                <span style={{ flex: 1 }}>{e.name}
+                                  <span style={{ color: "#94a3b8" }}> · {Array.isArray(e.department) ? e.department.join(", ") : (e.department || e.role || "—")}</span>
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                          <div style={{ padding: 8, borderTop: "1px solid #f1f5f9", textAlign: "right" }}>
+                            <button type="button" className="btn ghost" style={{ padding: "5px 12px", fontSize: 12 }} onClick={() => setHeadPickerOpen(false)}>Done</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button type="submit" className="btn" style={{ flex: 1 }} disabled={deptSaving}>

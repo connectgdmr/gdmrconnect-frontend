@@ -1622,10 +1622,12 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
       )}
 
       {/* — Team Leaves — */}
+      {view === "comp-off" && (
+        <CompOffManager token={token} api={api} scope="manager" />
+      )}
+
       {view === "team-leaves" && (
-        <div style={{ marginTop: 16 }}>
-          <CompOffManager token={token} api={api} scope="manager" />
-          <div className="card">
+          <div className="card" style={{marginTop: 16}}>
               <h3>Team Leave Requests</h3>
               <div style={{overflowX: 'auto'}}>
                 <table className="styled-table-global">
@@ -1743,7 +1745,6 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
                 </table>
               </div>
           </div>
-        </div>
       )}
 
       {/* — Team Assets — */}

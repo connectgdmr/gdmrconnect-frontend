@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { resolveAttachmentUrl } from "../utils/security";
 import { ymd } from "../utils/dateUtils";
 import { SkeletonTable } from "./Skeleton";
-import CompOffManager from "./CompOffManager";
 import {
   TbSearch,
   TbFilter,
@@ -172,8 +171,6 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
 
   return (
     <div className="card" style={{ padding: 0, border: "none", boxShadow: "none", background: "transparent" }}>
-
-      <CompOffManager token={token} api={api} scope="admin" />
 
       <style>{`
         /* Header & Filters */
