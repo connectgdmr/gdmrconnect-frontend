@@ -8,6 +8,7 @@ import {
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 
 import { API_URL as BASE } from "../api";
+import { LMS_STATE_STYLE } from "../utils/lmsState";
 
 const CATEGORIES = ["Technical", "Soft Skills", "Compliance", "Leadership", "Product", "Other"];
 const LESSON_TYPES = ["Video", "Document", "Article"];
@@ -63,8 +64,12 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
   const [assignDepts, setAssignDepts]         = useState([]);
   const [assignEmpIds, setAssignEmpIds]       = useState([]);
   const [assignSchedule, setAssignSchedule]   = useState("");
+  const [assignDue, setAssignDue]             = useState("");
   const [assignSaving, setAssignSaving]       = useState(false);
   const [assignMsg, setAssignMsg]             = useState("");
+  const [editDueId, setEditDueId]             = useState(null);
+  const [editDueVal, setEditDueVal]           = useState("");
+  const [rowBusy, setRowBusy]                 = useState(null);
 
   const [progress, setProgress]     = useState([]);
   const [progLoading, setProgLoading] = useState(false);
@@ -211,15 +216,40 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
         ? { departments: assignDepts, department: assignDepts[0] }   // departments[] (+ legacy single)
         : { employee_ids: assignEmpIds }),
       ...(assignSchedule ? { scheduled_at: assignSchedule } : {}),
+      ...(assignDue ? { due_date: assignDue } : {}),
     };
     try {
       const r = await fetch(`${BASE}/admin/lms/courses/${assignCourseId}/assign`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
       });
       const d = await r.json().catch(() => ({}));
-      if (r.ok) { setAssignMsg(d.message || "Course assigned successfully!"); setAssignCourseId(""); setAssignEmpIds([]); setAssignDepts([]); setAssignSchedule(""); }
+      if (r.ok) { setAssignMsg(d.message || "Course assigned successfully!"); setAssignCourseId(""); setAssignEmpIds([]); setAssignDepts([]); setAssignSchedule(""); setAssignDue(""); }
       else { setAssignMsg(d.message || "Assignment failed."); }
     } catch { setAssignMsg("Network error."); } finally { setAssignSaving(false); }
+  }
+
+  async function saveDueDate(progressId) {
+    setRowBusy(progressId);
+    try {
+      const r = await fetch(`${BASE}/admin/lms/progress/${progressId}`, {
+        method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ due_date: editDueVal || null }),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.message || "Failed to update due date."); }
+      else { setEditDueId(null); loadProgress(); }
+    } catch { alert("Network error."); } finally { setRowBusy(null); }
+  }
+
+  async function removeAssignment(progressId, name) {
+    if (!window.confirm(`Remove this course assignment${name ? ` for ${name}` : ""}? Their progress on it will be deleted.`)) return;
+    setRowBusy(progressId);
+    try {
+      const r = await fetch(`${BASE}/admin/lms/progress/${progressId}`, {
+        method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.message || "Failed to remove."); }
+      else loadProgress();
+    } catch { alert("Network error."); } finally { setRowBusy(null); }
   }
 
   // Module helpers
@@ -556,12 +586,20 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
               );
             })()}
 
-            {/* Optional schedule */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>
-                Schedule <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional — leave blank to assign now)</span>
-              </label>
-              <input type="datetime-local" className="modern-input" value={assignSchedule} onChange={e => setAssignSchedule(e.target.value)} style={{ margin: 0 }} />
+            {/* Optional schedule + due date */}
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 20 }}>
+              <div style={{ flex: "1 1 240px" }}>
+                <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>
+                  Available From <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional — blank = now)</span>
+                </label>
+                <input type="datetime-local" className="modern-input" value={assignSchedule} onChange={e => setAssignSchedule(e.target.value)} style={{ margin: 0 }} />
+              </div>
+              <div style={{ flex: "1 1 200px" }}>
+                <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>
+                  Due Date <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional)</span>
+                </label>
+                <input type="date" className="modern-input" value={assignDue} onChange={e => setAssignDue(e.target.value)} style={{ margin: 0 }} />
+              </div>
             </div>
 
             <button className="btn" type="submit" disabled={assignSaving} style={{ width: "100%" }}>
@@ -671,7 +709,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
             </select>
           </div>
 
-          {progLoading ? <SkeletonTable rows={6} cols={6} />
+          {progLoading ? <SkeletonTable rows={6} cols={9} />
           : filteredProgress.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
               <TbSchool size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
@@ -682,7 +720,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
               <div style={{ overflowX: "auto", overflowY: "visible" }}>
                 <table className="styled-table-global">
                   <thead>
-                    <tr><th>Employee</th><th>Department</th><th>Course</th><th>Progress</th><th>Last Activity</th><th>Status</th></tr>
+                    <tr><th>Employee</th><th>Department</th><th>Course</th><th>Assigned</th><th>Due</th><th>Progress</th><th>Last Activity</th><th>Status</th><th>Actions</th></tr>
                   </thead>
                   <tbody>
                     {filteredProgress.map((row, i) => {
@@ -693,13 +731,32 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
                         rawPct != null ? rawPct
                         : (total ? (done || 0) / total * 100 : 0)
                       );
-                      const statusLabel = pct >= 100 ? "Completed" : pct > 0 ? "In Progress" : "Not Started";
-                      const statusColor = pct >= 100 ? "#16a34a" : pct > 0 ? "#2563eb" : "#94a3b8";
+                      const state = row.state || (pct >= 100 ? "Completed" : pct > 0 ? "In Progress" : "Not Started");
+                      const st = LMS_STATE_STYLE[state] || LMS_STATE_STYLE["Not Started"];
+                      const sched = row.scheduled_at ? new Date(row.scheduled_at) : null;
+                      const schedFuture = sched && sched > new Date();
+                      const assignedLabel = schedFuture
+                        ? `From ${sched.toLocaleDateString("en-GB")} ${sched.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+                        : (row.assigned_at ? new Date(row.assigned_at).toLocaleDateString("en-GB") : "—");
                       return (
-                        <tr key={i}>
+                        <tr key={row._id || i}>
                           <td><div style={{ fontWeight: 600 }}>{row.employee_name}</div></td>
                           <td style={{ fontSize: 13, color: "#64748b" }}>{row.department || "—"}</td>
                           <td style={{ fontSize: 13 }}>{row.course_title}</td>
+                          <td style={{ fontSize: 12, color: schedFuture ? "#b45309" : "#64748b", whiteSpace: "nowrap" }}>{assignedLabel}</td>
+                          <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                            {editDueId === row._id ? (
+                              <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                                <input type="date" className="modern-input" style={{ margin: 0, padding: "4px 6px", width: 140 }} value={editDueVal} onChange={e => setEditDueVal(e.target.value)} />
+                                <button className="btn" style={{ padding: "4px 8px", fontSize: 11 }} disabled={rowBusy === row._id} onClick={() => saveDueDate(row._id)}>Save</button>
+                                <button className="btn ghost" style={{ padding: "4px 8px", fontSize: 11 }} onClick={() => setEditDueId(null)}>✕</button>
+                              </span>
+                            ) : (
+                              <span style={{ color: state === "Overdue" ? "#dc2626" : row.due_date ? "#0f172a" : "#94a3b8", fontWeight: state === "Overdue" ? 700 : 400 }}>
+                                {row.due_date ? new Date(row.due_date).toLocaleDateString("en-GB") : "No due date"}
+                              </span>
+                            )}
+                          </td>
                           <td>
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                               <ProgressBar pct={pct} />
@@ -708,9 +765,23 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
                           </td>
                           <td style={{ fontSize: 12, color: "#94a3b8" }}>{row.last_activity ? new Date(row.last_activity).toLocaleDateString("en-GB") : "—"}</td>
                           <td>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: statusColor, display: "flex", alignItems: "center", gap: 4 }}>
-                              {pct >= 100 && <TbCircleCheck size={11} />} {statusLabel}
+                            <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: st.bg, border: `1px solid ${st.border}`, borderRadius: 7, padding: "3px 8px", display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+                              {state === "Completed" && <TbCircleCheck size={11} />} {state}
                             </span>
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            {row._id && (
+                              <>
+                                <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 11, marginRight: 6 }} disabled={rowBusy === row._id}
+                                  onClick={() => { setEditDueId(row._id); setEditDueVal(row.due_date ? String(row.due_date).slice(0, 10) : ""); }}>
+                                  {row.due_date ? "Extend / Change due" : "Set due date"}
+                                </button>
+                                <button className="btn-action btn-remove" title="Remove assignment" disabled={rowBusy === row._id}
+                                  onClick={() => removeAssignment(row._id, row.employee_name)}>
+                                  <TbTrash />
+                                </button>
+                              </>
+                            )}
                           </td>
                         </tr>
                       );

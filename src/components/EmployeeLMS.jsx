@@ -154,6 +154,15 @@ export default function EmployeeLMS({ token }) {
                     <span style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{course.title}</span>
                     <span style={{ fontSize: 10, fontWeight: 700, color: cat.color, background: cat.bg, padding: "1px 7px", borderRadius: 4 }}>{course.category}</span>
                     {pct >= 100 && <span style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", padding: "1px 7px", borderRadius: 4, display: "flex", alignItems: "center", gap: 3 }}><TbCircleCheck size={9} /> Done</span>}
+                    {pct < 100 && course.due_date && (() => {
+                      const overdue = course.state === "Overdue" || String(course.due_date).slice(0, 10) < new Date().toISOString().slice(0, 10);
+                      return (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 4,
+                          color: overdue ? "#b91c1c" : "#b45309", background: overdue ? "#fef2f2" : "#fffbeb" }}>
+                          {overdue ? "Overdue" : "Due"} {new Date(course.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <ProgressBar pct={pct} />
