@@ -11,6 +11,15 @@ import { API_URL as BASE } from "../api";
 import { LMS_STATE_STYLE } from "../utils/lmsState";
 
 const CATEGORIES = ["Technical", "Soft Skills", "Compliance", "Leadership", "Product", "Other"];
+
+// One consistent size for the per-row action buttons (text only, no icons).
+const ROW_BTN = { padding: "6px 12px", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" };
+function fmtDate(v) { return v ? new Date(v).toLocaleDateString("en-GB") : "—"; }
+function fmtDateTime(v) {
+  if (!v) return "—";
+  const d = new Date(v);
+  return `${d.toLocaleDateString("en-GB")}, ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+}
 const LESSON_TYPES = ["Video", "Document", "Article"];
 const LESSON_ICON = { Video: <TbVideo />, Document: <TbFileText />, Article: <TbLink /> };
 
@@ -709,7 +718,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
             </select>
           </div>
 
-          {progLoading ? <SkeletonTable rows={6} cols={9} />
+          {progLoading ? <SkeletonTable rows={6} cols={10} />
           : filteredProgress.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
               <TbSchool size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
@@ -720,7 +729,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
               <div style={{ overflowX: "auto", overflowY: "visible" }}>
                 <table className="styled-table-global">
                   <thead>
-                    <tr><th>Employee</th><th>Department</th><th>Course</th><th>Assigned</th><th>Due</th><th>Progress</th><th>Last Activity</th><th>Status</th><th>Actions</th></tr>
+                    <tr><th>Employee</th><th>Department</th><th>Course</th><th>Assigned</th><th>Scheduled</th><th>Due</th><th>Progress</th><th>Last Activity</th><th>Status</th><th>Actions</th></tr>
                   </thead>
                   <tbody>
                     {filteredProgress.map((row, i) => {
@@ -735,21 +744,21 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
                       const st = LMS_STATE_STYLE[state] || LMS_STATE_STYLE["Not Started"];
                       const sched = row.scheduled_at ? new Date(row.scheduled_at) : null;
                       const schedFuture = sched && sched > new Date();
-                      const assignedLabel = schedFuture
-                        ? `From ${sched.toLocaleDateString("en-GB")} ${sched.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
-                        : (row.assigned_at ? new Date(row.assigned_at).toLocaleDateString("en-GB") : "—");
                       return (
                         <tr key={row._id || i}>
                           <td><div style={{ fontWeight: 600 }}>{row.employee_name}</div></td>
                           <td style={{ fontSize: 13, color: "#64748b" }}>{row.department || "—"}</td>
                           <td style={{ fontSize: 13 }}>{row.course_title}</td>
-                          <td style={{ fontSize: 12, color: schedFuture ? "#b45309" : "#64748b", whiteSpace: "nowrap" }}>{assignedLabel}</td>
+                          <td style={{ fontSize: 12, color: "#64748b", whiteSpace: "nowrap" }}>{fmtDate(row.assigned_at)}</td>
+                          <td style={{ fontSize: 12, whiteSpace: "nowrap", color: schedFuture ? "#b45309" : "#94a3b8", fontWeight: schedFuture ? 600 : 400 }}>
+                            {fmtDateTime(row.scheduled_at)}
+                          </td>
                           <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>
                             {editDueId === row._id ? (
-                              <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
-                                <input type="date" className="modern-input" style={{ margin: 0, padding: "4px 6px", width: 140 }} value={editDueVal} onChange={e => setEditDueVal(e.target.value)} />
-                                <button className="btn" style={{ padding: "4px 8px", fontSize: 11 }} disabled={rowBusy === row._id} onClick={() => saveDueDate(row._id)}>Save</button>
-                                <button className="btn ghost" style={{ padding: "4px 8px", fontSize: 11 }} onClick={() => setEditDueId(null)}>✕</button>
+                              <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                                <input type="date" className="modern-input" style={{ margin: 0, padding: "5px 8px", width: 140 }} value={editDueVal} onChange={e => setEditDueVal(e.target.value)} />
+                                <button className="btn" style={ROW_BTN} disabled={rowBusy === row._id} onClick={() => saveDueDate(row._id)}>Save</button>
+                                <button className="btn ghost" style={ROW_BTN} onClick={() => setEditDueId(null)}>Cancel</button>
                               </span>
                             ) : (
                               <span style={{ color: state === "Overdue" ? "#dc2626" : row.due_date ? "#0f172a" : "#94a3b8", fontWeight: state === "Overdue" ? 700 : 400 }}>
@@ -763,24 +772,24 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
                               <span style={{ fontSize: 12, fontWeight: 700, color: "#334155", minWidth: 32 }}>{pct}%</span>
                             </div>
                           </td>
-                          <td style={{ fontSize: 12, color: "#94a3b8" }}>{row.last_activity ? new Date(row.last_activity).toLocaleDateString("en-GB") : "—"}</td>
+                          <td style={{ fontSize: 12, color: "#94a3b8" }}>{fmtDate(row.last_activity)}</td>
                           <td>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: st.bg, border: `1px solid ${st.border}`, borderRadius: 7, padding: "3px 8px", display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
-                              {state === "Completed" && <TbCircleCheck size={11} />} {state}
+                            <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: st.bg, border: `1px solid ${st.border}`, borderRadius: 7, padding: "3px 9px", display: "inline-block", whiteSpace: "nowrap" }}>
+                              {state}
                             </span>
                           </td>
                           <td style={{ whiteSpace: "nowrap" }}>
-                            {row._id && (
-                              <>
-                                <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 11, marginRight: 6 }} disabled={rowBusy === row._id}
+                            {row._id && editDueId !== row._id && (
+                              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                <button className="btn ghost" style={ROW_BTN} disabled={rowBusy === row._id}
                                   onClick={() => { setEditDueId(row._id); setEditDueVal(row.due_date ? String(row.due_date).slice(0, 10) : ""); }}>
-                                  {row.due_date ? "Extend / Change due" : "Set due date"}
+                                  {row.due_date ? "Change due" : "Set due date"}
                                 </button>
-                                <button className="btn-action btn-remove" title="Remove assignment" disabled={rowBusy === row._id}
+                                <button className="btn ghost" style={{ ...ROW_BTN, color: "#b91c1c", borderColor: "#fecaca" }} disabled={rowBusy === row._id}
                                   onClick={() => removeAssignment(row._id, row.employee_name)}>
-                                  <TbTrash />
+                                  Remove
                                 </button>
-                              </>
+                              </div>
                             )}
                           </td>
                         </tr>
