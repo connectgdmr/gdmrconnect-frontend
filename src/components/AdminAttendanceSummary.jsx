@@ -471,7 +471,11 @@ export default function AdminAttendanceSummary({ token, api }) {
         ? `${baseUrl}/api/admin/reports/monthly-attendance-${format}?month=${pdfReportMonth}&year=${pdfReportYear}`
         : `${baseUrl}/api/admin/reports/master-tracker-${format}?year=${trackerYear}`;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) { alert("Failed to generate the report."); return; }
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        alert(detail && detail.length < 300 ? `Failed to generate the report.\n\n${detail}` : "Failed to generate the report.");
+        return;
+      }
       const blob = await res.blob();
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
