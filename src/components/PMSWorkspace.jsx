@@ -6,6 +6,7 @@ import {
 import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
 
 const TABS = [
+  { key: "forms",       label: "All PMS" },
   { key: "reviews",     label: "Reviews" },
   { key: "builder",     label: "Build PMS" },
   { key: "calibration", label: "Calibration" },
@@ -75,7 +76,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
   const activePool = assignablePool.filter(e => !isOffboarded(e)); // never assign PMS to off-boarded staff
   const empDept = (e) => Array.isArray(e.department) ? e.department[0] : (e.department || "");
-  const [tab, setTab] = useState("reviews");
+  const [tab, setTab] = useState("forms");
 
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -89,10 +90,12 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const [cycleName, setCycleName] = useState("");
   const [cycleDueDate, setCycleDueDate] = useState("");
 
-  // ── Existing assigned PMS forms (shown at the top of the builder) ──────
+  // ── All PMS forms (own "All PMS" tab) + builder edit state ────────────
   const [pmsTemplates, setPmsTemplates] = useState([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [expandedTemplate, setExpandedTemplate] = useState(null);
+  const [editingTemplateId, setEditingTemplateId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true);
@@ -102,6 +105,49 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
     } catch { setPmsTemplates([]); }
     finally { setLoadingTemplates(false); }
   }, [baseUrl, token]);
+
+  // Clear the builder back to a blank "new form" state.
+  const resetBuilder = useCallback(() => {
+    setEditingTemplateId(null);
+    setTemplateSessions([]);
+    setAssignedEmployees([]);
+    setCycleName("");
+    setCycleDueDate("");
+  }, []);
+
+  // "Edit" / "Assign" on a form row — load it into the builder and jump there.
+  const startEditTemplate = useCallback((t) => {
+    setEditingTemplateId(t._id);
+    setTemplateSessions(
+      (t.sessions || []).map(s => ({
+        name: s.name || "",
+        weight: s.weight ?? 20,
+        questions: (s.questions || []).map(q => ({ text: q.text || "", type: q.type || "scale" })),
+      }))
+    );
+    setAssignedEmployees([...(t.assigned_to || [])]);
+    setCycleName(t.cycle_name || "");
+    setCycleDueDate(t.due_date || "");
+    setTab("builder");
+  }, []);
+
+  const deleteTemplate = useCallback(async (t) => {
+    if (!window.confirm(`Delete the PMS form "${t.cycle_name || "Untitled cycle"}"? Submitted self-assessments are kept — only the form is removed.`)) return;
+    setDeletingId(t._id);
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/pms-template/${t._id}`, {
+        method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(`Failed to delete: ${d.message || res.status}`);
+      } else {
+        if (editingTemplateId === t._id) resetBuilder();
+        loadTemplates();
+      }
+    } catch { alert("Network error deleting the PMS form."); }
+    finally { setDeletingId(null); }
+  }, [baseUrl, token, editingTemplateId, resetBuilder, loadTemplates]);
 
   // ── Review/scoring modal state ─────────────────────────────────────────
   const [managerScores, setManagerScores] = useState({});
@@ -158,25 +204,28 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   async function savePmsTemplate(e) {
     e.preventDefault();
     if (assignedEmployees.length === 0) { alert("Action Required: Please select at least one employee to assign this evaluation form to."); return; }
-    if (templateSessions.length === 0) { alert("Action Required: Please create at least one session with questions."); return; }
+    if (templateSessions.length === 0) { alert("Action Required: Please create at least one section with questions."); return; }
     try {
       const res = await fetch(`${baseUrl}/api/admin/pms-template`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ sessions: templateSessions, assigned_to: assignedEmployees, cycle_name: cycleName, due_date: cycleDueDate }),
+        body: JSON.stringify({
+          ...(editingTemplateId ? { template_id: editingTemplateId } : {}),
+          sessions: templateSessions, assigned_to: assignedEmployees,
+          cycle_name: cycleName, due_date: cycleDueDate,
+        }),
       });
       if (res.ok) {
-        alert("Success! PMS Evaluation Form has been assigned and saved.");
-        setTemplateSessions([]); setAssignedEmployees([]); setCycleName(""); setCycleDueDate("");
-        // Stay on the builder tab and refresh the list above so the form
-        // that was just assigned is visibly there.
+        alert(editingTemplateId ? "PMS form updated." : "Success! PMS Evaluation Form has been assigned and saved.");
+        resetBuilder();
         loadTemplates();
         loadReviews();
+        setTab("forms"); // land on the list so the form is visibly there
       } else {
         const errData = await res.json().catch(() => ({}));
-        alert(`Failed to save template: ${errData.message || "Unknown error"}`);
+        alert(`Failed to save form: ${errData.message || "Unknown error"}`);
       }
-    } catch { alert("Network error saving PMS template."); }
+    } catch { alert("Network error saving PMS form."); }
   }
 
   // ============================================================================
@@ -339,6 +388,93 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
         </div>
       </div>
 
+      {/* ── ALL PMS TAB ── every form this user has created (active + expired) */}
+      {tab === "forms" && (
+        <div style={{ maxWidth: 960, margin: "0 auto" }}>
+          <div className="card">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+              <h4 style={{ margin: 0, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>
+                <TbClipboardList size={16} color="var(--brand)" /> All PMS Forms
+                {pmsTemplates.length > 0 && (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b", background: "#f1f5f9", borderRadius: 999, padding: "2px 9px" }}>{pmsTemplates.length}</span>
+                )}
+              </h4>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" className="btn ghost" style={{ padding: "6px 12px", fontSize: 12 }} onClick={loadTemplates} disabled={loadingTemplates}>
+                  {loadingTemplates ? "Refreshing…" : "Refresh"}
+                </button>
+                <button type="button" className="btn" style={{ padding: "6px 12px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}
+                  onClick={() => { resetBuilder(); setTab("builder"); }}>
+                  <TbPlus size={12} /> New PMS Form
+                </button>
+              </div>
+            </div>
+
+            {loadingTemplates && pmsTemplates.length === 0 ? (
+              <div style={{ fontSize: 13, color: "#94a3b8", padding: "20px 0", textAlign: "center" }}>Loading…</div>
+            ) : pmsTemplates.length === 0 ? (
+              <div style={{ fontSize: 13, color: "#94a3b8", padding: "36px 0", textAlign: "center" }}>
+                No PMS forms yet. Click <strong>New PMS Form</strong> to build and assign one.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {pmsTemplates.map(t => {
+                  const open = expandedTemplate === t._id;
+                  const pct = t.assigned_count ? Math.round((t.submitted_count / t.assigned_count) * 100) : 0;
+                  const dept = Array.isArray(t.department) ? t.department.join(", ") : (t.department || "All");
+                  const expired = t.status === "expired";
+                  return (
+                    <div key={t._id} style={{ border: `1px solid ${expired ? "#e2e8f0" : "#e2e8f0"}`, borderRadius: 8, overflow: "hidden", opacity: expired ? 0.85 : 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 13px", background: "#fff" }}>
+                        <button type="button" onClick={() => setExpandedTemplate(open ? null : t._id)}
+                          style={{ flex: 1, minWidth: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, padding: 0 }}>
+                          <span style={{ fontSize: 11, color: "#94a3b8", width: 12, flexShrink: 0 }}>{open ? "▾" : "▸"}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 280 }}>{t.cycle_name || "Untitled cycle"}</span>
+                              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 7px", borderRadius: 6,
+                                background: expired ? "#fef2f2" : "#f0fdf4", color: expired ? "#b91c1c" : "#166534", border: `1px solid ${expired ? "#fecaca" : "#bbf7d0"}` }}>
+                                {expired ? "Expired" : "Active"}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 2 }}>
+                              {dept} · {t.section_count} section{t.section_count === 1 ? "" : "s"} · {t.question_count} question{t.question_count === 1 ? "" : "s"}
+                              {t.due_date ? ` · due ${new Date(t.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+                            </div>
+                          </div>
+                        </button>
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: pct === 100 ? "#16a34a" : "#64748b", background: pct === 100 ? "#f0fdf4" : "#f1f5f9", border: `1px solid ${pct === 100 ? "#bbf7d0" : "#e2e8f0"}`, borderRadius: 8, padding: "4px 10px", flexShrink: 0, whiteSpace: "nowrap" }}>
+                          {t.submitted_count}/{t.assigned_count} submitted
+                        </span>
+                        <button type="button" title="Edit sections, questions & assignees" onClick={() => startEditTemplate(t)}
+                          style={{ flexShrink: 0, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <TbEdit size={12} /> Edit / Assign
+                        </button>
+                        <button type="button" title="Delete this PMS form" onClick={() => deleteTemplate(t)} disabled={deletingId === t._id}
+                          style={{ flexShrink: 0, border: "1px solid #fca5a5", background: "#fef2f2", color: "#b91c1c", borderRadius: 6, padding: "6px 9px", cursor: "pointer", display: "inline-flex", alignItems: "center" }}>
+                          <TbTrash size={13} />
+                        </button>
+                      </div>
+                      {open && (
+                        <div style={{ padding: "10px 13px 12px 35px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {(t.assignees || []).length === 0 && <span style={{ fontSize: 12, color: "#94a3b8" }}>No one assigned.</span>}
+                          {(t.assignees || []).map(a => (
+                            <span key={a.id} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: a.submitted ? "#166534" : "#475569", background: a.submitted ? "#f0fdf4" : "#fff", border: `1px solid ${a.submitted ? "#bbf7d0" : "#e2e8f0"}`, borderRadius: 999, padding: "3px 10px" }}>
+                              {a.submitted ? <TbCircleCheck size={12} color="#16a34a" /> : <TbSquare size={12} color="#cbd5e1" />}
+                              {a.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── REVIEWS TAB ── */}
       {tab === "reviews" && (
         loadingReviews ? (
@@ -455,68 +591,16 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
         const totalWeight = templateSessions.reduce((sum, s) => sum + (parseInt(s.weight) || 0), 0);
         return (
           <div style={{ maxWidth: 960, margin: "0 auto" }}>
-            {/* Active PMS forms — every template the user has assigned, so a
-                freshly built one is visibly here instead of seeming to vanish. */}
-            <div className="card" style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: pmsTemplates.length || loadingTemplates ? 12 : 0 }}>
-                <h4 style={{ margin: 0, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>
-                  <TbClipboardList size={16} color="var(--brand)" /> Active PMS Forms
-                  {pmsTemplates.length > 0 && (
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b", background: "#f1f5f9", borderRadius: 999, padding: "2px 9px" }}>{pmsTemplates.length}</span>
-                  )}
-                </h4>
-                <button type="button" className="btn ghost" style={{ padding: "5px 11px", fontSize: 12 }} onClick={loadTemplates} disabled={loadingTemplates}>
-                  {loadingTemplates ? "Refreshing…" : "Refresh"}
+            {editingTemplateId && (
+              <div className="card" style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "#fffbeb", border: "1px solid #fde68a" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#92400e" }}>
+                  Editing an existing PMS form — saving will update it, not create a new one.
+                </span>
+                <button type="button" className="btn ghost" style={{ padding: "5px 12px", fontSize: 12, whiteSpace: "nowrap" }} onClick={resetBuilder}>
+                  Start a new form instead
                 </button>
               </div>
-
-              {loadingTemplates && pmsTemplates.length === 0 ? (
-                <div style={{ fontSize: 13, color: "#94a3b8", padding: "8px 0" }}>Loading…</div>
-              ) : pmsTemplates.length === 0 ? (
-                <div style={{ fontSize: 13, color: "#94a3b8", padding: "8px 0" }}>
-                  No PMS forms assigned yet. Build one below and it will appear here.
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {pmsTemplates.map(t => {
-                    const open = expandedTemplate === t._id;
-                    const pct = t.assigned_count ? Math.round((t.submitted_count / t.assigned_count) * 100) : 0;
-                    const dept = Array.isArray(t.department) ? t.department.join(", ") : (t.department || "All");
-                    return (
-                      <div key={t._id} style={{ border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
-                        <button type="button" onClick={() => setExpandedTemplate(open ? null : t._id)}
-                          style={{ width: "100%", textAlign: "left", background: "#fff", border: "none", cursor: "pointer", padding: "11px 13px", display: "flex", alignItems: "center", gap: 12 }}>
-                          <span style={{ fontSize: 11, color: "#94a3b8", width: 12, flexShrink: 0 }}>{open ? "▾" : "▸"}</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {t.cycle_name || "Untitled cycle"}
-                            </div>
-                            <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 2 }}>
-                              {dept} · {t.section_count} section{t.section_count === 1 ? "" : "s"} · {t.question_count} question{t.question_count === 1 ? "" : "s"}
-                              {t.due_date ? ` · due ${new Date(t.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}
-                            </div>
-                          </div>
-                          <span style={{ fontSize: 11.5, fontWeight: 700, color: pct === 100 ? "#16a34a" : "#64748b", background: pct === 100 ? "#f0fdf4" : "#f1f5f9", border: `1px solid ${pct === 100 ? "#bbf7d0" : "#e2e8f0"}`, borderRadius: 8, padding: "4px 10px", flexShrink: 0 }}>
-                            {t.submitted_count}/{t.assigned_count} submitted
-                          </span>
-                        </button>
-                        {open && (
-                          <div style={{ padding: "10px 13px 12px 37px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", flexWrap: "wrap", gap: 6 }}>
-                            {(t.assignees || []).length === 0 && <span style={{ fontSize: 12, color: "#94a3b8" }}>No one assigned.</span>}
-                            {(t.assignees || []).map(a => (
-                              <span key={a.id} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: a.submitted ? "#166534" : "#475569", background: a.submitted ? "#f0fdf4" : "#fff", border: `1px solid ${a.submitted ? "#bbf7d0" : "#e2e8f0"}`, borderRadius: 999, padding: "3px 10px" }}>
-                                {a.submitted ? <TbCircleCheck size={12} color="#16a34a" /> : <TbSquare size={12} color="#cbd5e1" />}
-                                {a.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            )}
 
             <div className="card" style={{ marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
@@ -701,9 +785,9 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-                <button type="button" className="btn ghost" onClick={() => setTab("reviews")}>Cancel</button>
+                <button type="button" className="btn ghost" onClick={() => { resetBuilder(); setTab("forms"); }}>Cancel</button>
                 <button type="submit" className="btn" style={{ padding: "12px 28px", fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}>
-                  <TbCircleCheck /> Assign & Save Template
+                  <TbCircleCheck /> {editingTemplateId ? "Update PMS Form" : "Assign & Save Template"}
                 </button>
               </div>
                 </form>
