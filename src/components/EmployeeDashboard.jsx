@@ -301,6 +301,8 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
   const [period, setPeriod] = useState("First Half");
   const [file, setFile] = useState(null);
   const [submittingLeave, setSubmittingLeave] = useState(false);
+  const [useCompOff, setUseCompOff] = useState(false);
+  const [compOffBalance, setCompOffBalance] = useState(null);
   const [correctionData, setCorrectionData] = useState({ newTime: "", reason: "" });
 
   // ============================================================================
@@ -382,7 +384,7 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
     try {
       const [
         attData, leaveData, pmsData, corrData,
-        templateData, annData, assetsData, grantsData, profileData,
+        templateData, annData, assetsData, grantsData, profileData, compOffData,
       ] = await Promise.all([
         safeFetch(`${baseUrl}/api/my/attendance`),
         safeFetch(`${baseUrl}/api/my/leaves`),
@@ -393,10 +395,12 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
         safeFetch(`${baseUrl}/api/assets/my-requests`),
         safeFetch(`${baseUrl}/api/my/delegated-access`),
         safeFetch(`${baseUrl}/api/my/profile`),
+        safeFetch(`${baseUrl}/api/my/comp-off`),
       ]);
 
       if (attData)      setAttendance(attData);
       if (leaveData)    setLeaves(leaveData);
+      if (compOffData && typeof compOffData.balance === "number") setCompOffBalance(compOffData.balance);
       if (pmsData)      setPmsHistory(pmsData);
       if (corrData)     setCorrectionHistory(corrData);
       if (templateData) setPmsTemplate(templateData);
@@ -830,6 +834,12 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
     const conflict = findLeaveConflict(startDate, startDate, type, type === 'half' ? period : null);
     if (conflict) { alert(conflictMessage(conflict)); return; }
 
+    const compOffDays = type === 'half' ? 0.5 : 1;
+    if (useCompOff && compOffDays > (compOffBalance || 0)) {
+      alert(`Not enough comp-off balance — you have ${compOffBalance || 0} day(s), this needs ${compOffDays}.`);
+      return;
+    }
+
     setSubmittingLeave(true);
     try {
       let payload = {
@@ -837,7 +847,8 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
          reason,
          period: type === 'half' ? period : null,
          from_date: startDate,
-         to_date: startDate
+         to_date: startDate,
+         comp_off: useCompOff,
       };
 
       await api.applyLeaveWithFile(payload, file, token);
@@ -845,6 +856,7 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
       setStartDate("");
       setReason("");
       setFile(null);
+      setUseCompOff(false);
 
       alert("Leave applied successfully!");
       setLeaveSubView("my-leaves");
@@ -1787,7 +1799,17 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
       {leaveSubView === "apply-leave" && (
         <div className="card" style={{ marginTop: 16 }}>
           <form onSubmit={applyLeave}>
-             <h3 style={{marginTop:0}}>Apply for Leave</h3>
+             <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap'}}>
+               <h3 style={{marginTop:0, marginBottom:0}}>Apply for Leave</h3>
+               <span style={{
+                 fontSize:12.5, fontWeight:700, padding:'5px 12px', borderRadius:8,
+                 background: (compOffBalance || 0) > 0 ? '#f0fdf4' : '#f1f5f9',
+                 color: (compOffBalance || 0) > 0 ? '#166534' : '#64748b',
+                 border:`1px solid ${(compOffBalance || 0) > 0 ? '#bbf7d0' : '#e2e8f0'}`,
+               }}>
+                 Comp-Off balance: {compOffBalance == null ? '…' : `${compOffBalance} day${compOffBalance === 1 ? '' : 's'}`}
+               </span>
+             </div>
              <div style={{display:'flex', gap:20, marginBottom:15}}>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
                     <input type="radio" name="duration" checked={leaveDuration === 'single'} onChange={() => setLeaveDuration('single')} />
@@ -1824,6 +1846,22 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
                   </div>
                 )}
               </div>
+            )}
+
+            {leaveDuration === 'single' && (
+              <label style={{
+                display:'flex', alignItems:'center', gap:8, marginTop:12,
+                cursor:(compOffBalance || 0) > 0 ? 'pointer' : 'not-allowed',
+                color:(compOffBalance || 0) > 0 ? '#0f172a' : '#94a3b8', fontSize:13,
+              }}>
+                <input type="checkbox" checked={useCompOff} disabled={!((compOffBalance || 0) > 0)}
+                  onChange={(e) => setUseCompOff(e.target.checked)} />
+                <span>
+                  Apply against my <strong>Comp-Off</strong> balance
+                  {compOffBalance != null && ` (${compOffBalance} day${compOffBalance === 1 ? '' : 's'} available)`}
+                  {(compOffBalance || 0) <= 0 && ' — none available; your manager grants these'}
+                </span>
+              </label>
             )}
 
             {leaveDuration === 'multiple' && (
@@ -1886,7 +1924,12 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
                   leaves.map((l) => (
                     <tr key={l._id} onClick={() => setViewLeave(l)} style={{cursor:'pointer'}} title="Click for full details">
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
-                      <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
+                      <td style={{textTransform:"capitalize"}}>
+                        {l.type === 'half' ? `Half (${l.period || '-'})` : l.type}
+                        {l.comp_off && (
+                          <span style={{marginLeft:6, fontSize:10, fontWeight:800, letterSpacing:0.3, textTransform:'uppercase', color:'#166534', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:5, padding:'1px 5px'}}>Comp-Off</span>
+                        )}
+                      </td>
                       <td style={{textAlign:'center'}}><span className={`status-badge ${getStatusClass(l.manager_status)}`}>{l.manager_status || 'Pending'}</span></td>
                       <td style={{textAlign:'center'}}><span className={`status-badge ${getStatusClass(l.admin_status)}`}>{l.admin_status || 'Pending'}</span></td>
                       <td style={{textAlign:'center'}}><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>

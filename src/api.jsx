@@ -224,6 +224,11 @@ export default {
   myLeaves: (token) => request("/my/leaves", "GET", null, token),
   revokeLeave: (id, token) => request(`/leaves/${id}/revoke`, "POST", null, token),
 
+  // Comp-Off
+  getMyCompOff:     (token)          => request("/my/comp-off", "GET", null, token),
+  compOffBalances:  (token)          => request("/comp-off/balances", "GET", null, token),
+  grantCompOff:     (payload, token) => request("/comp-off/grant", "POST", payload, token),
+
   // Leave with file (UPDATED FOR DATE RANGES)
   applyLeaveWithFile: async (payload, file, token) => {
     const formData = new FormData();
@@ -235,6 +240,7 @@ export default {
     formData.append("type", payload.type);
     formData.append("reason", payload.reason);
     if (payload.period) formData.append("period", payload.period);
+    if (payload.comp_off) formData.append("comp_off", "true");
     if (file) formData.append("attachment", file);
 
     const res = await fetch(`${FETCH_BASE}/leaves`, {

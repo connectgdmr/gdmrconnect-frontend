@@ -21,6 +21,7 @@ import useChatUnread from "./useChatUnread";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 import { getCurrentLocation } from "../utils/geolocation";
 import LeaveCalendar from "./LeaveCalendar";
+import CompOffManager from "./CompOffManager";
 
 const EmployeeLMS         = lazy(() => import("./EmployeeLMS"));
 const ManagerLMS          = lazy(() => import("./ManagerLMS"));
@@ -1622,7 +1623,9 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
 
       {/* — Team Leaves — */}
       {view === "team-leaves" && (
-          <div className="card" style={{marginTop: 16}}>
+        <div style={{ marginTop: 16 }}>
+          <CompOffManager token={token} api={api} scope="manager" />
+          <div className="card">
               <h3>Team Leave Requests</h3>
               <div style={{overflowX: 'auto'}}>
                 <table className="styled-table-global">
@@ -1740,6 +1743,7 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
                 </table>
               </div>
           </div>
+        </div>
       )}
 
       {/* — Team Assets — */}
