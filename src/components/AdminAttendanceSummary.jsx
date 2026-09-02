@@ -460,7 +460,7 @@ export default function AdminAttendanceSummary({ token, api }) {
   const [pdfReportMonth, setPdfReportMonth] = useState(now.getMonth() + 1);
   const [pdfReportYear,  setPdfReportYear]  = useState(now.getFullYear());
   const [trackerYear,    setTrackerYear]    = useState(now.getFullYear());
-  const [pdfDownloading, setPdfDownloading] = useState(null); // "monthly-pdf" | "monthly-csv" | "tracker-pdf" | "tracker-xlsx" | "tracker-csv" | null
+  const [pdfDownloading, setPdfDownloading] = useState(null); // "monthly-pdf" | "monthly-xlsx" | "tracker-pdf" | "tracker-xlsx" | null
 
   async function downloadReport(kind, format) {
     const key = `${kind}-${format}`;
@@ -1234,7 +1234,7 @@ export default function AdminAttendanceSummary({ token, api }) {
           <div className="card" style={{ marginBottom: 16, padding: 18 }}>
             <h4 style={{ margin: "0 0 4px", color: "#0f172a" }}>Spreadsheet-style Reports</h4>
             <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#64748b" }}>
-              Real downloadable PDF or CSV files matching the team's existing attendance spreadsheets.
+              Real downloadable PDF or Excel files matching the team's existing attendance spreadsheets.
             </p>
             <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
               <div>
@@ -1247,8 +1247,8 @@ export default function AdminAttendanceSummary({ token, api }) {
                   <button className="btn" onClick={() => downloadReport("monthly", "pdf")} disabled={pdfDownloading === "monthly-pdf"}>
                     {pdfDownloading === "monthly-pdf" ? "Generating…" : "PDF"}
                   </button>
-                  <button className="btn ghost" onClick={() => downloadReport("monthly", "csv")} disabled={pdfDownloading === "monthly-csv"}>
-                    {pdfDownloading === "monthly-csv" ? "Generating…" : "CSV"}
+                  <button className="btn" onClick={() => downloadReport("monthly", "xlsx")} disabled={pdfDownloading === "monthly-xlsx"}>
+                    {pdfDownloading === "monthly-xlsx" ? "Generating…" : "Excel"}
                   </button>
                 </div>
               </div>
@@ -1264,9 +1264,6 @@ export default function AdminAttendanceSummary({ token, api }) {
                   </button>
                   <button className="btn" onClick={() => downloadReport("tracker", "xlsx")} disabled={pdfDownloading === "tracker-xlsx"}>
                     {pdfDownloading === "tracker-xlsx" ? "Generating…" : "Excel"}
-                  </button>
-                  <button className="btn ghost" onClick={() => downloadReport("tracker", "csv")} disabled={pdfDownloading === "tracker-csv"}>
-                    {pdfDownloading === "tracker-csv" ? "Generating…" : "CSV"}
                   </button>
                 </div>
               </div>
