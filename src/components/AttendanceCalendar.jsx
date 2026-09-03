@@ -100,9 +100,11 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
   function statusFor(dateStr) {
     const entry = data?.days?.[dateStr];
     if (entry) return entry;
-    // Backend omits days outside the employment window and (always) future
-    // days entirely — a holiday still greys out here regardless, so
-    // upcoming holidays are visible on the calendar too, not just past ones.
+    // Backend omits days outside the employment window, and future working
+    // days with nothing known about them yet. Future weekends/holidays and
+    // future days already covered by a leave request ARE sent. A holiday
+    // still greys out here regardless, so upcoming holidays show even if the
+    // backend response somehow lacked them.
     if (holidayMap.has(dateStr)) return { status: "weekly_off", holiday_name: holidayMap.get(dateStr) };
     return null;
   }
