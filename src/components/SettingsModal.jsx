@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { TbX, TbSun, TbMoon, TbDeviceDesktop, TbLock, TbEye, TbEyeOff, TbCheck } from "react-icons/tb";
+import { TbX, TbSun, TbLock, TbEye, TbEyeOff, TbCheck } from "react-icons/tb";
 import { useTheme, ACCENTS } from "./ThemeContext";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 
+// Light-only for now — Dark / System were removed. ThemeContext also forces
+// light, so a stale "dark"/"system" preference can't leave anyone stuck.
 const THEME_OPTIONS = [
   { key: "light", label: "Light", icon: TbSun },
-  { key: "dark", label: "Dark", icon: TbMoon },
-  { key: "system", label: "System", icon: TbDeviceDesktop },
 ];
 
 const STRONG_PW = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;

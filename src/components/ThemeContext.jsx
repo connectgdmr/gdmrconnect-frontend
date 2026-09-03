@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 const ThemeContext = createContext(null);
-const MODE_KEY = "gdmr-theme";     // "light" | "dark" | "system"
 const ACCENT_KEY = "gdmr-accent";  // "green" | "blue" | "purple" | "rose" | "orange" | "teal"
 
 export const ACCENTS = [
@@ -17,41 +16,21 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
-function systemPrefersDark() {
-  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
-
-function applyMode(mode) {
-  const resolved = mode === "system" ? (systemPrefersDark() ? "dark" : "light") : mode;
-  document.documentElement.setAttribute("data-theme", resolved);
-}
-
 export function ThemeProvider({ children }) {
-  const [mode, setModeState] = useState(() => localStorage.getItem(MODE_KEY) || "system");
-  // Default accent is now "teal" (Jampack reference palette) — anyone who's
+  // Light-only: the Dark / System options were removed from Settings. `mode`
+  // is fixed to "light" and any previously-stored "dark"/"system" preference
+  // is ignored, so no one is left stuck in a theme they can't change.
+  const mode = "light";
+  // Default accent is "teal" (Jampack reference palette) — anyone who's
   // already picked a color in Settings keeps exactly that choice (it's in
   // localStorage), this only changes what a first-time/never-customized
   // user sees out of the box.
   const [accent, setAccentState] = useState(() => localStorage.getItem(ACCENT_KEY) || "teal");
 
-  useEffect(() => { applyMode(mode); }, [mode]);
+  useEffect(() => { document.documentElement.setAttribute("data-theme", "light"); }, []);
   useEffect(() => { document.documentElement.setAttribute("data-accent", accent); }, [accent]);
 
-  // Live-update when in "system" mode and the OS preference changes
-  useEffect(() => {
-    if (mode !== "system" || !window.matchMedia) return;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => applyMode("system");
-    mq.addEventListener ? mq.addEventListener("change", handler) : mq.addListener(handler);
-    return () => {
-      mq.removeEventListener ? mq.removeEventListener("change", handler) : mq.removeListener(handler);
-    };
-  }, [mode]);
-
-  const setMode = (next) => {
-    setModeState(next);
-    localStorage.setItem(MODE_KEY, next);
-  };
+  const setMode = () => { /* no-op — light-only */ };
   const setAccent = (next) => {
     setAccentState(next);
     localStorage.setItem(ACCENT_KEY, next);
