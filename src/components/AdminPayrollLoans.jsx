@@ -1,17 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { TbX, TbPlus, TbMoneybag, TbCurrencyRupee } from "react-icons/tb";
 import { SkeletonTable } from "./Skeleton";
+import { isOffboarded } from "../utils/employeeStatus";
 
 const FETCH_BASE = "/api";
 const inr = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const fmt = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
-
-function isOffboarded(emp) {
-  const lwd = emp?.resignation?.last_working_day;
-  if (!emp?.resignation?.notice_date || !lwd) return false;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return new Date(lwd) < today;
-}
 
 function IssueLoanModal({ token, employees, onClose, onSuccess }) {
   const [form, setForm] = useState({

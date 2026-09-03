@@ -4,6 +4,7 @@ import {
   TbPlus, TbTrash, TbX, TbChartLine, TbEye, TbShare, TbDownload, TbBuilding,
 } from "react-icons/tb";
 import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
+import { isOffboarded } from "../utils/employeeStatus";
 
 const TABS = [
   { key: "forms",       label: "All PMS" },
@@ -11,15 +12,6 @@ const TABS = [
   { key: "builder",     label: "Build PMS" },
   { key: "calibration", label: "Calibration" },
 ];
-
-// Same "offboarded" rule used elsewhere in the app (AdminPayroll, AdminInsights, etc.):
-// notice given + last working day already passed.
-function isOffboarded(emp) {
-  const lwd = emp?.resignation?.last_working_day;
-  if (!emp?.resignation?.notice_date || !lwd) return false;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return new Date(lwd) < today;
-}
 
 // Multi-line text field that grows with its content and lets Enter add a
 // new line. A plain <input> is single-line and Enter there submits the

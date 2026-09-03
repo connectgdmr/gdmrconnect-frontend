@@ -8,6 +8,7 @@ import {
   TbFileText, TbFileUpload, TbExternalLink, TbBriefcase,
   TbMail, TbPhone, TbDownload, TbCurrencyDollar, TbRefresh,
 } from "react-icons/tb";
+import { isOffboarded, isInNotice } from "../utils/employeeStatus";
 
 // "View" opens a URL the browser can actually render inline. Images and
 // PDFs render natively; anything else (docx/xlsx/pptx, or — very common
@@ -260,16 +261,14 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
   const tenureStr = tenure(joinDate) || "—";
 
   // ── Status ────────────────────────────────────────────────────────────────
-  const isOffboarded = empData.resignation?.notice_date &&
-    empData.resignation.last_working_day &&
-    new Date(empData.resignation.last_working_day) < new Date();
-  const isInNotice = empData.resignation?.notice_date && !isOffboarded;
-  const isOnExtLeave = !isOffboarded && empData.extended_leaves?.some(
+  const offboarded = isOffboarded(empData);
+  const inNotice = isInNotice(empData);
+  const isOnExtLeave = !offboarded && empData.extended_leaves?.some(
     lv => lv.from_date <= todayStr && lv.to_date >= todayStr
   );
-  const statusBadge = isOffboarded
+  const statusBadge = offboarded
     ? { label: "Alumni",          color: "#64748b", bg: "#f1f5f9" }
-    : isInNotice
+    : inNotice
     ? { label: "Notice Period",   color: "#d97706", bg: "#fffbeb" }
     : isOnExtLeave
     ? { label: "Extended Leave",  color: "#7c3aed", bg: "#f5f3ff" }
@@ -489,7 +488,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
     timeline.push({
       date: empData.resignation.notice_date,
       Icon: TbUserX,
-      title: isOffboarded ? "Offboarded" : "Resignation Notice",
+      title: offboarded ? "Offboarded" : "Resignation Notice",
       sub: empData.resignation.last_working_day
         ? `Last working day: ${fmtDate(empData.resignation.last_working_day)}`
         : "LWD not set",
@@ -1053,8 +1052,8 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                 )}
                 <div>
                   <div style={{ fontSize: 10.5, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase" }}>Status</div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: isOffboarded ? "#64748b" : "#d97706" }}>
-                    {isOffboarded ? "Offboarded" : "In Notice Period"}
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: offboarded ? "#64748b" : "#d97706" }}>
+                    {offboarded ? "Offboarded" : "In Notice Period"}
                   </div>
                 </div>
               </div>

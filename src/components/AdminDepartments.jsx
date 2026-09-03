@@ -4,6 +4,7 @@ import {
 } from "react-icons/tb";
 import { SkeletonCards } from "./Skeleton";
 import WorkTypesManager from "./WorkTypesManager";
+import { exitStatus as empExitStatus } from "../utils/employeeStatus";
 
 // Full "Departments" management UI — cards grid, stats strip, Add/Edit modal,
 // members quick-view drawer, and the per-department Work Types modal.
@@ -20,14 +21,6 @@ import WorkTypesManager from "./WorkTypesManager";
 // backend's DELETE /api/admin/departments/<id> is hard-restricted to real
 // admins regardless of grant access_level (routes/employees.py::
 // delete_department), so a delegate — even with view_edit — never gets it.
-
-function empExitStatus(emp) {
-  if (!emp.resignation?.notice_date) return null;
-  const lwd = emp.resignation.last_working_day;
-  if (!lwd) return "notice";
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return new Date(lwd) < today ? "offboarded" : "notice";
-}
 
 function MemberRow({ emp, badge, exitLabel }) {
   const isFormer = !!exitLabel;

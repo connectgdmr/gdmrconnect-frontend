@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, lazy, Suspense } from "react";
 import { escHtml } from "../utils/security";
+import { isOffboarded } from "../utils/employeeStatus";
 import {
   TbEdit, TbX, TbPlayerPlay, TbCircleCheck,
   TbSearch, TbFileInvoice, TbPrinter, TbCurrencyRupee, TbHistory, TbDownload,
@@ -42,13 +43,6 @@ const RUN_PAYROLL_COLUMNS = MONTHLY_DEDUCTIONS.filter(d => d.key !== "esi" && d.
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const INCREMENT_TYPES = ["New Hire", "Annual Increment", "Promotion", "Performance Bonus", "Correction", "Other"];
-
-function isOffboarded(emp) {
-  const lwd = emp?.resignation?.last_working_day;
-  if (!emp?.resignation?.notice_date || !lwd) return false;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return new Date(lwd) < today;
-}
 
 const inr = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const fmt2 = (n) => Number(n || 0).toFixed(2);

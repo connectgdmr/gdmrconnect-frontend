@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { resolveAttachmentUrl } from "../utils/security";
 import { ymd, ym } from "../utils/dateUtils";
+import { isOffboarded } from "../utils/employeeStatus";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 import EmployeeJourneyModal from "./EmployeeJourneyModal";
 import {
@@ -33,13 +34,6 @@ import {
 
 // Same "offboarded" rule used elsewhere in the app (AdminPayroll, AdminInsights,
 // PMSWorkspace, etc.): notice given + last working day already passed.
-function isOffboarded(emp) {
-  const lwd = emp?.resignation?.last_working_day;
-  if (!emp?.resignation?.notice_date || !lwd) return false;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return new Date(lwd) < today;
-}
-
 // Resolve the geo-coordinates (or a place name) from various backend shapes.
 // Shows lat,lng as the primary value; falls back to a place name only if no
 // coordinates are present.

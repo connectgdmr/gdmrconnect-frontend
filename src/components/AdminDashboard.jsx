@@ -56,6 +56,7 @@ import ChatBot from "./ChatBot";
 import PMSWorkspace from "./PMSWorkspace";
 import { SkeletonTable } from "./Skeleton";
 import { ymd, ym } from "../utils/dateUtils";
+import { exitStatus as empExitStatus } from "../utils/employeeStatus";
 
 const AdminAssessment = lazy(() => import("./AdminAssessment"));
 const AdminLMS        = lazy(() => import("./AdminLMS"));
@@ -101,14 +102,6 @@ function KpiTile({ icon, label, value, tone = "brand", onClick }) {
       </div>
     </div>
   );
-}
-
-function empExitStatus(emp) {
-  if (!emp.resignation?.notice_date) return null;
-  const lwd = emp.resignation.last_working_day;
-  if (!lwd) return "notice";
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return new Date(lwd) < today ? "offboarded" : "notice";
 }
 
 function StatItem({ icon, label, count, colorClass, onClick }) {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ymd, ym } from "../utils/dateUtils";
+import { isOffboarded } from "../utils/employeeStatus";
 
 // Green-family palette to match the dashboard theme
 const DEPT_PALETTE = [
@@ -242,13 +243,6 @@ function normalizeByDepartment(byDept) {
     return byDept.map(d => [d.department || d.name || d._id || "Unassigned", Number(d.count ?? d.value ?? 0) || 0]);
   }
   return Object.entries(byDept).map(([name, count]) => [name, Number(count) || 0]);
-}
-
-function isOffboarded(emp) {
-  const lwd = emp?.resignation?.last_working_day;
-  if (!emp?.resignation?.notice_date || !lwd) return false;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return new Date(lwd) < today;
 }
 
 // ─── Main Insights Component ──────────────────────────────────────────────────

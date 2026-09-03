@@ -6,6 +6,7 @@ import {
 } from "react-icons/tb";
 import { SkeletonTable } from "./Skeleton";
 import EmployeeJourneyModal from "./EmployeeJourneyModal";
+import { isOffboarded } from "../utils/employeeStatus";
 
 const SHIFTS = [
   { key: "general", label: "General Shift", hours: "9 AM – 6 PM",  icon: <TbClock size={11} />, color: "#0f766e", bg: "#effdf8", border: "#b6e6d6" },
@@ -42,20 +43,12 @@ function fmt(d) {
   return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-// Has the employee's last working day already passed?
-function hasResignedLeft(emp) {
-  const lwd = emp.resignation?.last_working_day;
-  if (!lwd) return false;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return new Date(lwd) < today;
-}
-
 function EmploymentStatusBadge({ emp }) {
   const hasResignation   = !!emp.resignation?.notice_date;
   const hasExtendedLeave = emp.extended_leaves?.length > 0;
   if (!hasResignation && !hasExtendedLeave) return null;
 
-  const resignedLeft = hasResignation && hasResignedLeft(emp);
+  const resignedLeft = isOffboarded(emp);
 
   let label, style;
   if (resignedLeft) {
@@ -427,7 +420,7 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
   if (!employees) return <SkeletonTable rows={8} cols={5} />;
 
   const getEmpStatus = (emp) => {
-    if (emp.resignation?.notice_date)    return hasResignedLeft(emp) ? "resigned" : "notice";
+    if (emp.resignation?.notice_date)    return isOffboarded(emp) ? "resigned" : "notice";
     if (emp.extended_leaves?.length > 0) return "on_leave";
     return "active";
   };

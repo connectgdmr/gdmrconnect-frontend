@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { escHtml } from "../utils/security";
+import { isOffboarded } from "../utils/employeeStatus";
 import {
   TbFileTypeCsv, TbFileTypePdf, TbChartBar, TbChartLine,
   TbCircleCheck, TbCircleX, TbAlertTriangle,
@@ -9,17 +10,8 @@ import {
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
 import EmployeeJourneyModal from "./EmployeeJourneyModal";
 
-// Same "offboarded" rule used elsewhere in the app (AdminAttendancePage,
-// AdminPayroll, AdminDashboard's empExitStatus, etc.): notice given + last
-// working day already passed. Offboarded staff are irrelevant to attendance/
+// Offboarded staff (see utils/employeeStatus.js) are irrelevant to attendance/
 // LOP/correction reporting — every report table on this page excludes them.
-function isOffboarded(emp) {
-  const lwd = emp?.resignation?.last_working_day;
-  if (!emp?.resignation?.notice_date || !lwd) return false;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return new Date(lwd) < today;
-}
-
 // ─── WORKING DAY LOGIC ────────────────────────────────────────────────────────
 // Sundays = off. Saturdays = off EXCEPT the last Saturday of each month.
 function isLastSatOfMonth(dateStr) {
