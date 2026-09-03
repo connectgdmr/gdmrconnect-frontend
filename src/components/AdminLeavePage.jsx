@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { resolveAttachmentUrl } from "../utils/security";
 import { ymd } from "../utils/dateUtils";
+import { approverLabel, isManagerLeave } from "../utils/leaveStatus";
 import { SkeletonTable } from "./Skeleton";
 import {
   TbSearch,
@@ -511,7 +512,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
                       <th>Leave Period</th>
                       <th>Reason & Attachments</th>
                       <th>Manager</th>
-                      <th>HR</th>
+                      <th>HR / Owner</th>
                       <th>Final Status</th>
                       <th>Action</th>
                     </tr>
@@ -577,8 +578,13 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
                         </td>
                         
                         {/* Statuses */}
-                        <td><span className={`status-badge ${getStatusClass(l.manager_status)}`}>{l.manager_status || 'Pending'}</span></td>
-                        <td><span className={`status-badge ${getStatusClass(l.admin_status)}`}>{l.admin_status || 'Pending'}</span></td>
+                        <td>{isManagerLeave(l)
+                          ? <span style={{ color: '#94a3b8' }}>—</span>
+                          : <span className={`status-badge ${getStatusClass(l.manager_status)}`}>{l.manager_status || 'Pending'}</span>}</td>
+                        <td>
+                          {isManagerLeave(l) && <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 3 }}>{approverLabel(l)}</div>}
+                          <span className={`status-badge ${getStatusClass(l.admin_status)}`}>{l.admin_status || 'Pending'}</span>
+                        </td>
                         <td><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
 
                         {/* Administrative Actions (Stacked Vertically) */}
@@ -665,8 +671,8 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
                         )}
 
                         <div className="leave-card-statuses">
-                          <span className={`status-badge ${getStatusClass(l.manager_status)}`}>Mgr: {l.manager_status || 'Pending'}</span>
-                          <span className={`status-badge ${getStatusClass(l.admin_status)}`}>HR: {l.admin_status || 'Pending'}</span>
+                          {!isManagerLeave(l) && <span className={`status-badge ${getStatusClass(l.manager_status)}`}>Mgr: {l.manager_status || 'Pending'}</span>}
+                          <span className={`status-badge ${getStatusClass(l.admin_status)}`}>{approverLabel(l)}: {l.admin_status || 'Pending'}</span>
                           <span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span>
                         </div>
 

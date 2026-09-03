@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from "react";
 import { resolveAttachmentUrl } from "../utils/security";
 import { ymd, ym } from "../utils/dateUtils";
+import { approverLabel, managerStageText } from "../utils/leaveStatus";
 import { useShowDailyWidgets } from "../utils/dailyWidgetWindow";
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
@@ -2138,7 +2139,7 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
         <div className="card" style={{ marginTop: 16, padding:0, overflow:"hidden" }}>
           <div style={{overflowX: 'auto'}}>
             <table className="styled-table">
-              <thead><tr><th>Date</th><th>Type</th><th style={{textAlign:'center'}}>Manager</th><th style={{textAlign:'center'}}>HR</th><th style={{textAlign:'center'}}>Overall</th><th>Attachment</th><th>Action</th></tr></thead>
+              <thead><tr><th>Date</th><th>Type</th><th style={{textAlign:'center'}}>Manager</th><th style={{textAlign:'center'}}>Owner</th><th style={{textAlign:'center'}}>Overall</th><th>Attachment</th><th>Action</th></tr></thead>
               <tbody>
                 {myLeaves.length === 0 ? (
                   <tr><td colSpan="7" style={{textAlign:"center", padding:20, color:"#999"}}>No leaves found.</td></tr>
@@ -2147,7 +2148,7 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
                     <tr key={l._id} onClick={() => setViewLeave(l)} style={{cursor:'pointer'}} title="Click for full details">
                       <td style={{fontWeight:500}}>{l.from_date && l.to_date && l.from_date !== l.to_date ? `${l.from_date} to ${l.to_date}` : l.date}</td>
                       <td style={{textTransform:"capitalize"}}>{l.type === 'half' ? `Half (${l.period || '-'})` : l.type}</td>
-                      <td style={{textAlign:'center'}}><span className={`status-badge ${getStatusClass(l.manager_status)}`}>{l.manager_status || 'Pending'}</span></td>
+                      <td style={{textAlign:'center'}}>{managerStageText(l) === "—" ? <span style={{color:'#94a3b8'}}>—</span> : <span className={`status-badge ${getStatusClass(l.manager_status)}`}>{l.manager_status || 'Pending'}</span>}</td>
                       <td style={{textAlign:'center'}}><span className={`status-badge ${getStatusClass(l.admin_status)}`}>{l.admin_status || 'Pending'}</span></td>
                       <td style={{textAlign:'center'}}><span className={`status-badge ${getStatusClass(l.status)}`}>{l.status || 'Pending'}</span></td>
                       <td onClick={e => e.stopPropagation()}>{resolveAttachmentUrl(l.attachment_url, api.baseUrl) ? <a href={resolveAttachmentUrl(l.attachment_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
@@ -2444,10 +2445,12 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
                 <div style={{display:'flex', gap:20}}>
                   <div>
                     <div style={{fontSize:11, color:'#94a3b8', marginBottom:4}}>Manager</div>
-                    <span className={`status-badge ${getStatusClass(viewLeave.manager_status)}`}>{viewLeave.manager_status || 'Pending'}</span>
+                    {managerStageText(viewLeave) === "—"
+                      ? <span style={{color:'#94a3b8'}}>—</span>
+                      : <span className={`status-badge ${getStatusClass(viewLeave.manager_status)}`}>{viewLeave.manager_status || 'Pending'}</span>}
                   </div>
                   <div>
-                    <div style={{fontSize:11, color:'#94a3b8', marginBottom:4}}>HR</div>
+                    <div style={{fontSize:11, color:'#94a3b8', marginBottom:4}}>{approverLabel(viewLeave)}</div>
                     <span className={`status-badge ${getStatusClass(viewLeave.admin_status)}`}>{viewLeave.admin_status || 'Pending'}</span>
                   </div>
                   <div>

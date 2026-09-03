@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { resolveAttachmentUrl } from "../utils/security";
 import { ymd, ym } from "../utils/dateUtils";
 import { isOffboarded } from "../utils/employeeStatus";
+import { approverLabel, isManagerLeave } from "../utils/leaveStatus";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 import EmployeeJourneyModal from "./EmployeeJourneyModal";
 import {
@@ -1379,8 +1380,8 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                           </div>
                           {!lv._extLeave && (
                             <div style={{ marginTop: 5, display: "flex", flexWrap: "wrap", gap: 2 }}>
-                              {stBadge("Manager", managerSt)}
-                              {stBadge("Admin", adminSt)}
+                              {!isManagerLeave(lv) && stBadge("Manager", managerSt)}
+                              {stBadge(isManagerLeave(lv) ? approverLabel(lv) : "Admin", adminSt)}
                             </div>
                           )}
                         </div>

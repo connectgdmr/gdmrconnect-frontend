@@ -57,6 +57,7 @@ import PMSWorkspace from "./PMSWorkspace";
 import { SkeletonTable } from "./Skeleton";
 import { ymd, ym } from "../utils/dateUtils";
 import { exitStatus as empExitStatus } from "../utils/employeeStatus";
+import { approverLabel, isManagerLeave } from "../utils/leaveStatus";
 
 const AdminAssessment = lazy(() => import("./AdminAssessment"));
 const AdminLMS        = lazy(() => import("./AdminLMS"));
@@ -813,8 +814,8 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
                           </div>
                           {!lv._extLeave && (
                             <div style={{ marginTop: 5, display: "flex", flexWrap: "wrap", gap: 2 }}>
-                              {stBadge("Manager", managerSt)}
-                              {stBadge("Admin", adminSt)}
+                              {!isManagerLeave(lv) && stBadge("Manager", managerSt)}
+                              {stBadge(isManagerLeave(lv) ? approverLabel(lv) : "Admin", adminSt)}
                             </div>
                           )}
                         </div>
