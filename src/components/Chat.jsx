@@ -213,22 +213,29 @@ export default function Chat({ token, api, user }) {
 
   // ── load people + conversation list ───────────────────────────
   const loadList = useCallback(async () => {
-    try {
-      const [u, c] = await Promise.all([
-        jget(api, token, "/chat/users"),
-        jget(api, token, "/chat/conversations"),
-      ]);
-      const mySelf = myId ? String(myId) : "";
-      setPeople(arr(u, "users", "data", "employees", "members").filter(p => {
+    // People directory and conversation list load independently — a failure
+    // of one must not blank out the other. Previously a single 500 on
+    // /chat/users left users (typically those with no prior threads) staring
+    // at an empty Messages screen.
+    const [uRes, cRes] = await Promise.allSettled([
+      jget(api, token, "/chat/users"),
+      jget(api, token, "/chat/conversations"),
+    ]);
+    const mySelf = myId ? String(myId) : "";
+    if (uRes.status === "fulfilled") {
+      setPeople(arr(uRes.value, "users", "data", "employees", "members").filter(p => {
         return !mySelf || String(p._id || p.id || "") !== mySelf;
       }));
-      setConvos(arr(c, "conversations", "data"));
-      setError("");
-    } catch (e) {
-      setError(e.message || "Could not load chats.");
-    } finally {
-      setLoadingList(false);
     }
+    if (cRes.status === "fulfilled") {
+      setConvos(arr(cRes.value, "conversations", "data"));
+    }
+    if (uRes.status === "rejected" && cRes.status === "rejected") {
+      setError(uRes.reason?.message || "Could not load chats.");
+    } else {
+      setError("");
+    }
+    setLoadingList(false);
   }, [api, token, myId]);
 
   useEffect(() => {
