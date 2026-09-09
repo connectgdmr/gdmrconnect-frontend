@@ -121,7 +121,30 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
   }
 
   return (
-    <div className="card" style={{ padding: 18, width: "100%", maxWidth: 900, margin: "0 auto" }}>
+    <div className="card attn-cal" style={{ width: "100%", maxWidth: 900, margin: "0 auto" }}>
+      <style>{`
+        .card.attn-cal { padding: 18px; }
+        /* min-width:0 lets the 7 equal grid tracks actually shrink to the
+           viewport instead of being held wide by each cell's content, which
+           was pushing the whole calendar off-screen on phones. */
+        .attn-cal-cell { min-width: 0; }
+        .attn-cal-cell .attn-cal-time,
+        .attn-cal-cell .attn-cal-label { max-width: 100%; }
+        @media (max-width: 640px) {
+          .card.attn-cal { padding: 12px 10px; }
+          .attn-cal-grid { gap: 4px !important; }
+          .attn-cal-cell {
+            aspect-ratio: 1 / 1 !important;
+            font-size: 12px !important;
+            padding: 2px 1px !important;
+            gap: 1px !important;
+          }
+          /* a ~44px cell can't show "↓ 09:07 AM" — the day colour still
+             conveys present/leave/off, and tapping opens the full detail. */
+          .attn-cal-cell .attn-cal-time { display: none !important; }
+          .attn-cal-cell .attn-cal-label { font-size: 7px !important; letter-spacing: 0 !important; line-height: 1.1 !important; }
+        }
+      `}</style>
       {mode === "manager" && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
           <select className="modern-input" style={{ margin: 0, flex: 1, minWidth: 160 }}
@@ -172,12 +195,12 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 4 }}>
+          <div className="attn-cal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 4 }}>
             {DOW_LABELS.map((l, i) => (
               <div key={i} style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: "#94a3b8", padding: "2px 0" }}>{l}</div>
             ))}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+          <div className="attn-cal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
             {cells.map((d, i) => {
               if (d === null) return <div key={i} />;
               const dateStr = ymd(new Date(year, month, d));
@@ -188,6 +211,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
               return (
                 <button
                   type="button" key={i}
+                  className="attn-cal-cell"
                   // A future day is only clickable when it's a known-in-advance
                   // weekend/holiday (the backend now sends those ahead of
                   // time) — a future regular working day still has nothing
@@ -202,6 +226,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                       : (style?.label || "")
                   }
                   style={{
+                    minWidth: 0,
                     aspectRatio: "1.3", border: `1.5px solid ${isSelected ? "#0f172a" : (style?.border || "#f1f5f9")}`,
                     borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: !entry ? "default" : "pointer",
                     background: style?.bg || "#fff", color: isFuture ? "#cbd5e1" : "#0f172a",
@@ -218,7 +243,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                       on top, check-out (↑) below in a lighter shade. */}
                   {style && (
                     entry.status === "present" && entry.checkin_time ? (
-                      <span style={{
+                      <span className="attn-cal-time" style={{
                         fontSize: 9, fontWeight: 700, letterSpacing: 0.2, color: style.dot,
                         maxWidth: "100%", overflow: "hidden", padding: "0 2px",
                         display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1.25,
@@ -231,7 +256,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                         </span>
                       </span>
                     ) : (
-                      <span style={{
+                      <span className="attn-cal-label" style={{
                         fontSize: 9, fontWeight: 700, letterSpacing: 0.2, color: style.dot,
                         textTransform: entry.status === "weekly_off" ? "none" : "uppercase",
                         maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "0 2px",
