@@ -169,7 +169,8 @@ export default function AdminCareer({ token, employees = [] }) {
   const filteredJobs = safeJobs.filter(j => boardFilter === "all" || j.status === boardFilter);
 
   const filteredReferrals = safeReferrals.filter(r => {
-    const matchSearch = !refSearch || r.candidate_name?.toLowerCase().includes(refSearch.toLowerCase()) || r.referred_by_name?.toLowerCase().includes(refSearch.toLowerCase());
+    const q = refSearch.toLowerCase();
+    const matchSearch = !q || String(r.candidate_name ?? "").toLowerCase().includes(q) || String(r.referred_by_name ?? "").toLowerCase().includes(q);
     const matchJob    = refJobFilter === "all" || r.job_id === refJobFilter;
     const matchStatus = refStatusFilter === "All" || r.status === refStatusFilter;
     return matchSearch && matchJob && matchStatus;

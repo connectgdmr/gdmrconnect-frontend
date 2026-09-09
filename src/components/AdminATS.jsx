@@ -185,7 +185,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
     .filter(e => !isOffboarded(e))
     .filter(e => {
       const depts = Array.isArray(e.department) ? e.department : [e.department];
-      return depts.some(d => { const s = (d || "").toLowerCase(); return s.includes("hr") || s.includes("human resource"); });
+      return depts.some(d => { const s = String(d ?? "").toLowerCase(); return s.includes("hr") || s.includes("human resource"); });
     })
     .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   // "Referred By" — unlike "Sourced By", any employee can submit a referral
@@ -198,7 +198,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
   // Referral, that referral's employee wins by default — still overridable
   // via the dropdown below.
   const matchedReferral = form.email.trim()
-    ? referrals.find(r => (r.candidate_email || "").trim().toLowerCase() === form.email.trim().toLowerCase())
+    ? referrals.find(r => String(r.candidate_email ?? "").trim().toLowerCase() === form.email.trim().toLowerCase())
     : null;
   useEffect(() => {
     if (matchedReferral?.referred_by) {
@@ -208,7 +208,8 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
 
   const filtered = safe.filter(c => {
     const q = search.toLowerCase();
-    const mS = !q || [c.name, c.email, c.job_role, c.skills, c.current_location, c.current_company].some(v => (v || "").toLowerCase().includes(q));
+    const mS = !q || [c.name, c.email, c.job_role, c.current_location, c.current_company, Array.isArray(c.skills) ? c.skills.join(" ") : c.skills]
+      .some(v => String(v ?? "").toLowerCase().includes(q));
     const mSt = statusF === "all" || c.status === statusF;
     const mD = deptF === "all" || c.department === deptF;
     return mS && mSt && mD;
