@@ -388,8 +388,8 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
       setNewDocType("");
       setNewDocExpiry("");
       onRefresh?.();
-    } catch {
-      alert("Failed to upload document.");
+    } catch (err) {
+      alert(err?.message ? `Failed to upload document.\n\n${err.message}` : "Failed to upload document.");
     } finally {
       setUploadingDoc(false);
     }
@@ -423,8 +423,8 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
       setReplacingDocId(null);
       setReplaceFile(null);
       setReplaceExpiry("");
-    } catch {
-      alert("Failed to replace document.");
+    } catch (err) {
+      alert(err?.message ? `Failed to replace document.\n\n${err.message}` : "Failed to replace document.");
     } finally {
       setReplacingUpload(false);
     }

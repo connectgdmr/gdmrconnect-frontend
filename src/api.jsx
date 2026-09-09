@@ -161,8 +161,15 @@ export default {
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
-    const data = await res.json();
-    if (!res.ok) throw data;
+    // A gateway timeout / 413 from the proxy comes back as HTML, not JSON —
+    // fall back to a status-based message so the caller shows something useful
+    // instead of a bare "Unexpected token <" JSON parse error.
+    const data = await res.json().catch(() => ({
+      message: res.status === 413
+        ? "File is too large to upload."
+        : `Upload failed (HTTP ${res.status}). The file may be too large or the server timed out.`,
+    }));
+    if (!res.ok) throw (data && data.message ? data : { message: `Upload failed (HTTP ${res.status}).` });
     return data;
   },
   deleteEmployeeDocument: (empId, docId, token) => request(`/admin/employees/${empId}/documents/${docId}`, "DELETE", null, token),
@@ -179,8 +186,12 @@ export default {
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
-    const data = await res.json();
-    if (!res.ok) throw data;
+    const data = await res.json().catch(() => ({
+      message: res.status === 413
+        ? "File is too large to upload."
+        : `Upload failed (HTTP ${res.status}). The file may be too large or the server timed out.`,
+    }));
+    if (!res.ok) throw (data && data.message ? data : { message: `Upload failed (HTTP ${res.status}).` });
     return data;
   },
 
