@@ -45,7 +45,8 @@ import {
   TbChecklist,
   TbSettings,
   TbClipboardCheck,
-  TbArrowRight
+  TbArrowRight,
+  TbUserSearch,
 } from "react-icons/tb";
 import ProfilePanel from "./ProfilePanel";
 import SettingsModal from "./SettingsModal";
@@ -173,7 +174,7 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
   });
 
   // — Notification badge counts —
-  const [notifCounts, setNotifCounts] = useState({ leaves: 0, assets: 0, announcements: 0, corrections: 0 });
+  const [notifCounts, setNotifCounts] = useState({ leaves: 0, assets: 0, announcements: 0, corrections: 0, referrals: 0 });
 
   // — Attendance Correction requests routed to admin (manager/admin/owner
   // self-submitted corrections — see request_correction()'s approval_target) —
@@ -596,6 +597,7 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
           assets: notifCounts?.assets || 0,
           announcements: notifCounts?.announcements || 0,
           attendance: notifCounts?.corrections || 0,
+          "jobs-recruitment": notifCounts?.referrals || 0,
         }}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -734,6 +736,11 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
               icon={<TbDeviceLaptop />} label="Asset Requests"
               count={notifCounts?.assets || 0}
               onClick={() => setView("assets")}
+            />
+            <AttentionTile
+              icon={<TbUserSearch />} label="New Referrals"
+              count={notifCounts?.referrals || 0}
+              onClick={() => setView("jobs-recruitment")}
             />
           </div>
         </div>
