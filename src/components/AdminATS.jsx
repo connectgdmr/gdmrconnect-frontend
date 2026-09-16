@@ -2,7 +2,7 @@
 import { escHtml } from "../utils/security";
 import { isOffboarded } from "../utils/employeeStatus";
 import {
-  TbUserPlus, TbSearch, TbX, TbUsers, TbCircleCheck, TbHeartHandshake, TbPercentage,
+  TbUserPlus, TbSearch, TbX, TbUsers, TbCircleCheck, TbCircleX, TbHeartHandshake, TbPercentage,
   TbFileTypePdf, TbLink, TbVideo, TbFolderOpen, TbSend, TbTrash, TbPlus, TbHistory,
   TbMailOpened, TbIdBadge, TbEye, TbDownload, TbMail, TbFileExport,
   TbCloudUpload,
@@ -27,7 +27,14 @@ const STATUS_COLOR = (s) => {
   return { c: "#2563eb", b: "#eff6ff" };
 };
 const RECORDING_TYPES = ["Screening Call", "Technical Interview", "HR Interview", "Assessment File", "Evaluation Form"];
-const DOC_TYPES = ["Educational Certificate", "Passport Copy", "Visa Copy", "Aadhaar Card", "PAN Card", "Photograph", "Experience Certificate", "Salary Certificate", "Payslip - Last Month", "Payslip - 2nd Last Month", "Payslip - 3rd Last Month", "Reference Document", "Medical Report"];
+// Mirrors DOC_CHECKLIST_DEFAULT in routes/ats.py — shown as a hint under
+// "Send Document Request Link" (the actual list sent is the backend's).
+const DOC_TYPES = [
+  "Resume / CV", "Recent Photograph", "ID Proof (Aadhar Card / Passport / Driving License)", "PAN Card",
+  "10th Certificate", "12th Certificate", "Diploma Certificate", "Degree Certificate", "Consolidated Mark List",
+  "Certification Course Certificate (optional)", "Experience Certificate",
+  "Payslip - Last Month", "Payslip - 2nd Last Month", "Payslip - 3rd Last Month",
+];
 const SOURCE_OPTIONS = ["LinkedIn", "Job Board", "References", "Internal", "Other"];
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -723,6 +730,13 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
   }
   async function requestDocs() { const ok = await apiCall(`/doc-request`, "POST", {}); if (ok) alert("Document submission link sent to the candidate's email."); else alert("Could not send the document link. Please try again."); }
 
+  async function reviewDoc(name, status) {
+    setC(p => ({ ...p, documents: (p.documents || []).map(d => d.name === name ? { ...d, status } : d) })); // optimistic
+    const ok = await apiCall(`/document`, "PUT", { name, status });
+    if (!ok) alert("Could not update the document's status. Please try again.");
+    loadDetail(); // resync either way
+  }
+
   async function sendStatusEmail() {
     setBusy(true);
     try {
@@ -843,11 +857,20 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
         <Section title="Documents" icon={<TbMailOpened />}>
           {(c.documents || []).length === 0 && <div style={{ fontSize: 12.5, color: "#94a3b8", marginBottom: 8 }}>No documents submitted yet.</div>}
           {(c.documents || []).map((d, i) => {
-            const dc = (d.status || "Pending");
-            const col = dc === "Approved" ? "#16a34a" : dc === "Rejected" ? "#dc2626" : "#d97706";
+            // "Not Submitted" (no file yet) must read differently from a file
+            // the candidate HAS uploaded that's simply awaiting review — both
+            // used to show as an identical "Pending", so an uploaded document
+            // looked exactly like one nobody had touched yet.
+            const dc  = d.url ? (d.status || "Submitted") : "Not Submitted";
+            const col = dc === "Approved" ? "#16a34a" : dc === "Rejected" ? "#dc2626"
+              : dc === "Re-upload Requested" ? "#ea580c" : dc === "Not Submitted" ? "#94a3b8" : "#d97706";
+            const canReview = d.url && dc !== "Approved" && dc !== "Rejected";
             return (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid #f8fafc" }}>
-                <span style={{ fontSize: 13, flex: 1 }}>{d.name}</span>
+                <span style={{ fontSize: 13, flex: 1 }}>
+                  {d.name}
+                  {d.optional && <span style={{ fontWeight: 500, fontSize: 11, color: "#94a3b8" }}> (optional)</span>}
+                </span>
                 {d.url && (
                   <>
                     <a href={cloudinaryViewUrl(d.url)} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#3b82f6" }}>View</a>
@@ -858,6 +881,18 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
                   </>
                 )}
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: col }}>{dc}</span>
+                {canReview && (
+                  <>
+                    <button type="button" onClick={() => reviewDoc(d.name, "Approved")} disabled={busy} title="Approve"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#16a34a", padding: 0, display: "flex", alignItems: "center" }}>
+                      <TbCircleCheck size={14} />
+                    </button>
+                    <button type="button" onClick={() => reviewDoc(d.name, "Rejected")} disabled={busy} title="Reject — ask for a re-upload"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", padding: 0, display: "flex", alignItems: "center" }}>
+                      <TbCircleX size={14} />
+                    </button>
+                  </>
+                )}
               </div>
             );
           })}

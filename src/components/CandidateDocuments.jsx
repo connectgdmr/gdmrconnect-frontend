@@ -4,13 +4,26 @@ import { TbCircleCheck, TbCloudUpload, TbAlertTriangle, TbClock, TbCircleX } fro
 
 import { API_URL as BASE } from "../api";
 
+// Mirrors DOC_CHECKLIST_DEFAULT / DOC_CHECKLIST_OPTIONAL in routes/ats.py —
+// only used as a fallback when a doc-request link predates the `required`
+// field the backend normally sends.
 const DEFAULT_DOCS = [
-  "Educational Certificate", "Passport Copy", "Visa Copy",
-  "Experience Certificate", "Salary Certificate", "Reference Document", "Medical Report",
-  "Aadhaar Card", "PAN Card",
-  "Payslip - Last Month", "Payslip - 2nd Last Month", "Payslip - 3rd Last Month",
-  "Photograph",
+  "Resume / CV",
+  "Recent Photograph",
+  "ID Proof (Aadhar Card / Passport / Driving License)",
+  "PAN Card",
+  "10th Certificate",
+  "12th Certificate",
+  "Diploma Certificate",
+  "Degree Certificate",
+  "Consolidated Mark List",
+  "Certification Course Certificate",
+  "Experience Certificate",
+  "Payslip - Last Month",
+  "Payslip - 2nd Last Month",
+  "Payslip - 3rd Last Month",
 ];
+const DEFAULT_OPTIONAL = ["Certification Course Certificate"];
 
 export default function CandidateDocuments({ docToken }) {
   const [phase, setPhase] = useState("loading");   // loading | ready | error
@@ -46,7 +59,7 @@ export default function CandidateDocuments({ docToken }) {
       const r = await fetch(`${BASE}/ats/documents/${docToken}`, { method: "POST", body: fd });
       const d = await r.json().catch(() => ({}));
       if (r.ok) {
-        setSubmitted(d.documents || d.submitted || [...submitted.filter(s => s.name !== docName), { name: docName, url: d.url, status: "Pending" }]);
+        setSubmitted(d.documents || d.submitted || [...submitted.filter(s => s.name !== docName), { name: docName, url: d.url, status: "Submitted" }]);
         flash(`${docName} uploaded successfully.`);
       } else {
         flash(d.message || `Upload failed (error ${r.status}). Please try again.`, "error");
@@ -56,7 +69,8 @@ export default function CandidateDocuments({ docToken }) {
     } finally { setUploading(""); }
   }
 
-  const requiredList = (data?.required && data.required.length ? data.required : DEFAULT_DOCS);
+  const requiredList  = (data?.required && data.required.length ? data.required : DEFAULT_DOCS);
+  const optionalNames = new Set(data?.optional_names && data.optional_names.length ? data.optional_names : DEFAULT_OPTIONAL);
   const subFor = (name) => submitted.find(s => s.name === name);
   // A doc only counts as actually uploaded when a file URL exists — the backend
   // may pre-seed the required docs as "Pending" placeholders with no file yet.
@@ -81,7 +95,9 @@ export default function CandidateDocuments({ docToken }) {
     </Shell>
   );
 
-  const allDone = requiredList.every(d => { const s = subFor(d); return isUploaded(s) && s.status !== "Rejected"; });
+  const allDone = requiredList
+    .filter(d => !optionalNames.has(d))
+    .every(d => { const s = subFor(d); return isUploaded(s) && s.status !== "Rejected" && s.status !== "Re-upload Requested"; });
 
   return (
     <Shell>
@@ -108,17 +124,21 @@ export default function CandidateDocuments({ docToken }) {
           {requiredList.map((docName) => {
             const sub = subFor(docName);
             const uploaded = isUploaded(sub);
-            const st = uploaded ? (sub.status || "Pending") : null;   // no status until a file exists
-            const stColor = st === "Approved" ? "#16a34a" : st === "Rejected" ? "#dc2626" : "#d97706";
-            const needsReupload = st === "Rejected";
+            const st = uploaded ? (sub.status || "Submitted") : null;   // no status until a file exists
+            const stColor = st === "Approved" ? "#16a34a" : st === "Rejected" ? "#dc2626" : st === "Re-upload Requested" ? "#ea580c" : "#d97706";
+            const needsReupload = st === "Rejected" || st === "Re-upload Requested";
             const showUpload = !uploaded || needsReupload;
+            const optional = optionalNames.has(docName);
             return (
               <div key={docName} style={{ border: "1px solid #e6eaef", borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: 160 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13.5, color: "#0f172a" }}>{docName}</div>
+                  <div style={{ fontWeight: 600, fontSize: 13.5, color: "#0f172a" }}>
+                    {docName}
+                    {optional && <span style={{ fontWeight: 500, fontSize: 11, color: "#94a3b8" }}> (optional)</span>}
+                  </div>
                   {uploaded ? (
-                    <div style={{ fontSize: 11.5, marginTop: 3, display: "flex", alignItems: "center", gap: 6 }}>
-                      {st === "Approved" ? <TbCircleCheck size={11} color="#16a34a" /> : st === "Rejected" ? <TbCircleX size={11} color="#dc2626" /> : <TbClock size={11} color="#d97706" />}
+                    <div style={{ fontSize: 11.5, marginTop: 3, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      {st === "Approved" ? <TbCircleCheck size={11} color="#16a34a" /> : (st === "Rejected" || st === "Re-upload Requested") ? <TbCircleX size={11} color={stColor} /> : <TbClock size={11} color="#d97706" />}
                       <span style={{ color: stColor, fontWeight: 700 }}>{st}</span>
                       <a href={sub.url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", marginLeft: 4 }}>view</a>
                       {needsReupload && <span style={{ color: "#dc2626" }}>· please re-upload</span>}

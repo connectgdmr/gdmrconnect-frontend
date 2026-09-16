@@ -171,7 +171,7 @@ export default function AdminCareer({ token, employees = [] }) {
   const filteredReferrals = safeReferrals.filter(r => {
     const q = refSearch.toLowerCase();
     const matchSearch = !q || String(r.candidate_name ?? "").toLowerCase().includes(q) || String(r.referred_by_name ?? "").toLowerCase().includes(q);
-    const matchJob    = refJobFilter === "all" || r.job_id === refJobFilter;
+    const matchJob    = refJobFilter === "all" || (refJobFilter === "general" ? !r.job_id : r.job_id === refJobFilter);
     const matchStatus = refStatusFilter === "All" || r.status === refStatusFilter;
     return matchSearch && matchJob && matchStatus;
   });
@@ -405,6 +405,7 @@ export default function AdminCareer({ token, employees = [] }) {
             </div>
             <select className="modern-input" value={refJobFilter} onChange={e => setRefJobFilter(e.target.value)} style={{ margin: 0, flex: 1, minWidth: 160 }}>
               <option value="all">All Jobs</option>
+              <option value="general">General Applications</option>
               {safeJobs.map(j => <option key={j._id} value={j._id}>{j.title}</option>)}
             </select>
             <select className="modern-input" value={refStatusFilter} onChange={e => setRefStatusFilter(e.target.value)} style={{ margin: 0, flex: 1, minWidth: 130 }}>
@@ -450,7 +451,7 @@ export default function AdminCareer({ token, employees = [] }) {
                               {r.referred_by_name || "—"}
                             </div>
                           </td>
-                          <td style={{ fontSize: 13 }}>{r.job_title || "—"}</td>
+                          <td style={{ fontSize: 13 }}>{r.job_title || (r.job_id ? "—" : "General Application")}</td>
                           <td>
                             {(r.resume_file_url || r.resume_url) ? (
                               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>

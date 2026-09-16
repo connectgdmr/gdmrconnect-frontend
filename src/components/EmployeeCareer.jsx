@@ -79,13 +79,15 @@ export default function EmployeeCareer({ token, user }) {
 
   async function submitReferral(e) {
     e.preventDefault();
-    if (!refJobId) return setRefMsg("Please select a job.");
+    if (!refJobId) return setRefMsg("Please select a job, or \"General Application\" if it isn't for a specific opening.");
     if (resumeFile && resumeFile.size > 5 * 1024 * 1024) return setRefMsg("Resume must be under 5 MB.");
     setRefSaving(true); setRefMsg("");
     try {
       // Send as multipart so the optional resume file can ride along.
       const fd = new FormData();
-      fd.append("job_id", refJobId);
+      // "general" is a client-side placeholder meaning "not tied to a specific
+      // posting" — the backend takes a blank job_id to mean the same thing.
+      fd.append("job_id", refJobId === "general" ? "" : refJobId);
       Object.entries(refForm).forEach(([k, v]) => fd.append(k, v ?? ""));
       if (resumeFile) fd.append("resume", resumeFile);
 
@@ -206,8 +208,14 @@ export default function EmployeeCareer({ token, user }) {
               <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Job Position *</label>
               <select className="modern-input" value={refJobId} onChange={e => setRefJobId(e.target.value)} required>
                 <option value="">-- Select Job --</option>
+                <option value="general">General Application (not tied to a specific opening)</option>
                 {safeJobs.map(j => <option key={j._id} value={j._id}>{j.title} {j.department ? `· ${j.department}` : ""}</option>)}
               </select>
+              {safeJobs.length === 0 && (
+                <p style={{ margin: "6px 0 0", fontSize: 12, color: "#94a3b8" }}>
+                  No positions are currently posted — choose "General Application" and we'll keep them on file for the next opening.
+                </p>
+              )}
             </div>
 
             {[
