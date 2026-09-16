@@ -9,7 +9,7 @@ import { SkeletonList, SkeletonTable } from "./Skeleton";
 import { API_URL as BASE } from "../api";
 
 const JOB_TYPES   = ["Full-time", "Part-time", "Contract", "Internship"];
-const REF_STATUSES = ["New", "Shortlisted", "Interview", "Hired", "Rejected"];
+const REF_STATUSES = ["New", "Screened", "Shortlisted", "Interview", "Hired", "Rejected"];
 
 const TYPE_COLORS = {
   "Full-time":  { color: "#34a06a", bg: "#f0fdf4" },
@@ -20,6 +20,7 @@ const TYPE_COLORS = {
 
 const STATUS_COLORS = {
   New:          { color: "#2563eb", bg: "#eff6ff" },
+  Screened:     { color: "#0f766e", bg: "#effdf8" },
   Shortlisted:  { color: "#7c3aed", bg: "#f5f3ff" },
   Interview:    { color: "#d97706", bg: "#fffbeb" },
   Hired:        { color: "#16a34a", bg: "#f0fdf4" },
@@ -149,23 +150,51 @@ export default function AdminCareer({ token, employees = [], onOpenCandidate }) 
     } catch { flash("Network error.", "error"); }
   }
 
-  async function updateReferralStatus(id, status) {
+  // Best-effort — nudges the ATS candidate's own pipeline stage so it stays
+  // roughly in step with the referral (e.g. referral marked "Screened" ->
+  // candidate moved into "Resume Screening"). Never blocks the caller.
+  async function syncCandidateAtsStatus(candidateId, atsStatus) {
+    if (!candidateId || !atsStatus) return;
     try {
-      const r = await fetch(`${BASE}/admin/career/referrals/${id}`, {
+      await fetch(`${BASE}/admin/ats/candidates/${candidateId}/status`, {
+        method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: atsStatus }),
+      });
+    } catch { /* non-critical */ }
+  }
+
+  async function updateReferralStatus(r, status) {
+    // "Screened" is this workflow's trigger to actually move a referral into
+    // Recruitment: if it hasn't been forwarded yet, do that now instead of
+    // just flipping a status label with nothing to show for it on the
+    // Recruitment side.
+    if (status === "Screened" && !r.candidate_id) {
+      return convertToCandidate(r, { referralStatus: "Screened", atsStatus: "Resume Screening" });
+    }
+    try {
+      const res = await fetch(`${BASE}/admin/career/referrals/${r._id}`, {
         method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status }),
       });
-      if (r.ok) { loadReferrals(); }
-      else { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to update referral status.", "error"); }
+      if (res.ok) {
+        loadReferrals();
+        // Referral already forwarded — keep the linked candidate's own
+        // pipeline stage in step so "Screened" actually shows up over in
+        // Recruitment, not just on this table.
+        if (status === "Screened" && r.candidate_id) syncCandidateAtsStatus(r.candidate_id, "Resume Screening");
+      } else {
+        const d = await res.json().catch(() => ({}));
+        flash(d.message || "Failed to update referral status.", "error");
+      }
     } catch { flash("Network error.", "error"); }
   }
 
   // Forward a referral into the ATS pipeline as a real candidate — creates
   // the candidate record from the referral's details, links the referral to
   // it (so this can't be done twice and the UI can offer "Open in
-  // Recruitment" afterward), bumps the referral to Shortlisted, and hands
+  // Recruitment" afterward), sets the referral's resulting status, and hands
   // the caller the new candidate id to jump straight to it.
-  async function convertToCandidate(r) {
+  async function convertToCandidate(r, { referralStatus = "Shortlisted", atsStatus = null } = {}) {
     setConverting(r._id);
     try {
       const cRes = await fetch(`${BASE}/admin/ats/candidates`, {
@@ -183,8 +212,9 @@ export default function AdminCareer({ token, employees = [], onOpenCandidate }) 
       }
       await fetch(`${BASE}/admin/career/referrals/${r._id}`, {
         method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status: "Shortlisted", candidate_id: cData._id }),
+        body: JSON.stringify({ status: referralStatus, candidate_id: cData._id }),
       }).catch(() => {});
+      if (atsStatus) await syncCandidateAtsStatus(cData._id, atsStatus);
       loadReferrals();
       flash(`${r.candidate_name} added to Recruitment.`);
       onOpenCandidate?.(cData._id);
@@ -526,7 +556,7 @@ export default function AdminCareer({ token, employees = [], onOpenCandidate }) 
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                               <select
                                 value={r.status || "New"}
-                                onChange={e => updateReferralStatus(r._id, e.target.value)}
+                                onChange={e => updateReferralStatus(r, e.target.value)}
                                 style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer" }}
                               >
                                 {REF_STATUSES.map(s => <option key={s}>{s}</option>)}
