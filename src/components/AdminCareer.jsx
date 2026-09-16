@@ -2,7 +2,7 @@
 import {
   TbPlus, TbX, TbEdit, TbBriefcase, TbMapPin,
   TbClock, TbUsers, TbLink, TbSearch,
-  TbStar,
+  TbStar, TbUserSearch, TbSend, TbMail, TbPhone, TbFileTypePdf,
 } from "react-icons/tb";
 import { SkeletonList, SkeletonTable } from "./Skeleton";
 
@@ -51,7 +51,7 @@ async function downloadResume(url, filename = "resume.pdf") {
   }
 }
 
-export default function AdminCareer({ token, employees = [] }) {
+export default function AdminCareer({ token, employees = [], onOpenCandidate }) {
   const [tab, setTab]       = useState("board");
   const [jobs, setJobs]     = useState([]);
   const [jobsLoading, setJobsLoading] = useState(false);
@@ -71,6 +71,9 @@ export default function AdminCareer({ token, employees = [] }) {
 
   const [msg, setMsg] = useState({ text: "", type: "" });
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3500); };
+
+  const [viewReferral, setViewReferral] = useState(null); // referral shown in the detail modal
+  const [converting, setConverting]     = useState("");   // referral _id currently being moved to Recruitment
 
   const toArr = (d) => {
     if (Array.isArray(d)) return d;
@@ -155,6 +158,41 @@ export default function AdminCareer({ token, employees = [] }) {
       if (r.ok) { loadReferrals(); }
       else { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to update referral status.", "error"); }
     } catch { flash("Network error.", "error"); }
+  }
+
+  // Forward a referral into the ATS pipeline as a real candidate — creates
+  // the candidate record from the referral's details, links the referral to
+  // it (so this can't be done twice and the UI can offer "Open in
+  // Recruitment" afterward), bumps the referral to Shortlisted, and hands
+  // the caller the new candidate id to jump straight to it.
+  async function convertToCandidate(r) {
+    setConverting(r._id);
+    try {
+      const cRes = await fetch(`${BASE}/admin/ats/candidates`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          name: r.candidate_name, email: r.candidate_email, phone: r.candidate_phone,
+          job_role: r.job_title || "", resume_url: r.resume_file_url || r.resume_url || "",
+          remarks: r.notes || "", source: "References", referred_by: r.referred_by,
+        }),
+      });
+      const cData = await cRes.json().catch(() => ({}));
+      if (!cRes.ok) {
+        flash(cData.message || "Could not move this referral to Recruitment.", "error");
+        return;
+      }
+      await fetch(`${BASE}/admin/career/referrals/${r._id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: "Shortlisted", candidate_id: cData._id }),
+      }).catch(() => {});
+      loadReferrals();
+      flash(`${r.candidate_name} added to Recruitment.`);
+      onOpenCandidate?.(cData._id);
+    } catch {
+      flash("Network error — could not move this referral to Recruitment.", "error");
+    } finally {
+      setConverting("");
+    }
   }
 
   const addReq = () => {
@@ -441,7 +479,11 @@ export default function AdminCareer({ token, employees = [] }) {
                       return (
                         <tr key={r._id}>
                           <td>
-                            <div style={{ fontWeight: 600 }}>{r.candidate_name}</div>
+                            <button type="button" onClick={() => setViewReferral(r)} title="View referred profile"
+                              style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer", fontWeight: 600, color: "var(--red)", textDecoration: "underline", textDecorationColor: "transparent" }}
+                              onMouseEnter={e => e.currentTarget.style.textDecorationColor = "var(--red)"} onMouseLeave={e => e.currentTarget.style.textDecorationColor = "transparent"}>
+                              {r.candidate_name}
+                            </button>
                             <div style={{ fontSize: 12, color: "#64748b" }}>{r.candidate_email}</div>
                             <div style={{ fontSize: 12, color: "#94a3b8" }}>{r.candidate_phone}</div>
                           </td>
@@ -481,13 +523,29 @@ export default function AdminCareer({ token, employees = [] }) {
                             </span>
                           </td>
                           <td>
-                            <select
-                              value={r.status || "New"}
-                              onChange={e => updateReferralStatus(r._id, e.target.value)}
-                              style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer" }}
-                            >
-                              {REF_STATUSES.map(s => <option key={s}>{s}</option>)}
-                            </select>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                              <select
+                                value={r.status || "New"}
+                                onChange={e => updateReferralStatus(r._id, e.target.value)}
+                                style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer" }}
+                              >
+                                {REF_STATUSES.map(s => <option key={s}>{s}</option>)}
+                              </select>
+                              {r.candidate_id ? (
+                                onOpenCandidate && (
+                                  <button type="button" onClick={() => onOpenCandidate(r.candidate_id)}
+                                    style={{ fontSize: 11.5, fontWeight: 600, color: "var(--brand)", background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                                    <TbUserSearch size={11} /> Open in Recruitment
+                                  </button>
+                                )
+                              ) : (
+                                <button type="button" onClick={() => convertToCandidate(r)} disabled={converting === r._id}
+                                  title="Create a Recruitment candidate from this referral"
+                                  style={{ fontSize: 11.5, fontWeight: 600, color: "#0f766e", background: "none", border: "none", cursor: converting === r._id ? "default" : "pointer", padding: 0, opacity: converting === r._id ? 0.6 : 1, display: "flex", alignItems: "center", gap: 4 }}>
+                                  <TbSend size={11} /> {converting === r._id ? "Moving…" : "Move to Recruitment"}
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -499,6 +557,75 @@ export default function AdminCareer({ token, employees = [] }) {
           )}
         </div>
       )}
+
+      {/* ── Referral detail (view referred profile) ── */}
+      {viewReferral && (() => {
+        const r  = viewReferral;
+        const sc = STATUS_COLORS[r.status] || STATUS_COLORS.New;
+        return (
+          <div className="modal-overlay" onClick={() => setViewReferral(null)}>
+            <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480, width: "100%" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                <div>
+                  <h3 style={{ margin: 0, color: "#0f172a" }}>{r.candidate_name}</h3>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg, padding: "2px 8px", borderRadius: 4, display: "inline-block", marginTop: 6 }}>
+                    {r.status || "New"}
+                  </span>
+                </div>
+                <button onClick={() => setViewReferral(null)} style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", color: "#64748b", flexShrink: 0 }}><TbX size={14} /></button>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13.5 }}>
+                {r.candidate_email && <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155" }}><TbMail size={13} color="#94a3b8" /> {r.candidate_email}</div>}
+                {r.candidate_phone && <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155" }}><TbPhone size={13} color="#94a3b8" /> {r.candidate_phone}</div>}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155" }}><TbBriefcase size={13} color="#94a3b8" /> {r.job_title || (r.job_id ? "—" : "General Application")}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155" }}><TbStar size={13} color="#f59e0b" /> Referred by {r.referred_by_name || "—"}</div>
+                {r.submitted_at && <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#94a3b8", fontSize: 12.5 }}><TbClock size={13} /> Submitted {new Date(r.submitted_at).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div>}
+
+                {(r.resume_file_url || r.resume_url) && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 8, borderTop: "1px solid #f1f5f9" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>Resume</div>
+                    {r.resume_file_url && (
+                      <button type="button" onClick={() => downloadResume(r.resume_file_url, `${(r.candidate_name || "resume").replace(/\s+/g, "_")}.pdf`)}
+                        style={{ color: "#dc2626", fontSize: 13, display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0, width: "fit-content" }}>
+                        <TbFileTypePdf size={14} /> Download resume PDF
+                      </button>
+                    )}
+                    {r.resume_url && (
+                      <a href={r.resume_url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", fontSize: 13, display: "flex", alignItems: "center", gap: 6, width: "fit-content" }}>
+                        <TbLink size={13} /> {r.resume_file_url ? "Also linked" : "View link"}
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {r.notes && (
+                  <div style={{ paddingTop: 8, borderTop: "1px solid #f1f5f9" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>Notes from referrer</div>
+                    <div style={{ color: "#475569", lineHeight: 1.5 }}>{r.notes}</div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: 8, marginTop: 20, paddingTop: 16, borderTop: "1px solid #f1f5f9" }}>
+                {r.candidate_id ? (
+                  onOpenCandidate && (
+                    <button className="btn" type="button" onClick={() => { setViewReferral(null); onOpenCandidate(r.candidate_id); }} style={{ fontSize: 12.5 }}>
+                      <TbUserSearch size={11} /> Open in Recruitment
+                    </button>
+                  )
+                ) : (
+                  <button className="btn" type="button" disabled={converting === r._id}
+                    onClick={() => { setViewReferral(null); convertToCandidate(r); }} style={{ fontSize: 12.5 }}>
+                    <TbSend size={11} /> Move to Recruitment
+                  </button>
+                )}
+                <button className="btn ghost" type="button" onClick={() => setViewReferral(null)} style={{ fontSize: 12.5 }}>Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -21,6 +21,15 @@ export default function JobsAndRecruitment({ token, user, role, employees = [], 
   const [tab, setTab] = useState("jobs");
   const isAdmin = variant === "admin";
 
+  // "Move to Recruitment" on a referral (AdminCareer) needs to switch to the
+  // Recruitment tab AND open that specific candidate once AdminATS mounts —
+  // same "global flag, consumed once on mount" pattern Chat.jsx uses for its
+  // deep-link-to-a-person handoff.
+  function openCandidateInRecruitment(candidateId) {
+    window.__gdmrATSOpenCandidateId = candidateId;
+    setTab("ats");
+  }
+
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "#f1f5f9", borderRadius: 10, padding: 4, width: "fit-content" }}>
@@ -35,7 +44,7 @@ export default function JobsAndRecruitment({ token, user, role, employees = [], 
       </div>
 
       {tab === "jobs"
-        ? (isAdmin ? <AdminCareer token={token} employees={employees} /> : <EmployeeCareer token={token} user={user} />)
+        ? (isAdmin ? <AdminCareer token={token} employees={employees} onOpenCandidate={openCandidateInRecruitment} /> : <EmployeeCareer token={token} user={user} />)
         : <AdminATS token={token} role={role} employees={employees} departments={departments} />}
     </div>
   );

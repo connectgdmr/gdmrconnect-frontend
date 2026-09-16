@@ -170,6 +170,19 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
   }
   useEffect(() => { loadCandidates(); loadStats(); loadOpenJobs(); loadReferrals(); }, []);
 
+  // Deep link from AdminCareer's "Move to Recruitment" / "Open in
+  // Recruitment" (a referral just converted, or one converted earlier) —
+  // same "global flag, consumed once on mount" pattern Chat.jsx uses.
+  // CandidateDetail fetches the full record itself off just the _id, so
+  // there's no need to wait for `candidates` to load first.
+  useEffect(() => {
+    const id = window.__gdmrATSOpenCandidateId;
+    if (id) {
+      window.__gdmrATSOpenCandidateId = null;
+      setDetail({ _id: id });
+    }
+  }, []);
+
   const safe = Array.isArray(candidates) ? candidates : [];
   const depts = [...new Set(safe.map(c => c.department).filter(Boolean))];
   // Job Role options for the Add Candidate form — open postings from Jobs
