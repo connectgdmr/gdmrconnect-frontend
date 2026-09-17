@@ -178,7 +178,10 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
   async function deleteDepartment(id, name) {
     if (!window.confirm(`Delete department "${name}"? Employees will be unassigned from this department.`)) return;
     try {
-      const res = await fetch(`${baseUrl}/api/admin/departments/${id}`, {
+      // A legacy (never-formalized) department's "id" is its raw name (see
+      // the byName merge below) — encode it so a "/" or "&" in the name
+      // can't be misread as extra path segments / query syntax.
+      const res = await fetch(`${baseUrl}/api/admin/departments/${encodeURIComponent(id)}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
