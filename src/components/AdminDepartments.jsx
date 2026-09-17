@@ -253,6 +253,11 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
   // or "how many still need a manager".
   const realDepts  = enriched.filter(d => !d.isUnassignedBucket);
   const noManager  = realDepts.filter(d => !d.manager).length;
+  // Show the "Unassigned" card only while it actually holds someone — once
+  // every employee has a real department it's just an empty, unactionable
+  // card cluttering the grid. It comes back on its own the moment anyone's
+  // department is cleared again (this department deleted, a manual edit, …).
+  const visibleDepts = enriched.filter(d => !d.isUnassignedBucket || d.members.length > 0);
 
   return (
     <div style={{ marginTop: 16 }}>
@@ -290,7 +295,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
       {/* Department cards grid */}
       {deptLoading ? (
         <SkeletonCards count={6} />
-      ) : enriched.length === 0 ? (
+      ) : visibleDepts.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 24px", background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0" }}>
           <TbSitemap size={40} style={{ color: "#cbd5e1", marginBottom: 16 }} />
           <p style={{ fontSize: 15, fontWeight: 600, color: "#94a3b8", margin: 0 }}>No departments yet</p>
@@ -298,7 +303,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: 16 }}>
-          {enriched.map(dept => {
+          {visibleDepts.map(dept => {
             const clr = getColor(dept.name);
             return (
               <div key={dept._id} style={{ background: "#fff", border: `1px solid ${clr.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", transition: "box-shadow 0.2s, transform 0.2s" }}
