@@ -121,7 +121,17 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
       const deptVal = emp.department;
       const depts = Array.isArray(deptVal) ? deptVal : (deptVal ? [deptVal] : ["Unassigned"]);
       depts.forEach(d => {
-        if (!byName[d]) byName[d] = { _id: d, name: d, description: "", head_id: null, head_ids: [] };
+        if (!byName[d]) byName[d] = {
+          _id: d, name: d, description: "", head_id: null, head_ids: [],
+          // "Unassigned" here is just this page's placeholder bucket for
+          // employees with no department set — not a real department, so
+          // there's nothing to formalize, rename, or delete. (A genuine
+          // departments_col document actually named "Unassigned" would have
+          // been picked up by the savedDepartments pass above already, and
+          // byName's "if (!byName[d])" guard means this branch never
+          // touches it — only the synthetic placeholder gets flagged.)
+          isUnassignedBucket: d === "Unassigned",
+        };
       });
     });
     setDepartments(Object.values(byName));
@@ -238,7 +248,11 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
   }).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   const totalEmployees = employees.filter(e => empExitStatus(e) !== "offboarded").length;
-  const noManager = enriched.filter(d => !d.manager).length;
+  // The "Unassigned" bucket isn't a real department — it never has a head
+  // to assign and shouldn't count toward "how many departments do we have"
+  // or "how many still need a manager".
+  const realDepts  = enriched.filter(d => !d.isUnassignedBucket);
+  const noManager  = realDepts.filter(d => !d.manager).length;
 
   return (
     <div style={{ marginTop: 16 }}>
@@ -260,7 +274,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
       {/* Stats strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
         {[
-          { label: "Total Departments", value: enriched.length, color: "var(--brand)", bg: "var(--brand-light)" },
+          { label: "Total Departments", value: realDepts.length, color: "var(--brand)", bg: "var(--brand-light)" },
           { label: "Total Employees", value: totalEmployees, color: "#16a34a", bg: "#dcfce7" },
           { label: "Needs a Manager", value: noManager, color: "#d97706", bg: "#fef9c3" },
         ].map(s => (
@@ -322,6 +336,8 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
                           </div>
                           <span style={{ fontSize: 12, fontWeight: 600, color: "#334155", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dept.manager.name}</span>
                         </div>
+                      ) : dept.isUnassignedBucket ? (
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>— Not a real department —</span>
                       ) : (
                         <span style={{ fontSize: 11, color: "#f59e0b", fontWeight: 600 }}>⚠ Not assigned</span>
                       )}
@@ -335,7 +351,14 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
                     >
                       <TbEye size={11} /> View Members
                     </button>
-                    {canWrite && (
+                    {/* "Unassigned" is just this page's placeholder bucket for
+                        employees with no department set — there's no real
+                        record behind it to configure, rename, or delete
+                        (deleting it 404'd with "Department not found", and
+                        editing/renaming it made no sense either), so it only
+                        ever gets the one action that's actually meaningful:
+                        seeing who's in it. */}
+                    {canWrite && !dept.isUnassignedBucket && (
                       <button
                         onClick={() => setWorkTypesDept(dept.name)}
                         title="Configure work types"
@@ -344,7 +367,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
                         <TbTags size={11} />
                       </button>
                     )}
-                    {canWrite && (
+                    {canWrite && !dept.isUnassignedBucket && (
                       <button
                         onClick={() => openEditDept(dept)}
                         style={{ padding: "7px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}
@@ -352,7 +375,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
                         <TbEdit size={11} />
                       </button>
                     )}
-                    {canDelete && (
+                    {canDelete && !dept.isUnassignedBucket && (
                       <button
                         onClick={() => deleteDepartment(dept._id, dept.name)}
                         style={{ padding: "7px 12px", borderRadius: 8, border: "1.5px solid #fee2e2", background: "#fff", color: "#dc2626", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 5 }}
@@ -540,7 +563,7 @@ export default function AdminDepartments({ employees = [], token, api, canWrite 
               </div>
 
               <div style={{ padding: "14px 20px", borderTop: "1px solid #f1f5f9", display: "flex", gap: 10 }}>
-                {canWrite && (
+                {canWrite && !d.isUnassignedBucket && (
                   <button className="btn" style={{ flex: 1 }} onClick={() => { openEditDept(d); setDeptMembersOpen(null); }}>
                     <TbEdit size={12} /> Edit Department
                   </button>
