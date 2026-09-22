@@ -5,7 +5,7 @@ import {
   TbUserPlus, TbSearch, TbX, TbUsers, TbCircleCheck, TbCircleX, TbHeartHandshake, TbPercentage,
   TbFileTypePdf, TbLink, TbVideo, TbFolderOpen, TbSend, TbTrash, TbPlus, TbHistory,
   TbMailOpened, TbIdBadge, TbEye, TbDownload, TbMail, TbFileExport,
-  TbCloudUpload,
+  TbCloudUpload, TbMusic, TbClock,
 } from "react-icons/tb";
 import { BarChart, DonutChart } from "./Charts";
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
@@ -56,15 +56,25 @@ function exportCandidateCSV(cand) {
   a.click(); URL.revokeObjectURL(a.href);
 }
 
-// Images and PDFs render natively in a new tab. Everything else — Office
-// docs, or an older Cloudinary "raw" upload with no file extension at all —
-// gets routed through Google's document viewer instead of just handing the
-// browser a file it can only download.
+// Images and PDFs render natively when opened directly — the browser's own
+// viewer handles both. This used to route anything else (a .doc/.docx
+// resume, or an older upload with no extension at all) through Google's
+// public document viewer instead — but that's an external, unauthenticated
+// service with no reliability guarantee for an arbitrary third-party file,
+// and it was failing outright ("Could not preview the file — you may be
+// offline") rather than falling back to anything usable. Opening the file
+// directly is what actually works: the browser renders what it can and
+// downloads what it can't, which beats a guaranteed-broken preview either way.
 function cloudinaryViewUrl(url) {
-  if (!url) return url;
-  if (/\.(jpe?g|png|gif|webp|bmp)(\?|$)/i.test(url)) return url;
-  if (/\.pdf(\?|$)/i.test(url)) return url;
-  return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+  return url;
+}
+
+// A recording added as a straight audio file (voice note, call recording)
+// gets an inline player instead of just a bare link — video/other files
+// still just get an "Open" link (the browser's own player/viewer handles
+// those in a new tab).
+function isAudioUrl(url) {
+  return /\.(mp3|wav|m4a|aac|ogg|opus|webm|flac)(\?|$)/i.test(url || "");
 }
 
 // Forces a real download instead of opening in a new tab — a plain
@@ -843,11 +853,30 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
 
         {/* Recordings */}
         <Section title="Interview & Assessment Recordings" icon={<TbVideo />}>
-          {(c.recordings || []).map((r, i) => (
-            <a key={i} href={r.url} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#334155", padding: "6px 0", textDecoration: "none" }}>
-              <TbVideo size={12} color="#0f766e" /> <b>{r.type}</b> <TbLink size={10} color="#3b82f6" style={{ marginLeft: "auto" }} />
-            </a>
-          ))}
+          {(c.recordings || []).map((r, i) => {
+            const audio = isAudioUrl(r.url);
+            return (
+              <div key={i} style={{
+                display: "flex", flexDirection: "column", gap: 8, padding: "10px 12px", marginBottom: 8,
+                background: audio ? "#f0fdf4" : "#f8fafc", border: `1px solid ${audio ? "#bbf7d0" : "#e2e8f0"}`, borderRadius: 10,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  {audio ? <TbMusic size={13} color="#16a34a" /> : <TbVideo size={13} color="#0f766e" />}
+                  <b style={{ fontSize: 13, color: "#0f172a" }}>{r.type}</b>
+                  {r.added_at && (
+                    <span style={{ fontSize: 11, color: "#94a3b8", display: "inline-flex", alignItems: "center", gap: 3 }}>
+                      <TbClock size={10} />
+                      {new Date(r.added_at).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
+                  <a href={r.url} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: "#3b82f6", display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                    Open <TbLink size={10} />
+                  </a>
+                </div>
+                {audio && <audio controls preload="none" src={r.url} style={{ width: "100%", height: 34 }} />}
+              </div>
+            );
+          })}
           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
             <select className="modern-input" value={recType} onChange={e => setRecType(e.target.value)} style={{ margin: 0, maxWidth: 180, fontSize: 12.5 }}>{RECORDING_TYPES.map(t => <option key={t}>{t}</option>)}</select>
             <input className="modern-input" placeholder="Recording / file URL" value={recUrl} onChange={e => setRecUrl(e.target.value)} style={{ margin: 0, flex: 1, minWidth: 160 }} />

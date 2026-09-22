@@ -10,17 +10,18 @@ import {
 } from "react-icons/tb";
 import { isOffboarded, isInNotice } from "../utils/employeeStatus";
 
-// "View" opens a URL the browser can actually render inline. Images and
-// PDFs render natively; anything else (docx/xlsx/pptx, or — very common
-// here — an older Cloudinary "raw" upload with no file extension at all,
-// so the browser has no idea what it even is) gets routed through Google's
-// document viewer instead of just handing the browser a file it can only
-// download.
+// "View" opens the file directly — images and PDFs render natively in the
+// browser's own viewer. This used to route anything else (docx/xlsx/pptx,
+// or an older Cloudinary "raw" upload with no file extension at all) through
+// Google's public document viewer instead — but that's an external,
+// unauthenticated service with no reliability guarantee for an arbitrary
+// third-party file, and it was failing outright ("Could not preview the
+// file — you may be offline") rather than falling back to anything usable.
+// Opening the file directly is what actually works: the browser renders
+// what it can and downloads what it can't, which beats a guaranteed-broken
+// preview either way.
 function cloudinaryViewUrl(url) {
-  if (!url) return url;
-  if (/\.(jpe?g|png|gif|webp|bmp)(\?|$)/i.test(url)) return url;
-  if (/\.pdf(\?|$)/i.test(url)) return url;
-  return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+  return url;
 }
 
 // "Download" fetches the bytes and saves them as a blob instead of relying
