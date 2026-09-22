@@ -439,7 +439,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
               <div style={{ overflowX: "auto", overflowY: "visible" }}>
                 <table className="styled-table-global">
-                  <thead><tr><th>Code</th><th>Candidate</th><th>Role / Skills</th><th>Experience</th><th>Location</th><th>Employment</th><th>Status</th><th style={{ textAlign: "center" }}>Actions</th></tr></thead>
+                  <thead><tr><th>Code</th><th>Candidate</th><th>Applied On</th><th>Role / Skills</th><th>Experience</th><th>Location</th><th>Employment</th><th>Status</th><th style={{ textAlign: "center" }}>Actions</th></tr></thead>
                   <tbody>
                     {filtered.map(c => {
                       const sc = STATUS_COLOR(c.status);
@@ -447,6 +447,14 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                         <tr key={c._id} style={{ cursor: "pointer" }} onClick={() => setDetail(c)}>
                           <td style={{ fontSize: 12, color: "#64748b", fontWeight: 600, whiteSpace: "nowrap" }}>{c.applicant_code || "—"}</td>
                           <td><div style={{ fontWeight: 600 }}>{c.name}</div><div style={{ fontSize: 12, color: "#64748b" }}>{c.email}</div></td>
+                          <td style={{ fontSize: 12.5, color: "#475569", whiteSpace: "nowrap" }}>
+                            {c.applied_at ? (
+                              <>
+                                <div>{new Date(c.applied_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</div>
+                                <div style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(c.applied_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</div>
+                              </>
+                            ) : "—"}
+                          </td>
                           <td style={{ fontSize: 13 }}>{c.job_role || "—"}<div style={{ fontSize: 11, color: "#94a3b8" }}>{Array.isArray(c.skills) ? c.skills.join(", ") : c.skills}</div></td>
                           <td style={{ fontSize: 13 }}>{c.experience ? `${c.experience} yrs` : "—"}</td>
                           <td style={{ fontSize: 13 }}>{c.current_location || "—"}</td>
