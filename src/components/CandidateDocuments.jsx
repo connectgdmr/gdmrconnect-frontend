@@ -25,6 +25,33 @@ const DEFAULT_DOCS = [
 ];
 const DEFAULT_OPTIONAL = ["Certification Course Certificate"];
 
+// Opens an uploaded file for viewing in a new tab. Linking straight to the
+// Cloudinary URL downloads it instead of previewing it — uploads here go up
+// as Cloudinary "raw" resources (routes/ats.py), and raw delivery serves an
+// unhelpful application/octet-stream Content-Type regardless of the real
+// file type, which is exactly what makes a browser download a file instead
+// of rendering it. Fetching the bytes and re-wrapping them as a blob with an
+// explicit, correct MIME type sidesteps that. The window opens synchronously
+// (before the first await) and is only navigated once the blob is ready —
+// doing that after the fetch resolves runs outside the click's user-gesture
+// window and gets silently popup-blocked in some browsers.
+async function viewFile(url) {
+  const win = window.open("", "_blank");
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error();
+    const blob = await res.blob();
+    const type = blob.type && blob.type !== "application/octet-stream" ? blob.type : "application/pdf";
+    const viewBlob = blob.type === type ? blob : new Blob([blob], { type });
+    const objUrl = URL.createObjectURL(viewBlob);
+    if (win) win.location.href = objUrl;
+    else window.open(objUrl, "_blank");
+  } catch {
+    if (win) win.location.href = url; // fallback — at least gets them to the file
+    else window.open(url, "_blank");
+  }
+}
+
 export default function CandidateDocuments({ docToken }) {
   const [phase, setPhase] = useState("loading");   // loading | ready | error
   const [data, setData] = useState(null);
@@ -140,7 +167,7 @@ export default function CandidateDocuments({ docToken }) {
                     <div style={{ fontSize: 11.5, marginTop: 3, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       {st === "Approved" ? <TbCircleCheck size={11} color="#16a34a" /> : (st === "Rejected" || st === "Re-upload Requested") ? <TbCircleX size={11} color={stColor} /> : <TbClock size={11} color="#d97706" />}
                       <span style={{ color: stColor, fontWeight: 700 }}>{st}</span>
-                      <a href={sub.url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", marginLeft: 4 }}>view</a>
+                      <button type="button" onClick={() => viewFile(sub.url)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", fontSize: "inherit", color: "#3b82f6", marginLeft: 4 }}>view</button>
                       {needsReupload && <span style={{ color: "#dc2626" }}>· please re-upload</span>}
                     </div>
                   ) : (

@@ -56,17 +56,37 @@ function exportCandidateCSV(cand) {
   a.click(); URL.revokeObjectURL(a.href);
 }
 
-// Images and PDFs render natively when opened directly — the browser's own
-// viewer handles both. This used to route anything else (a .doc/.docx
-// resume, or an older upload with no extension at all) through Google's
-// public document viewer instead — but that's an external, unauthenticated
-// service with no reliability guarantee for an arbitrary third-party file,
-// and it was failing outright ("Could not preview the file — you may be
-// offline") rather than falling back to anything usable. Opening the file
-// directly is what actually works: the browser renders what it can and
-// downloads what it can't, which beats a guaranteed-broken preview either way.
-function cloudinaryViewUrl(url) {
-  return url;
+// Opens a file for viewing in a new tab. Just navigating straight to the
+// Cloudinary URL (what this used to do) looked right for a plain PDF but
+// actually downloaded it instead of previewing it — resumes/documents are
+// uploaded as Cloudinary "raw" resources (routes/ats.py, routes/
+// employees.py), and raw delivery serves an unhelpful
+// application/octet-stream Content-Type (sometimes with a
+// Content-Disposition: attachment header too) regardless of the real file
+// type, which is exactly what makes a browser download a file instead of
+// rendering it. Fetching the bytes and re-wrapping them as a blob with an
+// explicit, correct MIME type sidesteps that entirely — same "fetch as
+// blob" approach downloadFile() below already uses reliably.
+//
+// The window is opened synchronously, before the first await, and only
+// navigated once the blob is ready — opening it after the fetch resolves
+// would run outside the click's user-gesture window and get silently
+// popup-blocked in some browsers.
+async function viewFile(url) {
+  const win = window.open("", "_blank");
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error();
+    const blob = await res.blob();
+    const type = blob.type && blob.type !== "application/octet-stream" ? blob.type : "application/pdf";
+    const viewBlob = blob.type === type ? blob : new Blob([blob], { type });
+    const objUrl = URL.createObjectURL(viewBlob);
+    if (win) win.location.href = objUrl;
+    else window.open(objUrl, "_blank");
+  } catch {
+    if (win) win.location.href = url; // fallback — at least gets them to the file
+    else window.open(url, "_blank");
+  }
 }
 
 // A recording added as a straight audio file (voice note, call recording)
@@ -851,7 +871,7 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
         {c.remarks && <div style={{ marginBottom: 16, padding: "10px 14px", background: "#f8fafc", borderRadius: 8, fontSize: 13, color: "#475569" }}><b>Remarks:</b> {c.remarks}</div>}
         {c.resume_url && (
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-            <a href={cloudinaryViewUrl(c.resume_url)} target="_blank" rel="noreferrer" className="btn ghost" style={{ fontSize: 12.5, display: "inline-flex" }}><TbFileTypePdf /> View Resume</a>
+            <button type="button" onClick={() => viewFile(c.resume_url)} className="btn ghost" style={{ fontSize: 12.5, display: "inline-flex", alignItems: "center", gap: 6 }}><TbFileTypePdf /> View Resume</button>
             <button type="button" onClick={() => downloadFile(c.resume_url, `${(c.name || "candidate").replace(/\s+/g, "_")}_Resume.pdf`)}
               className="btn ghost" style={{ fontSize: 12.5, display: "inline-flex", alignItems: "center", gap: 6 }}>
               <TbDownload size={11} /> Download
@@ -923,7 +943,7 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
                 </span>
                 {d.url && (
                   <>
-                    <a href={cloudinaryViewUrl(d.url)} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#3b82f6" }}>View</a>
+                    <button type="button" onClick={() => viewFile(d.url)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 12, color: "#3b82f6", fontFamily: "inherit" }}>View</button>
                     <button type="button" onClick={() => downloadFile(d.url, `${d.name || "document"}.pdf`)}
                       style={{ background: "none", border: "none", cursor: "pointer", color: "var(--brand)", padding: 0, display: "flex", alignItems: "center" }} title="Download">
                       <TbDownload size={12} />
