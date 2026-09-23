@@ -34,7 +34,12 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
   const [statusFilter, setStatusFilter] = useState("All");
   const [deptFilter, setDeptFilter] = useState("All");
   const [sortBy, setSortBy] = useState("applied_desc");
-  const [dateFilter, setDateFilter] = useState(""); // "YYYY-MM-DD" — show only leaves covering this date
+  // "YYYY-MM-DD" each, either may be blank — show only leaves whose period
+  // overlaps [dateFrom, dateTo] (an open end on either side means "onward"/
+  // "through", not a hard boundary). "Today" sets both to the same day,
+  // which is exactly the old single-date "covers this date" filter.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   // ============================================================================
   // 2. DATA FETCHING LOGIC
@@ -109,12 +114,19 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
   const leaveStartDate = (l) => new Date(l.from_date || l.date || l.applied_at || l.created_at || 0);
   const appliedDate    = (l) => new Date(l.applied_at || l.created_at || 0);
 
-  // Does this leave's period cover the given "YYYY-MM-DD" date?
-  const coversDate = (l, dateStr) => {
-    if (l.from_date && l.to_date) {
-      return String(l.from_date).slice(0, 10) <= dateStr && String(l.to_date).slice(0, 10) >= dateStr;
-    }
-    return String(l.date || "").slice(0, 10) === dateStr;
+  // Does this leave's period overlap the ["YYYY-MM-DD", "YYYY-MM-DD"] range
+  // (either end may be blank, meaning "onward" / "through" rather than a
+  // hard boundary)? Standard interval-overlap check: they intersect unless
+  // one ends before the other starts. A leave with no from_date/to_date
+  // (legacy single-day requests) is treated as a one-day period.
+  const overlapsRange = (l, fromStr, toStr) => {
+    const hasPeriod = l.from_date && l.to_date;
+    const lFrom = hasPeriod ? String(l.from_date).slice(0, 10) : String(l.date || "").slice(0, 10);
+    const lTo   = hasPeriod ? String(l.to_date).slice(0, 10)   : lFrom;
+    if (!lFrom) return true; // nothing to compare against — don't hide it
+    if (fromStr && lTo < fromStr) return false;
+    if (toStr && lFrom > toStr) return false;
+    return true;
   };
 
   // employee_department (routes/leaves.py's admin_view_leaves) can be a
@@ -148,7 +160,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
                             (statusFilter === "Approved" && currentOverallStatus.includes("Approved")) ||
                             (statusFilter === "Rejected" && currentOverallStatus.includes("Rejected"));
 
-      const matchesDate = !dateFilter || coversDate(l, dateFilter);
+      const matchesDate = (!dateFrom && !dateTo) || overlapsRange(l, dateFrom, dateTo);
 
       const matchesDept = deptFilter === "All" ||
                             (deptFilter === "Unassigned" ? deptListFor(l).length === 0 : deptListFor(l).includes(deptFilter));
@@ -220,8 +232,9 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
         }
         .styled-input:focus { border-color: var(--red); }
 
-        .date-filter-wrapper { flex: 1 1 170px; display: flex; align-items: center; gap: 6px; }
+        .date-filter-wrapper { flex: 1 1 320px; display: flex; align-items: center; gap: 6px; }
         .date-filter-wrapper .styled-input { width: 100%; flex: 1; min-width: 0; padding-left: 12px; }
+        .date-filter-sep { color: #94a3b8; font-size: 12px; flex-shrink: 0; }
         .date-filter-clear {
           flex-shrink: 0;
           background: #f1f5f9;
@@ -455,20 +468,34 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
           <div className="filter-wrapper date-filter-wrapper">
               {/* No left icon here — a native date input already shows its
                   own calendar icon, and a second one just past our custom
-                  left icon read as a cluttered "double calendar" look. */}
+                  left icon read as a cluttered "double calendar" look.
+                  Either end can be left blank — "from Sep 25" with no "to"
+                  means onward, "to Oct 7" with no "from" means through that
+                  date — so this also covers the single-date case the old
+                  filter did (set only one side, or set both to the same day). */}
               <input
                   type="date"
                   className="styled-input"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  title="Show only leaves covering this date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  max={dateTo || undefined}
+                  title="Show leaves on or after this date"
               />
-              {dateFilter && (
+              <span className="date-filter-sep">to</span>
+              <input
+                  type="date"
+                  className="styled-input"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  min={dateFrom || undefined}
+                  title="...through this date"
+              />
+              {(dateFrom || dateTo) && (
                   <button
                       type="button"
                       className="date-filter-clear"
-                      onClick={() => setDateFilter("")}
-                      title="Clear date filter"
+                      onClick={() => { setDateFrom(""); setDateTo(""); }}
+                      title="Clear date range"
                   >
                       <TbX size={11} />
                   </button>
@@ -477,7 +504,7 @@ export default function AdminLeavePage({ token, api, departments = [] }) {
           <button
               type="button"
               className="today-quick-btn"
-              onClick={() => setDateFilter(ymd())}
+              onClick={() => { setDateFrom(ymd()); setDateTo(ymd()); }}
               title="Show leave requests covering today"
           >
               Today
