@@ -319,7 +319,14 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const streamRef = useRef(null); 
+  const streamRef = useRef(null);
+  // Synchronous re-entrancy guard for submitAttendance — a double-tap on
+  // "Submit" (common on a laggy mobile touchscreen) can fire the handler
+  // twice before React's next render actually swaps the button away
+  // (setSubmittingPhoto is async), which was sending two check-in/check-out
+  // requests seconds apart and — before the backend's own unique-index fix —
+  // recording both.
+  const submittingRef = useRef(false);
 
   // ============================================================================
   // 9. MODAL STATES
@@ -618,6 +625,8 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
    * Transmits the captured base64 string to the backend.
    */
   async function submitAttendance(imageData) {
+    if (submittingRef.current) return; // already in flight — ignore the double-tap
+    submittingRef.current = true;
     setSubmittingPhoto(true);
     try {
       if (actionType === "checkin") {
@@ -625,16 +634,17 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
       } else {
         await api.checkoutWithPhoto(token, imageData, locationData);
       }
-      
+
       await new Promise(r => setTimeout(r, 500));
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
-      
-      setSubmittingPhoto(false); 
+
       closeCamera();
       await load();
     } catch (err) {
       alert("Error submitting attendance: " + (err.message || "An unknown error occurred."));
-      setSubmittingPhoto(false); 
+    } finally {
+      submittingRef.current = false;
+      setSubmittingPhoto(false);
     }
   }
 

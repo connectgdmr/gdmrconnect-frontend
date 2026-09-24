@@ -372,7 +372,14 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const streamRef = useRef(null); 
+  const streamRef = useRef(null);
+  // Synchronous re-entrancy guard for submitAttendance — a double-tap on
+  // "Submit" (common on a laggy mobile touchscreen) can fire the handler
+  // twice before React's next render actually swaps the button away
+  // (setSubmittingPhoto is async), which was sending two check-in/check-out
+  // requests seconds apart and — before the backend's own unique-index fix —
+  // recording both.
+  const submittingRef = useRef(false);
 
   // ============================================================================
   // 6. DERIVED STATES & CONSTANTS
@@ -744,6 +751,8 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
    * Cloudinary storage and database logging.
    */
   async function submitAttendance(imageData) {
+    if (submittingRef.current) return; // already in flight — ignore the double-tap
+    submittingRef.current = true;
     setSubmittingPhoto(true);
     try {
       const location = await getCurrentLocation();
@@ -752,15 +761,16 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
       } else {
           await api.checkoutWithPhoto(token, imageData, location);
       }
-      
-      setSubmittingPhoto(false); 
-      closeCamera(); 
+
+      closeCamera();
       alert(`${actionType === "checkin" ? "Checked in" : "Checked out"} successfully!`);
-      
+
       await load(true);
     } catch (err) {
       alert("Error submitting attendance: " + (err.message || ""));
-      setSubmittingPhoto(false); 
+    } finally {
+      submittingRef.current = false;
+      setSubmittingPhoto(false);
     }
   }
 
