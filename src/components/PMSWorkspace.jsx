@@ -171,6 +171,9 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const [extendUntil, setExtendUntil] = useState("");
   const [extendReason, setExtendReason] = useState("");
   const [savingAction, setSavingAction] = useState(false);
+  const [teamModalRow, setTeamModalRow] = useState(null);   // row whose affected team is shown
+  const [teamRoster, setTeamRoster] = useState([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
 
   const loadReviews = useCallback(async () => {
     setLoadingReviews(true);
@@ -255,6 +258,17 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
       const res = await fetch(`${baseUrl}/api/admin/pms-compliance/audit${q}`, { headers: { Authorization: `Bearer ${token}` } });
       setAuditRows(res.ok ? await res.json() : []);
     } catch { setAuditRows([]); }
+  }, [baseUrl, token]);
+
+  const openTeamModal = useCallback(async (row) => {
+    setTeamModalRow(row);
+    setLoadingTeam(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/pms-compliance/${row.manager_id}/team?month=${row.review_month}`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = res.ok ? await res.json() : { roster: [] };
+      setTeamRoster(data.roster || []);
+    } catch { setTeamRoster([]); }
+    finally { setLoadingTeam(false); }
   }, [baseUrl, token]);
 
   const submitUnblock = useCallback(async () => {
@@ -1034,6 +1048,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                         <td style={{ fontSize: 12 }}>{r.override_status === "Yes" ? <span title={r.override_reason || ""} style={{ color: "#7c3aed", fontWeight: 700 }}>Yes</span> : "No"}</td>
                         <td>
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            <button className="btn-small ghost" style={{ border: "1px solid #e2e8f0", padding: "5px 10px", fontSize: 11.5 }} onClick={() => openTeamModal(r)}>Team</button>
                             {blocked && (
                               <button className="btn-small ghost" style={{ border: "1px solid #e2e8f0", padding: "5px 10px", fontSize: 11.5 }} onClick={() => setUnblockTarget(r)}>Unblock</button>
                             )}
@@ -1122,6 +1137,44 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                   <button className="btn ghost" onClick={() => setSettingsModalOpen(false)}>Cancel</button>
                   <button className="btn" disabled={savingSettings} onClick={saveComplianceSettings}>{savingSettings ? "Saving…" : "Save Settings"}</button>
                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Compliance: Affected Employees modal ── */}
+      {teamModalRow && (
+        <div className="modal-overlay" style={{ zIndex: 4000 }} onClick={() => setTeamModalRow(null)}>
+          <div className="modal-box" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ margin: 0 }}>{teamModalRow.manager}'s Team — {teamModalRow.review_month}</h3>
+              <button className="btn-small ghost" onClick={() => setTeamModalRow(null)}><TbX /></button>
+            </div>
+            {loadingTeam ? (
+              <div style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Loading…</div>
+            ) : teamRoster.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>No active team members mapped to this manager.</div>
+            ) : (
+              <div style={{ maxHeight: 420, overflowY: "auto" }}>
+                <table className="styled-table-global">
+                  <thead><tr><th>Employee</th><th>Department</th><th>Review Status</th></tr></thead>
+                  <tbody>
+                    {teamRoster.map(e => (
+                      <tr key={e.employee_id}>
+                        <td style={{ fontWeight: 600 }}>{e.name}</td>
+                        <td>{e.department || "—"}</td>
+                        <td>
+                          <span style={{
+                            fontSize: 11.5, fontWeight: 700, padding: "3px 10px", borderRadius: 8,
+                            background: e.review_status === "Completed" ? "#f0fdf4" : e.review_status === "Pending" ? "#fffbeb" : "#f1f5f9",
+                            color: e.review_status === "Completed" ? "#166534" : e.review_status === "Pending" ? "#b45309" : "#64748b",
+                          }}>{e.review_status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
