@@ -11,6 +11,7 @@ const TABS = [
   { key: "reviews",     label: "Reviews" },
   { key: "builder",     label: "Build PMS" },
   { key: "calibration", label: "Calibration" },
+  { key: "compliance",  label: "Compliance", adminOnly: true },
 ];
 
 // Multi-line text field that grows with its content and lets Enter add a
@@ -155,6 +156,22 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const [calibrationData, setCalibrationData] = useState([]);
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
 
+  // ── Compliance tab state (admin scope only) ────────────────────────────
+  const [complianceRows, setComplianceRows] = useState([]);
+  const [blockingEnabled, setBlockingEnabled] = useState(false);
+  const [loadingCompliance, setLoadingCompliance] = useState(false);
+  const [complianceSettings, setComplianceSettings] = useState(null);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [auditModalOpen, setAuditModalOpen] = useState(false);
+  const [auditRows, setAuditRows] = useState([]);
+  const [unblockTarget, setUnblockTarget] = useState(null); // row being unblocked
+  const [unblockReason, setUnblockReason] = useState("");
+  const [extendTarget, setExtendTarget] = useState(null);   // row being extended
+  const [extendUntil, setExtendUntil] = useState("");
+  const [extendReason, setExtendReason] = useState("");
+  const [savingAction, setSavingAction] = useState(false);
+
   const loadReviews = useCallback(async () => {
     setLoadingReviews(true);
     try {
@@ -175,6 +192,113 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
       .then(setCalibrationData)
       .catch(() => setCalibrationData([]));
   }, [tab, reportMonth, baseUrl, token]);
+
+  // ── Compliance tab (admin scope only) ──────────────────────────────────
+  const loadCompliance = useCallback(async () => {
+    if (!isAdmin) return;
+    setLoadingCompliance(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/pms-compliance?month=${reportMonth}`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = res.ok ? await res.json() : { rows: [], blocking_enabled: false };
+      setComplianceRows(data.rows || []);
+      setBlockingEnabled(!!data.blocking_enabled);
+    } catch { setComplianceRows([]); }
+    finally { setLoadingCompliance(false); }
+  }, [baseUrl, token, isAdmin, reportMonth]);
+
+  useEffect(() => {
+    if (tab !== "compliance") return;
+    loadCompliance();
+  }, [tab, loadCompliance]);
+
+  const loadComplianceSettings = useCallback(async () => {
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/pms-compliance/settings`, { headers: { Authorization: `Bearer ${token}` } });
+      setComplianceSettings(res.ok ? await res.json() : null);
+    } catch { setComplianceSettings(null); }
+  }, [baseUrl, token]);
+
+  const openSettingsModal = useCallback(() => {
+    setSettingsModalOpen(true);
+    loadComplianceSettings();
+  }, [loadComplianceSettings]);
+
+  const saveComplianceSettings = useCallback(async () => {
+    if (!complianceSettings) return;
+    setSavingSettings(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/pms-compliance/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          blocking_enabled:        complianceSettings.blocking_enabled,
+          exempt_employee_ids:     complianceSettings.exempt_employee_ids,
+          exempt_department_names: complianceSettings.exempt_department_names,
+          new_joiner_grace_days:   complianceSettings.new_joiner_grace_days,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(`Failed to save: ${d.message || res.status}`);
+        return;
+      }
+      setSettingsModalOpen(false);
+      loadCompliance();
+    } catch { alert("Network error saving compliance settings."); }
+    finally { setSavingSettings(false); }
+  }, [baseUrl, token, complianceSettings, loadCompliance]);
+
+  const openAuditTrail = useCallback(async (managerId = null) => {
+    setAuditModalOpen(true);
+    try {
+      const q = managerId ? `?manager_id=${managerId}` : "";
+      const res = await fetch(`${baseUrl}/api/admin/pms-compliance/audit${q}`, { headers: { Authorization: `Bearer ${token}` } });
+      setAuditRows(res.ok ? await res.json() : []);
+    } catch { setAuditRows([]); }
+  }, [baseUrl, token]);
+
+  const submitUnblock = useCallback(async () => {
+    if (!unblockTarget) return;
+    setSavingAction(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/pms-compliance/${unblockTarget.manager_id}/unblock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ month: unblockTarget.review_month, reason: unblockReason }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(`Failed to unblock: ${d.message || res.status}`);
+        return;
+      }
+      setUnblockTarget(null);
+      setUnblockReason("");
+      loadCompliance();
+    } catch { alert("Network error restoring attendance access."); }
+    finally { setSavingAction(false); }
+  }, [baseUrl, token, unblockTarget, unblockReason, loadCompliance]);
+
+  const submitExtend = useCallback(async () => {
+    if (!extendTarget || !extendUntil) return;
+    setSavingAction(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/pms-compliance/${extendTarget.manager_id}/extend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ month: extendTarget.review_month, until: extendUntil, reason: extendReason }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(`Failed to extend deadline: ${d.message || res.status}`);
+        return;
+      }
+      setExtendTarget(null);
+      setExtendUntil("");
+      setExtendReason("");
+      loadCompliance();
+    } catch { alert("Network error extending the deadline."); }
+    finally { setSavingAction(false); }
+  }, [baseUrl, token, extendTarget, extendUntil, extendReason, loadCompliance]);
 
   // ============================================================================
   // BUILDER LOGIC
@@ -371,7 +495,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 10, padding: 4 }}>
-            {TABS.map(tabBtn)}
+            {TABS.filter(t => !t.adminOnly || isAdmin).map(tabBtn)}
           </div>
           <input type="month" className="modern-input" style={{ margin: 0, width: "auto" }} value={reportMonth} onChange={e => setReportMonth(e.target.value)} />
           <button className="btn ghost" onClick={exportReport} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, whiteSpace: "nowrap" }}>
@@ -842,6 +966,232 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── COMPLIANCE TAB (admin scope only) ── */}
+      {tab === "compliance" && isAdmin && (
+        <div className="card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <h3 style={{ margin: 0, color: "#0f172a" }}>Performance Review Compliance</h3>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>
+                Managers must finalize their team's monthly reviews by the last working day, or their team's attendance check-in is blocked.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{
+                fontSize: 11.5, fontWeight: 700, padding: "4px 10px", borderRadius: 8,
+                background: blockingEnabled ? "#fef2f2" : "#f1f5f9",
+                color: blockingEnabled ? "#b91c1c" : "#64748b",
+                border: `1px solid ${blockingEnabled ? "#fecaca" : "#e2e8f0"}`,
+              }}>
+                Blocking {blockingEnabled ? "ON" : "OFF"}
+              </span>
+              <button className="btn ghost" style={{ fontSize: 12.5 }} onClick={() => openAuditTrail(null)}>Audit Trail</button>
+              <button className="btn ghost" style={{ fontSize: 12.5 }} onClick={openSettingsModal}>Settings</button>
+            </div>
+          </div>
+
+          {loadingCompliance ? (
+            <div style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8" }}>Loading…</div>
+          ) : complianceRows.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "50px 20px", color: "#94a3b8", border: "1px dashed #e2e8f0", borderRadius: 10 }}>
+              <TbBuilding size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
+              <div style={{ fontSize: 15, fontWeight: 500 }}>No managers to track for {reportMonth}</div>
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto", overflowY: "visible" }}>
+              <table className="styled-table-global">
+                <thead>
+                  <tr>
+                    <th>Manager</th><th>Department</th>
+                    <th style={{ textAlign: "center" }}>Team</th>
+                    <th style={{ textAlign: "center" }}>Completed</th>
+                    <th style={{ textAlign: "center" }}>Pending</th>
+                    <th>Review Status</th><th>Attendance</th><th>Blocked At</th><th>Override</th><th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {complianceRows.map(r => {
+                    const statusColor = {
+                      Completed:   { bg: "#f0fdf4", fg: "#166534", bd: "#86efac" },
+                      "In Progress": { bg: "#eff6ff", fg: "#1d4ed8", bd: "#bfdbfe" },
+                      Pending:     { bg: "#fffbeb", fg: "#b45309", bd: "#fde68a" },
+                      Overdue:     { bg: "#fef2f2", fg: "#b91c1c", bd: "#fecaca" },
+                    }[r.review_status] || { bg: "#f1f5f9", fg: "#64748b", bd: "#e2e8f0" };
+                    const blocked = r.attendance_status === "Blocked";
+                    return (
+                      <tr key={r.manager_id}>
+                        <td style={{ fontWeight: 600 }}>{r.manager}</td>
+                        <td>{r.department || "—"}</td>
+                        <td style={{ textAlign: "center" }}>{r.team_strength}</td>
+                        <td style={{ textAlign: "center" }}>{r.reviews_completed}</td>
+                        <td style={{ textAlign: "center" }}>{r.reviews_pending}</td>
+                        <td><span style={{ fontSize: 11.5, fontWeight: 700, padding: "3px 10px", borderRadius: 8, background: statusColor.bg, color: statusColor.fg, border: `1px solid ${statusColor.bd}` }}>{r.review_status}</span></td>
+                        <td><span style={{ fontSize: 11.5, fontWeight: 700, padding: "3px 10px", borderRadius: 8, background: blocked ? "#fef2f2" : "#f0fdf4", color: blocked ? "#b91c1c" : "#166534", border: `1px solid ${blocked ? "#fecaca" : "#86efac"}` }}>{r.attendance_status}</span></td>
+                        <td style={{ fontSize: 12, color: "#64748b" }}>{r.block_date ? new Date(r.block_date).toLocaleString() : "—"}</td>
+                        <td style={{ fontSize: 12 }}>{r.override_status === "Yes" ? <span title={r.override_reason || ""} style={{ color: "#7c3aed", fontWeight: 700 }}>Yes</span> : "No"}</td>
+                        <td>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {blocked && (
+                              <button className="btn-small ghost" style={{ border: "1px solid #e2e8f0", padding: "5px 10px", fontSize: 11.5 }} onClick={() => setUnblockTarget(r)}>Unblock</button>
+                            )}
+                            {r.review_status !== "Completed" && (
+                              <button className="btn-small ghost" style={{ border: "1px solid #e2e8f0", padding: "5px 10px", fontSize: 11.5 }} onClick={() => setExtendTarget(r)}>Extend</button>
+                            )}
+                            <button className="btn-small ghost" style={{ border: "1px solid #e2e8f0", padding: "5px 10px", fontSize: 11.5 }} onClick={() => openAuditTrail(r.manager_id)}>History</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Compliance: Settings modal ── */}
+      {settingsModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 4000 }} onClick={() => setSettingsModalOpen(false)}>
+          <div className="modal-box" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ margin: 0 }}>Compliance Settings</h3>
+              <button className="btn-small ghost" onClick={() => setSettingsModalOpen(false)}><TbX /></button>
+            </div>
+            {!complianceSettings ? (
+              <div style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Loading…</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={!!complianceSettings.blocking_enabled}
+                    onChange={e => setComplianceSettings(s => ({ ...s, blocking_enabled: e.target.checked }))}
+                  />
+                  <span>
+                    <strong>Enable attendance blocking</strong>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>When off, status and notifications still run — no one's check-in is actually rejected.</div>
+                  </span>
+                </label>
+
+                <div>
+                  <label className="small" style={{ fontWeight: 600 }}>New-joiner grace period (days)</label>
+                  <input
+                    type="number" min={0} className="modern-input"
+                    value={complianceSettings.new_joiner_grace_days ?? 30}
+                    onChange={e => setComplianceSettings(s => ({ ...s, new_joiner_grace_days: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="small" style={{ fontWeight: 600 }}>Exempt departments (comma-separated)</label>
+                  <input
+                    type="text" className="modern-input"
+                    value={(complianceSettings.exempt_department_names || []).join(", ")}
+                    onChange={e => setComplianceSettings(s => ({ ...s, exempt_department_names: e.target.value.split(",").map(x => x.trim()).filter(Boolean) }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="small" style={{ fontWeight: 600 }}>Exempt employees</label>
+                  <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8, padding: 8, marginTop: 6 }}>
+                    {activePool.map(e => {
+                      const checked = (complianceSettings.exempt_employee_ids || []).includes(String(e._id));
+                      return (
+                        <label key={e._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 2px", cursor: "pointer", fontSize: 13 }}>
+                          <input
+                            type="checkbox" checked={checked}
+                            onChange={() => setComplianceSettings(s => {
+                              const ids = new Set(s.exempt_employee_ids || []);
+                              const id = String(e._id);
+                              checked ? ids.delete(id) : ids.add(id);
+                              return { ...s, exempt_employee_ids: [...ids] };
+                            })}
+                          />
+                          {e.name} <span style={{ color: "#94a3b8" }}>({empDept(e)})</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                  <button className="btn ghost" onClick={() => setSettingsModalOpen(false)}>Cancel</button>
+                  <button className="btn" disabled={savingSettings} onClick={saveComplianceSettings}>{savingSettings ? "Saving…" : "Save Settings"}</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Compliance: Unblock modal ── */}
+      {unblockTarget && (
+        <div className="modal-overlay" style={{ zIndex: 4000 }} onClick={() => setUnblockTarget(null)}>
+          <div className="modal-box" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0 }}>Restore Attendance Access</h3>
+            <p className="small">Manually restore check-in for <strong>{unblockTarget.manager}</strong>'s team ({unblockTarget.review_month}). Their review is still pending — this is logged as an HR override.</p>
+            <label className="small" style={{ fontWeight: 600 }}>Reason</label>
+            <textarea className="modern-input" rows={3} value={unblockReason} onChange={e => setUnblockReason(e.target.value)} placeholder="Reason for override" />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+              <button className="btn ghost" onClick={() => setUnblockTarget(null)}>Cancel</button>
+              <button className="btn" disabled={savingAction || !unblockReason.trim()} onClick={submitUnblock}>{savingAction ? "Restoring…" : "Restore Access"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Compliance: Extend Deadline modal ── */}
+      {extendTarget && (
+        <div className="modal-overlay" style={{ zIndex: 4000 }} onClick={() => setExtendTarget(null)}>
+          <div className="modal-box" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0 }}>Extend Deadline</h3>
+            <p className="small">Push back the review deadline for <strong>{extendTarget.manager}</strong> ({extendTarget.review_month}).</p>
+            <label className="small" style={{ fontWeight: 600 }}>Extend until</label>
+            <input type="date" className="modern-input" value={extendUntil} onChange={e => setExtendUntil(e.target.value)} />
+            <label className="small" style={{ fontWeight: 600, marginTop: 10, display: "block" }}>Reason</label>
+            <textarea className="modern-input" rows={3} value={extendReason} onChange={e => setExtendReason(e.target.value)} placeholder="Reason for extension" />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+              <button className="btn ghost" onClick={() => setExtendTarget(null)}>Cancel</button>
+              <button className="btn" disabled={savingAction || !extendUntil} onClick={submitExtend}>{savingAction ? "Saving…" : "Extend Deadline"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Compliance: Audit Trail modal ── */}
+      {auditModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 4000 }} onClick={() => setAuditModalOpen(false)}>
+          <div className="modal-box" style={{ maxWidth: 640 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ margin: 0 }}>Compliance Audit Trail</h3>
+              <button className="btn-small ghost" onClick={() => setAuditModalOpen(false)}><TbX /></button>
+            </div>
+            {auditRows.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>No audit entries yet.</div>
+            ) : (
+              <div style={{ maxHeight: 420, overflowY: "auto" }}>
+                <table className="styled-table-global">
+                  <thead><tr><th>When</th><th>Manager</th><th>Month</th><th>Action</th><th>By</th><th>Reason</th></tr></thead>
+                  <tbody>
+                    {auditRows.map(a => (
+                      <tr key={a._id}>
+                        <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>{a.at ? new Date(a.at).toLocaleString() : "—"}</td>
+                        <td>{a.manager_name}</td>
+                        <td>{a.month}</td>
+                        <td style={{ fontSize: 12, fontWeight: 600 }}>{(a.action || "").replace(/_/g, " ")}</td>
+                        <td style={{ fontSize: 12 }}>{a.actor_name || "System"}</td>
+                        <td style={{ fontSize: 12, color: "#64748b" }}>{a.reason || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

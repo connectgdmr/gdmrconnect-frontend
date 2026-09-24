@@ -641,7 +641,12 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
       closeCamera();
       await load();
     } catch (err) {
-      alert("Error submitting attendance: " + (err.message || "An unknown error occurred."));
+      if (err?.blocked) {
+        alert(err.message);
+        closeCamera();
+      } else {
+        alert("Error submitting attendance: " + (err.message || "An unknown error occurred."));
+      }
     } finally {
       submittingRef.current = false;
       setSubmittingPhoto(false);

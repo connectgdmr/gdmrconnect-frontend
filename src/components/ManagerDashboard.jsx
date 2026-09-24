@@ -767,7 +767,12 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
 
       await load(true);
     } catch (err) {
-      alert("Error submitting attendance: " + (err.message || ""));
+      if (err?.blocked) {
+        alert(err.message);
+        closeCamera();
+      } else {
+        alert("Error submitting attendance: " + (err.message || ""));
+      }
     } finally {
       submittingRef.current = false;
       setSubmittingPhoto(false);
