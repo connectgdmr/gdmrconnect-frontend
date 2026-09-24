@@ -82,6 +82,9 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const [assignSearch, setAssignSearch] = useState("");
   const [cycleName, setCycleName] = useState("");
   const [cycleDueDate, setCycleDueDate] = useState("");
+  const [recurring, setRecurring] = useState(false);
+  const [assignDayOfMonth, setAssignDayOfMonth] = useState(1);
+  const [dueDayOfMonth, setDueDayOfMonth] = useState(7);
 
   // ── All PMS forms (own "All PMS" tab) + builder edit state ────────────
   const [pmsTemplates, setPmsTemplates] = useState([]);
@@ -89,6 +92,10 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const [expandedTemplate, setExpandedTemplate] = useState(null);
   const [editingTemplateId, setEditingTemplateId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [responsesModalTemplate, setResponsesModalTemplate] = useState(null); // template row whose history is shown
+  const [templateResponses, setTemplateResponses] = useState([]);
+  const [loadingResponses, setLoadingResponses] = useState(false);
+  const [exportingTemplateId, setExportingTemplateId] = useState(null);
 
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true);
@@ -106,6 +113,9 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
     setAssignedEmployees([]);
     setCycleName("");
     setCycleDueDate("");
+    setRecurring(false);
+    setAssignDayOfMonth(1);
+    setDueDayOfMonth(7);
   }, []);
 
   // "Edit" / "Assign" on a form row — load it into the builder and jump there.
@@ -121,6 +131,9 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
     setAssignedEmployees([...(t.assigned_to || [])]);
     setCycleName(t.cycle_name || "");
     setCycleDueDate(t.due_date || "");
+    setRecurring(!!t.recurring);
+    setAssignDayOfMonth(t.assign_day_of_month || 1);
+    setDueDayOfMonth(t.due_day_of_month || 7);
     setTab("builder");
   }, []);
 
@@ -141,6 +154,32 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
     } catch { alert("Network error deleting the PMS form."); }
     finally { setDeletingId(null); }
   }, [baseUrl, token, editingTemplateId, resetBuilder, loadTemplates]);
+
+  const openResponsesModal = useCallback(async (t) => {
+    setResponsesModalTemplate(t);
+    setLoadingResponses(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/pms-template/${t._id}/responses`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = res.ok ? await res.json() : { responses: [] };
+      setTemplateResponses(data.responses || []);
+    } catch { setTemplateResponses([]); }
+    finally { setLoadingResponses(false); }
+  }, [baseUrl, token]);
+
+  const exportTemplateResponses = useCallback(async (t) => {
+    setExportingTemplateId(t._id);
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/pms-template/${t._id}/export`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Failed to download report data from server.");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `${(t.cycle_name || "PMS").replace(/[^a-z0-9 _-]/gi, "_")}_All_Responses.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) { alert("Export failed: " + err.message); }
+    finally { setExportingTemplateId(null); }
+  }, [baseUrl, token]);
 
   // ── Review/scoring modal state ─────────────────────────────────────────
   const [managerScores, setManagerScores] = useState({});
@@ -335,6 +374,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
     e.preventDefault();
     if (assignedEmployees.length === 0) { alert("Action Required: Please select at least one employee to assign this evaluation form to."); return; }
     if (templateSessions.length === 0) { alert("Action Required: Please create at least one section with questions."); return; }
+    if (recurring && (!assignDayOfMonth || !dueDayOfMonth)) { alert("Action Required: Please set both the assign day and due day for a recurring cycle."); return; }
     try {
       const res = await fetch(`${baseUrl}/api/admin/pms-template`, {
         method: "POST",
@@ -343,6 +383,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
           ...(editingTemplateId ? { template_id: editingTemplateId } : {}),
           sessions: templateSessions, assigned_to: assignedEmployees,
           cycle_name: cycleName, due_date: cycleDueDate,
+          recurring, assign_day_of_month: assignDayOfMonth, due_day_of_month: dueDayOfMonth,
         }),
       });
       if (res.ok) {
@@ -566,6 +607,12 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                                 background: expired ? "#fef2f2" : "#f0fdf4", color: expired ? "#b91c1c" : "#166534", border: `1px solid ${expired ? "#fecaca" : "#bbf7d0"}` }}>
                                 {expired ? "Expired" : "Active"}
                               </span>
+                              {t.recurring && (
+                                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 7px", borderRadius: 6,
+                                  background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" }}>
+                                  Recurring{t.current_month ? ` · ${t.current_month}` : ""}
+                                </span>
+                              )}
                             </div>
                             <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 2 }}>
                               {dept} · {t.section_count} section{t.section_count === 1 ? "" : "s"} · {t.question_count} question{t.question_count === 1 ? "" : "s"}
@@ -576,6 +623,10 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                         <span style={{ fontSize: 11.5, fontWeight: 700, color: pct === 100 ? "#16a34a" : "#64748b", background: pct === 100 ? "#f0fdf4" : "#f1f5f9", border: `1px solid ${pct === 100 ? "#bbf7d0" : "#e2e8f0"}`, borderRadius: 8, padding: "4px 10px", flexShrink: 0, whiteSpace: "nowrap" }}>
                           {t.submitted_count}/{t.assigned_count} submitted
                         </span>
+                        <button type="button" title="View every response ever submitted against this form" onClick={() => openResponsesModal(t)}
+                          style={{ flexShrink: 0, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <TbEye size={12} /> Responses
+                        </button>
                         <button type="button" title="Edit sections, questions & assignees" onClick={() => startEditTemplate(t)}
                           style={{ flexShrink: 0, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
                           <TbEdit size={12} /> Edit / Assign
@@ -742,15 +793,45 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                   <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>Design performance evaluation forms with weighted sections and assign them to {isAdmin ? "any employee" : "your team"}</p>
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: 20, background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
+              <div style={{ display: "grid", gridTemplateColumns: recurring ? "1fr" : "1fr 1fr", gap: 16, padding: 20, background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
                 <div>
                   <label className="modern-label">Review Cycle Name</label>
-                  <input className="modern-input" placeholder="e.g., Q1 2025, H1 2025, Annual Review 2025" value={cycleName} onChange={e => setCycleName(e.target.value)} />
+                  <input className="modern-input" placeholder="e.g., Q1 2025, H1 2025, Annual Review 2025, Monthly Performance Review" value={cycleName} onChange={e => setCycleName(e.target.value)} />
                 </div>
-                <div>
-                  <label className="modern-label">Submission Due Date</label>
-                  <input className="modern-input" type="date" value={cycleDueDate} onChange={e => setCycleDueDate(e.target.value)} />
-                </div>
+                {!recurring && (
+                  <div>
+                    <label className="modern-label">Submission Due Date</label>
+                    <input className="modern-input" type="date" value={cycleDueDate} onChange={e => setCycleDueDate(e.target.value)} />
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 14, padding: 16, background: recurring ? "#eff6ff" : "#f8fafc", borderRadius: 10, border: `1px solid ${recurring ? "#bfdbfe" : "#e2e8f0"}` }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", marginBottom: recurring ? 14 : 0 }}>
+                  <input type="checkbox" checked={recurring} onChange={e => setRecurring(e.target.checked)} />
+                  <span>
+                    <strong style={{ fontSize: 13.5 }}>Repeat this form every month</strong>
+                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                      Instead of a one-time form, it auto-reopens for the same employees on the same day each month — no need to rebuild it.
+                    </div>
+                  </span>
+                </label>
+                {recurring && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    <div>
+                      <label className="modern-label">Assign on day of month</label>
+                      <input className="modern-input" type="number" min={1} max={28} value={assignDayOfMonth}
+                        onChange={e => setAssignDayOfMonth(e.target.value)} />
+                      <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#64748b" }}>The form re-opens on the employee dashboard on this day, every month.</p>
+                    </div>
+                    <div>
+                      <label className="modern-label">Due on day of month</label>
+                      <input className="modern-input" type="number" min={1} max={28} value={dueDayOfMonth}
+                        onChange={e => setDueDayOfMonth(e.target.value)} />
+                      <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#64748b" }}>Shown to employees as the submission deadline that month.</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1238,6 +1319,57 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                         <td style={{ fontSize: 12, fontWeight: 600 }}>{(a.action || "").replace(/_/g, " ")}</td>
                         <td style={{ fontSize: 12 }}>{a.actor_name || "System"}</td>
                         <td style={{ fontSize: 12, color: "#64748b" }}>{a.reason || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── All PMS: Response History modal ── */}
+      {responsesModalTemplate && (
+        <div className="modal-overlay" style={{ zIndex: 4000 }} onClick={() => setResponsesModalTemplate(null)}>
+          <div className="modal-box" style={{ maxWidth: 620 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <h3 style={{ margin: 0 }}>{responsesModalTemplate.cycle_name || "Untitled cycle"}</h3>
+              <button className="btn-small ghost" onClick={() => setResponsesModalTemplate(null)}><TbX /></button>
+            </div>
+            <p className="small" style={{ margin: "2px 0 14px", color: "#64748b" }}>
+              {responsesModalTemplate.recurring
+                ? "Every response ever submitted against this recurring form, across every monthly cycle."
+                : "Every response submitted against this form."}
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+              <button className="btn ghost" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5 }}
+                disabled={exportingTemplateId === responsesModalTemplate._id}
+                onClick={() => exportTemplateResponses(responsesModalTemplate)}>
+                <TbDownload size={12} /> {exportingTemplateId === responsesModalTemplate._id ? "Exporting…" : "Export All Responses"}
+              </button>
+            </div>
+            {loadingResponses ? (
+              <div style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Loading…</div>
+            ) : templateResponses.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>No responses submitted yet.</div>
+            ) : (
+              <div style={{ maxHeight: 420, overflowY: "auto" }}>
+                <table className="styled-table-global">
+                  <thead><tr><th>Employee</th><th>Month</th><th>Status</th><th>Rating</th></tr></thead>
+                  <tbody>
+                    {templateResponses.map(r => (
+                      <tr key={r._id}>
+                        <td style={{ fontWeight: 600 }}>{r.employee_name}</td>
+                        <td>{r.month}</td>
+                        <td style={{ fontSize: 12 }}>
+                          <span style={{
+                            fontSize: 11.5, fontWeight: 700, padding: "3px 10px", borderRadius: 8,
+                            background: r.status === "Manager Review Completed" ? "#f0fdf4" : "#fffbeb",
+                            color: r.status === "Manager Review Completed" ? "#166534" : "#b45309",
+                          }}>{r.status === "Manager Review Completed" ? "Completed" : "Pending Review"}</span>
+                        </td>
+                        <td style={{ fontSize: 12 }}>{r.overall_rating || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
