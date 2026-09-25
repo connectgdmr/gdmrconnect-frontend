@@ -132,7 +132,16 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
   // historical log) fetch/filter independently and are unaffected.
   const activeEmployees = employees.filter(e => empExitStatus(e) !== "offboarded");
   const [loading, setLoading] = useState(false);
-  const [view, setView] = useState("dashboard");
+  // Restores the last tab on a page refresh instead of always bouncing back
+  // to Dashboard — sessionStorage (not localStorage) so a fresh login still
+  // starts at Dashboard once the tab/browser is actually closed.
+  const viewStorageKey = `gdmr_admin_view_${user?._id || "guest"}`;
+  const [view, setView] = useState(() => {
+    try { return sessionStorage.getItem(viewStorageKey) || "dashboard"; } catch { return "dashboard"; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem(viewStorageKey, view); } catch { /* storage unavailable */ }
+  }, [view, viewStorageKey]);
   const [leavesSubTab, setLeavesSubTab] = useState("requests"); // "requests" | "comp-off"
   const [subView, setSubView] = useState("list");
   const [sidebarOpen, setSidebarOpen] = useState(false);

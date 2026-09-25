@@ -314,10 +314,19 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
   const [deptDashboard, setDeptDashboard] = useState([]);
   const [dashboardMonth, setDashboardMonth] = useState(new Date().toISOString().slice(0, 7));
 
-  /** 
-   * Primary routing state for conditional rendering of sub-views 
+  /**
+   * Primary routing state for conditional rendering of sub-views
    */
-  const [view, setView] = useState("dashboard");
+  // Restores the last tab on a page refresh instead of always bouncing back
+  // to Dashboard — sessionStorage (not localStorage) so a fresh login still
+  // starts at Dashboard once the tab/browser is actually closed.
+  const viewStorageKey = `gdmr_manager_view_${user?._id || "guest"}`;
+  const [view, setView] = useState(() => {
+    try { return sessionStorage.getItem(viewStorageKey) || "dashboard"; } catch { return "dashboard"; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem(viewStorageKey, view); } catch { /* storage unavailable */ }
+  }, [view, viewStorageKey]);
   // Attendance (Log + Team Calendar) and Leave (My Leaves + Apply Leave) each
   // consolidate two former sidebar entries into one, tabbed in-page — same
   // reasoning as EmployeeDashboard.jsx's attendanceSubView/leaveSubView.
