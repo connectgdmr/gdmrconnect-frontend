@@ -10,6 +10,7 @@ import {
 // the protocol name. "Other" covers any other ADMS/cloud-push capable
 // device — the field is informational only, it doesn't change behavior.
 const DEVICE_MODELS = [
+  { value: "zkteco-mb160",      label: "ZKTeco MB160 (Face + Fingerprint + ID Card)" },
   { value: "zkteco-uface800",   label: "ZKTeco uFace 800 (Fingerprint + Face)" },
   { value: "zkteco-speedface-v5l", label: "ZKTeco SpeedFace V5L (Face)" },
   { value: "zkteco-mb460",      label: "ZKTeco MB460 (Fingerprint)" },
@@ -144,13 +145,21 @@ export default function BiometricDevices({ token, api, employees = [] }) {
     } catch { alert("Network error unlinking."); }
   }
 
-  const statusPill = (status) => {
-    const map = {
-      connected: { bg: "#f0fdf4", fg: "#166534", bd: "#86efac", label: "🟢 Connected" },
-      pending:   { bg: "#fffbeb", fg: "#b45309", bd: "#fde68a", label: "⏳ Waiting to connect" },
-      offline:   { bg: "#fef2f2", fg: "#b91c1c", bd: "#fecaca", label: "🔴 Offline" },
-    };
-    const s = map[status] || map.pending;
+  // Connected = has completed the initial handshake at least once.
+  // Active = has actually heard from it recently (server-computed is_active) —
+  // a device can be Connected but have gone quiet (powered off, network
+  // dropped) without ever reverting to Pending, so this is shown separately.
+  const statusPill = (device) => {
+    let s;
+    if (device.status === "pending") {
+      s = { bg: "#fffbeb", fg: "#b45309", bd: "#fde68a", label: "⏳ Waiting to connect" };
+    } else if (device.status === "connected" && device.is_active) {
+      s = { bg: "#f0fdf4", fg: "#166534", bd: "#86efac", label: "🟢 Connected · Active" };
+    } else if (device.status === "connected") {
+      s = { bg: "#fffbeb", fg: "#b45309", bd: "#fde68a", label: "🟡 Connected · Inactive" };
+    } else {
+      s = { bg: "#fef2f2", fg: "#b91c1c", bd: "#fecaca", label: "🔴 Offline" };
+    }
     return <span style={{ fontSize: 11.5, fontWeight: 700, padding: "3px 10px", borderRadius: 8, background: s.bg, color: s.fg, border: `1px solid ${s.bd}` }}>{s.label}</span>;
   };
 
@@ -197,7 +206,7 @@ export default function BiometricDevices({ token, api, employees = [] }) {
                 </div>
                 <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, fontFamily: "monospace" }}>SN: {d.serial_number}</div>
               </div>
-              <div style={{ marginTop: 10 }}>{statusPill(d.status)}</div>
+              <div style={{ marginTop: 10 }}>{statusPill(d)}</div>
               <div style={{ marginTop: 10, display: "flex", gap: 14, fontSize: 12.5, color: "#475569" }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><TbUserCheck size={13} color="#16a34a" /> {d.mapped_count} mapped</span>
                 {d.unmapped_count > 0 && (
@@ -289,7 +298,7 @@ export default function BiometricDevices({ token, api, employees = [] }) {
               <h3 style={{ margin: 0 }}>{detailDevice.name}</h3>
               <button className="btn-small ghost" onClick={() => setDetailDevice(null)}><TbX /></button>
             </div>
-            <div style={{ margin: "2px 0 14px" }}>{statusPill(detailDevice.status)}</div>
+            <div style={{ margin: "2px 0 14px" }}>{statusPill(detailDevice)}</div>
 
             {loadingEnrollments ? (
               <div style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Loading…</div>

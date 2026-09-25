@@ -32,6 +32,8 @@ import {
   TbMail,
   TbCopy,
   TbArrowsSort,
+  TbFingerprint,
+  TbTrash,
 } from "react-icons/tb";
 
 // Same "offboarded" rule used elsewhere in the app (AdminPayroll, AdminInsights,
@@ -180,7 +182,17 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
   const [cardMenuOpen, setCardMenuOpen] = useState(null); // employee _id whose kebab menu is open
   const [pageSize, setPageSize] = useState(25);
   const [gridPage, setGridPage] = useState(1);
-  
+
+  // --- "Add Biometrics" from an employee's card menu ---
+  const [biometricEmp, setBiometricEmp] = useState(null); // employee currently being linked
+  const [biometricDevices, setBiometricDevices] = useState([]); // connected devices to pick from
+  const [biometricLinks, setBiometricLinks] = useState([]); // this employee's existing device links
+  const [loadingBiometrics, setLoadingBiometrics] = useState(false);
+  const [newBioDeviceId, setNewBioDeviceId] = useState("");
+  const [newBioPin, setNewBioPin] = useState("");
+  const [newBioType, setNewBioType] = useState("fingerprint");
+  const [savingBiometric, setSavingBiometric] = useState(false);
+
   // --- Master Logs States (COMPLETE VISIBILITY FEATURE) ---
   const [viewMode, setViewMode] = useState("grid"); // Toggles between "grid", "logs", "analyzer"
   const [allAttendanceLogs, setAllAttendanceLogs] = useState([]);
@@ -583,6 +595,61 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
     setView?.("chat");
   }
 
+  // "Add Biometrics" — links this employee to a fingerprint/face device
+  // (routes/biometric.py). Once linked, a punch that device reports for
+  // this employee's pin runs through the exact same
+  // helpers.record_attendance_punch() a photo check-in does — same
+  // shift-timing rules, same attendance log, same dedup — just tagged
+  // method: "fingerprint"/"face" instead of "photo".
+  async function openBiometricModal(emp) {
+    setBiometricEmp(emp);
+    setNewBioDeviceId(""); setNewBioPin(""); setNewBioType("fingerprint");
+    setLoadingBiometrics(true);
+    const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+    try {
+      const [devicesRes, linksRes] = await Promise.all([
+        fetch(`${baseUrl}/api/admin/biometric-devices`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${baseUrl}/api/admin/biometric-devices/enrollments/by-employee/${emp._id}`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      const devices = devicesRes.ok ? await devicesRes.json() : [];
+      setBiometricDevices(devices.filter(d => d.status === "connected"));
+      setBiometricLinks(linksRes.ok ? await linksRes.json() : []);
+    } catch {
+      setBiometricDevices([]); setBiometricLinks([]);
+    } finally {
+      setLoadingBiometrics(false);
+    }
+  }
+
+  async function saveBiometricLink() {
+    if (!newBioDeviceId || !newBioPin.trim()) { alert("Pick a device and enter the Device PIN assigned when this employee was enrolled."); return; }
+    setSavingBiometric(true);
+    const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/biometric-devices/${newBioDeviceId}/enrollments/${newBioPin.trim()}/map`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ employee_id: biometricEmp._id, biometric_type: newBioType }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(d.message || "Failed to link."); return; }
+      openBiometricModal(biometricEmp);
+    } catch { alert("Network error linking this device."); }
+    finally { setSavingBiometric(false); }
+  }
+
+  async function removeBiometricLink(link) {
+    if (!window.confirm(`Unlink ${biometricEmp.name} from "${link.device_name}"?`)) return;
+    const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/biometric-devices/${link.device_id}/enrollments/${link.device_pin}`, {
+        method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.message || "Failed to unlink."); return; }
+      openBiometricModal(biometricEmp);
+    } catch { alert("Network error unlinking."); }
+  }
+
   // Filter Logic for Complete Logs View
   const filteredLogs = allAttendanceLogs.filter(log => {
     let matchesSearch = true;
@@ -971,6 +1038,7 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                                <div className="emp-card-menu" onClick={e => e.stopPropagation()}>
                                  <button onClick={() => { setCardMenuOpen(null); openEmployeeDetails(emp); }}><TbUserCircle size={13} /> View Attendance</button>
                                  <button onClick={() => { setCardMenuOpen(null); messageEmployee(emp); }}><TbMessageDots size={13} /> Message</button>
+                                 <button onClick={() => { setCardMenuOpen(null); openBiometricModal(emp); }}><TbFingerprint size={13} /> Add Biometrics</button>
                                  {emp.email && (
                                    <button onClick={() => { setCardMenuOpen(null); navigator.clipboard?.writeText(emp.email); }}><TbCopy size={13} /> Copy Email</button>
                                  )}
@@ -1501,6 +1569,74 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                   </table>
                 )}
              </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL: ADD BIOMETRICS (link employee to a fingerprint device) */}
+      {/* ========================================================= */}
+      {biometricEmp && (
+        <div className="modal-overlay" onClick={() => setBiometricEmp(null)} style={{ zIndex: 4000 }}>
+          <div className="card" style={{ width: '90%', maxWidth: 480, padding: 20, borderRadius: 12 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <h3 style={{ color: "var(--red)", margin: 0, display: 'flex', alignItems: 'center', gap: 7 }}>
+                <TbFingerprint size={18} /> Add Biometrics
+              </h3>
+              <button className="btn-small ghost" onClick={() => setBiometricEmp(null)}><TbX /></button>
+            </div>
+            <p className="small" style={{ margin: "2px 0 14px", color: '#666' }}>{biometricEmp.name}</p>
+
+            {loadingBiometrics ? (
+              <div style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>Loading…</div>
+            ) : (
+              <>
+                {biometricLinks.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <h4 style={{ fontSize: 13, color: '#0f172a', margin: '0 0 8px' }}>Currently Linked</h4>
+                    {biometricLinks.map(link => (
+                      <div key={`${link.device_id}-${link.device_pin}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', border: '1px solid #e2e8f0', borderRadius: 8, marginBottom: 6 }}>
+                        <div style={{ fontSize: 13 }}>
+                          <strong>{link.device_name}</strong> · PIN {link.device_pin}
+                          <span style={{ marginLeft: 6, fontSize: 11, color: '#64748b', textTransform: 'capitalize' }}>({link.biometric_type})</span>
+                        </div>
+                        <button className="btn-small ghost" style={{ border: '1px solid #fca5a5', color: '#b91c1c', padding: '4px 8px' }} onClick={() => removeBiometricLink(link)}>
+                          <TbTrash size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <h4 style={{ fontSize: 13, color: '#0f172a', margin: '0 0 8px' }}>Link a New Device</h4>
+                {biometricDevices.length === 0 ? (
+                  <p className="small" style={{ color: '#94a3b8' }}>
+                    No connected devices yet — add and connect one first from the Biometric Devices tab.
+                  </p>
+                ) : (
+                  <>
+                    <label className="modern-label">Device</label>
+                    <select className="modern-input" value={newBioDeviceId} onChange={e => setNewBioDeviceId(e.target.value)}>
+                      <option value="">Select device…</option>
+                      {biometricDevices.map(d => <option key={d._id} value={d._id}>{d.name}{d.branch ? ` (${d.branch})` : ""}</option>)}
+                    </select>
+                    <label className="modern-label" style={{ marginTop: 10, display: 'block' }}>Device PIN</label>
+                    <input className="modern-input" placeholder="The number shown on the device after enrolling this employee" value={newBioPin} onChange={e => setNewBioPin(e.target.value)} />
+                    <label className="modern-label" style={{ marginTop: 10, display: 'block' }}>Type</label>
+                    <select className="modern-input" value={newBioType} onChange={e => setNewBioType(e.target.value)}>
+                      <option value="fingerprint">Fingerprint</option>
+                      <option value="face">Face</option>
+                    </select>
+                    <p className="small" style={{ marginTop: 8, color: '#94a3b8' }}>
+                      Enroll {biometricEmp.name}'s fingerprint/face directly on the device first (assigns a PIN there), then link it here. Once linked, their punches on this device are recorded with the same check-in/check-out rules as a photo punch.
+                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+                      <button className="btn" disabled={savingBiometric} onClick={saveBiometricLink}>{savingBiometric ? "Linking…" : "Link Device"}</button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}

@@ -949,9 +949,19 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
                 </span>
               )}
             </button>
+            <button onClick={() => setAttendanceTab("biometric")} style={{
+              padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+              background: attendanceTab === "biometric" ? "var(--red)" : "transparent", color: attendanceTab === "biometric" ? "#fff" : "#64748b", transition: "all 0.15s",
+            }}>Biometric Devices</button>
           </div>
 
           {attendanceTab === "log" && <AdminAttendancePage token={token} api={api} setView={setView} />}
+
+          {attendanceTab === "biometric" && (
+            <ErrorBoundary label="Biometric Devices" resetKey={attendanceTab}>
+              <BiometricDevices token={token} api={api} employees={employees} />
+            </ErrorBoundary>
+          )}
 
           {/* Corrections — manager/admin/owner self-submitted, routed here for approval */}
           {attendanceTab === "corrections" && (
@@ -1027,13 +1037,6 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
 
       {/* 6. HOLIDAYS */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar token={token} api={api} canWrite /></div>}
-
-      {/* BIOMETRIC DEVICES */}
-      {view === "biometric-devices" && (
-        <ErrorBoundary label="Biometric Devices" resetKey={view}>
-          <div style={{ marginTop: 16 }}><BiometricDevices token={token} api={api} employees={employees} /></div>
-        </ErrorBoundary>
-      )}
 
       {/* ============================================================================ */}
       {/* 7. ANNOUNCEMENTS */}
