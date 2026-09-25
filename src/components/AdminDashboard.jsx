@@ -17,6 +17,7 @@ const HolidayCalendar        = lazy(() => import("./HolidayCalendar"));
 const AdminDepartments       = lazy(() => import("./AdminDepartments"));
 const AdminAnnouncements     = lazy(() => import("./AdminAnnouncements"));
 const AdminAssets            = lazy(() => import("./AdminAssets"));
+const BiometricDevices       = lazy(() => import("./BiometricDevices"));
 
 // ============================================================================
 // ICON IMPORTS
@@ -1026,6 +1027,13 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
 
       {/* 6. HOLIDAYS */}
       {view === "holidays" && <div style={{ marginTop: "16px" }}><HolidayCalendar token={token} api={api} canWrite /></div>}
+
+      {/* BIOMETRIC DEVICES */}
+      {view === "biometric-devices" && (
+        <ErrorBoundary label="Biometric Devices" resetKey={view}>
+          <div style={{ marginTop: 16 }}><BiometricDevices token={token} api={api} employees={employees} /></div>
+        </ErrorBoundary>
+      )}
 
       {/* ============================================================================ */}
       {/* 7. ANNOUNCEMENTS */}

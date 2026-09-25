@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from "react";
 import { resolveAttachmentUrl } from "../utils/security";
+import { methodIcon, methodLabel } from "../utils/attendanceMethod";
 import { ymd, ym } from "../utils/dateUtils";
 import { approverLabel, managerStageText } from "../utils/leaveStatus";
 import { useShowDailyWidgets } from "../utils/dailyWidgetWindow";
@@ -2281,15 +2282,16 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
             </div>
             <div style={{overflowX: 'auto'}}>
                 <table className="styled-table-global">
-                  <thead><tr><th>Type</th><th>Date / Time</th><th>Photo</th></tr></thead>
+                  <thead><tr><th>Type</th><th>Date / Time</th><th title="How this punch was recorded">Method</th><th>Photo</th></tr></thead>
                   <tbody>
                     {attendance.length === 0 ? (
-                      <tr><td colSpan="3" style={{textAlign:'center', padding:20}}>No attendance records.</td></tr>
+                      <tr><td colSpan="4" style={{textAlign:'center', padding:20}}>No attendance records.</td></tr>
                     ) : (
                       attendance.map((a) => (
                         <tr key={a._id}>
                           <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
                           <td>{new Date(a.time).toLocaleString()}</td>
+                          <td title={methodLabel(a.method)}>{methodIcon(a.method)}</td>
                           <td>{resolveAttachmentUrl(a.photo_url, api.baseUrl) ? <a href={resolveAttachmentUrl(a.photo_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                         </tr>
                       ))

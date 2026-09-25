@@ -3,6 +3,7 @@ import { resolveAttachmentUrl } from "../utils/security";
 import { ymd, ym } from "../utils/dateUtils";
 import { isOffboarded } from "../utils/employeeStatus";
 import { approverLabel, isManagerLeave } from "../utils/leaveStatus";
+import { methodIcon, methodLabel } from "../utils/attendanceMethod";
 import { SkeletonCards, SkeletonTable } from "./Skeleton";
 import EmployeeJourneyModal from "./EmployeeJourneyModal";
 import {
@@ -1024,6 +1025,7 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                                  <th style={{ padding: '12px 15px', borderBottom: '2px solid #eee' }}>Date</th>
                                  <th style={{ padding: '12px 15px', borderBottom: '2px solid #eee' }}>Time</th>
                                  <th style={{ padding: '12px 15px', borderBottom: '2px solid #eee' }}>Action Type</th>
+                                 <th style={{ padding: '12px 15px', borderBottom: '2px solid #eee' }} title="How this punch was recorded">Method</th>
                                  <th style={{ padding: '12px 15px', borderBottom: '2px solid #eee' }}>Location/Photo</th>
                              </tr>
                          </thead>
@@ -1042,6 +1044,7 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                                              {log.type === 'checkin' ? 'Check In' : 'Check Out'}
                                          </span>
                                      </td>
+                                     <td style={{ padding: '12px 15px', fontSize: 16 }} title={methodLabel(log.method)}>{methodIcon(log.method)}</td>
                                      <td style={{ padding: '12px 15px' }}>
                                          {resolveAttachmentUrl(log.photo_url, api.baseUrl) ? (
                                              <a
@@ -1469,10 +1472,10 @@ export default function AdminAttendancePage({ token, api, delegated = false, set
                         <tr key={rec.date} style={{ borderBottom: '1px solid #f2f2f2' }}>
                           <td style={{ padding: 12, fontWeight: 500 }}>{rec.date}</td>
                           <td style={{ padding: 12, color: rec.checkin?.status_indicator === 'Late' ? '#d97706' : '#16a34a', fontWeight: 600 }}>
-                              {formatTime(rec.checkin?.time)}
+                              {rec.checkin?.time && <span title={methodLabel(rec.checkin?.method)}>{methodIcon(rec.checkin?.method)} </span>}{formatTime(rec.checkin?.time)}
                           </td>
                           <td style={{ padding: 12, color: rec.checkout?.status_indicator === 'Early' ? '#dc2626' : '#333', fontWeight: 600 }}>
-                              {formatTime(rec.checkout?.time)}
+                              {rec.checkout?.time && <span title={methodLabel(rec.checkout?.method)}>{methodIcon(rec.checkout?.method)} </span>}{formatTime(rec.checkout?.time)}
                           </td>
                           <td style={{ padding: 12 }}>{getStatusDisplay(rec)}</td>
                           <td style={{ padding: 12 }}>

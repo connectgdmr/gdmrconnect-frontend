@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { escHtml } from "../utils/security";
 import { isOffboarded } from "../utils/employeeStatus";
+import { methodIcon, methodLabel } from "../utils/attendanceMethod";
 import {
   TbFileTypeCsv, TbFileTypePdf, TbChartBar, TbChartLine,
   TbCircleCheck, TbCircleX, TbAlertTriangle,
@@ -704,6 +705,7 @@ export default function AdminAttendanceSummary({ token, api }) {
       employee_name: r.employee_name,
       department: Array.isArray(r.department) ? r.department.join(", ") : (r.department || "—"),
       time: r.time ? new Date(r.time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—",
+      method: `${methodIcon(r.method)} ${methodLabel(r.method)}`,
     })).sort((a, b) => a.employee_name.localeCompare(b.employee_name) || a.date.localeCompare(b.date));
   }, [lateCheckins, hrFilteredEmployees]);
 
@@ -711,7 +713,7 @@ export default function AdminAttendanceSummary({ token, api }) {
     "employee-wise":     [{key:"employee_code",label:"Employee Code"},{key:"name",label:"Employee"},{key:"department",label:"Department"},{key:"designation",label:"Designation"},{key:"present",label:"Present"},{key:"absent",label:"LOP"},{key:"leave",label:"Leave"},{key:"nci",label:"NCI"},{key:"rate",label:"Rate %"}],
     "department-wise":   [{key:"department",label:"Department"},{key:"employees",label:"Employees"},{key:"present",label:"Present"},{key:"absent",label:"LOP"},{key:"leave",label:"Leave"},{key:"nci",label:"NCI"},{key:"rate",label:"Rate %"}],
     "lop":               [{key:"date",label:"Date"},{key:"name",label:"Employee"},{key:"department",label:"Department"}],
-    "late-checkins":     [{key:"date",label:"Date"},{key:"employee_name",label:"Employee"},{key:"department",label:"Department"},{key:"time",label:"Check-in Time"}],
+    "late-checkins":     [{key:"date",label:"Date"},{key:"employee_name",label:"Employee"},{key:"department",label:"Department"},{key:"time",label:"Check-in Time"},{key:"method",label:"Method"}],
     "corrections":       [{key:"date",label:"Date Requested"},{key:"employee_name",label:"Employee"},{key:"department",label:"Department"},{key:"new_time",label:"Requested Time"},{key:"reason",label:"Reason"},{key:"status",label:"Status"},{key:"submitted_by_role",label:"Submitted By"}],
     "leave-utilization": [{key:"name",label:"Employee"},{key:"department",label:"Department"},{key:"leave_days",label:"Leave Days Taken"}],
   };

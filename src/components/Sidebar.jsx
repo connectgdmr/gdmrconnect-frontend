@@ -8,7 +8,7 @@ import Logo from "../assets/GDMR-LOGO-unit.png";
 import {
   TbLayoutDashboard, TbUsers, TbCalendarCheck, TbClock,
   TbChartPie, TbCalendar, TbSpeakerphone, TbShieldLock, TbDeviceLaptop,
-  TbHistory, TbChartLine,
+  TbHistory, TbChartLine, TbFingerprint,
   TbLogout, TbBuilding, TbClipboardList, TbSchool, TbBriefcase, TbCurrencyDollar,
   TbChecklist, TbChartArea, TbMessageDots
 } from "react-icons/tb";
@@ -20,6 +20,7 @@ const NAV_ITEMS = {
     { icon: <TbUsers />, label: "Workforce", view: "workforce" },
     { icon: <TbCalendarCheck />, label: "Leave Requests", view: "leaves" },
     { icon: <TbClock />, label: "Attendance", view: "attendance" },
+    { icon: <TbFingerprint />, label: "Biometric Devices", view: "biometric-devices" },
     { icon: <TbBuilding />, label: "Departments", view: "departments" },
     { icon: <TbChartPie />, label: "Reports", view: "summary" },
     { icon: <TbChartLine />, label: "PMS", view: "pms" },
@@ -56,6 +57,7 @@ const NAV_ITEMS = {
     { icon: <TbUsers />, label: "Workforce", view: "workforce" },
     { icon: <TbCalendarCheck />, label: "Leave Requests", view: "leaves" },
     { icon: <TbClock />, label: "Attendance", view: "attendance" },
+    { icon: <TbFingerprint />, label: "Biometric Devices", view: "biometric-devices" },
     { icon: <TbBuilding />, label: "Departments", view: "departments" },
     { icon: <TbChartPie />, label: "Reports", view: "summary" },
     { icon: <TbChartLine />, label: "PMS", view: "pms" },

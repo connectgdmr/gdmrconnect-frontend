@@ -9,6 +9,7 @@ import useChatUnread from "./useChatUnread";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 import { getCurrentLocation } from "../utils/geolocation";
 import { resolveAttachmentUrl } from "../utils/security";
+import { methodIcon, methodLabel } from "../utils/attendanceMethod";
 import { ym, ymd } from "../utils/dateUtils";
 import LeaveCalendar from "./LeaveCalendar";
 import SettingsModal from "./SettingsModal";
@@ -2066,15 +2067,16 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
            </div>
            {loading ? <SkeletonTable rows={6} cols={3} /> : (
             <table className="styled-table">
-              <thead><tr><th>Type</th><th>Date / Time</th><th>Photo</th></tr></thead>
+              <thead><tr><th>Type</th><th>Date / Time</th><th title="How this punch was recorded">Method</th><th>Photo</th></tr></thead>
               <tbody>
                 {attendance.length === 0 ? (
-                  <tr><td colSpan="3" style={{textAlign:"center", padding:20, color:"#999"}}>No records found.</td></tr>
+                  <tr><td colSpan="4" style={{textAlign:"center", padding:20, color:"#999"}}>No records found.</td></tr>
                 ) : (
                   attendance.map((a) => (
                     <tr key={a._id}>
                       <td style={{fontWeight: 600}}><span className={`status-badge ${a.type}`}>{a.type === 'checkin' ? 'Check In' : 'Check Out'}</span></td>
                       <td>{new Date(a.time).toLocaleString()}</td>
+                      <td title={methodLabel(a.method)}>{methodIcon(a.method)}</td>
                       <td>{resolveAttachmentUrl(a.photo_url, api.baseUrl) ? <a href={resolveAttachmentUrl(a.photo_url, api.baseUrl)} target="_blank" rel="noreferrer" style={{color:"var(--red)", fontSize:13}}>View</a> : "-"}</td>
                     </tr>
                   ))

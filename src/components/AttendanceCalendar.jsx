@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { TbChevronLeft, TbChevronRight, TbClock, TbCalendarPlus, TbEdit } from "react-icons/tb";
 import { ymd, ym } from "../utils/dateUtils";
+import { methodIcon, methodLabel } from "../utils/attendanceMethod";
 
 const DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 
@@ -222,7 +223,7 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
                     !entry ? "" :
                     entry.status === "weekly_off" ? offDayLabel(dateStr, entry) :
                     entry.status === "present" && entry.checkin_time
-                      ? `In ${fmtTime(entry.checkin_time)}${entry.checkout_time ? ` · Out ${fmtTime(entry.checkout_time)}` : " · No check-out"}`
+                      ? `In ${fmtTime(entry.checkin_time)} (${methodLabel(entry.checkin_method)})${entry.checkout_time ? ` · Out ${fmtTime(entry.checkout_time)} (${methodLabel(entry.checkout_method)})` : " · No check-out"}`
                       : (style?.label || "")
                   }
                   style={{
@@ -278,8 +279,8 @@ export default function AttendanceCalendar({ token, api, mode = "self", employee
             // (leave reason/type, both punch times, any correction filed).
             const lines = [];
             lines.push(entry.status === "weekly_off" ? offDayLabel(selectedDay, entry) : STATUS_STYLE[entry.status]?.label);
-            if (entry.checkin_time)  lines.push(`Checked in at ${fmtTime(entry.checkin_time)}`);
-            if (entry.checkout_time) lines.push(`Checked out at ${fmtTime(entry.checkout_time)}`);
+            if (entry.checkin_time)  lines.push(`Checked in at ${fmtTime(entry.checkin_time)} ${methodIcon(entry.checkin_method)} ${methodLabel(entry.checkin_method)}`);
+            if (entry.checkout_time) lines.push(`Checked out at ${fmtTime(entry.checkout_time)} ${methodIcon(entry.checkout_method)} ${methodLabel(entry.checkout_method)}`);
             else if (entry.status === "present" && entry.checkin_time) lines.push("No check-out recorded");
             if (entry.status === "approved_leave") {
               const kind = entry.leave_type === "half" ? `Half Day (${entry.leave_period || "—"})` : "Full Day";
