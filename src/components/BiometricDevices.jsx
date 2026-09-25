@@ -1,7 +1,21 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   TbFingerprint, TbPlus, TbTrash, TbX, TbUserCheck, TbUsers, TbRefresh,
+  TbSettings, TbPlugConnected,
 } from "react-icons/tb";
+
+// Devices known to speak ADMS (the cloud-push protocol routes/biometric.py
+// implements) — every option here works against the same endpoints, this
+// is just a guided list so an admin buying hardware doesn't have to know
+// the protocol name. "Other" covers any other ADMS/cloud-push capable
+// device — the field is informational only, it doesn't change behavior.
+const DEVICE_MODELS = [
+  { value: "zkteco-uface800",   label: "ZKTeco uFace 800 (Fingerprint + Face)" },
+  { value: "zkteco-speedface-v5l", label: "ZKTeco SpeedFace V5L (Face)" },
+  { value: "zkteco-mb460",      label: "ZKTeco MB460 (Fingerprint)" },
+  { value: "zkteco-mb560",      label: "ZKTeco MB560 (Fingerprint)" },
+  { value: "other-adms",        label: "Other ADMS / Cloud-Push Compatible Device" },
+];
 
 /**
  * Admin-only "Biometric Devices" page — register a fingerprint/face device
@@ -20,9 +34,11 @@ export default function BiometricDevices({ token, api, employees = [] }) {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newBranch, setNewBranch] = useState("");
+  const [newModel, setNewModel] = useState(DEVICE_MODELS[0].value);
   const [newSerial, setNewSerial] = useState("");
   const [saving, setSaving] = useState(false);
   const [setupInfo, setSetupInfo] = useState(null); // { name, setup } shown right after registering
+  const [testingId, setTestingId] = useState(null);
 
   const [detailDevice, setDetailDevice] = useState(null); // device row whose enrollments are shown
   const [enrollments, setEnrollments] = useState([]);
@@ -55,12 +71,12 @@ export default function BiometricDevices({ token, api, employees = [] }) {
       const res = await fetch(`${baseUrl}/api/admin/biometric-devices`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: newName.trim(), branch: newBranch.trim(), serial_number: newSerial.trim() }),
+        body: JSON.stringify({ name: newName.trim(), branch: newBranch.trim(), model: newModel, serial_number: newSerial.trim() }),
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { alert(d.message || "Failed to register device."); return; }
-      setSetupInfo({ name: newName.trim(), setup: d.setup });
-      setNewName(""); setNewBranch(""); setNewSerial("");
+      setSetupInfo({ name: newName.trim(), setup: d.setup, deviceId: d._id });
+      setNewName(""); setNewBranch(""); setNewModel(DEVICE_MODELS[0].value); setNewSerial("");
       loadDevices();
     } catch { alert("Network error registering the device."); }
     finally { setSaving(false); }
@@ -84,6 +100,20 @@ export default function BiometricDevices({ token, api, employees = [] }) {
       if (detailDevice?._id === device._id) setDetailDevice(null);
       loadDevices();
     } catch { alert("Network error removing the device."); }
+  }
+
+  async function testDevice(device) {
+    setTestingId(device._id);
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/biometric-devices/${device._id}/test`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}` },
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(d.message || "Failed to test this device."); return; }
+      alert(`${device.name}\n\n${d.online ? "✅" : "⚠️"} ${d.message}`);
+      loadDevices();
+    } catch { alert("Network error testing this device."); }
+    finally { setTestingId(null); }
   }
 
   async function linkEnrollment(pin, employeeId) {
@@ -157,18 +187,15 @@ export default function BiometricDevices({ token, api, employees = [] }) {
           <div style={{ fontSize: 13, marginTop: 4 }}>Click <strong>Add Device</strong> to connect your first fingerprint/face device.</div>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: 14 }}>
           {devices.map(d => (
-            <div key={d._id} className="card" style={{ cursor: "pointer" }} onClick={() => openDetail(d)}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14.5, color: "#0f172a" }}>{d.name}</div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>{d.branch || "No branch set"}</div>
+            <div key={d._id} className="card">
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14.5, color: "#0f172a" }}>{d.name}</div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>
+                  {d.branch || "No branch set"}{d.model ? ` · ${DEVICE_MODELS.find(m => m.value === d.model)?.label || d.model}` : ""}
                 </div>
-                <button title="Remove device" onClick={(e) => { e.stopPropagation(); deleteDevice(d); }}
-                  style={{ border: "1px solid #fca5a5", background: "#fef2f2", color: "#b91c1c", borderRadius: 6, padding: "5px 8px", cursor: "pointer", display: "inline-flex" }}>
-                  <TbTrash size={13} />
-                </button>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, fontFamily: "monospace" }}>SN: {d.serial_number}</div>
               </div>
               <div style={{ marginTop: 10 }}>{statusPill(d.status)}</div>
               <div style={{ marginTop: 10, display: "flex", gap: 14, fontSize: 12.5, color: "#475569" }}>
@@ -176,6 +203,20 @@ export default function BiometricDevices({ token, api, employees = [] }) {
                 {d.unmapped_count > 0 && (
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#b45309", fontWeight: 600 }}><TbUsers size={13} /> {d.unmapped_count} to map</span>
                 )}
+              </div>
+              <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <button title="Manage enrollments" onClick={() => openDetail(d)}
+                  style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                  <TbSettings size={13} /> Manage
+                </button>
+                <button title="Test connection" onClick={() => testDevice(d)} disabled={testingId === d._id}
+                  style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, border: "1px solid #bfdbfe", background: "#eff6ff", color: "#1d4ed8", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                  <TbPlugConnected size={13} /> {testingId === d._id ? "Testing…" : "Test"}
+                </button>
+                <button title="Remove device" onClick={() => deleteDevice(d)}
+                  style={{ border: "1px solid #fca5a5", background: "#fef2f2", color: "#b91c1c", borderRadius: 6, padding: "6px 9px", cursor: "pointer", display: "inline-flex" }}>
+                  <TbTrash size={13} />
+                </button>
               </div>
             </div>
           ))}
@@ -202,9 +243,16 @@ export default function BiometricDevices({ token, api, employees = [] }) {
                   <div>Use HTTPS: <strong>{setupInfo.setup?.use_https ? "Yes" : "No"}</strong></div>
                 </div>
                 <p className="small" style={{ marginTop: 10, color: "#64748b" }}>
-                  Once saved on the device, it will connect automatically within a minute or two — this page will update to "🟢 Connected" on its own.
+                  Once saved on the device, it will connect automatically within a minute or two — this page will update to "🟢 Connected" on its own. Once you've saved it on the device, use <strong>Test Connection</strong> below to check.
                 </p>
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+                  <button
+                    className="btn ghost" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                    disabled={testingId === setupInfo.deviceId}
+                    onClick={() => testDevice({ _id: setupInfo.deviceId, name: setupInfo.name })}
+                  >
+                    <TbPlugConnected size={14} /> {testingId === setupInfo.deviceId ? "Testing…" : "Test Connection"}
+                  </button>
                   <button className="btn" onClick={() => { setAddModalOpen(false); setSetupInfo(null); }}>Done</button>
                 </div>
               </div>
@@ -214,8 +262,15 @@ export default function BiometricDevices({ token, api, employees = [] }) {
                 <input className="modern-input" placeholder="e.g., Head Office - Main Gate" value={newName} onChange={e => setNewName(e.target.value)} />
                 <label className="modern-label" style={{ marginTop: 10, display: "block" }}>Branch / Location</label>
                 <input className="modern-input" placeholder="e.g., Head Office" value={newBranch} onChange={e => setNewBranch(e.target.value)} />
+                <label className="modern-label" style={{ marginTop: 10, display: "block" }}>Device Model</label>
+                <select className="modern-input" value={newModel} onChange={e => setNewModel(e.target.value)}>
+                  {DEVICE_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
                 <label className="modern-label" style={{ marginTop: 10, display: "block" }}>Serial Number</label>
                 <input className="modern-input" placeholder="Printed on a sticker on the device" value={newSerial} onChange={e => setNewSerial(e.target.value)} />
+                <p className="small" style={{ marginTop: 6, color: "#94a3b8" }}>
+                  Any device that supports "Cloud Server" / ADMS push works here — the model above is just for your own reference.
+                </p>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
                   <button type="button" className="btn ghost" onClick={() => setAddModalOpen(false)}>Cancel</button>
                   <button type="submit" className="btn" disabled={saving}>{saving ? "Registering…" : "Register Device"}</button>
