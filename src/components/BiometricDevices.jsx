@@ -10,7 +10,7 @@ import {
 // the protocol name. "Other" covers any other ADMS/cloud-push capable
 // device — the field is informational only, it doesn't change behavior.
 const DEVICE_MODELS = [
-  { value: "zkteco-mb160",      label: "ZKTeco MB160 (Face + Fingerprint + ID Card)" },
+  { value: "essl-mb160",        label: "eSSL MB160 (Face + Fingerprint + ID Card)" },
   { value: "zkteco-uface800",   label: "ZKTeco uFace 800 (Fingerprint + Face)" },
   { value: "zkteco-speedface-v5l", label: "ZKTeco SpeedFace V5L (Face)" },
   { value: "zkteco-mb460",      label: "ZKTeco MB460 (Fingerprint)" },
@@ -20,11 +20,11 @@ const DEVICE_MODELS = [
 
 /**
  * Admin-only "Biometric Devices" page — register a fingerprint/face device
- * (ZKTeco or any other ADMS/cloud-push capable brand), watch it come online,
- * and map each employee it reports locally-enrolled to their GDMR Connect
- * record. Once mapped, every punch that device reports flows into the same
- * attendance log as a photo check-in — see routes/biometric.py for the
- * device-facing protocol and helpers.record_attendance_punch() for the
+ * (eSSL, ZKTeco, or any other ADMS/cloud-push capable brand), watch it come
+ * online, and map each employee it reports locally-enrolled to their GDMR
+ * Connect record. Once mapped, every punch that device reports flows into
+ * the same attendance log as a photo check-in — see routes/biometric.py for
+ * the device-facing protocol and helpers.record_attendance_punch() for the
  * shared shift-timing/dedup logic both methods go through.
  */
 export default function BiometricDevices({ token, api, employees = [] }) {
