@@ -646,6 +646,23 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
               </div>
 
               <div style={{ textAlign: "left", marginBottom: 14 }}>
+                <label style={{ fontWeight: 600, color: "#334155", fontSize: 13 }}>Employment Type</label>
+                <select
+                  className="modern-input"
+                  value={editingEmployee.employment_type || "Permanent"}
+                  onChange={(e) => setEditingEmployee({ ...editingEmployee, employment_type: e.target.value })}
+                >
+                  <option value="Permanent">Permanent</option>
+                  <option value="Contract">Contract</option>
+                  <option value="Internship">Internship</option>
+                  <option value="Consultant">Consultant</option>
+                </select>
+                {editingEmployee.employment_type === "Consultant" && (
+                  <p className="small" style={{ margin: "4px 0 0", color: "#64748b" }}>Excluded from the "Not Checked In" list — not expected to punch in daily.</p>
+                )}
+              </div>
+
+              <div style={{ textAlign: "left", marginBottom: 14 }}>
                 <label style={{ fontWeight: 600, color: "#334155", fontSize: 13 }}>Date of Joining</label>
                 <input
                   className="modern-input"

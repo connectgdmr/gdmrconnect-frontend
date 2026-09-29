@@ -2,17 +2,27 @@ import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from
 import {
   TbEdit, TbCircleCheck, TbSquareCheck, TbSquare, TbClipboardList,
   TbPlus, TbTrash, TbX, TbChartLine, TbEye, TbShare, TbDownload, TbBuilding,
+  TbAlertTriangle, TbUsers, TbMessageCircle,
 } from "react-icons/tb";
 import { RATING_SCALE, OVERALL_RATINGS, getRatingInfo } from "../constants";
 import { isOffboarded } from "../utils/employeeStatus";
 
 const TABS = [
+  { key: "dashboard",   label: "Dashboard" },
   { key: "forms",       label: "All PMS" },
   { key: "reviews",     label: "Reviews" },
   { key: "builder",     label: "Build PMS" },
   { key: "calibration", label: "Calibration" },
   { key: "compliance",  label: "Compliance", adminOnly: true },
 ];
+
+// manager_avg on the 1-5 RATING_SCALE — below this reads as a performance
+// concern worth surfacing on the Dashboard, not a hard policy threshold.
+const LOW_PERFORMER_THRESHOLD = 3;
+const LOW_PERFORMER_RATINGS = ["Needs Improvement", "Unsatisfactory"];
+const isLowPerformer = (row) =>
+  (row.manager_avg != null && row.manager_avg < LOW_PERFORMER_THRESHOLD) ||
+  LOW_PERFORMER_RATINGS.includes(row.overall_rating);
 
 // Multi-line text field that grows with its content and lets Enter add a
 // new line. A plain <input> is single-line and Enter there submits the
@@ -69,7 +79,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const baseUrl = api?.baseUrl || "https://gdmrconnect-backend-production.up.railway.app";
   const activePool = assignablePool.filter(e => !isOffboarded(e)); // never assign PMS to off-boarded staff
   const empDept = (e) => Array.isArray(e.department) ? e.department[0] : (e.department || "");
-  const [tab, setTab] = useState("forms");
+  const [tab, setTab] = useState("dashboard");
 
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -195,6 +205,18 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const [calibrationData, setCalibrationData] = useState([]);
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
 
+  // ── Dashboard tab state (per-employee performance overview) ────────────
+  const [workforceRows, setWorkforceRows] = useState([]);
+  const [loadingWorkforce, setLoadingWorkforce] = useState(false);
+  const [dashboardDeptFilter, setDashboardDeptFilter] = useState("All");
+  const [lowPerformersOnly, setLowPerformersOnly] = useState(false);
+  const [detailEmp, setDetailEmp] = useState(null); // row currently open in the detail modal
+  const [employeeDetail, setEmployeeDetail] = useState(null); // { name, department, reviews, notes }
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [noteType, setNoteType] = useState("note");
+  const [savingNote, setSavingNote] = useState(false);
+
   // ── Compliance tab state (admin scope only) ────────────────────────────
   const [complianceRows, setComplianceRows] = useState([]);
   const [blockingEnabled, setBlockingEnabled] = useState(false);
@@ -234,6 +256,60 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
       .then(setCalibrationData)
       .catch(() => setCalibrationData([]));
   }, [tab, reportMonth, baseUrl, token]);
+
+  // ── Dashboard tab — per-employee performance overview ──────────────────
+  const loadWorkforceDashboard = useCallback(async () => {
+    setLoadingWorkforce(true);
+    try {
+      const deptQuery = isAdmin && dashboardDeptFilter !== "All" ? `&department=${encodeURIComponent(dashboardDeptFilter)}` : "";
+      const res = await fetch(`${baseUrl}/api/pms/workforce-dashboard?month=${reportMonth}${deptQuery}`, { headers: { Authorization: `Bearer ${token}` } });
+      setWorkforceRows(res.ok ? await res.json() : []);
+    } catch { setWorkforceRows([]); }
+    finally { setLoadingWorkforce(false); }
+  }, [baseUrl, token, isAdmin, dashboardDeptFilter, reportMonth]);
+
+  useEffect(() => {
+    if (tab !== "dashboard") return;
+    loadWorkforceDashboard();
+  }, [tab, loadWorkforceDashboard]);
+
+  const openEmployeeDetail = useCallback(async (row) => {
+    setDetailEmp(row);
+    setNoteText(""); setNoteType("note");
+    setLoadingDetail(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/pms/workforce-dashboard/${row.employee_id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setEmployeeDetail(res.ok ? await res.json() : null);
+    } catch { setEmployeeDetail(null); }
+    finally { setLoadingDetail(false); }
+  }, [baseUrl, token]);
+
+  const submitNote = useCallback(async () => {
+    if (!noteText.trim() || !detailEmp) return;
+    setSavingNote(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/pms/performance-notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ employee_id: detailEmp.employee_id, type: noteType, text: noteText.trim() }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.message || "Failed to save."); return; }
+      setNoteText("");
+      openEmployeeDetail(detailEmp);
+      loadWorkforceDashboard();
+    } catch { alert("Network error saving this note."); }
+    finally { setSavingNote(false); }
+  }, [baseUrl, token, detailEmp, noteType, noteText, openEmployeeDetail, loadWorkforceDashboard]);
+
+  const removeNote = useCallback(async (noteId) => {
+    if (!window.confirm("Delete this note?")) return;
+    try {
+      const res = await fetch(`${baseUrl}/api/pms/performance-notes/${noteId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.message || "Failed to delete."); return; }
+      openEmployeeDetail(detailEmp);
+      loadWorkforceDashboard();
+    } catch { alert("Network error deleting this note."); }
+  }, [baseUrl, token, detailEmp, openEmployeeDetail, loadWorkforceDashboard]);
 
   // ── Compliance tab (admin scope only) ──────────────────────────────────
   const loadCompliance = useCallback(async () => {
@@ -558,6 +634,112 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
           </button>
         </div>
       </div>
+
+      {/* ── DASHBOARD TAB ── per-employee performance overview (manager: their team, admin: workforce-wide) */}
+      {tab === "dashboard" && (() => {
+        const deptOptions = isAdmin ? [...new Set(activePool.map(empDept).filter(Boolean))].sort() : [];
+        const visibleRows = lowPerformersOnly ? workforceRows.filter(isLowPerformer) : workforceRows;
+        const scored = workforceRows.filter(r => r.manager_avg != null);
+        const orgAvg = scored.length ? (scored.reduce((s, r) => s + r.manager_avg, 0) / scored.length).toFixed(2) : "—";
+        const lowCount = workforceRows.filter(isLowPerformer).length;
+
+        return (
+          <div>
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+                <div>
+                  <h3 style={{ margin: 0, color: "#0f172a" }}>{isAdmin ? "Workforce Performance" : "Team Performance"}</h3>
+                  <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>
+                    {isAdmin ? "Every employee's reviews, scores and standing — spot who needs attention at a glance." : "Your team's reviews and scores, with notes/warnings you can log against anyone."}
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  {isAdmin && (
+                    <select className="modern-input" style={{ margin: 0, width: "auto" }} value={dashboardDeptFilter} onChange={e => setDashboardDeptFilter(e.target.value)}>
+                      <option value="All">All Departments</option>
+                      {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  )}
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#475569", cursor: "pointer" }}>
+                    <input type="checkbox" checked={lowPerformersOnly} onChange={e => setLowPerformersOnly(e.target.checked)} />
+                    Low performers only
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#64748b", fontSize: 12, fontWeight: 600 }}><TbUsers size={14} /> {isAdmin ? "Workforce" : "Team"}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{workforceRows.length}</div>
+                </div>
+                <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#1d4ed8", fontSize: 12, fontWeight: 600 }}><TbChartLine size={14} /> Avg Manager Score</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: "#1d4ed8", marginTop: 4 }}>{orgAvg}{scored.length ? "/5" : ""}</div>
+                </div>
+                <div style={{ background: lowCount > 0 ? "#fef2f2" : "#f0fdf4", border: `1px solid ${lowCount > 0 ? "#fecaca" : "#bbf7d0"}`, borderRadius: 10, padding: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: lowCount > 0 ? "#b91c1c" : "#166534", fontSize: 12, fontWeight: 600 }}><TbAlertTriangle size={14} /> Low Performers</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: lowCount > 0 ? "#b91c1c" : "#166534", marginTop: 4 }}>{lowCount}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              {loadingWorkforce ? (
+                <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>Loading…</div>
+              ) : visibleRows.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "50px 20px", color: "#94a3b8", border: "1px dashed #e2e8f0", borderRadius: 10 }}>
+                  <TbUsers size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
+                  <div style={{ fontSize: 15, fontWeight: 500 }}>{lowPerformersOnly ? "No low performers for this month." : "No one to show for this month yet."}</div>
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table className="styled-table-global">
+                    <thead>
+                      <tr>
+                        <th>Employee</th>
+                        {isAdmin && <th>Department</th>}
+                        <th style={{ textAlign: "center" }}>Reviews</th>
+                        <th style={{ textAlign: "center" }}>Self Avg</th>
+                        <th style={{ textAlign: "center" }}>Manager Avg</th>
+                        <th>Rating</th>
+                        <th style={{ textAlign: "center" }}>Notes</th>
+                        <th style={{ textAlign: "center" }}>Warnings</th>
+                        <th>Report</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleRows.map(row => {
+                        const low = isLowPerformer(row);
+                        return (
+                          <tr key={row.employee_id} style={low ? { background: "#fef2f2" } : undefined}>
+                            <td style={{ fontWeight: 600 }}>{row.name}{low && <TbAlertTriangle size={13} color="#b91c1c" style={{ marginLeft: 6, verticalAlign: "middle" }} title="Low performer" />}</td>
+                            {isAdmin && <td>{row.department || "—"}</td>}
+                            <td style={{ textAlign: "center" }}>{row.reviews_completed}/{row.reviews_submitted}</td>
+                            <td style={{ textAlign: "center" }}>{row.self_avg ?? "—"}</td>
+                            <td style={{ textAlign: "center", fontWeight: 700, color: row.manager_avg != null && row.manager_avg < LOW_PERFORMER_THRESHOLD ? "#b91c1c" : "#0f172a" }}>{row.manager_avg ?? "—"}</td>
+                            <td>
+                              {row.overall_rating
+                                ? <span style={{ fontSize: 11.5, fontWeight: 700, padding: "3px 10px", borderRadius: 8, background: LOW_PERFORMER_RATINGS.includes(row.overall_rating) ? "#fef2f2" : "#f0fdf4", color: LOW_PERFORMER_RATINGS.includes(row.overall_rating) ? "#b91c1c" : "#166534" }}>{row.overall_rating}</span>
+                                : <span style={{ color: "#94a3b8", fontSize: 12 }}>—</span>}
+                            </td>
+                            <td style={{ textAlign: "center" }}>{row.notes_count > 0 ? <span style={{ fontWeight: 600 }}>{row.notes_count}</span> : "—"}</td>
+                            <td style={{ textAlign: "center" }}>{row.warnings_count > 0 ? <span style={{ fontWeight: 700, color: "#b91c1c" }}>{row.warnings_count}</span> : "—"}</td>
+                            <td>
+                              <button className="btn-small ghost" style={{ border: "1px solid #e2e8f0", padding: "5px 12px", fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 4 }} onClick={() => openEmployeeDetail(row)}>
+                                <TbEye size={12} /> View
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── ALL PMS TAB ── every form this user has created (active + expired) */}
       {tab === "forms" && (
@@ -1380,6 +1562,84 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
         </div>
       )}
 
+      {/* ── Dashboard: Employee Detail Report (reviews + notes/warnings) ── */}
+      {detailEmp && (
+        <div className="modal-overlay" style={{ zIndex: 4000 }} onClick={() => setDetailEmp(null)}>
+          <div className="modal-box" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <h3 style={{ margin: 0 }}>{detailEmp.name}</h3>
+              <button className="btn-small ghost" onClick={() => setDetailEmp(null)}><TbX /></button>
+            </div>
+            <p className="small" style={{ margin: "2px 0 14px", color: "#64748b" }}>{detailEmp.department || "—"}</p>
+
+            {loadingDetail || !employeeDetail ? (
+              <div style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Loading…</div>
+            ) : (
+              <>
+                <h4 style={{ fontSize: 13, color: "#0f172a", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}>
+                  <TbMessageCircle size={14} /> Performance Notes & Warnings
+                </h4>
+                {employeeDetail.notes.length === 0 ? (
+                  <p className="small" style={{ color: "#94a3b8" }}>Nothing logged yet.</p>
+                ) : (
+                  <div style={{ maxHeight: 180, overflowY: "auto", marginBottom: 12 }}>
+                    {employeeDetail.notes.map(n => (
+                      <div key={n._id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 6, borderLeft: `3px solid ${n.type === "warning" ? "#dc2626" : "#94a3b8"}` }}>
+                        <div style={{ fontSize: 13 }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 0.3, textTransform: "uppercase", color: n.type === "warning" ? "#b91c1c" : "#64748b" }}>{n.type === "warning" ? "Warning" : "Note"}</span>
+                          <div style={{ marginTop: 3, whiteSpace: "pre-wrap" }}>{n.text}</div>
+                          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>{n.created_by_name || "—"} · {n.created_at ? new Date(n.created_at).toLocaleDateString() : ""}</div>
+                        </div>
+                        <button className="btn-small ghost" style={{ border: "1px solid #e2e8f0", padding: "4px 8px", height: "fit-content" }} onClick={() => removeNote(n._id)}><TbTrash size={12} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                  <select className="modern-input" style={{ margin: 0, width: "auto" }} value={noteType} onChange={e => setNoteType(e.target.value)}>
+                    <option value="note">Note</option>
+                    <option value="warning">Warning</option>
+                  </select>
+                  <input className="modern-input" style={{ margin: 0, flex: 1 }} placeholder={noteType === "warning" ? "Describe the warning issued…" : "Add a performance note…"} value={noteText} onChange={e => setNoteText(e.target.value)} />
+                  <button className="btn" style={{ whiteSpace: "nowrap" }} disabled={savingNote || !noteText.trim()} onClick={submitNote}>{savingNote ? "Saving…" : "Add"}</button>
+                </div>
+
+                <h4 style={{ fontSize: 13, color: "#0f172a", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}>
+                  <TbClipboardList size={14} /> Review History
+                </h4>
+                {employeeDetail.reviews.length === 0 ? (
+                  <p className="small" style={{ color: "#94a3b8" }}>No reviews submitted yet.</p>
+                ) : (
+                  <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                    <table className="styled-table-global">
+                      <thead><tr><th>Month</th><th>Status</th><th style={{ textAlign: "center" }}>Self Avg</th><th style={{ textAlign: "center" }}>Manager Avg</th><th>Rating</th></tr></thead>
+                      <tbody>
+                        {employeeDetail.reviews.map(r => {
+                          const selfScores = (r.responses || []).map(x => parseFloat(x.self_score)).filter(n => !isNaN(n));
+                          const mgrScores = (r.manager_scores || []).map(x => parseFloat(x.score)).filter(n => !isNaN(n));
+                          const selfAvg = selfScores.length ? (selfScores.reduce((a, b) => a + b, 0) / selfScores.length).toFixed(1) : "—";
+                          const mgrAvg = mgrScores.length ? (mgrScores.reduce((a, b) => a + b, 0) / mgrScores.length).toFixed(1) : "—";
+                          return (
+                            <tr key={r._id}>
+                              <td style={{ fontWeight: 600 }}>{r.month}</td>
+                              <td style={{ fontSize: 12 }}>{r.status === "Manager Review Completed" ? "Completed" : "Pending Review"}</td>
+                              <td style={{ textAlign: "center" }}>{selfAvg}</td>
+                              <td style={{ textAlign: "center" }}>{mgrAvg}</td>
+                              <td style={{ fontSize: 12 }}>{r.overall_rating || "—"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── SCORING / VIEW MODAL ── */}
       {viewPMSModalOpen && selectedPMS && (() => {
         const isPending = selectedPMS.status === "Pending Review";
@@ -1570,6 +1830,46 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                                   <div style={{ background: "#f8fafc", padding: 12, borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
                                     {resp.descriptive_answer || resp.goals_text}
                                   </div>
+
+                                  {!isPending && existingMgrScore && (
+                                    <div style={{ marginTop: 12, minWidth: 130 }}>
+                                      <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>MANAGER RATING</div>
+                                      <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+                                        {RATING_SCALE.map(r => (
+                                          <div key={r.value} style={{ width: 26, height: 26, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", background: r.value <= parseInt(existingMgrScore.score) ? r.color : "#f1f5f9", color: r.value <= parseInt(existingMgrScore.score) ? "#fff" : "#94a3b8", fontSize: 12, fontWeight: 700 }}>{r.value}</div>
+                                        ))}
+                                      </div>
+                                      {getRatingInfo(parseInt(existingMgrScore.score)) && (
+                                        <div style={{ fontSize: 11, color: getRatingInfo(parseInt(existingMgrScore.score)).color, fontWeight: 600 }}>
+                                          {getRatingInfo(parseInt(existingMgrScore.score)).label}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {isPending && (
+                                    <div style={{ marginTop: 12, background: "#f8fafc", padding: 14, borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                                      <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 600, marginBottom: 10 }}>Assign Manager Rating (optional)</div>
+                                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                                        {RATING_SCALE.map(r => (
+                                          <button key={r.value} type="button"
+                                            onClick={() => setManagerScores({ ...managerScores, [resp.question]: r.value })}
+                                            style={{
+                                              padding: "8px 12px", borderRadius: 8, border: "2px solid",
+                                              borderColor: managerScores[resp.question] === r.value ? r.color : "#e2e8f0",
+                                              background: managerScores[resp.question] === r.value ? r.color : "#fff",
+                                              color: managerScores[resp.question] === r.value ? "#fff" : "#475569",
+                                              cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s", minWidth: 36,
+                                            }}>{r.value}</button>
+                                        ))}
+                                      </div>
+                                      {managerScores[resp.question] && (
+                                        <div style={{ fontSize: 12, color: getRatingInfo(managerScores[resp.question])?.color, fontWeight: 600 }}>
+                                          Selected: {getRatingInfo(managerScores[resp.question])?.label}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               )}
 

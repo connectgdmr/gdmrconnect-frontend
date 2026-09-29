@@ -13,7 +13,6 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
   const [department, setDepartment] = useState(deptList[0]?.name || "");
   const [position, setPosition] = useState("");
   const [location, setLocation] = useState("");
-  const [employeeCode, setEmployeeCode] = useState("");
   const [doj, setDoj] = useState("");
   const [confirmationDate, setConfirmationDate] = useState("");
   const [promotionDate, setPromotionDate] = useState("");
@@ -57,7 +56,6 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
         department,
         position,
         location,
-        employee_code: employeeCode,
         doj,
         confirmation_date: confirmationDate,
         promotion_date: promotionDate,
@@ -67,7 +65,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
         contract_months: employmentType === "Contract" ? Number(contractMonths) : undefined,
       });
       setMsg(employmentType === "Contract" ? "Employee added — no login access (contract)." : "Employee added — credentials sent by email.");
-      setName(""); setEmail(""); setPhone(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setLocation(""); setEmployeeCode(""); setDoj(""); setConfirmationDate(""); setPromotionDate(""); setManagerId(""); setShift("morning"); setEmploymentType("Permanent"); setContractMonths("");
+      setName(""); setEmail(""); setPhone(""); setDepartment(deptList[0]?.name || ""); setPosition(""); setLocation(""); setDoj(""); setConfirmationDate(""); setPromotionDate(""); setManagerId(""); setShift("morning"); setEmploymentType("Permanent"); setContractMonths("");
     } catch (err) {
       setMsg(err.message || "Error");
     } finally { setSaving(false); }
@@ -76,6 +74,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
   return (
     <div className="card">
       <h3 style={{color:"var(--brand)"}}>Add Employee</h3>
+      <p className="small" style={{color: "var(--muted, #64748b)", margin: "2px 0 10px"}}>Employee ID is generated automatically (GDMR-001, GDMR-002, …).</p>
       {msg && <div className="small" style={{color: msg.startsWith("Employee added") ? "green" : "red", fontWeight: 500}}>{msg}</div>}
       <br />
       <form onSubmit={handle}>
@@ -138,16 +137,13 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
           </div>
         </div>
 
-        {/* Row 4: Employee ID and Date of Joining */}
+        {/* Row 4: Date of Joining */}
         <div className="form-row">
-          <div style={{flex: 1}}>
-            <label>Employee ID</label>
-            <input className="input" placeholder="e.g. GDMR-001" value={employeeCode} onChange={e=>setEmployeeCode(e.target.value)} />
-          </div>
           <div style={{flex: 1}}>
             <label>Date of Joining</label>
             <input className="input" type="date" value={doj} onChange={e=>setDoj(e.target.value)} />
           </div>
+          <div style={{flex: 1}} />
         </div>
 
         {/* Row 4b: Confirmation Date and Promotion Date */}
@@ -170,6 +166,7 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
               <option value="Permanent">Permanent</option>
               <option value="Contract">Contract</option>
               <option value="Internship">Internship</option>
+              <option value="Consultant">Consultant</option>
             </select>
           </div>
           {employmentType === "Contract" && (
@@ -182,6 +179,11 @@ export default function EmployeeForm({ onAdd, api, token, departments: deptList 
         {employmentType === "Contract" && (
           <div className="small" style={{color: "var(--muted, #64748b)", marginTop: -4, marginBottom: 8}}>
             Contract employees are stored as records only — no login/portal access or welcome email is created for them.
+          </div>
+        )}
+        {employmentType === "Consultant" && (
+          <div className="small" style={{color: "var(--muted, #64748b)", marginTop: -4, marginBottom: 8}}>
+            Consultants get full portal access but are excluded from the "Not Checked In" list — they aren't expected to punch in daily.
           </div>
         )}
 
