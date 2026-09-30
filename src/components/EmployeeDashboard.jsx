@@ -2237,10 +2237,6 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
         const selfAvg = scaleResps.length > 0
           ? (scaleResps.reduce((s, r) => s + parseFloat(r.self_score || 0), 0) / scaleResps.length).toFixed(1)
           : null;
-        const mgrScoresArr = selectedPms.manager_scores || [];
-        const mgrAvg = mgrScoresArr.length > 0
-          ? (mgrScoresArr.reduce((s, m) => s + parseFloat(m.score || 0), 0) / mgrScoresArr.length).toFixed(1)
-          : null;
 
         return (
           <div className="modal-overlay" onClick={() => setPmsModalOpen(false)}>
@@ -2263,27 +2259,16 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
                   </button>
                 </div>
 
-                {/* Score Summary */}
-                {(selfAvg || mgrAvg) && (
+                {/* Score Summary — employee only ever sees their OWN self-assessed
+                    score here. The manager's numeric rating (avg + overall +
+                    per-question) is deliberately withheld from this view; only
+                    the manager's written feedback/comments are shown below. */}
+                {selfAvg && (
                   <div style={{display:'flex', gap:14, marginTop:12, flexWrap:'wrap'}}>
-                    {selfAvg && (
-                      <div style={{background:'rgba(255,255,255,0.75)', borderRadius:8, padding:'8px 14px', border:'1px solid #e2e8f0'}}>
-                        <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>My Avg Score</div>
-                        <div style={{fontSize:18, fontWeight:700, color:'#1d4ed8'}}>{selfAvg}<span style={{fontSize:12, color:'#94a3b8'}}>/5</span></div>
-                      </div>
-                    )}
-                    {mgrAvg && (
-                      <div style={{background:'rgba(255,255,255,0.75)', borderRadius:8, padding:'8px 14px', border:'1px solid #e2e8f0'}}>
-                        <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>Manager Avg</div>
-                        <div style={{fontSize:18, fontWeight:700, color:'#7e22ce'}}>{mgrAvg}<span style={{fontSize:12, color:'#94a3b8'}}>/5</span></div>
-                      </div>
-                    )}
-                    {selectedPms.overall_rating && (
-                      <div style={{background:'rgba(255,255,255,0.75)', borderRadius:8, padding:'8px 14px', border:'1px solid #e2e8f0'}}>
-                        <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>Overall Rating</div>
-                        <div style={{fontSize:14, fontWeight:700, color:'#166534'}}>{selectedPms.overall_rating}</div>
-                      </div>
-                    )}
+                    <div style={{background:'rgba(255,255,255,0.75)', borderRadius:8, padding:'8px 14px', border:'1px solid #e2e8f0'}}>
+                      <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>My Avg Score</div>
+                      <div style={{fontSize:18, fontWeight:700, color:'#1d4ed8'}}>{selfAvg}<span style={{fontSize:12, color:'#94a3b8'}}>/5</span></div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2317,18 +2302,18 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
                         <h5 style={{margin:0, color:'var(--red)', fontSize:13, textTransform:'uppercase', letterSpacing:'0.05em'}}>{sessionName}</h5>
                       </div>
                       {responsesInSession.map((resp, idx) => {
-                        const mgrScoreObj = selectedPms.manager_scores?.find(m => m.question === resp.question);
                         const mgrCommentObj = selectedPms.manager_comments?.find(m => m.question === resp.question);
                         const selfScoreNum = parseInt(resp.self_score);
-                        const mgrScoreNum = mgrScoreObj ? parseInt(mgrScoreObj.score) : null;
 
                         return (
                           <div key={idx} style={{marginBottom:12, padding:16, background:'#fff', borderRadius:10, border:'1px solid #e2e8f0', borderLeft:'4px solid var(--red)'}}>
                             <div style={{fontWeight:600, color:'#1e293b', fontSize:13, marginBottom:12, whiteSpace:'pre-wrap', wordBreak:'break-word'}}>{resp.question}</div>
 
+                            {/* Manager's per-question rating is deliberately not shown here —
+                                only the employee's own self-rating and the manager's written
+                                comment (below) are visible on this view. */}
                             {resp.self_score && (
                               <div style={{display:'flex', gap:16, flexWrap:'wrap', marginBottom: mgrCommentObj?.comment ? 12 : 0}}>
-                                {/* Self Score */}
                                 <div style={{minWidth:120}}>
                                   <div style={{fontSize:10, color:'#64748b', fontWeight:600, marginBottom:5}}>MY RATING</div>
                                   {selfScoreNum > 5 ? (
@@ -2346,27 +2331,6 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
                                     </div>
                                   )}
                                 </div>
-
-                                {/* Manager Score */}
-                                {mgrScoreObj && (
-                                  <div style={{minWidth:120}}>
-                                    <div style={{fontSize:10, color:'#64748b', fontWeight:600, marginBottom:5}}>MANAGER RATING</div>
-                                    {mgrScoreNum > 5 ? (
-                                      <span style={{fontWeight:700, fontSize:16, color:'var(--red)'}}>{mgrScoreNum}/10</span>
-                                    ) : (
-                                      <div>
-                                        <div style={{display:'flex', gap:3, marginBottom:3}}>
-                                          {RATING_SCALE.map(r => (
-                                            <div key={r.value} style={{width:22, height:22, borderRadius:5, display:'flex', alignItems:'center', justifyContent:'center', background: r.value <= mgrScoreNum ? r.color : '#f1f5f9', color: r.value <= mgrScoreNum ? '#fff' : '#94a3b8', fontSize:11, fontWeight:700}}>
-                                              {r.value}
-                                            </div>
-                                          ))}
-                                        </div>
-                                        {getRatingInfo(mgrScoreNum) && <div style={{fontSize:10, color: getRatingInfo(mgrScoreNum).color, fontWeight:600}}>{getRatingInfo(mgrScoreNum).label}</div>}
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
                               </div>
                             )}
 
