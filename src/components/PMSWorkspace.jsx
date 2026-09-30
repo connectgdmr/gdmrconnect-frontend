@@ -200,6 +200,8 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
   const [viewPMSModalOpen, setViewPMSModalOpen] = useState(false);
   const [selectedPMS, setSelectedPMS] = useState(null);
   const [sharing, setSharing] = useState(false);
+  const [editingCompletedReview, setEditingCompletedReview] = useState(false);
+  const [deletingReviewId, setDeletingReviewId] = useState(null);
 
   // ── Calibration + export state ─────────────────────────────────────────
   const [calibrationData, setCalibrationData] = useState([]);
@@ -488,10 +490,12 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
     (pms.manager_comments || []).forEach(m => { comments[m.question] = m.comment; });
     setManagerScores(scores);
     setManagerQuestionComments(comments);
+    setEditingCompletedReview(false);
     setViewPMSModalOpen(true);
   }
 
   async function finalizePMS(id) {
+    const wasAlreadyCompleted = selectedPMS?.status === "Manager Review Completed";
     const scoresArr = Object.keys(managerScores).map(q => ({ question: q, score: managerScores[q] }));
     if (!managerFeedback.trim()) { alert("Please provide overall remarks and feedback before finalizing."); return; }
     try {
@@ -505,12 +509,27 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
         }),
       });
       if (res.ok) {
-        alert("PMS Review Finalized Successfully!");
+        alert(wasAlreadyCompleted ? "Review updated successfully!" : "PMS Review Finalized Successfully!");
         setManagerScores({}); setManagerFeedback(""); setOverallRating(""); setDevelopmentPlan(""); setManagerQuestionComments({});
+        setEditingCompletedReview(false);
         setViewPMSModalOpen(false); setSelectedPMS(null);
         loadReviews();
       } else { alert("Failed to finalize review."); }
     } catch (err) { alert(err.message); }
+  }
+
+  async function deletePMSReview(id) {
+    if (!window.confirm("Delete this completed review permanently? This cannot be undone.")) return;
+    setDeletingReviewId(id);
+    try {
+      const res = await fetch(`${baseUrl}/api/manager/pms/${id}`, {
+        method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.message || "Failed to delete review."); return; }
+      setViewPMSModalOpen(false); setSelectedPMS(null); setEditingCompletedReview(false);
+      loadReviews();
+    } catch { alert("Network error deleting this review."); }
+    finally { setDeletingReviewId(null); }
   }
 
   async function shareWithAdmin(id) {
@@ -1643,6 +1662,13 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
       {/* ── SCORING / VIEW MODAL ── */}
       {viewPMSModalOpen && selectedPMS && (() => {
         const isPending = selectedPMS.status === "Pending Review";
+        // isPending = never scored yet, always editable. editingCompletedReview =
+        // manager explicitly reopened an already-finalized review to correct it.
+        // Everywhere below that decides "show the input" vs "show the saved
+        // value" reads canEdit, not isPending directly — the header's
+        // Pending/Completed status label is the one place that stays tied to
+        // the real status, since re-editing doesn't change what actually happened.
+        const canEdit = isPending || editingCompletedReview;
         const grouped = getGroupedResponses();
         const scaleResponses = selectedPMS.responses?.filter(r => r.self_score) || [];
         const selfAvg = scaleResponses.length > 0
@@ -1691,6 +1717,18 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                           <TbShare size={10} /> {sharing ? "Sharing…" : "Share with Manager"}
                         </button>
                       )
+                    )}
+                    {!isPending && !editingCompletedReview && (
+                      <>
+                        <button onClick={() => setEditingCompletedReview(true)}
+                          style={{ fontSize: 11.5, fontWeight: 700, color: "#1d4ed8", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                          <TbEdit size={11} /> Edit
+                        </button>
+                        <button disabled={deletingReviewId === selectedPMS._id} onClick={() => deletePMSReview(selectedPMS._id)}
+                          style={{ fontSize: 11.5, fontWeight: 700, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                          <TbTrash size={11} /> {deletingReviewId === selectedPMS._id ? "Deleting…" : "Delete"}
+                        </button>
+                      </>
                     )}
                     <button style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#475569", flexShrink: 0 }} onClick={() => setViewPMSModalOpen(false)}>
                       <TbX size={15} />
@@ -1752,7 +1790,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
 
                               {resp.self_score && (
                                 <div style={{ marginBottom: 12 }}>
-                                  <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start", marginBottom: isPending ? 16 : 0 }}>
+                                  <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start", marginBottom: canEdit ? 16 : 0 }}>
                                     <div style={{ minWidth: 130 }}>
                                       <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>SELF RATING</div>
                                       {selfScoreNum > 5 ? (
@@ -1772,7 +1810,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                                       )}
                                     </div>
 
-                                    {!isPending && existingMgrScore && (
+                                    {!canEdit && existingMgrScore && (
                                       <div style={{ minWidth: 130 }}>
                                         <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>MANAGER RATING</div>
                                         {parseInt(existingMgrScore.score) > 5 ? (
@@ -1798,7 +1836,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                                     )}
                                   </div>
 
-                                  {isPending && (
+                                  {canEdit && (
                                     <div style={{ background: "#f8fafc", padding: 14, borderRadius: 8, border: "1px solid #e2e8f0" }}>
                                       <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 600, marginBottom: 10 }}>Assign Manager Rating</div>
                                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
@@ -1831,7 +1869,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                                     {resp.descriptive_answer || resp.goals_text}
                                   </div>
 
-                                  {!isPending && existingMgrScore && (
+                                  {!canEdit && existingMgrScore && (
                                     <div style={{ marginTop: 12, minWidth: 130 }}>
                                       <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>MANAGER RATING</div>
                                       <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
@@ -1847,7 +1885,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                                     </div>
                                   )}
 
-                                  {isPending && (
+                                  {canEdit && (
                                     <div style={{ marginTop: 12, background: "#f8fafc", padding: 14, borderRadius: 8, border: "1px solid #e2e8f0" }}>
                                       <div style={{ fontSize: 12, color: "#0f172a", fontWeight: 600, marginBottom: 10 }}>Assign Manager Rating (optional)</div>
                                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
@@ -1879,7 +1917,7 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                                 </div>
                               )}
 
-                              {isPending ? (
+                              {canEdit ? (
                                 <div style={{ marginTop: 10 }}>
                                   <label style={{ fontSize: 11, color: "#64748b", fontWeight: 600, display: "block", marginBottom: 6 }}>MANAGER COMMENT (optional)</label>
                                   <textarea
@@ -1902,9 +1940,9 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                   })
                 )}
 
-                {isPending && (
+                {canEdit && (
                   <div style={{ borderTop: "2px solid #e2e8f0", paddingTop: 24, marginTop: 8 }}>
-                    <h4 style={{ margin: "0 0 16px", color: "#0f172a", fontSize: 16 }}>Finalize Evaluation</h4>
+                    <h4 style={{ margin: "0 0 16px", color: "#0f172a", fontSize: 16 }}>{editingCompletedReview ? "Edit Evaluation" : "Finalize Evaluation"}</h4>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
                       <div>
                         <label className="modern-label">Overall Performance Rating</label>
@@ -1926,14 +1964,21 @@ export default function PMSWorkspace({ token, api, scope, assignablePool = [] })
                         placeholder="Outline key areas for growth and specific action items to improve performance..."
                         value={developmentPlan} onChange={e => setDevelopmentPlan(e.target.value)} />
                     </div>
-                    <button className="btn" style={{ width: "100%", fontSize: 16, padding: 16, background: "linear-gradient(135deg, var(--brand), var(--brand-dark))", border: "none", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-                      onClick={() => finalizePMS(selectedPMS._id)}>
-                      <TbCircleCheck /> Submit Scores & Finalize Review
-                    </button>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="btn" style={{ flex: 1, fontSize: 16, padding: 16, background: "linear-gradient(135deg, var(--brand), var(--brand-dark))", border: "none", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                        onClick={() => finalizePMS(selectedPMS._id)}>
+                        <TbCircleCheck /> {editingCompletedReview ? "Save Changes" : "Submit Scores & Finalize Review"}
+                      </button>
+                      {editingCompletedReview && (
+                        <button type="button" className="btn ghost" style={{ padding: "0 20px" }} onClick={() => handleViewPMS(selectedPMS)}>
+                          Cancel
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
 
-                {!isPending && (
+                {!canEdit && (
                   <div style={{ borderTop: "2px solid #e2e8f0", paddingTop: 20, marginTop: 8 }}>
                     {selectedPMS.overall_rating && (
                       <div style={{ marginBottom: 14, padding: "10px 16px", background: "#f0fdf4", borderRadius: 8, border: "1px solid #bbf7d0", display: "flex", alignItems: "center", gap: 10 }}>
