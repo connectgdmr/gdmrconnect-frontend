@@ -135,6 +135,9 @@ export default {
   listEmployees: (token) => request("/admin/employees", "GET", null, token),
   deleteEmployee: (id, token) => request(`/admin/employees/${id}`, "DELETE", null, token),
   editEmployee: (id, payload, token) => request(`/admin/employees/${id}`, "PUT", payload, token),
+  lockEmployee: (id, reason, token) => request(`/admin/employees/${id}/lock`, "POST", { reason }, token),
+  unlockEmployee: (id, reason, token) => request(`/admin/employees/${id}/unlock`, "POST", { reason }, token),
+  getEmployeeLockAudit: (id, token) => request(`/admin/employees/${id}/lock-audit`, "GET", null, token),
 
   uploadMyProfilePicture: async (file, token) => {
     const formData = new FormData();

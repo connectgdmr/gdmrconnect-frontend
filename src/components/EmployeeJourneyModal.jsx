@@ -203,7 +203,7 @@ function MiniBar({ value, max, color }) {
 // used as-is; otherwise the modal fetches its own, which is what lets it be
 // dropped in anywhere just from `emp` + `api` + `token` (e.g. clicking a row
 // in the plain Employee List).
-export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, month, onClose, api, token, onRefresh, departments = [] }) {
+export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, month, onClose, api, token, onRefresh, departments = [], canLock = false, onLockClick, onViewLockHistory }) {
   const [empData, setEmpData] = useState(emp); // local mutable copy — edits/doc changes update this in place
   const [achievements, setAchievements] = useState([]);
   const [loadingAch, setLoadingAch] = useState(false);
@@ -573,7 +573,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         {/* ─── HERO HEADER ──────────────────────────────────────────────── */}
         <div style={{ background: "linear-gradient(135deg, #1c5249 0%, #34a06a 100%)", padding: "28px 20px 22px", position: "relative", flexShrink: 0 }}>
           <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8 }}>
-            {api && token && (
+            {api && token && !empData.locked_info_redacted && (
               <button
                 onClick={() => editMode ? setEditMode(false) : startEdit()}
                 title={editMode ? "Cancel editing" : "Edit employee details"}
@@ -606,6 +606,11 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
                   <a href={`tel:${empData.phone}`} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "rgba(255,255,255,0.85)", textDecoration: "none" }}>
                     <TbPhone size={10} /> {empData.phone}
                   </a>
+                )}
+                {empData.locked_info_redacted && (
+                  <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "rgba(255,255,255,0.75)", fontStyle: "italic" }}>
+                    🔒 Contact details restricted
+                  </span>
                 )}
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -647,6 +652,29 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
             </div>
           )}
         </div>
+
+        {/* ─── LOCK STATUS BANNER (Admin/Owner only) ──────────────────── */}
+        {canLock && empData.locked && (
+          <div style={{ margin: "12px 16px 0", padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontSize: 12.5, color: "#991b1b" }}>
+              🔒 <strong>Locked</strong> by {empData.locked_by_name || "an Admin"}{empData.locked_at ? ` on ${new Date(empData.locked_at).toLocaleDateString()}` : ""}
+              {empData.lock_reason ? ` — ${empData.lock_reason}` : ""}
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              {onViewLockHistory && (
+                <button className="btn-small ghost" style={{ border: "1px solid #fca5a5", color: "#b91c1c", padding: "4px 10px", fontSize: 11.5 }} onClick={onViewLockHistory}>History</button>
+              )}
+              {onLockClick && (
+                <button className="btn-small ghost" style={{ border: "1px solid #fca5a5", color: "#b91c1c", padding: "4px 10px", fontSize: 11.5 }} onClick={onLockClick}>Unlock</button>
+              )}
+            </div>
+          </div>
+        )}
+        {canLock && !empData.locked && onLockClick && (
+          <div style={{ margin: "12px 16px 0", textAlign: "right" }}>
+            <button className="btn-small ghost" style={{ border: "1px solid #e2e8f0", color: "#475569", padding: "4px 10px", fontSize: 11.5 }} onClick={onLockClick}>🔒 Lock Profile</button>
+          </div>
+        )}
 
         {/* ─── EDIT DETAILS ────────────────────────────────────────────── */}
         {editMode && editForm && (
@@ -762,9 +790,13 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
         {/* ─── DOCUMENTS ───────────────────────────────────────────────── */}
         <div style={{ margin: "12px 16px 0" }}>
           <div className="journey-section" style={{ margin: 0 }}>
-            <div className="journey-section-title"><TbFileText size={10} /> Documents ({(empData.documents || []).length})</div>
+            <div className="journey-section-title"><TbFileText size={10} /> Documents {!empData.locked_info_redacted && `(${(empData.documents || []).length})`}</div>
 
-            {(empData.documents || []).length === 0 ? (
+            {empData.locked_info_redacted ? (
+              <div style={{ textAlign: "center", padding: "16px 0", color: "#b91c1c", fontSize: 12.5, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8 }}>
+                🔒 Restricted — this employee's profile is locked. Contact an Admin for access to their documents.
+              </div>
+            ) : (empData.documents || []).length === 0 ? (
               <div style={{ textAlign: "center", padding: "12px 0", color: "#94a3b8", fontSize: 12.5 }}>No documents on file yet.</div>
             ) : (
               <div>
@@ -843,7 +875,7 @@ export default function EmployeeJourneyModal({ emp, allLeaves, monthAttendance, 
               </div>
             )}
 
-            {api && token && (
+            {api && token && !empData.locked_info_redacted && (
               <form onSubmit={uploadDoc} style={{ display: "flex", gap: 8, marginTop: 14, paddingTop: 14, borderTop: "1px solid #f1f5f9", flexWrap: "wrap", alignItems: "center" }}>
                 <input
                   value={newDocName}

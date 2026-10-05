@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   TbTrash, TbShieldLock, TbSearch, TbFilter, TbUserBolt, TbUser,
   TbEdit, TbUserPause, TbX, TbPlus, TbAlertTriangle,
-  TbSun, TbMoon, TbClock,
+  TbSun, TbMoon, TbClock, TbLock, TbLockOpen, TbHistory,
 } from "react-icons/tb";
 import { SkeletonTable } from "./Skeleton";
 import EmployeeJourneyModal from "./EmployeeJourneyModal";
@@ -370,7 +370,7 @@ function StatusModal({ employee, onClose, onRefresh, api, token }) {
   );
 }
 
-export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, onPromote, departments = [], api, token }) {
+export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, onPromote, departments = [], api, token, canLock = false }) {
   const [searchTerm, setSearchTerm]         = useState("");
   const [roleFilter, setRoleFilter]         = useState("All");
   const [statusFilter, setStatusFilter]     = useState("All");
@@ -382,6 +382,15 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
   const [managers, setManagers]             = useState([]);
   const [statusEmployee, setStatusEmployee] = useState(null);
   const [profileEmp, setProfileEmp]         = useState(null); // full-detail profile (click a row)
+  // Lock Employee Details — canLock is only ever true for a genuine Admin/
+  // Owner viewer (EmployeeList is shared with EmployeeDashboard/ManagerDashboard
+  // for delegated access, which must never see this control).
+  const [lockTarget, setLockTarget]         = useState(null); // employee being locked/unlocked
+  const [lockReason, setLockReason]         = useState("");
+  const [lockSaving, setLockSaving]         = useState(false);
+  const [lockAuditFor, setLockAuditFor]     = useState(null);
+  const [lockAuditRows, setLockAuditRows]   = useState([]);
+  const [lockAuditLoading, setLockAuditLoading] = useState(false);
 
   useEffect(() => {
     if (!showEditModal || !api || !token) return;
@@ -414,6 +423,37 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
       setEditingOriginal(null);
     } catch {
       alert("Error updating employee profile.");
+    }
+  };
+
+  const openLockModal = (emp) => { setLockTarget(emp); setLockReason(""); };
+
+  const submitLockToggle = async () => {
+    if (!lockTarget) return;
+    setLockSaving(true);
+    try {
+      const action = lockTarget.locked ? api.unlockEmployee : api.lockEmployee;
+      await action(lockTarget._id, lockReason.trim(), token);
+      onPatch?.(lockTarget._id, { locked: !lockTarget.locked });
+      onRefresh?.();
+      setLockTarget(null);
+      setLockReason("");
+    } catch (err) {
+      alert(err.message || "Failed to update the lock.");
+    } finally {
+      setLockSaving(false);
+    }
+  };
+
+  const openLockAudit = async (emp) => {
+    setLockAuditFor(emp);
+    setLockAuditLoading(true);
+    try {
+      setLockAuditRows(await api.getEmployeeLockAudit(emp._id, token));
+    } catch {
+      setLockAuditRows([]);
+    } finally {
+      setLockAuditLoading(false);
     }
   };
 
@@ -501,8 +541,16 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                   style={isResigned ? { opacity: 0.45, background: "#f8fafc", filter: "grayscale(30%)", cursor: "pointer" } : { cursor: "pointer" }}
                 >
                   <td>
-                    <div className="emp-name">{emp.name}{emp.employee_code && <span style={{ color: "#94a3b8", fontWeight: 500 }}> · {emp.employee_code}</span>}</div>
-                    <div className="emp-email">{emp.email}</div>
+                    <div className="emp-name">
+                      {emp.name}{emp.employee_code && <span style={{ color: "#94a3b8", fontWeight: 500 }}> · {emp.employee_code}</span>}
+                      {emp.locked && (
+                        <span title={emp.locked_info_redacted ? "Locked by an Admin — documents and contact details are restricted" : "Locked"}
+                          style={{ marginLeft: 7, fontSize: 10.5, fontWeight: 800, letterSpacing: 0.3, textTransform: "uppercase", color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6, padding: "1px 7px", display: "inline-flex", alignItems: "center", gap: 3, verticalAlign: "middle" }}>
+                          🔒 Locked
+                        </span>
+                      )}
+                    </div>
+                    <div className="emp-email">{emp.locked_info_redacted ? <span style={{ color: "#94a3b8", fontStyle: "italic" }}>Restricted</span> : emp.email}</div>
                     <EmploymentStatusBadge emp={emp} />
                   </td>
                   <td>
@@ -541,6 +589,12 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
                           <TbShieldLock />
                         </button>
                       )}
+                      {canLock && (
+                        <button className="btn-action" onClick={() => openLockModal(emp)} title={emp.locked ? "Unlock this employee's profile" : "Lock this employee's profile"}
+                          style={{ color: emp.locked ? "#b91c1c" : undefined }}>
+                          {emp.locked ? <TbLockOpen /> : <TbLock />}
+                        </button>
+                      )}
                       <button className="btn-action btn-remove" onClick={() => handleDeleteClick(emp._id)} title="Remove employee">
                         <TbTrash />
                       </button>
@@ -563,6 +617,9 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
           onRefresh={onRefresh}
           api={api}
           token={token}
+          canLock={canLock}
+          onLockClick={() => { setProfileEmp(null); openLockModal(profileEmp); }}
+          onViewLockHistory={() => openLockAudit(profileEmp)}
         />
       )}
 
@@ -575,6 +632,63 @@ export default function EmployeeList({ employees, onDelete, onRefresh, onPatch, 
           api={api}
           token={token}
         />
+      )}
+
+      {/* Lock / Unlock confirmation modal */}
+      {lockTarget && (
+        <div className="modal-overlay" onClick={() => setLockTarget(null)}>
+          <div className="modal-box" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 8 }}>
+              {lockTarget.locked ? <><TbLockOpen /> Unlock Profile</> : <><TbLock /> Lock Profile</>}
+            </h3>
+            <p className="small">
+              {lockTarget.locked
+                ? <>Restore normal access to <strong>{lockTarget.name}</strong>'s documents and contact details for Workforce/delegated users.</>
+                : <>Restrict <strong>{lockTarget.name}</strong>'s documents and contact details to Admin/Owner only — anyone else (including delegated "Employees" access) will see a "Restricted" placeholder instead.</>}
+            </p>
+            <label className="small" style={{ fontWeight: 600 }}>Reason {lockTarget.locked ? "(optional)" : "(recommended)"}</label>
+            <textarea className="modern-input" rows={3} value={lockReason} onChange={e => setLockReason(e.target.value)} placeholder={lockTarget.locked ? "Reason for unlocking" : "Reason for locking"} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+              <button className="btn ghost" onClick={() => setLockTarget(null)}>Cancel</button>
+              <button className="btn" disabled={lockSaving} onClick={submitLockToggle}>
+                {lockSaving ? "Saving…" : lockTarget.locked ? "Unlock Profile" : "Lock Profile"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lock audit trail modal */}
+      {lockAuditFor && (
+        <div className="modal-overlay" style={{ zIndex: 4000 }} onClick={() => setLockAuditFor(null)}>
+          <div className="modal-box" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}><TbHistory /> Lock History — {lockAuditFor.name}</h3>
+              <button className="btn-small ghost" onClick={() => setLockAuditFor(null)}><TbX /></button>
+            </div>
+            {lockAuditLoading ? (
+              <div style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>Loading…</div>
+            ) : lockAuditRows.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>No lock/unlock history yet.</div>
+            ) : (
+              <div style={{ maxHeight: 420, overflowY: "auto" }}>
+                <table className="styled-table-global">
+                  <thead><tr><th>When</th><th>Action</th><th>By</th><th>Reason</th></tr></thead>
+                  <tbody>
+                    {lockAuditRows.map(r => (
+                      <tr key={r._id}>
+                        <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>{r.at ? new Date(r.at).toLocaleString() : "—"}</td>
+                        <td style={{ fontSize: 12, fontWeight: 700, color: r.action === "lock" ? "#b91c1c" : "#166534" }}>{r.action === "lock" ? "Locked" : "Unlocked"}</td>
+                        <td style={{ fontSize: 12 }}>{r.actor_name || "—"}</td>
+                        <td style={{ fontSize: 12, color: "#64748b" }}>{r.reason || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Delete confirmation modal */}

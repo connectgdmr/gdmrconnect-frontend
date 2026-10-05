@@ -902,6 +902,7 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
                     onPromote={promoteToManager}
                     api={api}
                     token={token}
+                    canLock
                   />
                 )}
               </div>
