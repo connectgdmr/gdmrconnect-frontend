@@ -139,7 +139,7 @@ const DELEGATED_MODULES = [
     render: (ctx) => <AdminATS token={ctx.token} role={ctx.user?.role || "employee"} employees={ctx.delegatedEmployees} departments={ctx.delegatedDepartments} /> },
   { key: "career", label: "Manage Jobs", Icon: TbBriefcase,
     alert: "You are managing Job Postings using temporary Delegated Access.",
-    render: (ctx) => <AdminCareer token={ctx.token} employees={ctx.delegatedEmployees} /> },
+    render: (ctx) => <AdminCareer token={ctx.token} employees={ctx.delegatedEmployees} departments={ctx.delegatedDepartments} /> },
   { key: "clients", label: "Manage Clients", Icon: TbFolderOpen,
     alert: "You are managing Clients using temporary Delegated Access.",
     render: (ctx) => <ClientsWorkspace token={ctx.token} api={ctx.api} /> },

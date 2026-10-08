@@ -152,6 +152,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
   const [search, setSearch] = useState("");
   const [statusF, setStatusF] = useState("all");
   const [deptF, setDeptF] = useState("all");
+  const [roleSkillF, setRoleSkillF] = useState("all"); // "role:<title>" | "skill:<name>"
 
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(blankCandidate());
@@ -215,6 +216,12 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
 
   const safe = Array.isArray(candidates) ? candidates : [];
   const depts = [...new Set(safe.map(c => c.department).filter(Boolean))];
+  const candSkills = (c) => (Array.isArray(c.skills) ? c.skills : String(c.skills ?? "").split(","))
+    .map(s => String(s).trim()).filter(Boolean);
+  // Candidates-tab "Role / Skills" filter options, built from the data itself.
+  const filterRoles = [...new Set(safe.map(c => c.job_role).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const filterSkills = [...new Map(safe.flatMap(candSkills).map(s => [s.toLowerCase(), s])).values()]
+    .sort((a, b) => a.localeCompare(b));
   // Job Role options for the Add Candidate form — open postings from Jobs
   // plus whatever roles have been used on existing candidates, so the list
   // stays useful even before any job postings exist.
@@ -262,7 +269,10 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
       .some(v => String(v ?? "").toLowerCase().includes(q));
     const mSt = statusF === "all" || c.status === statusF;
     const mD = deptF === "all" || c.department === deptF;
-    return mS && mSt && mD;
+    let mR = true;
+    if (roleSkillF.startsWith("role:")) mR = c.job_role === roleSkillF.slice(5);
+    else if (roleSkillF.startsWith("skill:")) mR = candSkills(c).some(s => s.toLowerCase() === roleSkillF.slice(6).toLowerCase());
+    return mS && mSt && mD && mR;
   });
 
   // Dashboard aggregates (fallback from candidate list if no stats endpoint)
@@ -443,6 +453,15 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
             <select className="modern-input" value={deptF} onChange={e => setDeptF(e.target.value)} style={{ margin: 0, maxWidth: 180 }}>
               <option value="all">All Departments</option>
               {depts.map(d => <option key={d}>{d}</option>)}
+            </select>
+            <select className="modern-input" value={roleSkillF} onChange={e => setRoleSkillF(e.target.value)} style={{ margin: 0, maxWidth: 200 }}>
+              <option value="all">All Roles / Skills</option>
+              {filterRoles.length > 0 && <optgroup label="Role">
+                {filterRoles.map(r => <option key={`r-${r}`} value={`role:${r}`}>{r}</option>)}
+              </optgroup>}
+              {filterSkills.length > 0 && <optgroup label="Skill">
+                {filterSkills.map(s => <option key={`s-${s}`} value={`skill:${s}`}>{s}</option>)}
+              </optgroup>}
             </select>
             <button className="btn ghost" onClick={exportAllCSV} title="Export all filtered candidates as CSV / Excel" style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}>
               <TbFileExport size={12} /> Export All (CSV)

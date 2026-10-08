@@ -52,7 +52,7 @@ async function downloadResume(url, filename = "resume.pdf") {
   }
 }
 
-export default function AdminCareer({ token, employees = [], onOpenCandidate }) {
+export default function AdminCareer({ token, employees = [], departments = [], onOpenCandidate }) {
   const [tab, setTab]       = useState("board");
   const [jobs, setJobs]     = useState([]);
   const [jobsLoading, setJobsLoading] = useState(false);
@@ -69,6 +69,13 @@ export default function AdminCareer({ token, employees = [], onOpenCandidate }) 
   const [refSearch, setRefSearch]   = useState("");
   const [refJobFilter, setRefJobFilter]   = useState("all");
   const [refStatusFilter, setRefStatusFilter] = useState("All");
+
+  // Department dropdown options: the company's departments, plus the job's
+  // current value so editing an older job with a free-typed department keeps it.
+  const deptOptions = [...new Set([
+    ...departments.map(d => d.name).filter(Boolean),
+    ...(jobForm.department ? [jobForm.department] : []),
+  ])].sort((a, b) => a.localeCompare(b));
 
   const [msg, setMsg] = useState({ text: "", type: "" });
   const flash = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "" }), 3500); };
@@ -384,7 +391,10 @@ export default function AdminCareer({ token, employees = [], onOpenCandidate }) 
             </div>
             <div>
               <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Department</label>
-              <input className="modern-input" value={jobForm.department} onChange={e => setJobForm(f => ({ ...f, department: e.target.value }))} placeholder="e.g. Engineering" />
+              <select className="modern-input" value={jobForm.department} onChange={e => setJobForm(f => ({ ...f, department: e.target.value }))}>
+                <option value="">Select department</option>
+                {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
             </div>
             <div>
               <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Location</label>

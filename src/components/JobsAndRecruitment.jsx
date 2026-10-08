@@ -44,7 +44,7 @@ export default function JobsAndRecruitment({ token, user, role, employees = [], 
       </div>
 
       {tab === "jobs"
-        ? (isAdmin ? <AdminCareer token={token} employees={employees} onOpenCandidate={openCandidateInRecruitment} /> : <EmployeeCareer token={token} user={user} />)
+        ? (isAdmin ? <AdminCareer token={token} employees={employees} departments={departments} onOpenCandidate={openCandidateInRecruitment} /> : <EmployeeCareer token={token} user={user} />)
         : <AdminATS token={token} role={role} employees={employees} departments={departments} />}
     </div>
   );
