@@ -29,7 +29,7 @@ const STATUS_COLORS = {
 
 const blankJob = () => ({
   title: "", department: "", location: "", employment_type: "Full-time",
-  description: "", requirements: [], salary_min: "", salary_max: "", salary_visible: true, status: "active",
+  description: "", requirements: [], salary_min: "", salary_max: "", salary_visible: true, referral_open: true, status: "active",
 });
 
 // Fetch the file and save it as a real .pdf download (works cross-origin,
@@ -118,7 +118,7 @@ export default function AdminCareer({ token, employees = [], departments = [], o
       ? j.requirements
       : (typeof j.requirements === "string" && j.requirements ? j.requirements.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : []);
     setJobForm({ title: j.title, department: j.department || "", location: j.location || "", employment_type: j.employment_type || "Full-time",
-      description: j.description || "", requirements: reqs, salary_min: j.salary_min || "", salary_max: j.salary_max || "", salary_visible: j.salary_visible !== false, status: j.status || "active" });
+      description: j.description || "", requirements: reqs, salary_min: j.salary_min || "", salary_max: j.salary_max || "", salary_visible: j.salary_visible !== false, referral_open: j.referral_open !== false, status: j.status || "active" });
     setNewReq(""); setTab("post");
   }
 
@@ -145,6 +145,18 @@ export default function AdminCareer({ token, employees = [], departments = [], o
       });
       if (r.ok) { flash(newStatus === "closed" ? "Job closed." : "Job reopened."); loadJobs(); }
       else { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to update job status.", "error"); }
+    } catch { flash("Network error.", "error"); }
+  }
+
+  async function toggleReferral(j) {
+    const next = j.referral_open === false;
+    try {
+      const r = await fetch(`${BASE}/admin/career/jobs/${j._id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ referral_open: next }),
+      });
+      if (r.ok) { flash(next ? "Job is now open for referrals." : "Job hidden from referrals."); loadJobs(); }
+      else { const d = await r.json().catch(() => ({})); flash(d.message || "Failed to update.", "error"); }
     } catch { flash("Network error.", "error"); }
   }
 
@@ -344,6 +356,10 @@ export default function AdminCareer({ token, employees = [], departments = [], o
                             background: j.status === "active" ? "#f0fdf4" : "#f8fafc", padding: "2px 8px", borderRadius: 4 }}>
                             {j.status === "active" ? "● Active" : "Closed"}
                           </span>
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
+                            color: j.referral_open === false ? "#94a3b8" : "#2563eb", background: j.referral_open === false ? "#f8fafc" : "#eff6ff" }}>
+                            {j.referral_open === false ? "Hidden from referrals" : "Open for referrals"}
+                          </span>
                         </div>
                         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: "#64748b" }}>
                           {j.department && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><TbUsers size={10} />{j.department}</span>}
@@ -362,6 +378,10 @@ export default function AdminCareer({ token, employees = [], departments = [], o
                       </div>
                       <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                         <button className="btn-action btn-edit" onClick={() => startEdit(j)} title="Edit"><TbEdit /></button>
+                        <button className="btn ghost" onClick={() => toggleReferral(j)} style={{ fontSize: 11, padding: "4px 10px" }}
+                          title="Choose whether employees can see this job and refer candidates for it">
+                          {j.referral_open === false ? "Open referrals" : "Hide from referrals"}
+                        </button>
                         <button
                           className="btn ghost"
                           onClick={() => toggleJobStatus(j)}
@@ -424,6 +444,10 @@ export default function AdminCareer({ token, employees = [], departments = [], o
             <label style={{ gridColumn: "span 2", display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#334155", cursor: "pointer", marginTop: -4 }}>
               <input type="checkbox" checked={jobForm.salary_visible} onChange={e => setJobForm(f => ({ ...f, salary_visible: e.target.checked }))} style={{ width: 16, height: 16, margin: 0, accentColor: "var(--brand)" }} />
               Show salary to employees (visible on the job board and when referring)
+            </label>
+            <label style={{ gridColumn: "span 2", display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#334155", cursor: "pointer", marginTop: -4 }}>
+              <input type="checkbox" checked={jobForm.referral_open} onChange={e => setJobForm(f => ({ ...f, referral_open: e.target.checked }))} style={{ width: 16, height: 16, margin: 0, accentColor: "var(--brand)" }} />
+              Open for employee referrals (employees can see this job and refer candidates)
             </label>
 
             {/* Description */}

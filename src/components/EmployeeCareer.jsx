@@ -40,7 +40,7 @@ export default function EmployeeCareer({ token, user }) {
   async function loadJobs() {
     setLoading(true);
     try {
-      const r = await fetch(`${BASE}/career/jobs`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${BASE}/career/jobs?referral=1`, { headers: { Authorization: `Bearer ${token}` } });
       setJobs(r.ok ? toArr(await r.json()) : []);
     } catch { setJobs([]); } finally { setLoading(false); }
   }
