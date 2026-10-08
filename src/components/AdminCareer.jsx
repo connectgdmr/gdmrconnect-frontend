@@ -29,7 +29,7 @@ const STATUS_COLORS = {
 
 const blankJob = () => ({
   title: "", department: "", location: "", employment_type: "Full-time",
-  description: "", requirements: [], salary_min: "", salary_max: "", status: "active",
+  description: "", requirements: [], salary_min: "", salary_max: "", salary_visible: true, status: "active",
 });
 
 // Fetch the file and save it as a real .pdf download (works cross-origin,
@@ -118,7 +118,7 @@ export default function AdminCareer({ token, employees = [], departments = [], o
       ? j.requirements
       : (typeof j.requirements === "string" && j.requirements ? j.requirements.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : []);
     setJobForm({ title: j.title, department: j.department || "", location: j.location || "", employment_type: j.employment_type || "Full-time",
-      description: j.description || "", requirements: reqs, salary_min: j.salary_min || "", salary_max: j.salary_max || "", status: j.status || "active" });
+      description: j.description || "", requirements: reqs, salary_min: j.salary_min || "", salary_max: j.salary_max || "", salary_visible: j.salary_visible !== false, status: j.status || "active" });
     setNewReq(""); setTab("post");
   }
 
@@ -421,6 +421,10 @@ export default function AdminCareer({ token, employees = [], departments = [], o
               <label style={{ fontWeight: 600, fontSize: 13, color: "#334155", display: "block", marginBottom: 5 }}>Salary Max (₹/mo)</label>
               <input className="modern-input" type="number" value={jobForm.salary_max} onChange={e => setJobForm(f => ({ ...f, salary_max: e.target.value }))} placeholder="e.g. 60000" />
             </div>
+            <label style={{ gridColumn: "span 2", display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#334155", cursor: "pointer", marginTop: -4 }}>
+              <input type="checkbox" checked={jobForm.salary_visible} onChange={e => setJobForm(f => ({ ...f, salary_visible: e.target.checked }))} style={{ width: 16, height: 16, margin: 0, accentColor: "var(--brand)" }} />
+              Show salary to employees (visible on the job board and when referring)
+            </label>
 
             {/* Description */}
             <div style={{ gridColumn: "span 2" }}>
