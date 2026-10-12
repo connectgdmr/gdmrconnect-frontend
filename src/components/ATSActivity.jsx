@@ -5,6 +5,7 @@ import {
   TbChevronDown, TbChevronRight,
 } from "react-icons/tb";
 import { API_URL as BASE } from "../api";
+import ATSAIOverview from "./ATSAIOverview";
 
 const TZ = "Asia/Kolkata";
 const dayKey = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: TZ }); // YYYY-MM-DD in IST
@@ -193,7 +194,7 @@ export default function ATSActivity({ token, onOpen, statusColor, refreshKey }) 
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPopRange("today"); setPopup(t.key); } }}
               onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 18px rgba(15,23,42,.10)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
-              style={{ padding: "14px 16px", cursor: "pointer", transition: "transform .15s, box-shadow .15s" }}>
+              style={{ padding: "14px 16px", cursor: "pointer", userSelect: "none", transition: "transform .15s, box-shadow .15s" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{t.label}</div>
                 <div style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, opacity: v ? 1 : 0.55 }}>{t.icon}</div>
@@ -204,6 +205,8 @@ export default function ATSActivity({ token, onOpen, statusColor, refreshKey }) 
           );
         })}
       </div>
+
+      <ATSAIOverview token={token} />
 
       {/* ── Needs attention + activity feed ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "stretch", marginBottom: 16 }} className="ats-grid">
