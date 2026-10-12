@@ -61,7 +61,7 @@ export default function GoalReminderBanner({ token, onOpenGoals }) {
             <div key={g._id} style={{ background: c.bg, color: c.ink, borderRadius: 6, padding: "10px 12px", borderLeft: `5px solid ${c.edge}`, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 2px 6px rgba(15,23,42,.08)" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.title}</div>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: due.color }}>{due.text} · {g.type}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: due.color }}>{due.text} · {g.type}{!g.is_owner && g.owner_name ? ` · from ${g.owner_name}` : ""}</div>
               </div>
               <button onClick={() => markDone(g)} disabled={busy === g._id}
                 style={{ display: "flex", alignItems: "center", gap: 4, border: "none", borderRadius: 6, padding: "6px 10px", background: "#16a34a", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", opacity: busy === g._id ? 0.6 : 1 }}>
