@@ -54,6 +54,11 @@ function Delta({ now, before }) {
   );
 }
 
+function statusPill(statusColor, s) {
+  const c = statusColor(s);
+  return <span style={{ fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 4, color: c.c, background: c.b, whiteSpace: "nowrap" }}>{s}</span>;
+}
+
 function EventLine({ e, statusColor }) {
   const pill = (s) => {
     const c = statusColor(s);
@@ -71,6 +76,39 @@ const cardTitle = { margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a", 
 const mutedNote = { padding: "28px 10px", textAlign: "center", color: "#94a3b8", fontSize: 13 };
 const PREVIEW = 5; // rows shown per expanded attention group before "show more"
 
+const INTERVIEW_STAGES = ["Screening Call Scheduled", "Technical Interview", "HR Interview", "Management Interview"];
+// Which activity events sit behind each tile — mirrors summarise() in routes/ats.py.
+const TILE_MATCH = {
+  new_applications: (e) => e.type === "applied",
+  status_changes:   (e) => e.type === "status",
+  interviews:       (e) => e.type === "status" && INTERVIEW_STAGES.includes(e.to),
+  offers_released:  (e) => e.type === "status" && e.to === "Offer Released",
+  joined:           (e) => e.type === "status" && ["Joined", "Hired"].includes(e.to),
+  documents:        (e) => e.type === "document",
+};
+const TILE_HELP = {
+  new_applications: "People who applied",
+  status_changes:   "Candidates moved to a new stage",
+  interviews:       "Candidates moved into a call or interview stage",
+  offers_released:  "Candidates who were sent an offer",
+  joined:           "Candidates who joined",
+  documents:        "Documents uploaded by candidates",
+};
+const RANGES = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "week", label: "Past 7 days" },
+  { key: "all", label: "Past 14 days" },
+];
+function inRange(at, range) {
+  const k = dayKey(at);
+  const today = dayKey(new Date());
+  if (range === "today") return k === today;
+  if (range === "yesterday") return k === dayKey(new Date(Date.now() - 86400000));
+  if (range === "week") return k >= dayKey(new Date(Date.now() - 6 * 86400000));
+  return true;
+}
+
 export default function ATSActivity({ token, onOpen, statusColor, refreshKey }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(false);
@@ -78,6 +116,15 @@ export default function ATSActivity({ token, onOpen, statusColor, refreshKey }) 
   const [showAllEvents, setShowAllEvents] = useState(false);
   const [openGroup, setOpenGroup] = useState(null);       // which attention group is expanded
   const [fullGroups, setFullGroups] = useState({});       // groups showing every row, not just PREVIEW
+  const [popup, setPopup] = useState(null);               // tile key whose details popup is open
+  const [popRange, setPopRange] = useState("today");
+
+  useEffect(() => {
+    if (!popup) return;
+    const onKey = (e) => { if (e.key === "Escape") setPopup(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [popup]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -141,7 +188,12 @@ export default function ATSActivity({ token, onOpen, statusColor, refreshKey }) 
         {TILES.map(t => {
           const v = today[t.key];
           return (
-            <div key={t.key} className="card" style={{ padding: "14px 16px" }}>
+            <div key={t.key} className="card" role="button" tabIndex={0} title="Click to see details"
+              onClick={() => { setPopRange("today"); setPopup(t.key); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPopRange("today"); setPopup(t.key); } }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 18px rgba(15,23,42,.10)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
+              style={{ padding: "14px 16px", cursor: "pointer", transition: "transform .15s, box-shadow .15s" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{t.label}</div>
                 <div style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, opacity: v ? 1 : 0.55 }}>{t.icon}</div>
@@ -295,6 +347,78 @@ export default function ATSActivity({ token, onOpen, statusColor, refreshKey }) 
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Percent = share of the stage before it that got this far.</div>
         </div>
       </div>
+
+      {/* ── Tile details popup ── */}
+      {popup && (() => {
+        const tile = TILES.find(t => t.key === popup);
+        const match = TILE_MATCH[popup];
+        const all = events.filter(match);
+        const rows = all.filter(e => inRange(e.at, popRange));
+        const closePop = () => setPopup(null);
+        let lastDay = null;
+        return (
+          <div onClick={closePop} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <div onClick={(e) => e.stopPropagation()} role="dialog" aria-label={tile.label}
+              style={{ background: "#fff", borderRadius: 14, width: "100%", maxWidth: 620, maxHeight: "86vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 50px rgba(15,23,42,.25)" }}>
+              <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid #eef2f6" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: tile.bg, color: tile.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19 }}>{tile.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: "#0f172a" }}>{tile.label}</div>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>{TILE_HELP[popup]}</div>
+                  </div>
+                  <button onClick={closePop} aria-label="Close" style={{ border: "none", background: "#f1f5f9", borderRadius: 8, width: 30, height: 30, cursor: "pointer", fontSize: 16, color: "#475569" }}>✕</button>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
+                  {RANGES.map(r => {
+                    const n = all.filter(e => inRange(e.at, r.key)).length;
+                    const on = popRange === r.key;
+                    return (
+                      <button key={r.key} onClick={() => setPopRange(r.key)} style={{
+                        fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 16, cursor: "pointer",
+                        border: `1px solid ${on ? "var(--brand)" : "#e2e8f0"}`, background: on ? "var(--brand-light)" : "#fff", color: on ? "var(--brand)" : "#64748b",
+                      }}>{r.label} · {n}</button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ overflowY: "auto", padding: "4px 20px 16px" }}>
+                {rows.length === 0 ? (
+                  <div style={{ ...mutedNote, padding: "40px 10px" }}>Nothing here for {RANGES.find(r => r.key === popRange).label.toLowerCase()}.</div>
+                ) : rows.map((e, i) => {
+                  const k = dayKey(e.at);
+                  const header = popRange !== "today" && popRange !== "yesterday" && k !== lastDay;
+                  lastDay = k;
+                  return (
+                    <React.Fragment key={`${e.candidate_id}-${e.at}-${i}`}>
+                      {header && <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5, margin: "14px 0 2px" }}>{dayLabel(k)}</div>}
+                      <div onClick={() => { closePop(); onOpen(e.candidate_id); }}
+                        style={{ display: "flex", gap: 12, alignItems: "center", padding: "10px 0", borderTop: "1px solid #f4f6f8", cursor: "pointer" }}>
+                        <div style={{ width: 34, height: 34, borderRadius: "50%", background: tile.bg, color: tile.color, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
+                          {(e.name || "?").trim().charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>
+                            {titleCase(e.name)} {e.code && <span style={{ fontWeight: 500, fontSize: 11, color: "#94a3b8" }}>{e.code}</span>}
+                          </div>
+                          <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.6 }}>
+                            {e.type === "applied" && <>Applied{e.role ? <> for <b>{e.role}</b></> : null}</>}
+                            {e.type === "status" && <>{e.from ? <>{statusPill(statusColor, e.from)} → </> : "Moved to "}{statusPill(statusColor, e.to)}{e.role ? <span style={{ color: "#94a3b8" }}> · {e.role}</span> : null}</>}
+                            {e.type === "document" && <>Uploaded <b>{e.to}</b></>}
+                            {e.by && e.type === "status" && <span style={{ color: "#94a3b8" }}> · by {e.by}</span>}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "#94a3b8", whiteSpace: "nowrap" }}>{timeOf(e.at)}</div>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+              <div style={{ padding: "10px 20px", borderTop: "1px solid #eef2f6", fontSize: 11.5, color: "#94a3b8" }}>Click a row to open that candidate.</div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
