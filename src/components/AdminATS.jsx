@@ -9,6 +9,7 @@ import {
 } from "react-icons/tb";
 import { BarChart, DonutChart } from "./Charts";
 import { SkeletonStats, SkeletonTable } from "./Skeleton";
+import ATSActivity from "./ATSActivity";
 
 import { API_URL as BASE } from "../api";
 
@@ -414,6 +415,8 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
       {tab === "dashboard" && (
         loading && !safe.length ? <><SkeletonStats count={4} /><div style={{ marginTop: 14 }}><SkeletonTable rows={5} cols={3} /></div></> : (
         <div>
+          <ATSActivity token={token} statusColor={STATUS_COLOR} refreshKey={candidates} onOpen={(id) => setDetail({ _id: id })} />
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", margin: "4px 0 10px" }}>Overall pipeline</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginBottom: 16 }}>
             {[
               { icon: <TbUsers />, label: "Total Candidates", value: stats?.total ?? safe.length, color: "var(--brand)", bg: "var(--brand-light)" },
