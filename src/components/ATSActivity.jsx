@@ -154,7 +154,7 @@ export default function ATSActivity({ token, onOpen, statusColor, refreshKey }) 
       </div>
 
       {/* ── Needs attention + activity feed ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start", marginBottom: 16 }} className="ats-grid">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "stretch", marginBottom: 16 }} className="ats-grid">
         <div className="card" style={{ padding: 18 }}>
           <h4 style={{ ...cardTitle, marginBottom: 12 }}>
             Needs your attention
@@ -207,7 +207,7 @@ export default function ATSActivity({ token, onOpen, statusColor, refreshKey }) 
           })}
         </div>
 
-        <div className="card" style={{ padding: 18 }}>
+        <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column" }}>
           <h4 style={{ ...cardTitle, marginBottom: 6 }}>What happened recently</h4>
           {events.length === 0 ? (
             <div style={mutedNote}>No activity in the last 14 days.</div>
@@ -236,6 +236,9 @@ export default function ATSActivity({ token, onOpen, statusColor, refreshKey }) 
               )}
             </div>
           )}
+          <div style={{ marginTop: "auto", paddingTop: 16, fontSize: 11.5, color: "#94a3b8", textAlign: "center" }}>
+            Showing the last 14 days · updates appear here as candidates move through the pipeline
+          </div>
         </div>
       </div>
 
