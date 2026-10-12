@@ -14,6 +14,7 @@ import { ym, ymd } from "../utils/dateUtils";
 import LeaveCalendar from "./LeaveCalendar";
 import SettingsModal from "./SettingsModal";
 import InsightsBanner from "./InsightsBanner";
+import GoalReminderBanner from "./GoalReminderBanner";
 
 const Chat                = lazy(() => import("./Chat"));
 const HolidayCalendar     = lazy(() => import("./HolidayCalendar"));
@@ -1263,6 +1264,9 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
           </button>
         </div>
       )}
+
+      {/* — Goal reminders — shown at login for goals due within 3 days, until marked Done — */}
+      {view === "dashboard" && <GoalReminderBanner token={token} onOpenGoals={() => { window.__gdmrOpenGoalsTab = true; setView("work-clients"); }} />}
 
       {/* — Insights — visible for the first 30 min after today's first dashboard view */}
       {view === "dashboard" && showDailyWidgets && <InsightsBanner leaves={leaves} token={token} api={api} />}

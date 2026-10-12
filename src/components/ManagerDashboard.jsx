@@ -7,6 +7,7 @@ import { useShowDailyWidgets } from "../utils/dailyWidgetWindow";
 import Sidebar from "./Sidebar";
 import AnnouncementNotifications from "./AnnouncementNotifications";
 import InsightsBanner from "./InsightsBanner";
+import GoalReminderBanner from "./GoalReminderBanner";
 import DailyQuote from "./DailyQuote";
 import DailyWorkPlan from "./DailyWorkPlan";
 import ChatBot from "./ChatBot";
@@ -1425,6 +1426,7 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
       )}
 
       {/* — Insights — visible for the first 30 min after today's first dashboard view */}
+      {view === "dashboard" && <GoalReminderBanner token={token} onOpenGoals={() => { window.__gdmrOpenGoalsTab = true; setView("work-clients"); }} />}
       {view === "dashboard" && showDailyWidgets && <InsightsBanner leaves={myLeaves} token={token} api={api} />}
 
       {/* — Announcement Notifications — */}
