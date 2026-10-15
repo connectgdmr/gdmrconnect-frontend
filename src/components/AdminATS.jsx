@@ -160,6 +160,14 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
   const [formErrors, setFormErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
+  // Resume auto-fill: which form fields were filled from the resume (and not edited since),
+  // what the upload reported, and whether the recruiter has confirmed the suggestions.
+  const [autoFilled, setAutoFilled] = useState({});
+  const [resumeInfo, setResumeInfo] = useState(null);
+  const [autoConfirmed, setAutoConfirmed] = useState(false);
+  const autoCount = Object.keys(autoFilled).length;
+  const clearAuto = (k) => setAutoFilled(prev => { if (!prev[k]) return prev; const n = { ...prev }; delete n[k]; return n; });
+  useEffect(() => { setAutoFilled({}); setResumeInfo(null); setAutoConfirmed(false); }, [showAdd]);
   const [detail, setDetail] = useState(null); // selected candidate
   const [pendingDelete, setPendingDelete] = useState(null); // candidate awaiting delete confirmation
   const [deleting, setDeleting] = useState(false);
@@ -312,6 +320,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
     if (form.job_role === "Other" && !form.job_role_other?.trim()) return flash("Please specify the job role.", "error");
     if (form.employment_type === "Contract" && !form.contract_months) return flash("Please enter the contract duration in months.", "error");
     if (!validateForm()) return flash("Please fix the highlighted fields.", "error");
+    if (autoCount > 0 && !autoConfirmed) return flash("Please review the details filled from the resume and tick the confirmation box.", "error");
     setSaving(true);
     try {
       const resolvedSource = form.source === "Other" ? (form.source_other || "Other") : form.source;
@@ -326,9 +335,10 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
     } catch { flash("Network error.", "error"); } finally { setSaving(false); }
   }
 
-  // Upload a resume file straight from the Add Candidate form — populates
-  // resume_url (and fills in name/email/phone if the admin hasn't typed
-  // them yet) so admins don't have to paste an external URL by hand.
+  // Upload a resume straight from the Add Candidate form. The server stores it
+  // and returns *suggestions* parsed from it; they are put into the form,
+  // highlighted, and must be confirmed by the recruiter before saving. Fields
+  // the recruiter typed themselves are never overwritten.
   async function uploadResumeFile(file) {
     if (!file) return;
     setUploadingResume(true);
@@ -339,18 +349,36 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
         method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd,
       });
       const d = await r.json().catch(() => ({}));
-      if (r.ok && d.resume_url) {
-        setForm(f => ({
-          ...f,
-          resume_url: d.resume_url,
-          name:  f.name  || d.parsed?.name  || f.name,
-          email: f.email || d.parsed?.email || f.email,
-          phone: f.phone || d.parsed?.phone || f.phone,
-        }));
-        flash("Resume uploaded.");
-      } else {
-        flash(d.message || "Resume upload failed.", "error");
-      }
+      if (!(r.ok && d.resume_url)) { flash(d.message || "Resume upload failed.", "error"); return; }
+
+      const p = d.parsed || {};
+      const suggestions = {
+        name: p.name, email: p.email, phone: p.phone,
+        skills: Array.isArray(p.skills) ? p.skills.join(", ") : "",
+        education: p.education, experience: p.experience,
+        current_company: p.current_company, current_location: p.current_location,
+        notice_period: p.notice_period,
+      };
+      // Job Role is a dropdown — only suggest it when it matches an existing role.
+      const roleMatch = p.job_title && jobRoles.find(r => r.toLowerCase() === p.job_title.toLowerCase());
+      if (roleMatch) suggestions.job_role = roleMatch;
+
+      setForm(f => {
+        const next = { ...f, resume_url: d.resume_url };
+        for (const [k, v] of Object.entries(suggestions)) {
+          if (!v) continue;
+          if (!String(f[k] || "").trim() || autoFilled[k]) { next[k] = v; }
+        }
+        return next;
+      });
+      setAutoFilled(prev => {
+        const merged = { ...prev };
+        for (const k of Object.keys(suggestions)) if (suggestions[k] && (!String(form[k] || "").trim() || prev[k])) merged[k] = true;
+        return merged;
+      });
+      setAutoConfirmed(false);
+      setResumeInfo({ status: d.parse_status || "ok", ai: !!d.ai_used, duplicate: d.duplicate || null });
+      flash("Resume uploaded.");
     } catch { flash("Network error during upload.", "error"); }
     finally { setUploadingResume(false); }
   }
@@ -552,12 +580,62 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                 const inp = (key, type = "text", req = false) => (
                   <input
                     className="modern-input" type={type} value={form[key] || ""}
-                    onChange={e => { setForm({ ...form, [key]: e.target.value }); if (formErrors[key]) setFormErrors({ ...formErrors, [key]: undefined }); }}
-                    style={{ margin: 0, borderColor: formErrors[key] ? "#dc2626" : undefined }} required={req}
+                    onChange={e => { setForm({ ...form, [key]: e.target.value }); if (formErrors[key]) setFormErrors({ ...formErrors, [key]: undefined }); clearAuto(key); }}
+                    style={{ margin: 0, borderColor: formErrors[key] ? "#dc2626" : autoFilled[key] ? "#f2c94c" : undefined, background: autoFilled[key] ? "#fffdf0" : undefined }} required={req}
                   />
                 );
                 return (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {/* Resume first — uploading it auto-fills the rest of the form for review */}
+                    <div style={{ gridColumn: "span 2", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 10, padding: 12 }}>
+                      <label style={lbl}>Resume * <span style={{ fontWeight: 500, color: "#94a3b8" }}>— upload a PDF or Word file and we'll fill in the details for you to check</span></label>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <label style={{
+                          display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600,
+                          background: "var(--brand-light)", color: "var(--brand)", border: "1px solid #bbf7d0",
+                          borderRadius: 8, padding: "8px 14px", cursor: uploadingResume ? "default" : "pointer", flexShrink: 0,
+                        }}>
+                          <TbCloudUpload size={13} /> {uploadingResume ? "Reading resume…" : form.resume_url ? "Replace resume" : "Upload Resume"}
+                          <input type="file" accept=".pdf,.doc,.docx" hidden disabled={uploadingResume}
+                            onChange={e => { const f = e.target.files?.[0]; if (f) uploadResumeFile(f); e.target.value = ""; }} />
+                        </label>
+                        <input
+                          className="modern-input" type="url" placeholder="…or paste a resume URL"
+                          value={form.resume_url || ""} onChange={e => setForm({ ...form, resume_url: e.target.value })}
+                          style={{ margin: 0, flex: 1, minWidth: 160 }} required
+                        />
+                      </div>
+                      {form.resume_url && (
+                        <a href={form.resume_url} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, color: "var(--brand)", marginTop: 5, display: "inline-block" }}>
+                          View current resume
+                        </a>
+                      )}
+
+                      {resumeInfo?.duplicate && (
+                        <div style={{ marginTop: 10, padding: "9px 12px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: 12.5 }}>
+                          <b>Possible duplicate:</b> {resumeInfo.duplicate.name} ({resumeInfo.duplicate.code}, {resumeInfo.duplicate.status}) already has this email or phone number.
+                          <button type="button" onClick={() => { setShowAdd(false); setDetail({ _id: resumeInfo.duplicate._id }); }}
+                            style={{ marginLeft: 8, border: "none", background: "none", color: "#b91c1c", fontWeight: 700, textDecoration: "underline", cursor: "pointer", fontSize: 12.5 }}>View existing</button>
+                        </div>
+                      )}
+                      {resumeInfo && resumeInfo.status !== "ok" && (
+                        <div style={{ marginTop: 10, padding: "9px 12px", borderRadius: 8, background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e", fontSize: 12.5 }}>
+                          {resumeInfo.status === "unsupported"
+                            ? "The resume was saved, but old .doc files can't be read automatically. Save it as PDF or .docx to auto-fill, or fill the form by hand."
+                            : "The resume was saved, but no text could be read from it (it may be a scanned image). Please fill the form by hand."}
+                        </div>
+                      )}
+                      {resumeInfo?.status === "ok" && autoCount === 0 && (
+                        <div style={{ marginTop: 10, fontSize: 12.5, color: "#64748b" }}>We couldn't find anything new to fill in from this resume.</div>
+                      )}
+                      {autoCount > 0 && (
+                        <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 8, background: "#fffdf0", border: "1px solid #f2e48a", color: "#6b5600", fontSize: 12.5, lineHeight: 1.55 }}>
+                          <b>✨ {autoCount} field{autoCount === 1 ? "" : "s"} filled from the resume</b> (highlighted in yellow). Resume reading can make mistakes — check each one, correct anything wrong, then confirm below.
+                          {resumeInfo?.ai && <span style={{ color: "#8a6d1a" }}> Parts of the resume text were analysed by AI (contact details are not sent).</span>}
+                        </div>
+                      )}
+                    </div>
+
                     <div><label style={lbl}>Full Name *</label>{inp("name","text",true)}</div>
                     <div>
                       <label style={lbl}>Email *</label>{inp("email","email",true)}
@@ -628,7 +706,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                     {/* Job Role — open postings from Jobs, or Other + type your own */}
                     <div>
                       <label style={lbl}>Job Role *</label>
-                      <select className="modern-input" value={form.job_role || ""} onChange={e => setForm({ ...form, job_role: e.target.value })} style={{ margin: 0 }} required>
+                      <select className="modern-input" value={form.job_role || ""} onChange={e => { setForm({ ...form, job_role: e.target.value }); clearAuto("job_role"); }} style={{ margin: 0, borderColor: autoFilled.job_role ? "#f2c94c" : undefined, background: autoFilled.job_role ? "#fffdf0" : undefined }} required>
                         <option value="">— Select Job Role —</option>
                         {jobRoles.map(r => <option key={r} value={r}>{r}</option>)}
                         <option value="Other">Other</option>
@@ -670,32 +748,6 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                       </div>
                     )}
 
-                    {/* Resume — upload a file OR paste a URL, either fills resume_url */}
-                    <div style={{ gridColumn: "span 2" }}>
-                      <label style={lbl}>Resume *</label>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                        <label style={{
-                          display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600,
-                          background: "var(--brand-light)", color: "var(--brand)", border: "1px solid #bbf7d0",
-                          borderRadius: 8, padding: "8px 14px", cursor: uploadingResume ? "default" : "pointer", flexShrink: 0,
-                        }}>
-                          <TbCloudUpload size={13} /> {uploadingResume ? "Uploading…" : "Upload Resume"}
-                          <input type="file" accept=".pdf,.doc,.docx" hidden disabled={uploadingResume}
-                            onChange={e => { const f = e.target.files?.[0]; if (f) uploadResumeFile(f); e.target.value = ""; }} />
-                        </label>
-                        <input
-                          className="modern-input" type="url" placeholder="…or paste a resume URL"
-                          value={form.resume_url || ""} onChange={e => setForm({ ...form, resume_url: e.target.value })}
-                          style={{ margin: 0, flex: 1, minWidth: 160 }} required
-                        />
-                      </div>
-                      {form.resume_url && (
-                        <a href={form.resume_url} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, color: "var(--brand)", marginTop: 5, display: "inline-block" }}>
-                          View current resume
-                        </a>
-                      )}
-                    </div>
-
                     <div style={{ gridColumn: "span 2" }}>
                       <label style={lbl}>Remarks</label>
                       <textarea className="modern-input" value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} style={{ minHeight: 60 }} />
@@ -703,8 +755,14 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                   </div>
                 );
               })()}
+              {autoCount > 0 && (
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 14, padding: "10px 12px", borderRadius: 8, background: autoConfirmed ? "#f0fdf4" : "#fffdf0", border: `1px solid ${autoConfirmed ? "#bbf7d0" : "#f2e48a"}`, fontSize: 12.5, color: "#334155", cursor: "pointer" }}>
+                  <input type="checkbox" checked={autoConfirmed} onChange={e => setAutoConfirmed(e.target.checked)} style={{ marginTop: 2, width: 15, height: 15, accentColor: "var(--brand)" }} />
+                  <span>I've checked the {autoCount} detail{autoCount === 1 ? "" : "s"} filled in from the resume and they are correct.</span>
+                </label>
+              )}
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16, borderTop: "1px solid #f1f5f9", paddingTop: 14 }}>
-                <button className="btn" type="submit" disabled={saving}>{saving ? "Saving…" : "Add Candidate"}</button>
+                <button className="btn" type="submit" disabled={saving || (autoCount > 0 && !autoConfirmed)} title={autoCount > 0 && !autoConfirmed ? "Tick the confirmation box first" : undefined}>{saving ? "Saving…" : "Add Candidate"}</button>
                 <button className="btn ghost" type="button" onClick={() => setShowAdd(false)}>Cancel</button>
               </div>
             </form>
