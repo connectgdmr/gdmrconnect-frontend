@@ -122,6 +122,7 @@ export default {
   baseUrl: BASE_URL,
   // Authentication
   login: (payload) => request("/login", "POST", payload),
+  loginMfa: (payload) => request("/login/mfa", "POST", payload),
   forgotPassword: (email) => request("/forgot-password", "POST", { email }),
 
   registerAdmin: (payload, token) => request("/register-admin", "POST", payload, token),

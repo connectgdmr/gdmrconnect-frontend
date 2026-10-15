@@ -27,6 +27,8 @@ export default function Login({ onLogin, api }) {
   const [forgotStatus, setForgotStatus] = useState(""); // "" | "sending" | "success" | "error"
   const [attempts, setAttempts] = useState(0);
   const [cooldown, setCooldown] = useState(0);
+  const [mfaToken, setMfaToken] = useState("");   // set after a correct password when two-step verification is on
+  const [mfaCode, setMfaCode] = useState("");
 
   // Tick down the soft-lock cooldown
   useEffect(() => {
@@ -54,6 +56,7 @@ export default function Login({ onLogin, api }) {
     try {
       const data = await api.login({ email: emailClean, password });
       setAttempts(0);
+      if (data?.mfa_required) { setMfaToken(data.mfa_token); setMfaCode(""); return; }
       onLogin(data);
     } catch (err) {
       if (err?.status === 429) {
@@ -73,6 +76,23 @@ export default function Login({ onLogin, api }) {
           setErr("Incorrect email or password");
         }
       }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleMfa(e) {
+    e.preventDefault();
+    setErr("");
+    setLoading(true);
+    try {
+      const data = await api.loginMfa({ mfa_token: mfaToken, code: mfaCode.trim() });
+      onLogin(data);
+    } catch (err) {
+      if (String(err?.message || "").toLowerCase().includes("timed out")) {
+        setMfaToken(""); setPassword("");                 // the half-login expired — start again
+      }
+      setErr(err?.message || "That code is not correct. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -117,16 +137,44 @@ export default function Login({ onLogin, api }) {
 
       {/* Right form panel */}
       <div className="login-panel-right">
-        {showForgot ? (
+        {mfaToken ? (
+          <div className="login-form-box">
+            <div style={{ marginBottom: 28 }}>
+              <h2 className="login-form-title">Two-step verification</h2>
+              <p className="login-form-sub">Enter the 6-digit code from your authenticator app, or one of your backup codes.</p>
+            </div>
+            {err && (
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#dc2626", fontSize: 14 }}>{err}</div>
+            )}
+            <form onSubmit={handleMfa}>
+              <div className="login-field">
+                <label>Verification code</label>
+                <input
+                  className="login-input" type="text" inputMode="text" autoComplete="one-time-code" autoFocus
+                  placeholder="123456" value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} maxLength={20} required
+                />
+              </div>
+              <button className="login-submit-btn" type="submit" disabled={loading || !mfaCode.trim()}>
+                {loading ? "Checking..." : "Verify"}
+              </button>
+            </form>
+            <button
+              onClick={() => { setMfaToken(""); setMfaCode(""); setErr(""); setPassword(""); }}
+              style={{ width: "100%", marginTop: 12, padding: "11px", background: "none", border: "1.5px solid #e2e8f0", borderRadius: 8, cursor: "pointer", color: "#475569", fontWeight: 600, fontSize: 14 }}
+            >
+              Back to Login
+            </button>
+          </div>
+        ) : showForgot ? (
           <div className="login-form-box">
             <div style={{ marginBottom: 28 }}>
               <h2 className="login-form-title">Reset Password</h2>
-              <p className="login-form-sub">Enter your email to receive a temporary password.</p>
+              <p className="login-form-sub">Enter your email and we'll send you a link to choose a new password.</p>
             </div>
 
             {forgotStatus === "success" && (
               <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#16a34a", fontSize: 14 }}>
-                If that email exists, a temporary password has been sent.
+                If that email exists, a reset link has been sent. It works once and expires in 30 minutes.
               </div>
             )}
             {forgotStatus === "error" && (

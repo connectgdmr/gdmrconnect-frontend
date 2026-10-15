@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { TbX, TbSun, TbLock, TbEye, TbEyeOff, TbCheck } from "react-icons/tb";
 import { useTheme, ACCENTS } from "./ThemeContext";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
+import MfaSettings from "./MfaSettings";
 
 // Light-only for now — Dark / System were removed. ThemeContext also forces
 // light, so a stale "dark"/"system" preference can't leave anyone stuck.
@@ -43,8 +44,10 @@ export default function SettingsModal({ token, api, onClose }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Failed to update password.");
-      setMsg({ text: "Password updated successfully.", type: "success" });
+      setMsg({ text: "Password updated successfully. Other devices were signed out.", type: "success" });
       setOldPassword(""); setNewPassword(""); setConfirmPassword("");
+      // Changing the password ends every older session; keep THIS one alive with the fresh token.
+      if (data.token) { localStorage.setItem("token", data.token); setTimeout(() => window.location.reload(), 1200); }
     } catch (err) {
       setMsg({ text: err.message || "Failed to update password.", type: "error" });
     } finally {
@@ -160,6 +163,8 @@ export default function SettingsModal({ token, api, onClose }) {
             </button>
           </form>
         </div>
+
+        <MfaSettings token={token} />
       </div>
     </div>
   );
