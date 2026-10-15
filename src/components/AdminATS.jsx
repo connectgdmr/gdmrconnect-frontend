@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from "react";
-import { escHtml } from "../utils/security";
+import { escHtml, safeHttpUrl } from "../utils/security";
 import { isOffboarded } from "../utils/employeeStatus";
 import {
   TbUserPlus, TbSearch, TbX, TbUsers, TbCircleCheck, TbCircleX, TbHeartHandshake, TbPercentage,
@@ -74,6 +74,7 @@ function exportCandidateCSV(cand) {
 // would run outside the click's user-gesture window and get silently
 // popup-blocked in some browsers.
 async function viewFile(url) {
+  if (!safeHttpUrl(url)) return; // refuse javascript:/data: links (opening them would run script)
   const win = window.open("", "_blank");
   try {
     const res = await fetch(url);
@@ -102,6 +103,7 @@ function isAudioUrl(url) {
 // `<a download>` on a cross-origin (Cloudinary) URL just navigates to it in
 // most browsers rather than saving it, so fetch the bytes and save as a blob.
 async function downloadFile(url, filename) {
+  if (!safeHttpUrl(url)) return;
   try {
     const res = await fetch(url);
     const blob = await res.blob();
@@ -606,7 +608,7 @@ export default function AdminATS({ token, role = "admin", employees = [], depart
                         />
                       </div>
                       {form.resume_url && (
-                        <a href={form.resume_url} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, color: "var(--brand)", marginTop: 5, display: "inline-block" }}>
+                        <a href={safeHttpUrl(form.resume_url) || undefined} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, color: "var(--brand)", marginTop: 5, display: "inline-block" }}>
                           View current resume
                         </a>
                       )}
@@ -977,7 +979,7 @@ function CandidateDetail({ candidate, token, onClose, onChanged, onDelete }) {
                       {new Date(r.added_at).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   )}
-                  <a href={r.url} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: "#3b82f6", display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                  <a href={safeHttpUrl(r.url) || undefined} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: "#3b82f6", display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
                     Open <TbLink size={10} />
                   </a>
                 </div>

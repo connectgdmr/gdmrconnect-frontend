@@ -1,3 +1,4 @@
+import { safeHttpUrl } from "../utils/security";
 import React, { useState, useEffect } from "react";
 import {
   TbFolder, TbFolderPlus, TbFile, TbFileTypePdf, TbFileTypeJpg, TbFileTypeDoc, TbFileTypeXls,
@@ -463,7 +464,7 @@ function DriveTab({ clientId, baseUrl, headers, canWrite }) {
                   {it.type === "file" && <div style={{ fontSize: 11, color: "#94a3b8" }}>{fmtSize(it.size)} · {fmtWhen(it.created_at)}</div>}
                 </div>
                 {it.type === "file" && it.url && (
-                  <a href={it.url} target="_blank" rel="noreferrer" title="Download" onClick={e => e.stopPropagation()} style={{ color: "#0f766e", padding: 6 }}><TbDownload size={13} /></a>
+                  <a href={safeHttpUrl(it.url) || undefined} target="_blank" rel="noreferrer" title="Download" onClick={e => e.stopPropagation()} style={{ color: "#0f766e", padding: 6 }}><TbDownload size={13} /></a>
                 )}
                 {canWrite && (
                   <button title="Delete" onClick={e => { e.stopPropagation(); removeItem(it); }} style={{ border: "none", background: "none", cursor: "pointer", color: "#dc2626", padding: 6 }}><TbTrash size={13} /></button>

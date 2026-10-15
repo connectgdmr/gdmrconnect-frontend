@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, lazy, Suspense } from "react";
+import { safeHttpUrl } from "../utils/security";
 import {
   TbPlus, TbX, TbEdit, TbTrash, TbSchool,
   TbBook, TbVideo, TbFileText, TbLink, TbUsers,
@@ -721,7 +722,7 @@ function PreviewModules({ mods }) {
                     <span style={{ fontSize: 13, flex: 1 }}>{ls.title || ls.name || `Lesson ${li + 1}`}</span>
                     <span style={{ fontSize: 10, color: "#94a3b8", background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>{ls.type || ls.lesson_type || "Video"}</span>
                     {(ls.url || ls.resource_url || ls.link) && (
-                      <a href={ls.url || ls.resource_url || ls.link} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#3b82f6" }}>Open ↗</a>
+                      <a href={safeHttpUrl(ls.url || ls.resource_url || ls.link) || undefined} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#3b82f6" }}>Open ↗</a>
                     )}
                   </div>
                 ))}

@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
+import { safeHttpUrl } from "../utils/security";
 import {
   TbPlus, TbX, TbEdit, TbBriefcase, TbMapPin,
   TbClock, TbUsers, TbLink, TbSearch,
@@ -35,6 +36,7 @@ const blankJob = () => ({
 // Fetch the file and save it as a real .pdf download (works cross-origin,
 // no reliance on Cloudinary transformations which break for raw resources)
 async function downloadResume(url, filename = "resume.pdf") {
+  if (!safeHttpUrl(url)) return; // never fetch/open a javascript: or data: link
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error();
@@ -575,7 +577,7 @@ export default function AdminCareer({ token, employees = [], departments = [], o
                                   </button>
                                 )}
                                 {r.resume_url && (
-                                  <a href={r.resume_url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                                  <a href={safeHttpUrl(r.resume_url) || undefined} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
                                     <TbLink size={10} /> Link
                                   </a>
                                 )}
@@ -660,7 +662,7 @@ export default function AdminCareer({ token, employees = [], departments = [], o
                       </button>
                     )}
                     {r.resume_url && (
-                      <a href={r.resume_url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", fontSize: 13, display: "flex", alignItems: "center", gap: 6, width: "fit-content" }}>
+                      <a href={safeHttpUrl(r.resume_url) || undefined} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", fontSize: 13, display: "flex", alignItems: "center", gap: 6, width: "fit-content" }}>
                         <TbLink size={13} /> {r.resume_file_url ? "Also linked" : "View link"}
                       </a>
                     )}

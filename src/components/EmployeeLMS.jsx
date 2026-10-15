@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
+import { safeHttpUrl } from "../utils/security";
 import {
   TbSchool, TbBook, TbVideo, TbFileText, TbLink,
   TbCircleCheck, TbChevronDown, TbChevronRight, TbLock,
@@ -194,7 +195,7 @@ export default function EmployeeLMS({ token }) {
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 13, fontWeight: done ? 500 : 600, color: done ? "#94a3b8" : "#334155", textDecoration: done ? "line-through" : "none" }}>{ls.title}</div>
                               {ls.url && (
-                                <a href={ls.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#3b82f6" }} onClick={e => e.stopPropagation()}>
+                                <a href={safeHttpUrl(ls.url) || undefined} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#3b82f6" }} onClick={e => e.stopPropagation()}>
                                   Open resource ↗
                                 </a>
                               )}
