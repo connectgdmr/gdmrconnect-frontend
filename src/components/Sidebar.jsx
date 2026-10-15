@@ -10,7 +10,7 @@ import {
   TbChartPie, TbCalendar, TbSpeakerphone, TbShieldLock, TbDeviceLaptop,
   TbHistory, TbChartLine,
   TbLogout, TbBuilding, TbClipboardList, TbSchool, TbBriefcase, TbCurrencyDollar,
-  TbChecklist, TbChartArea, TbMessageDots
+  TbChecklist, TbChartArea, TbMessageDots, TbCertificate
 } from "react-icons/tb";
 
 const NAV_ITEMS = {
@@ -32,6 +32,7 @@ const NAV_ITEMS = {
     { icon: <TbSchool />, label: "LMS", view: "lms" },
     { icon: <TbBriefcase />, label: "Jobs & Recruitment", view: "jobs-recruitment" },
     { icon: <TbCurrencyDollar />, label: "Payroll", view: "payroll" },
+    { icon: <TbCertificate />, label: "Certificates", view: "certificates" },
   ],
   manager: [
     { icon: <TbLayoutDashboard />, label: "Dashboard", view: "dashboard" },
@@ -68,6 +69,7 @@ const NAV_ITEMS = {
     { icon: <TbSchool />, label: "LMS", view: "lms" },
     { icon: <TbBriefcase />, label: "Jobs & Recruitment", view: "jobs-recruitment" },
     { icon: <TbCurrencyDollar />, label: "Payroll", view: "payroll" },
+    { icon: <TbCertificate />, label: "Certificates", view: "certificates" },
   ],
   employee: [
     { icon: <TbLayoutDashboard />, label: "Dashboard", view: "dashboard" },

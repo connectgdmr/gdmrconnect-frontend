@@ -1,3 +1,4 @@
+import { TbCertificate } from "react-icons/tb";
 import React, { useEffect, useState, useRef, useCallback, useReducer, lazy, Suspense } from "react";
 import { useShowDailyWidgets } from "../utils/dailyWidgetWindow";
 import Sidebar from "./Sidebar";
@@ -22,6 +23,7 @@ const EmployeeLMS         = lazy(() => import("./EmployeeLMS"));
 const EmployeeCareer      = lazy(() => import("./EmployeeCareer"));
 const EmployeePayroll     = lazy(() => import("./EmployeePayroll"));
 const AdminPayroll        = lazy(() => import("./AdminPayroll"));
+const AdminCertificates   = lazy(() => import("./AdminCertificates"));
 const AdminLeavePage      = lazy(() => import("./AdminLeavePage"));
 const AdminAttendancePage = lazy(() => import("./AdminAttendancePage"));
 const EmployeeList           = lazy(() => import("./EmployeeList"));
@@ -132,6 +134,9 @@ const DELEGATED_MODULES = [
   { key: "lms", label: "Manage LMS Courses", Icon: TbSchool,
     alert: "You are managing LMS Courses using temporary Delegated Access — you can create courses and assign them.",
     render: (ctx) => <AdminLMS token={ctx.token} employees={ctx.delegatedEmployees} departments={ctx.delegatedDepartments} /> },
+  { key: "certificates", label: "Manage Certificates", Icon: TbCertificate,
+    alert: "You are managing Experience Certificates using temporary Delegated Access.",
+    render: (ctx) => <AdminCertificates token={ctx.token} /> },
   { key: "payroll", label: "Manage Payroll", Icon: TbCurrencyDollar,
     alert: "You are managing Payroll using temporary Delegated Access.",
     render: (ctx) => <AdminPayroll token={ctx.token} employees={ctx.delegatedEmployees} /> },

@@ -64,6 +64,7 @@ import { approverLabel, isManagerLeave } from "../utils/leaveStatus";
 const AdminAssessment = lazy(() => import("./AdminAssessment"));
 const AdminLMS        = lazy(() => import("./AdminLMS"));
 const AdminPayroll    = lazy(() => import("./AdminPayroll"));
+const AdminCertificates = lazy(() => import("./AdminCertificates"));
 const WorkAndClients = lazy(() => import("./WorkAndClients"));
 const JobsAndRecruitment = lazy(() => import("./JobsAndRecruitment"));
 
@@ -1026,6 +1027,7 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
 
       {/* 9. PAYROLL */}
       {view === "payroll" && <ErrorBoundary label="Payroll" resetKey={view}><AdminPayroll token={token} employees={employees} /></ErrorBoundary>}
+      {view === "certificates" && <ErrorBoundary label="Certificates" resetKey={view}><AdminCertificates token={token} /></ErrorBoundary>}
 
       {/* 9b. PMS */}
       {view === "pms" && <ErrorBoundary label="PMS" resetKey={view}><div style={{ marginTop: 16 }}><PMSWorkspace token={token} api={api} user={user} scope="admin" assignablePool={employees} /></div></ErrorBoundary>}

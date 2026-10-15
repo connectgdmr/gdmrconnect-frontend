@@ -13,11 +13,13 @@ import ErrorBoundary from "./components/ErrorBoundary";
 const AdminDashboard    = lazy(() => import("./components/AdminDashboard"));
 const EmployeeDashboard = lazy(() => import("./components/EmployeeDashboard"));
 const ManagerDashboard  = lazy(() => import("./components/ManagerDashboard"));
+const CertificateVerify = lazy(() => import("./components/CertificateVerify"));
 
 // Public, token-based routes (no login required) — evaluated at module scope
 // so the App component can unconditionally call all hooks (Rules of Hooks).
 const assessmentMatch = window.location.pathname.match(/^\/assessment\/([^/]+)/);
 const documentsMatch  = window.location.pathname.match(/^\/documents\/([^/]+)/);
+const verifyMatch     = window.location.pathname.match(/^\/verify\/([^/]+)/);   // QR on experience certificates
 
 // Helper to decode JWT simply to check expiration
 function parseJwt(token) {
@@ -31,6 +33,7 @@ function parseJwt(token) {
 function PublicRoutes() {
   if (assessmentMatch) return <TakeAssessment assessmentToken={assessmentMatch[1]} />;
   if (documentsMatch)  return <CandidateDocuments docToken={documentsMatch[1]} />;
+  if (verifyMatch)     return <Suspense fallback={null}><CertificateVerify certToken={verifyMatch[1]} /></Suspense>;
   return null;
 }
 
@@ -107,7 +110,7 @@ export default function App() {
   }
 
   // Public routes — rendered after hooks so Rules of Hooks is satisfied
-  if (assessmentMatch || documentsMatch) return <PublicRoutes />;
+  if (assessmentMatch || documentsMatch || verifyMatch) return <PublicRoutes />;
 
   if (showSplash) return <SplashScreen />;
 
