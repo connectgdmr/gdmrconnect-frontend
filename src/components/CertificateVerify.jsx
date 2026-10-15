@@ -49,7 +49,7 @@ export default function CertificateVerify({ certToken }) {
         <div style={{ textAlign: "center", marginBottom: 18 }}>
           <img src={Logo} alt="GDMR Foundation" style={{ height: 54, marginBottom: 8 }} />
           <div style={{ fontWeight: 800, fontSize: 17, color: "#0f172a", letterSpacing: 0.3 }}>GDMR FOUNDATION</div>
-          <div style={{ fontSize: 13, color: "#64748b" }}>Experience Certificate Verification</div>
+          <div style={{ fontSize: 13, color: "#64748b" }}>Certificate Verification</div>
         </div>
 
         {!data && !error && <div style={{ background: "#fff", borderRadius: 16, padding: 36, textAlign: "center", color: "#64748b" }}>Checking certificate…</div>}
@@ -71,7 +71,8 @@ export default function CertificateVerify({ certToken }) {
 
             {data.status !== "invalid" && (
               <div style={{ padding: "8px 22px 18px" }}>
-                {row("Certificate reference", data.reference_no)}
+                {data.certificate_title && row("Certificate", data.certificate_title)}
+                {row("Certificate code", data.reference_no)}
                 {data.status === "verified" && <>
                   {row("Name", data.employee_name)}
                   {row("Designation", data.designation)}

@@ -13,7 +13,6 @@ const fmtDay = (iso) => {
   return isNaN(d) ? iso : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 };
 const fmtTime = (iso) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
-const SIGNATORY_KEY = "cert_last_signatory_v1";
 const ACTION_LABEL = { generated: "Generated", reissued: "Issued as replacement", superseded: "Replaced by a newer certificate", revoked: "Revoked", downloaded: "PDF downloaded" };
 
 export default function AdminCertificates({ token }) {
@@ -45,7 +44,7 @@ export default function AdminCertificates({ token }) {
       const r = await fetch(`${BASE}/admin/certificates/${c._id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || "Could not download the PDF.");
       const url = URL.createObjectURL(await r.blob());
-      const a = Object.assign(document.createElement("a"), { href: url, download: `Experience_Certificate_${c.reference_no}.pdf` });
+      const a = Object.assign(document.createElement("a"), { href: url, download: `Relieving_Service_Certificate_${c.reference_no}.pdf` });
       document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500);
     } catch (e) { flash(e.message, "err"); }
   }
@@ -62,8 +61,8 @@ export default function AdminCertificates({ token }) {
     <div style={{ marginTop: 16 }}>
       <div className="card" style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
         <div>
-          <h3 style={{ margin: 0, color: "var(--brand)", display: "flex", alignItems: "center", gap: 8 }}><TbCertificate /> Experience Certificates</h3>
-          <p className="small" style={{ margin: "4px 0 0" }}>Issue certificates with a QR code that anyone can scan to verify them. Details are taken from the employee's HRIS record.</p>
+          <h3 style={{ margin: 0, color: "var(--brand)", display: "flex", alignItems: "center", gap: 8 }}><TbCertificate /> Relieving cum Service Certificates</h3>
+          <p className="small" style={{ margin: "4px 0 0" }}>Issue the approved Relieving cum Service Certificate with a QR code that anyone can scan to verify it. Dates and designation come from the employee's HRIS record.</p>
         </div>
         <button className="btn" onClick={() => setModal({ kind: "generate" })} style={{ display: "flex", alignItems: "center", gap: 6 }}><TbPlus size={13} /> Generate certificate</button>
       </div>
@@ -169,21 +168,27 @@ const lbl = { fontSize: 12, fontWeight: 700, color: "#475569", display: "block",
 function GenerateModal({ call, onClose, onDone, busy, setBusy }) {
   const [people, setPeople] = useState(null);
   const [empId, setEmpId] = useState("");
-  const saved = (() => { try { return JSON.parse(localStorage.getItem(SIGNATORY_KEY) || "{}"); } catch { return {}; } })();
-  const [name, setName] = useState(saved.name || "");
-  const [desg, setDesg] = useState(saved.desg || "");
+  const [name, setName] = useState("");
+  const [desg, setDesg] = useState("");
+  const [sal, setSal] = useState("");              // Mr. / Ms. / Mx. — chosen by HR, never guessed
+  const [posted, setPosted] = useState("");
+  const [salutations, setSalutations] = useState(["Mr.", "Ms.", "Mx."]);
   const [err, setErr] = useState("");
-  useEffect(() => { call("/eligible").then(setPeople).catch(e => { setPeople([]); setErr(e.message); }); }, [call]);
+  useEffect(() => {
+    call("/eligible").then(setPeople).catch(e => { setPeople([]); setErr(e.message); });
+    // signatory + posting are set on the server (approved template); HR can still change them per certificate
+    call("/defaults").then(d => { setName(d.signatory_name || ""); setDesg(d.signatory_designation || ""); setPosted(d.posted_at || ""); if (d.salutations) setSalutations(d.salutations); }).catch(() => {});
+  }, [call]);
   const emp = (people || []).find(p => p._id === empId);
 
   async function submit(e) {
     e.preventDefault(); setErr("");
     if (!emp) return setErr("Please choose an employee.");
+    if (!sal) return setErr("Please choose Mr., Ms. or Mx. — it decides how the certificate refers to the person.");
     if (!name.trim() || !desg.trim()) return setErr("Please enter the authorised signatory's name and designation.");
     setBusy(true);
     try {
-      const cert = await call("", "POST", { employee_id: empId, signatory_name: name.trim(), signatory_designation: desg.trim() });
-      try { localStorage.setItem(SIGNATORY_KEY, JSON.stringify({ name: name.trim(), desg: desg.trim() })); } catch { /* ignore */ }
+      const cert = await call("", "POST", { employee_id: empId, salutation: sal, posted_at: posted.trim(), signatory_name: name.trim(), signatory_designation: desg.trim() });
       onDone(cert);
     } catch (e2) { setErr(e2.message); } finally { setBusy(false); }
   }
@@ -191,7 +196,7 @@ function GenerateModal({ call, onClose, onDone, busy, setBusy }) {
   return (
     <Overlay onClose={onClose}>
       <form onSubmit={submit}>
-        <ModalHead title="Generate experience certificate" onClose={onClose} />
+        <ModalHead title="Generate Relieving cum Service Certificate" onClose={onClose} />
         <label style={lbl}>Employee *</label>
         <select className="modern-input" value={empId} onChange={e => setEmpId(e.target.value)} style={{ margin: 0 }} disabled={!people}>
           <option value="">{people ? (people.length ? "— Select employee —" : "No eligible employees") : "Loading…"}</option>
@@ -210,7 +215,21 @@ function GenerateModal({ call, onClose, onDone, busy, setBusy }) {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 12, marginTop: 14 }}>
+          <div>
+            <label style={lbl}>Title *</label>
+            <select className="modern-input" value={sal} onChange={e => setSal(e.target.value)} style={{ margin: 0 }}>
+              <option value="">Select…</option>
+              {salutations.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Posted at <span style={{ fontWeight: 500, color: "#94a3b8" }}>(shown as “posted at our …”; clear to leave out)</span></label>
+            <input className="modern-input" value={posted} onChange={e => setPosted(e.target.value)} placeholder="e.g. Thiruvananthapuram office (Remote)" maxLength={80} style={{ margin: 0 }} />
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
           <div><label style={lbl}>Authorised signatory *</label><input className="modern-input" value={name} onChange={e => setName(e.target.value)} placeholder="Name" maxLength={80} style={{ margin: 0 }} /></div>
           <div><label style={lbl}>Signatory designation *</label><input className="modern-input" value={desg} onChange={e => setDesg(e.target.value)} placeholder="e.g. Managing Director" maxLength={80} style={{ margin: 0 }} /></div>
         </div>
