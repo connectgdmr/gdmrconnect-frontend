@@ -199,10 +199,18 @@ function GenerateModal({ call, onClose, onDone, busy, setBusy }) {
         <ModalHead title="Generate Relieving cum Service Certificate" onClose={onClose} />
         <label style={lbl}>Employee *</label>
         <select className="modern-input" value={empId} onChange={e => setEmpId(e.target.value)} style={{ margin: 0 }} disabled={!people}>
-          <option value="">{people ? (people.length ? "— Select employee —" : "No eligible employees") : "Loading…"}</option>
-          {(people || []).map(p => <option key={p._id} value={p._id}>{p.employee_name}{p.employee_code ? ` (${p.employee_code})` : ""}{p.has_active_certificate ? " — has active certificate" : ""}</option>)}
+          <option value="">{people ? (people.length ? "— Select employee —" : "No employees with a recorded last working day") : "Loading…"}</option>
+          {(people || []).map(p => (
+            <option key={p._id} value={p._id} disabled={p.on_notice}>
+              {p.employee_name}{p.employee_code ? ` (${p.employee_code})` : ""}
+              {p.on_notice ? ` — serving notice, available after ${fmtDay(p.last_working_date)}` : p.has_active_certificate ? " — has active certificate" : ""}
+            </option>
+          ))}
         </select>
-        <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 4 }}>Only employees with a date of joining and a last working day that has passed are listed.</div>
+        <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 4 }}>
+          People serving their notice period are shown but locked: a certificate can only be generated after the last working day.
+          {people && people.some(p => p.on_notice) ? ` (${people.filter(p => p.on_notice).length} serving notice)` : ""}
+        </div>
 
         {emp && (
           <div style={{ marginTop: 12, border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 14px", background: "#f8fafc", fontSize: 13 }}>

@@ -1064,7 +1064,10 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
                         <label style={{fontWeight: 600, fontSize: '14px', color: '#333'}}>Select Employee</label>
                         <select className="modern-input" style={{marginTop: 8}} value={grantData.employeeId} onChange={(e) => setGrantData({...grantData, employeeId: e.target.value})} required>
                             <option value="">-- Choose Employee --</option>
-                            {[...employees].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(emp => <option key={emp._id} value={emp._id}>{emp.name} ({emp.department})</option>)}
+                            {[...activeEmployees].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(emp => {
+                                const dept = Array.isArray(emp.department) ? emp.department.filter(Boolean).join(", ") : emp.department;
+                                return <option key={emp._id} value={emp._id}>{emp.name}{dept ? ` (${dept})` : ""}</option>;
+                            })}
                         </select>
                     </div>
                 </div>
