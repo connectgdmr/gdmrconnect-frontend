@@ -27,6 +27,7 @@ function aiequeBrand() {
         ['GDMR Logo', 'aieque logo'],
         ["GDMR's AI assistant", "aieque's AI assistant"],
         ['application with GDMR.', 'application with aieque.'],
+        ['Your Complete Business Suite', ''],
         ['₹', 'AED '],
       ]
       for (const [a, b] of swaps) out = out.split(a).join(b)
