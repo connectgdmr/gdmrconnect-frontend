@@ -127,7 +127,18 @@
   --brand-light: rgba(27,64,82,0.10); --brand-ring: rgba(27,64,82,0.20);
   --red: #1b4052; --dark-red: #0e2531; --muted: #d3e0e7; --accent: #1b4052;
   --teal-900: #1b4052; --teal-800: #2a5a70;
+  /* clean, quiet surfaces: cool grey canvas, white cards, hairline borders, soft shadows */
+  --bg: #f5f7fa; --surface: #ffffff; --card: #ffffff; --text: #1e293b;
+  --success: #15803d; --warning: #b45309; --error: #b91c1c;
+  --shadow-xs: 0 1px 2px rgba(16,24,40,0.05);
+  --shadow-sm: 0 1px 3px rgba(16,24,40,0.07), 0 1px 2px rgba(16,24,40,0.04);
+  --shadow-md: 0 4px 10px rgba(16,24,40,0.07);
+  --shadow-lg: 0 10px 24px rgba(16,24,40,0.09);
+  --shadow-xl: 0 18px 40px rgba(16,24,40,0.12);
 }
+:root[data-accent="aieque"] body { background: var(--bg); }
+:root[data-accent="aieque"] .sidebar-nav-item.active { background: var(--brand-light); color: var(--brand); }
+:root[data-accent="aieque"] .login-panel-left { background: linear-gradient(160deg, #1b4052 0%, #0e2531 100%); }
 :root[data-accent="teal"] {
   /* Jampack (ThemeForest) reference palette — refined from the plain teal
      swatch to match that theme's exact primary. See TRMPLATE UI/ for source. */

@@ -8,8 +8,7 @@ import api from "./api";
 import useChatNotifications from "./components/useChatNotifications";
 import { CallProvider } from "./components/CallContext";
 import CallOverlay from "./components/CallOverlay";
-import ErrorBoundary from "./components/ErrorBoundary";
-import { IS_DEMO } from "./brand";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const AdminDashboard    = lazy(() => import("./components/AdminDashboard"));
 const EmployeeDashboard = lazy(() => import("./components/EmployeeDashboard"));
@@ -134,13 +133,6 @@ export default function App() {
         </Suspense>
       </ErrorBoundary>
       <CallOverlay />
-      {IS_DEMO && (
-        <div style={{ position: "fixed", left: 12, bottom: 12, zIndex: 9999, display: "flex", alignItems: "center", gap: 8, background: "#1b4052", color: "#fff",
-                      padding: "7px 8px 7px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, boxShadow: "0 4px 14px rgba(0,0,0,.25)" }}>
-          <span>Demo · sample data</span>
-          <button onClick={onLogout} style={{ border: "none", borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", background: "#fff", color: "#1b4052" }}>Switch role</button>
-        </div>
-      )}
     </CallProvider>
   );
 }
