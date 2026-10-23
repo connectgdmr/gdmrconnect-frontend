@@ -17,9 +17,9 @@ function aiequeBrand() {
       let out = code
       // names (order matters: longest first). The logo file name is protected, the logo itself is swapped by the alias below.
       const swaps = [
-        ['GDMR Connect HRMS', 'aieque ERP'],
-        ['GDMR CONNECT', 'AIEQUE ERP'],
-        ['GDMR Connect', 'aieque ERP'],
+        ['GDMR Connect HRMS', 'aieque'],
+        ['GDMR CONNECT', 'AIEQUE'],
+        ['GDMR Connect', 'aieque'],
         ['GDMR FOUNDATION', 'AIEQUE TRADEMARK SERVICES'],
         ['GDMR Foundation', 'aieque Trademark Services'],
         ['GDMR-001, GDMR-002', 'AIQ-001, AIQ-002'],
@@ -37,8 +37,8 @@ function aiequeBrand() {
     },
     transformIndexHtml(html) {
       return html
-        .replace('GDMR - ERP', 'aieque ERP')
-        .replace('GDMR Connect', 'aieque ERP')
+        .replace('GDMR - ERP', 'aieque')
+        .replace('GDMR Connect', 'aieque')
         .replace('/src/assets/GDMR-LOGO-unit.png', '/src/assets/brands/aieque-logo.png')
     },
   }
