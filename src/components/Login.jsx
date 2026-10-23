@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Logo from "../assets/GDMR-LOGO-unit.png";
 import { TbEye, TbEyeOff, TbUsers, TbCurrencyDollar, TbUserSearch, TbSchool, TbBuilding, TbChartArea, TbMessageDots } from "react-icons/tb";
 import { cleanEmail, isValidEmail } from "../utils/security";
+import { IS_DEMO, DEMO_ACCOUNTS, DEMO_PASSWORD } from "../brand";
 
 const MAX_ATTEMPTS = 5;
 const COOLDOWN_SECONDS = 30;
@@ -231,6 +232,24 @@ export default function Login({ onLogin, api }) {
                     Retry
                   </button>
                 )}
+              </div>
+            )}
+
+            {IS_DEMO && (
+              <div style={{ marginBottom: 18, padding: 14, borderRadius: 12, background: "var(--brand-light)", border: "1px solid var(--brand-ring)" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: "var(--brand)", marginBottom: 8 }}>Demo — choose a role to explore</div>
+                {DEMO_ACCOUNTS.map((a) => (
+                  <button key={a.email} type="button" disabled={loading}
+                    onClick={async () => {
+                      setErr(""); setLoading(true);
+                      try { onLogin(await api.login({ email: a.email, password: DEMO_PASSWORD })); }
+                      catch { setErr("Demo server is not reachable. Please try again."); setLoading(false); }
+                    }}
+                    style={{ display: "block", width: "100%", textAlign: "left", marginBottom: 6, padding: "9px 12px", borderRadius: 9, border: "1px solid var(--brand-ring)", background: "#fff", cursor: "pointer" }}>
+                    <span style={{ fontWeight: 700, color: "var(--brand)", fontSize: 13.5 }}>{a.role}</span>
+                    <span style={{ display: "block", fontSize: 12, color: "#64748b" }}>{a.who}</span>
+                  </button>
+                ))}
               </div>
             )}
 

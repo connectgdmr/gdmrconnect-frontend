@@ -121,6 +121,13 @@
   --brand-light: rgba(234,88,12,0.10); --brand-ring: rgba(234,88,12,0.18);
   --red: #ea580c; --dark-red: #9a3412; --muted: #ffedd5; --accent: #ea580c;
 }
+:root[data-accent="aieque"] {
+  /* Aieque demo palette — brand navy from aieque.com */
+  --brand: #1b4052; --brand-hover: #143242; --brand-dark: #0e2531;
+  --brand-light: rgba(27,64,82,0.10); --brand-ring: rgba(27,64,82,0.20);
+  --red: #1b4052; --dark-red: #0e2531; --muted: #d3e0e7; --accent: #1b4052;
+  --teal-900: #1b4052; --teal-800: #2a5a70;
+}
 :root[data-accent="teal"] {
   /* Jampack (ThemeForest) reference palette — refined from the plain teal
      swatch to match that theme's exact primary. See TRMPLATE UI/ for source. */

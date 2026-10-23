@@ -10,6 +10,7 @@ export const ACCENTS = [
   { key: "rose",   label: "Rose",   swatch: "#e11d48" },
   { key: "orange", label: "Orange", swatch: "#ea580c" },
   { key: "teal",   label: "Teal",   swatch: "#007D88" },
+  { key: "aieque", label: "Aieque", swatch: "#1b4052" },
 ];
 
 export function useTheme() {
@@ -25,7 +26,7 @@ export function ThemeProvider({ children }) {
   // already picked a color in Settings keeps exactly that choice (it's in
   // localStorage), this only changes what a first-time/never-customized
   // user sees out of the box.
-  const [accent, setAccentState] = useState(() => localStorage.getItem(ACCENT_KEY) || "teal");
+  const [accent, setAccentState] = useState(() => (import.meta.env.VITE_BRAND === "aieque" ? "aieque" : (localStorage.getItem(ACCENT_KEY) || "teal")));
 
   useEffect(() => { document.documentElement.setAttribute("data-theme", "light"); }, []);
   useEffect(() => { document.documentElement.setAttribute("data-accent", accent); }, [accent]);

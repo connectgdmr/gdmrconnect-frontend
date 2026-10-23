@@ -5,7 +5,8 @@ export const API_URL = API_BASE; // full /api path — import this instead of ha
 // All fetch calls use the same-origin Vercel proxy (/api/*) so Jio mobile data
 // cannot block them — blocking /api/* would block the whole site. BASE_URL/API_URL
 // above are still used for constructing media/file URLs that point to the CDN.
-const FETCH_BASE = '/api';
+// Demo build (VITE_BRAND=aieque) talks straight to its own demo backend instead of the production proxy.
+const FETCH_BASE = import.meta.env.VITE_BRAND === "aieque" ? API_BASE : '/api';
 
 // Strategy: 3 fetch attempts → 1 XHR attempt.
 const REQUEST_TIMEOUT_MS = 20000;  // 20 s per fetch attempt — fail fast so XHR retry kicks in sooner
