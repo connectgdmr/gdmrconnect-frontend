@@ -33,11 +33,15 @@ function parseJwt(token) {
 }
 
 function PublicRoutes() {
-  if (assessmentMatch) return <TakeAssessment assessmentToken={assessmentMatch[1]} />;
-  if (documentsMatch)  return <CandidateDocuments docToken={documentsMatch[1]} />;
-  if (verifyMatch)     return <Suspense fallback={null}><CertificateVerify certToken={verifyMatch[1]} /></Suspense>;
-  if (resetMatch)      return <Suspense fallback={null}><ResetPassword resetToken={resetMatch[1]} /></Suspense>;
-  return null;
+  // The app shell locks page scrolling (body/#root are overflow:hidden), so these public pages
+  // scroll inside their own full-height container — otherwise anything below the fold is unreachable.
+  let page = null;
+  if (assessmentMatch) page = <TakeAssessment assessmentToken={assessmentMatch[1]} />;
+  else if (documentsMatch)  page = <CandidateDocuments docToken={documentsMatch[1]} />;
+  else if (verifyMatch)     page = <Suspense fallback={null}><CertificateVerify certToken={verifyMatch[1]} /></Suspense>;
+  else if (resetMatch)      page = <Suspense fallback={null}><ResetPassword resetToken={resetMatch[1]} /></Suspense>;
+  if (!page) return null;
+  return <div style={{ height: "100vh", overflowY: "auto", WebkitOverflowScrolling: "touch" }}>{page}</div>;
 }
 
 export default function App() {
