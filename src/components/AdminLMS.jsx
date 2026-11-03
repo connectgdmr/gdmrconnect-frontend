@@ -10,6 +10,7 @@ import { SkeletonCards, SkeletonTable } from "./Skeleton";
 
 import { API_URL as BASE } from "../api";
 import { LMS_STATE_STYLE } from "../utils/lmsState";
+import LmsProgressSummary from "./LmsProgressSummary";
 
 const CATEGORIES = ["Technical", "Soft Skills", "Compliance", "Leadership", "Product", "Other"];
 
@@ -719,6 +720,7 @@ export default function AdminLMS({ token, employees: employeesProp = [], departm
             </select>
           </div>
 
+          {!progLoading && filteredProgress.length > 0 && <LmsProgressSummary rows={filteredProgress} />}
           {progLoading ? <SkeletonTable rows={6} cols={10} />
           : filteredProgress.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>

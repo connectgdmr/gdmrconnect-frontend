@@ -10,6 +10,7 @@ import { SkeletonCards, SkeletonTable } from "./Skeleton";
 
 import { API_URL as BASE } from "../api";
 import { LMS_STATE_STYLE } from "../utils/lmsState";
+import LmsProgressSummary from "./LmsProgressSummary";
 
 // One consistent size for the per-row action buttons (text only, no icons).
 const ROW_BTN = { padding: "6px 12px", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" };
@@ -573,6 +574,7 @@ export default function ManagerLMS({ token, user, myEmployees = [] }) {
             </select>
           </div>
 
+          {!progLoading && filteredProgress.length > 0 && <LmsProgressSummary rows={filteredProgress} />}
           {progLoading ? <SkeletonTable rows={6} cols={9} />
           : filteredProgress.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
