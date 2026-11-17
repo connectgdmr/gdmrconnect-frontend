@@ -227,11 +227,15 @@ function TeamSection({ team, summary, headers, onChanged, defaultOpen }) {
     return Object.entries(g).sort(([a], [b]) => a.localeCompare(b));
   }, [team, q]);
   const attention = t.overdue + t.blocked + t.no_work;
-  const tile = (label, value, color, sub) => (
-    <div className="card" style={{ margin: 0, padding: "12px 14px" }}>
+  const [popup, setPopup] = useState(null);       // "updated" | "ongoing" | "overdue" | "attention"
+  const tile = (key, label, value, color, sub, clickable = true) => (
+    <div className="card" onClick={clickable ? () => setPopup(key) : undefined} role={clickable ? "button" : undefined}
+      onMouseEnter={e => { if (clickable) e.currentTarget.style.boxShadow = "0 6px 16px rgba(15,23,42,.10)"; }} onMouseLeave={e => { e.currentTarget.style.boxShadow = ""; }}
+      style={{ margin: 0, padding: "12px 14px", cursor: clickable ? "pointer" : "default", transition: "box-shadow .12s" }}>
       <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{label}</div>
       <div style={{ fontSize: 26, fontWeight: 800, color, lineHeight: 1.15 }}>{value}</div>
       {sub && <div style={{ fontSize: 11.5, color: "#94a3b8" }}>{sub}</div>}
+      {clickable && <div style={{ fontSize: 11, color: "var(--brand)", fontWeight: 600, marginTop: 2 }}>Click to view</div>}
     </div>
   );
   return (
@@ -244,17 +248,89 @@ function TeamSection({ team, summary, headers, onChanged, defaultOpen }) {
         <div style={{ fontSize: 14, color: "#312e81", lineHeight: 1.55 }}>{summary ? summary.summary : "Reading today's updates…"}</div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 12 }}>
-        {tile("Day updated", `${t.updated}/${t.people}`, "#16a34a", "people")}
-        {tile("Open work", t.open, "#0f172a", `${t.done} done recently`)}
-        {tile("Overdue", t.overdue, t.overdue ? "#b91c1c" : "#94a3b8")}
-        {tile("Needs attention", attention, attention ? "#b45309" : "#94a3b8", `${t.blocked} blocked · ${t.no_work} no work added`)}
+        {tile("updated", "Day updated", `${t.updated}/${t.people}`, "#16a34a", "people")}
+        {tile("ongoing", "Ongoing work", t.open, "#0f172a", `${t.done} done recently`)}
+        {tile("overdue", "Overdue", t.overdue, t.overdue ? "#b91c1c" : "#94a3b8")}
+        {tile("attention", "Needs attention", attention, attention ? "#b45309" : "#94a3b8", `${t.blocked} blocked · ${t.no_work} no work added`)}
       </div>
+      {popup && <TilePopup kind={popup} team={team} onClose={() => setPopup(null)} />}
       <div style={{ position: "relative", marginBottom: 12 }}>
         <TbSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
         <input className="modern-input" placeholder="Search a person or work…" value={q} onChange={e => setQ(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
       </div>
       {depts.length === 0 ? <div className="card" style={{ textAlign: "center", padding: 30, color: "#94a3b8" }}>No one found.</div>
         : depts.map(([name, people]) => <DeptBlock key={name} name={name} people={people} headers={headers} onChanged={onChanged} startOpen={defaultOpen || depts.length === 1 || !!q} />)}
+    </div>
+  );
+}
+
+// What is behind a number: the people or the work, with department, person, deadline, status and remarks.
+function TilePopup({ kind, team, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const items = team.people.flatMap(p => p.items.filter(i => !i.done).map(i => ({ ...i, person: p.name, dept: p.department })));
+  const byDept = (a, b) => a.dept.localeCompare(b.dept) || a.person.localeCompare(b.person);
+  const people = (list) => list.map(p => ({ ...p, dept: p.department })).sort((a, b) => a.dept.localeCompare(b.dept) || a.name.localeCompare(b.name));
+  let title, sections;
+  if (kind === "updated") {
+    title = "Day updated";
+    sections = [
+      ["Updated their day", "people", people(team.people.filter(p => p.status === "updated"))],
+      ["Not updated yet", "people", people(team.people.filter(p => ["working", "no_work", "not_in"].includes(p.status)))],
+      ["On leave / day off", "people", people(team.people.filter(p => ["on_leave", "off"].includes(p.status)))],
+    ];
+  } else if (kind === "ongoing") {
+    title = "Ongoing work";
+    sections = [["All open work", "items", [...items].sort(byDept)]];
+  } else if (kind === "overdue") {
+    title = "Overdue work";
+    sections = [["Past their deadline", "items", items.filter(i => i.overdue).sort(byDept)]];
+  } else {
+    title = "Needs attention";
+    sections = [
+      ["Checked in but no work added", "people", people(team.people.filter(p => p.status === "no_work"))],
+      ["Blocked", "items", items.filter(i => String(i.status).toLowerCase() === "blocked").sort(byDept)],
+      ["Overdue", "items", items.filter(i => i.overdue).sort(byDept)],
+    ];
+  }
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.5)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" style={{ background: "#fff", borderRadius: 16, width: "min(900px, 100%)", maxHeight: "88vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 60px rgba(15,23,42,.28)" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #eef2f6", display: "flex", alignItems: "center" }}>
+          <div style={{ flex: 1, fontWeight: 800, fontSize: 17 }}>{title}</div>
+          <button onClick={onClose} aria-label="Close" style={{ border: "none", background: "#f1f5f9", borderRadius: 8, width: 32, height: 32, cursor: "pointer" }}><TbX /></button>
+        </div>
+        <div style={{ overflow: "auto", padding: "6px 20px 20px" }}>
+          {sections.every(([, , rows]) => rows.length === 0) && <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>Nothing here.</div>}
+          {sections.map(([heading, type, rows]) => rows.length > 0 && (
+            <div key={heading} style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: "#475569", marginBottom: 6 }}>{heading} · {rows.length}</div>
+              <table className="styled-table-global" style={{ width: "100%" }}>
+                {type === "people" ? (
+                  <>
+                    <thead><tr><th>Person</th><th>Department</th><th>Status</th><th>Open work</th></tr></thead>
+                    <tbody>{rows.map(p => { const m = PERSON[p.status] || PERSON.off; return (
+                      <tr key={p.user_id}><td style={{ fontWeight: 600 }}>{p.name}</td><td style={{ color: "#64748b", fontSize: 13 }}>{p.dept}</td>
+                        <td><span style={{ fontSize: 11.5, fontWeight: 700, color: m.c, background: m.b, border: `1px solid ${m.e}`, borderRadius: 7, padding: "2px 9px", whiteSpace: "nowrap" }}>{m.t}</span></td>
+                        <td>{p.open}{p.overdue ? ` (${p.overdue} overdue)` : ""}</td></tr>); })}</tbody>
+                  </>
+                ) : (
+                  <>
+                    <thead><tr><th>Person</th><th>Department</th><th>Work</th><th>Deadline</th><th>Status</th><th>Remarks</th></tr></thead>
+                    <tbody>{rows.map(i => (
+                      <tr key={`${i.person}-${i.key}`}><td style={{ fontWeight: 600 }}>{i.person}</td><td style={{ color: "#64748b", fontSize: 13 }}>{i.dept}</td><td>{i.title}</td>
+                        <td><DeadlineChip item={i} /></td><td style={{ fontWeight: 700, color: SC[i.status] || "#334155", fontSize: 12.5 }}>{i.status}</td>
+                        <td style={{ fontSize: 12.5, color: "#475569" }}>{i.remarks || "—"}</td></tr>))}</tbody>
+                  </>
+                )}
+              </table>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
