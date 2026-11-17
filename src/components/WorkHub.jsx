@@ -541,9 +541,15 @@ function AddWork({ headers, onClose, onCreated }) {
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
-    fetch(`${BASE}/work-tasks/assignable`, { headers }).then(r => (r.ok ? r.json() : [])).then(d => setPeople(Array.isArray(d) ? d : [])).catch(() => {}).finally(() => setLoaded(true));
+  const [loadErr, setLoadErr] = useState("");
+  const loadPeople = useCallback(() => {
+    setLoaded(false); setLoadErr("");
+    fetch(`${BASE}/work-tasks/assignable`, { headers })
+      .then(async r => { if (!r.ok) throw new Error(`error ${r.status}`); const d = await r.json(); setPeople(Array.isArray(d) ? d : []); })
+      .catch(e => setLoadErr(e?.message || "network problem"))
+      .finally(() => setLoaded(true));
   }, [headers]);
+  useEffect(() => { loadPeople(); }, [loadPeople]);
   const needle = q.trim().toLowerCase();
   // type any letters of a name or department: matches anywhere, names starting with them come first
   const list = people.filter(p => !p.me && (!needle || `${p.name} ${p.department}`.toLowerCase().includes(needle)))
@@ -599,7 +605,7 @@ function AddWork({ headers, onClose, onCreated }) {
                       <span style={{ fontWeight: 600 }}>{p.name}</span><span style={{ color: "#94a3b8", fontSize: 12 }}>{p.department}</span>
                     </label>
                   ))}
-                  {list.length === 0 && <div style={{ padding: 12, color: "#94a3b8", fontSize: 13 }}>{!loaded ? "Loading people…" : people.length <= 1 ? "Couldn't load the people list. Close this and try again." : "No one matches that."}</div>}
+                  {list.length === 0 && <div style={{ padding: 12, color: "#94a3b8", fontSize: 13 }}>{!loaded ? "Loading people…" : loadErr ? <>Couldn't load the people list ({loadErr}). <button type="button" onClick={loadPeople} style={{ background: "none", border: "none", color: "var(--brand)", fontWeight: 700, cursor: "pointer" }}>Try again</button></> : people.length <= 1 ? "No other colleagues found." : "No one matches that."}</div>}
                 </div>
               </div>
             )}
