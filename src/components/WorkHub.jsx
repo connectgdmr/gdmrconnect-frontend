@@ -5,7 +5,7 @@ import {
 } from "react-icons/tb";
 import { API_URL as BASE } from "../api";
 import { escHtml } from "../utils/security";
-import EveningUpdateModal from "./EveningUpdateModal";
+import EveningUpdateModal, { ExportPanel } from "./EveningUpdateModal";
 
 // One Work page for everyone.
 //   Employee : "My work" — every piece of work with its deadline; update status + remarks right there; Add work.
@@ -181,6 +181,7 @@ export default function WorkHub({ token, role = "employee" }) {
 function MyWork({ items, headers, onChanged, onAdd, onDay, showDay, title }) {
   const [showDone, setShowDone] = useState(false);
   const [hist, setHist] = useState(false);
+  const [exp, setExp] = useState(false);
   const open = items.filter(i => !i.done);
   const groups = [
     ["Overdue", open.filter(i => i.overdue), "#b91c1c"],
@@ -194,6 +195,7 @@ function MyWork({ items, headers, onChanged, onAdd, onDay, showDay, title }) {
         <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a" }}>{title || "My work"} <span style={{ fontWeight: 500, color: "#94a3b8", fontSize: 13 }}>· {open.length} open</span></div>
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn ghost" onClick={() => setHist(true)} style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}><TbHistory /> My history</button>
+          <button className="btn ghost" onClick={() => setExp(true)} style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}><TbDownload /> Export</button>
           {showDay && items.length > 0 && <button className="btn ghost" onClick={onDay} style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}><TbMoonStars /> Update my day</button>}
         </div>
       </div>
@@ -223,6 +225,7 @@ function MyWork({ items, headers, onChanged, onAdd, onDay, showDay, title }) {
         </>
       )}
       {hist && <HistoryModal headers={headers} userId={null} name="My" onClose={() => setHist(false)} />}
+      {exp && <ExportPanel headers={headers} onClose={() => setExp(false)} />}
     </div>
   );
 }
@@ -525,6 +528,7 @@ function AddWork({ headers, onClose, onCreated }) {
   const [f, setF] = useState({ title: "", deadline: "", description: "", client: "" });
   const [clients, setClients] = useState([]);
   const [addingClient, setAddingClient] = useState(false);
+  const [clientMsg, setClientMsg] = useState("");
   const [people, setPeople] = useState([]);
   const [picked, setPicked] = useState([]);
   const [others, setOthers] = useState(true);
@@ -547,14 +551,16 @@ function AddWork({ headers, onClose, onCreated }) {
   const clientName = f.client.trim();
   const newClient = clientName && !clients.some(c => c.toLowerCase() === clientName.toLowerCase());
   async function addClient() {
-    setErr(""); setAddingClient(true);
+    setClientMsg(""); setAddingClient(true);
     try {
       const r = await fetch(`${BASE}/admin/clients`, { method: "POST", headers, body: JSON.stringify({ name: clientName }) });
       const d = await r.json().catch(() => ({}));
-      if (r.status === 409) { setClients(c => [...c, clientName]); return; }
-      if (!r.ok) return setErr(d.message || "Could not add the client.");
+      if (r.status === 409) { setClients(c => [...c, clientName]); setClientMsg("That client already exists — selected."); return; }
+      if (r.status === 403) return setClientMsg("You can't add clients (your account has no department). Ask an admin to add it.");
+      if (!r.ok) return setClientMsg(d.message || `Could not add the client (error ${r.status}).`);
       setClients(c => [...c, d.name || clientName]);
-    } catch { setErr("Network error."); } finally { setAddingClient(false); }
+      setClientMsg(`“${d.name || clientName}” added as a new client ✓`);
+    } catch { setClientMsg("Could not reach the server. Check your connection and try again."); } finally { setAddingClient(false); }
   }
   const needle = q.trim().toLowerCase();
   // type any letters of a name or department: matches anywhere, names starting with them come first
@@ -592,10 +598,12 @@ function AddWork({ headers, onClose, onCreated }) {
             <input className="modern-input" style={{ margin: "4px 0 0" }} list="work-clients-list" maxLength={200} placeholder="Pick a client or type a new one" value={f.client} onChange={e => setF({ ...f, client: e.target.value })} />
             <datalist id="work-clients-list">{clients.map(c => <option key={c} value={c} />)}</datalist>
           </label>
+          {!newClient && clientMsg && <div style={{ marginTop: -6, fontSize: 12.5, color: "#166534", fontWeight: 600 }}>{clientMsg}</div>}
           {newClient && (
             <div style={{ marginTop: -6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "7px 10px", fontSize: 12.5, color: "#92400e" }}>
               <span>“{clientName}” isn't in your client list.</span>
               <button type="button" className="btn" style={{ fontSize: 12, padding: "5px 12px" }} onClick={addClient} disabled={addingClient}>{addingClient ? "Adding…" : "Add as new client"}</button>
+              {clientMsg && <span style={{ color: "#b91c1c", fontWeight: 600 }}>{clientMsg}</span>}
             </div>
           )}
           <textarea className="modern-input" rows={2} style={{ margin: 0 }} placeholder="Details (optional)" maxLength={2000} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />

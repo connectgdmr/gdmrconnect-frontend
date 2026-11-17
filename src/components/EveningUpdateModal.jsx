@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { TbX, TbMoonStars, TbAlertCircle, TbPlus, TbPencil, TbTrash, TbDownload, TbFileTypePdf, TbFileTypeXls } from "react-icons/tb";
+import { TbX, TbMoonStars, TbAlertCircle, TbPlus, TbPencil, TbTrash, TbFileTypePdf, TbFileTypeXls } from "react-icons/tb";
 import { API_URL as BASE } from "../api";
 import { escHtml } from "../utils/security";
 
@@ -70,7 +70,6 @@ export default function EveningUpdateModal({ token, date, onClose, onDone, onAdd
   const [err, setErr] = useState("");
   const headers = { Authorization: `Bearer ${token}` };
   const jsonHeaders = { ...headers, "Content-Type": "application/json" };
-  const [showExport, setShowExport] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -128,7 +127,6 @@ export default function EveningUpdateModal({ token, date, onClose, onDone, onAdd
 
   return (
     <>
-    {showExport && <ExportPanel headers={headers} onClose={() => setShowExport(false)} />}
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.5)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div onClick={e => e.stopPropagation()} role="dialog" aria-modal="true"
         style={{ background: "#fff", borderRadius: 16, width: "min(720px, 100%)", maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 60px rgba(15,23,42,.28)" }}>
@@ -166,7 +164,6 @@ export default function EveningUpdateModal({ token, date, onClose, onDone, onAdd
 
         <div style={{ padding: "12px 20px", borderTop: "1px solid #eef2f6", display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           {onAddWork && <button className="btn ghost" onClick={onAddWork} style={{ display: "flex", alignItems: "center", gap: 6 }}><TbPlus /> Add work</button>}
-          <button className="btn ghost" onClick={() => setShowExport(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}><TbDownload /> Export</button>
           <div style={{ flex: 1 }} />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn" onClick={submit} disabled={saving || loading || ((!plan || plan.status !== "submitted") && assigned.length === 0)}>{saving ? "Saving…" : "Submit update"}</button>
@@ -178,7 +175,7 @@ export default function EveningUpdateModal({ token, date, onClose, onDone, onAdd
 }
 
 // Export my work for a chosen time frame as Excel or PDF (day, work, deadline, status, remarks).
-function ExportPanel({ headers, onClose }) {
+export function ExportPanel({ headers, onClose }) {
   const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
   const today = iso(new Date());
   const [from, setFrom] = useState(iso(new Date(Date.now() - 29 * 864e5)));
