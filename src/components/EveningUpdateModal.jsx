@@ -8,6 +8,29 @@ const PLAN_STATUSES = ["Pending", "Started", "In Progress", "Blocked", "Complete
 const COLORS = { Pending: "#64748b", Started: "#2563eb", "In Progress": "#d97706", Blocked: "#b91c1c", Completed: "#16a34a" };
 const isDone = (s) => String(s || "").toLowerCase() === "completed" || String(s || "").toLowerCase() === "done";
 
+// Defined at module level on purpose: inside the modal it was re-created on every keystroke and the box lost focus.
+function Row({ x, onChange, tag }) {
+  return (
+  <div style={{ background: "#f8fafc", border: "1px solid #eef2f6", borderRadius: 10, padding: 12 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ flex: 1, minWidth: 180, fontWeight: 600, color: "#0f172a", fontSize: 13.5 }}>
+        {x.title}
+        {tag && <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 700, color: x.overdue ? "#b91c1c" : "#1d4ed8", background: x.overdue ? "#fef2f2" : "#eff6ff", borderRadius: 6, padding: "1px 7px" }}>{tag}</span>}
+        {x.client && <span style={{ marginLeft: 8, fontSize: 11, color: "#0f766e", fontWeight: 600 }}>🏢 {x.client}</span>}
+      </div>
+      <select value={PLAN_STATUSES.includes(x.status) ? x.status : "__other"} onChange={e => onChange(x.id, { status: e.target.value })}
+        style={{ fontSize: 12, fontWeight: 700, color: COLORS[x.status] || "#334155", border: "1px solid #cbd5e1", borderRadius: 8, padding: "6px 10px", background: "#fff" }}>
+        {!PLAN_STATUSES.includes(x.status) && <option value="__other">{x.status}</option>}
+        {PLAN_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+      </select>
+    </div>
+    <input className="modern-input" style={{ margin: "8px 0 0", fontSize: 12.5 }} maxLength={1000}
+      placeholder={isDone(x.status) ? "Remarks (optional)" : "Remarks — what you did today / what is pending and why (required)"}
+      value={x.remarks} onChange={e => onChange(x.id, { remarks: e.target.value })} />
+  </div>
+);
+}
+
 export default function EveningUpdateModal({ token, date, onClose, onDone }) {
   const [plan, setPlan] = useState(null);
   const [rows, setRows] = useState([]);          // plan tasks
@@ -52,26 +75,6 @@ export default function EveningUpdateModal({ token, date, onClose, onDone }) {
     } catch { setErr("Network error. Please try again."); }
     finally { setSaving(false); }
   }
-
-  const Row = ({ x, onChange, tag }) => (
-    <div style={{ background: "#f8fafc", border: "1px solid #eef2f6", borderRadius: 10, padding: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: 180, fontWeight: 600, color: "#0f172a", fontSize: 13.5 }}>
-          {x.title}
-          {tag && <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 700, color: x.overdue ? "#b91c1c" : "#1d4ed8", background: x.overdue ? "#fef2f2" : "#eff6ff", borderRadius: 6, padding: "1px 7px" }}>{tag}</span>}
-          {x.client && <span style={{ marginLeft: 8, fontSize: 11, color: "#0f766e", fontWeight: 600 }}>🏢 {x.client}</span>}
-        </div>
-        <select value={PLAN_STATUSES.includes(x.status) ? x.status : "__other"} onChange={e => onChange(x.id, { status: e.target.value })}
-          style={{ fontSize: 12, fontWeight: 700, color: COLORS[x.status] || "#334155", border: "1px solid #cbd5e1", borderRadius: 8, padding: "6px 10px", background: "#fff" }}>
-          {!PLAN_STATUSES.includes(x.status) && <option value="__other">{x.status}</option>}
-          {PLAN_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-      </div>
-      <input className="modern-input" style={{ margin: "8px 0 0", fontSize: 12.5 }} maxLength={1000}
-        placeholder={isDone(x.status) ? "Remarks (optional)" : "Remarks — what you did today / what is pending and why (required)"}
-        value={x.remarks} onChange={e => onChange(x.id, { remarks: e.target.value })} />
-    </div>
-  );
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.5)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>

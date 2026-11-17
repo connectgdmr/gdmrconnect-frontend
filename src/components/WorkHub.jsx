@@ -231,15 +231,18 @@ function EditableItem({ item, headers, onSaved }) {
   const [remarks, setRemarks] = useState(item.remarks || "");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
-  const dirty = status !== item.status || remarks !== (item.remarks || "");
+  const [saved, setSaved] = useState(false);
   const edge = item.done ? "#16a34a" : item.overdue ? "#b91c1c" : item.due_today ? "#d97706" : "#cbd5e1";
 
-  async function save() {
-    setErr(""); setSaving(true);
+  // No Save button: a status change is saved straight away; remarks are saved when you click out of the box (or press Enter).
+  async function save(nextStatus = status, nextRemarks = remarks) {
+    if (nextStatus === item.status && nextRemarks === (item.remarks || "")) return;
+    setErr(""); setSaving(true); setSaved(false);
     try {
-      const r = await fetch(`${BASE}/work/update`, { method: "POST", headers, body: JSON.stringify({ kind: item.kind, id: item.id, plan_id: item.plan_id, status, remarks }) });
+      const r = await fetch(`${BASE}/work/update`, { method: "POST", headers, body: JSON.stringify({ kind: item.kind, id: item.id, plan_id: item.plan_id, status: nextStatus, remarks: nextRemarks }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { setErr(d.message || "Could not save."); return; }
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
       onSaved();
     } catch { setErr("Network error."); } finally { setSaving(false); }
   }
@@ -258,7 +261,7 @@ function EditableItem({ item, headers, onSaved }) {
             {item.others?.length > 0 && <span>with {item.others.join(", ")}</span>}
           </div>
         </div>
-        <select value={STATUSES.includes(status) ? status : "__x"} onChange={e => setStatus(e.target.value)}
+        <select value={STATUSES.includes(status) ? status : "__x"} onChange={e => { setStatus(e.target.value); save(e.target.value, remarks); }}
           style={{ fontSize: 12, fontWeight: 700, color: SC[status] || "#334155", border: "1px solid #cbd5e1", borderRadius: 8, padding: "6px 10px", background: "#fff" }}>
           {!STATUSES.includes(status) && <option value="__x">{status}</option>}
           {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -266,8 +269,8 @@ function EditableItem({ item, headers, onSaved }) {
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
         <input className="modern-input" style={{ margin: 0, flex: 1, fontSize: 12.5 }} maxLength={1000} value={remarks} onChange={e => setRemarks(e.target.value)}
-          placeholder={status === "Completed" ? "Remarks (optional)" : "Remarks — what you did / what is pending"} onKeyDown={e => { if (e.key === "Enter" && dirty) save(); }} />
-        {dirty && <button className="btn" style={{ fontSize: 12.5 }} onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button>}
+          placeholder={status === "Completed" ? "Remarks (optional)" : "Remarks — what you did / what is pending"} onBlur={() => save()} onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+        {(saving || saved) && <span style={{ alignSelf: "center", fontSize: 12, fontWeight: 600, color: saved ? "#16a34a" : "#64748b", whiteSpace: "nowrap" }}>{saving ? "Saving…" : "Saved ✓"}</span>}
       </div>
       {item.comment && <div style={{ marginTop: 8, fontSize: 12.5, color: "#166534", background: "#f0fdf4", borderRadius: 6, padding: "4px 9px", display: "inline-block" }}>💬 {item.comment.by}: {item.comment.text}</div>}
       {err && <div style={{ color: "#b91c1c", fontSize: 12.5, marginTop: 6 }}>{err}</div>}
