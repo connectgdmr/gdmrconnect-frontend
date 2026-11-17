@@ -44,6 +44,7 @@ export default function WorkHub({ token, role = "employee" }) {
   const [summary, setSummary] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showDay, setShowDay] = useState(false);
+  const [backToDay, setBackToDay] = useState(false);       // opened Add work from inside "Update my day": return there afterwards
   const [msg, setMsg] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
 
@@ -170,8 +171,8 @@ export default function WorkHub({ token, role = "employee" }) {
         <MyWork items={me.items} headers={headers} onChanged={() => load(true)} onAdd={() => setShowAdd(true)} onDay={() => setShowDay(true)} showDay={!isTop} title={team ? "My own work" : null} />
       )}
 
-      {showAdd && <AddWork headers={headers} onClose={() => setShowAdd(false)} onCreated={(m) => { setShowAdd(false); setMsg(m); load(true); setTimeout(() => setMsg(""), 5000); }} />}
-      {showDay && <EveningUpdateModal token={token} date={todayISO()} onClose={() => setShowDay(false)} onDone={() => { setShowDay(false); setMsg("Your day is updated."); load(true); setTimeout(() => setMsg(""), 5000); }} />}
+      {showAdd && <AddWork headers={headers} onClose={() => { setShowAdd(false); if (backToDay) { setBackToDay(false); setShowDay(true); } }} onCreated={(m) => { setShowAdd(false); if (backToDay) { setBackToDay(false); setShowDay(true); } setMsg(m); load(true); setTimeout(() => setMsg(""), 5000); }} />}
+      {showDay && <EveningUpdateModal token={token} date={todayISO()} onAddWork={() => { setShowDay(false); setBackToDay(true); setShowAdd(true); }} onClose={() => setShowDay(false)} onDone={() => { setShowDay(false); setMsg("Your day is updated."); load(true); setTimeout(() => setMsg(""), 5000); }} />}
     </div>
   );
 }
