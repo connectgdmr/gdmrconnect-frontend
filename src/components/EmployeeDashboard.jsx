@@ -83,7 +83,6 @@ import {
 } from "react-icons/tb";
 import ProfilePanel from "./ProfilePanel";
 import DailyQuote from "./DailyQuote";
-import DailyWorkPlan from "./DailyWorkPlan";
 import ChatBot from "./ChatBot";
 
 const AdminLMS      = lazy(() => import("./AdminLMS"));
@@ -1297,7 +1296,6 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
       {view === "dashboard" && showDailyWidgets && <DailyQuote />}
 
       {/* — Daily Work Plan — visible for the first 30 min after today's first dashboard view */}
-      {view === "dashboard" && showDailyWidgets && <DailyWorkPlan token={token} user={user} />}
 
       {/* — Dashboard Widgets — */}
       {view === "dashboard" && (
