@@ -84,6 +84,9 @@ export default function WorkHub({ token, role = "employee" }) {
   const team = board?.team;
   const showMine = !isTop || me.items.length > 0;
   const needsDay = !isTop && me.day_state && me.day_state !== "ok";
+  // the day runs: check in -> morning work update (before 11:30 AM) -> evening work update -> check out
+  const istMinutes = (() => { const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()); return Number(p.find(x => x.type === "hour").value) * 60 + Number(p.find(x => x.type === "minute").value); })();
+  const morningLate = istMinutes >= 11 * 60 + 30;
 
   // rows for both downloads: one line per piece of work
   const exportRows = () => {
@@ -149,11 +152,11 @@ export default function WorkHub({ token, role = "employee" }) {
       {msg && <div style={{ marginBottom: 12, padding: "9px 14px", borderRadius: 8, fontSize: 13, background: "#f0fdf4", color: "#166534" }}>{msg}</div>}
 
       {needsDay && (
-        <div style={{ marginBottom: 14, padding: "12px 16px", borderRadius: 12, background: "#fffbeb", border: "1px solid #fde68a", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <TbMoonStars size={20} color="#b45309" />
-          <div style={{ flex: 1, minWidth: 200, fontSize: 13.5, color: "#92400e" }}>
-            {me.day_state === "no_work" ? <><b>Add today's work</b> so your manager can see what you're doing.</>
-              : <><b>Before you check out,</b> update the status and remarks of today's work.</>}
+        <div style={{ marginBottom: 14, padding: "12px 16px", borderRadius: 12, background: me.day_state === "no_work" && morningLate ? "#fef2f2" : "#fffbeb", border: `1px solid ${me.day_state === "no_work" && morningLate ? "#fecaca" : "#fde68a"}`, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <TbMoonStars size={20} color={me.day_state === "no_work" && morningLate ? "#b91c1c" : "#b45309"} />
+          <div style={{ flex: 1, minWidth: 200, fontSize: 13.5, color: me.day_state === "no_work" && morningLate ? "#991b1b" : "#92400e" }}>
+            {me.day_state === "no_work" ? (morningLate ? <><b>Morning work update is late.</b> Add today's work now — the morning report went out at 11:30 AM.</> : <><b>Morning update:</b> after checking in, add today's work before 11:30 AM.</>)
+              : <><b>Evening update:</b> update the status and remarks of today's work, then check out.</>}
           </div>
           {me.day_state === "no_work"
             ? <button className="btn" onClick={() => setShowAdd(true)}>Add work</button>
