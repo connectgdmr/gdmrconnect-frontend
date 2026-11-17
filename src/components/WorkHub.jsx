@@ -523,6 +523,7 @@ function TeamItem({ item, plan, headers, onChanged }) {
 function AddWork({ headers, onClose, onCreated }) {
   const [f, setF] = useState({ title: "", deadline: "", description: "", client: "" });
   const [clients, setClients] = useState([]);
+  const [addingClient, setAddingClient] = useState(false);
   const [people, setPeople] = useState([]);
   const [picked, setPicked] = useState([]);
   const [others, setOthers] = useState(true);
@@ -542,6 +543,18 @@ function AddWork({ headers, onClose, onCreated }) {
   useEffect(() => {
     fetch(`${BASE}/clients`, { headers }).then(r => (r.ok ? r.json() : [])).then(d => setClients(Array.isArray(d) ? d.map(c => c.name).filter(Boolean) : [])).catch(() => {});
   }, [headers]);
+  const clientName = f.client.trim();
+  const newClient = clientName && !clients.some(c => c.toLowerCase() === clientName.toLowerCase());
+  async function addClient() {
+    setErr(""); setAddingClient(true);
+    try {
+      const r = await fetch(`${BASE}/admin/clients`, { method: "POST", headers, body: JSON.stringify({ name: clientName }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.status === 409) { setClients(c => [...c, clientName]); return; }
+      if (!r.ok) return setErr(d.message || "Could not add the client.");
+      setClients(c => [...c, d.name || clientName]);
+    } catch { setErr("Network error."); } finally { setAddingClient(false); }
+  }
   const needle = q.trim().toLowerCase();
   // type any letters of a name or department: matches anywhere, names starting with them come first
   const list = !needle ? [] : people.filter(p => !p.me && ( `${p.name} ${p.department}`.toLowerCase().includes(needle)))
@@ -553,6 +566,7 @@ function AddWork({ headers, onClose, onCreated }) {
     if (!f.title.trim()) return setErr("Write what needs to be done.");
     if (!f.deadline) return setErr("A deadline is required.");
     if (f.deadline < todayISO()) return setErr("The deadline can't be in the past.");
+    if (newClient) return setErr(`“${clientName}” isn't a client yet — click “Add as new client”, or clear the client field.`);
     setSaving(true);
     try {
       const r = await fetch(`${BASE}/work-tasks`, { method: "POST", headers, body: JSON.stringify({ ...f, assignee_ids: picked }) });
@@ -577,6 +591,12 @@ function AddWork({ headers, onClose, onCreated }) {
             <input className="modern-input" style={{ margin: "4px 0 0" }} list="work-clients-list" maxLength={200} placeholder="Pick a client or type a new one" value={f.client} onChange={e => setF({ ...f, client: e.target.value })} />
             <datalist id="work-clients-list">{clients.map(c => <option key={c} value={c} />)}</datalist>
           </label>
+          {newClient && (
+            <div style={{ marginTop: -6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "7px 10px", fontSize: 12.5, color: "#92400e" }}>
+              <span>“{clientName}” isn't in your client list.</span>
+              <button type="button" className="btn" style={{ fontSize: 12, padding: "5px 12px" }} onClick={addClient} disabled={addingClient}>{addingClient ? "Adding…" : "Add as new client"}</button>
+            </div>
+          )}
           <textarea className="modern-input" rows={2} style={{ margin: 0 }} placeholder="Details (optional)" maxLength={2000} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />
           <div>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>For: <span style={{ color: "#0f172a" }}>{picked.length ? `${picked.length} selected` : "just me"}</span>{" "}
