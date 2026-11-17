@@ -14,7 +14,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const fmt = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
 const Pill = ({ s }) => { const [c, bg] = COLORS[s] || COLORS.Pending; return <span style={{ fontSize: 11, fontWeight: 700, color: c, background: bg, border: `1px solid ${c}33`, borderRadius: 7, padding: "2px 9px", whiteSpace: "nowrap" }}>{s}</span>; };
 
-export default function WorkTasks({ token, role, initialView = "mine" }) {
+export default function WorkTasks({ token, role, initialView = "mine", daily = null, dailyDate = "" }) {
   const canSeeTeam = role === "admin" || role === "owner" || role === "manager";
   const [view, setView] = useState(canSeeTeam && (initialView === "team" || initialView === "ongoing") ? "ongoing" : "mine");
   const [rows, setRows] = useState([]);
@@ -41,8 +41,9 @@ export default function WorkTasks({ token, role, initialView = "mine" }) {
       const ds = new Set((t.assignees || []).map(a => ((a.department_list && a.department_list[0]) || a.department || "Unassigned")));
       (ds.size ? [...ds] : ["Unassigned"]).forEach(d => { (g[d] = g[d] || []).push(t); });
     });
+    Object.keys(daily || {}).forEach(d => { g[d] = g[d] || []; });          // departments that only have daily work still show up
     return Object.entries(g).sort(([a], [b]) => a.localeCompare(b)).map(([d, ts]) => [d, [...ts].sort((x, y) => String(x.deadline).localeCompare(String(y.deadline)))]);
-  }, [rows, view]);
+  }, [rows, view, daily]);
 
   const counts = useMemo(() => ({
     week: rows.filter(t => t.status !== "Completed" && t.deadline && t.deadline >= todayISO() && t.deadline <= new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10)).length,
@@ -88,7 +89,7 @@ export default function WorkTasks({ token, role, initialView = "mine" }) {
       {msg && <div style={{ marginBottom: 12, padding: "8px 14px", borderRadius: 8, fontSize: 12.5, background: "#f0fdf4", color: "#166534" }}>{msg}</div>}
 
       {loading ? <div className="loader" style={{ margin: "40px auto" }} />
-      : rows.length === 0 ? (
+      : rows.length === 0 && !(view === "ongoing" && groups.length > 0) ? (
         <div className="card" style={{ textAlign: "center", padding: "50px 20px", color: "#94a3b8" }}>
           <TbCalendarDue size={34} style={{ opacity: 0.25, marginBottom: 8 }} />
           <p style={{ margin: 0 }}>{view === "mine" ? "Nothing assigned to you right now." : "No work here yet."} Use <b>New Work</b> to create one.</p>
@@ -99,8 +100,9 @@ export default function WorkTasks({ token, role, initialView = "mine" }) {
             <div key={dept}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "0 0 8px 2px" }}>
                 <span style={{ fontWeight: 800, fontSize: 12.5, letterSpacing: 0.5, textTransform: "uppercase", color: "#475569" }}>{dept}</span>
-                <span style={{ fontSize: 12, color: "#94a3b8" }}>{list.length} ongoing{list.some(t => t.overdue) ? ` · ${list.filter(t => t.overdue).length} overdue` : ""}</span>
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>{list.length} assigned{list.some(t => t.overdue) ? ` · ${list.filter(t => t.overdue).length} overdue` : ""}{daily?.[dept] ? ` · ${daily[dept].rows.length} in progress today` : ""}</span>
               </div>
+              <DailyBlock info={daily?.[dept]} date={dailyDate} />
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {list.map(t => (
                   <TaskCard key={`${dept}-${t._id}`} t={t} headers={headers} onlyDept={dept} expanded={open === `${dept}-${t._id}`} onToggle={() => setOpen(open === `${dept}-${t._id}` ? null : `${dept}-${t._id}`)}
@@ -229,6 +231,40 @@ function TaskCard({ t, headers, expanded, onToggle, onChanged, onDelete, canDele
             </div>
           )}
           {canDelete && <div style={{ marginTop: 12, textAlign: "right" }}><button className="btn ghost" onClick={onDelete} style={{ fontSize: 12, color: "#b91c1c", borderColor: "#fecaca", display: "inline-flex", alignItems: "center", gap: 6 }}><TbTrash /> Delete</button></div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// What people in a department are working on today (their own daily plans), with their status and remarks.
+function DailyBlock({ info, date }) {
+  if (!info || (info.rows.length === 0 && info.missing.length === 0 && info.doneCount === 0)) return null;
+  const when = date && date !== todayISO() ? fmt(date) : "today";
+  return (
+    <div className="card" style={{ margin: "0 0 10px", padding: 0, borderLeft: "4px solid #94a3b8", overflow: "hidden" }}>
+      <div style={{ padding: "10px 14px", display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
+        <span style={{ fontWeight: 700, fontSize: 13.5, color: "#0f172a" }}>Daily work · {when}</span>
+        <span style={{ fontSize: 12, color: "#64748b" }}>{info.rows.length} in progress · {info.doneCount} done</span>
+      </div>
+      {info.rows.length > 0 && (
+        <div style={{ borderTop: "1px solid #f1f5f9" }}>
+          {info.rows.map((r, i) => (
+            <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 14px", borderBottom: i < info.rows.length - 1 ? "1px solid #f8fafc" : "none", flexWrap: "wrap" }}>
+              <div style={{ minWidth: 130, fontWeight: 600, fontSize: 13, color: "#334155" }}>{r.person}</div>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ fontSize: 13.5, color: "#1e293b" }}>{r.title}{r.client && <span style={{ marginLeft: 8, fontSize: 11, color: "#0f766e", fontWeight: 600 }}>🏢 {r.client}</span>}</div>
+                {r.remarks && <div style={{ fontSize: 12.5, color: "#475569", marginTop: 2 }}><b>Remarks:</b> {r.remarks}</div>}
+                {r.comment && <div style={{ fontSize: 12, color: "#166534", marginTop: 2 }}>💬 {r.comment}</div>}
+              </div>
+              <Pill s={r.status} />
+            </div>
+          ))}
+        </div>
+      )}
+      {info.missing.length > 0 && (
+        <div style={{ padding: "8px 14px", background: "#fffbeb", borderTop: "1px solid #fde68a", fontSize: 12.5, color: "#92400e" }}>
+          <b>Not planned yet:</b> {info.missing.join(", ")}
         </div>
       )}
     </div>

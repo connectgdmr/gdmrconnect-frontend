@@ -66,6 +66,20 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
     shown.forEach(p => { (g[p.department || "—"] = g[p.department || "—"] || []).push(p); });
     return Object.entries(g).sort((a, b) => a[0].localeCompare(b[0]));
   }, [shown]);
+  // What each person is working on in their daily plan (not yet completed), grouped by department — shown on the Work tab
+  const daily = useMemo(() => {
+    const byDept = {};
+    people.forEach(p => {
+      const d = p.department || "Unassigned";
+      const g = (byDept[d] = byDept[d] || { rows: [], missing: [], doneCount: 0 });
+      if (p.status === "needs_plan") g.missing.push(p.name);
+      (p.plan?.tasks || []).filter(t => String(t.title || "").trim()).forEach(t => {
+        if (done(t)) g.doneCount += 1;
+        else g.rows.push({ person: p.name, title: t.title, status: t.status || "Pending", remarks: t.remarks || "", client: t.client || "", comment: t.manager_comment?.text || "" });
+      });
+    });
+    return byDept;
+  }, [people]);
   const workingTotal = (totals.planned || 0) + (totals.needs_plan || 0) + (totals.not_in || 0);
 
   // comments -------------------------------------------------------------
@@ -108,13 +122,13 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
       </div>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 14, background: "#f1f5f9", borderRadius: 10, padding: 4, flexWrap: "wrap", width: "fit-content", maxWidth: "100%" }}>
-        {tabBtn("assigned", "Assigned work", canSeeAssigned)}
+        {tabBtn("assigned", "Work", canSeeAssigned)}
         {tabBtn("today", "Today")}
         {tabBtn("insights", "Insights")}
         {tabBtn("export", "Export")}
       </div>
 
-      {tab === "assigned" && <WorkTasks token={token} role={role} initialView="team" />}
+      {tab === "assigned" && <WorkTasks token={token} role={role} initialView="team" daily={daily} dailyDate={date} />}
 
       {(tab === "today" || tab === "export") && (
         <>
