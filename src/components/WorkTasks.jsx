@@ -16,7 +16,7 @@ const Pill = ({ s }) => { const [c, bg] = COLORS[s] || COLORS.Pending; return <s
 
 export default function WorkTasks({ token, role, initialView = "mine" }) {
   const canSeeTeam = role === "admin" || role === "owner" || role === "manager";
-  const [view, setView] = useState(initialView === "team" && canSeeTeam ? "team" : "mine");
+  const [view, setView] = useState(canSeeTeam && (initialView === "team" || initialView === "ongoing") ? "ongoing" : "mine");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(null);
@@ -34,7 +34,18 @@ export default function WorkTasks({ token, role, initialView = "mine" }) {
   }, [view, headers]);
   useEffect(() => { load(); }, [load]);
 
+  const groups = useMemo(() => {
+    if (view !== "ongoing") return [];
+    const g = {};
+    rows.forEach(t => {
+      const ds = new Set((t.assignees || []).map(a => ((a.department_list && a.department_list[0]) || a.department || "Unassigned")));
+      (ds.size ? [...ds] : ["Unassigned"]).forEach(d => { (g[d] = g[d] || []).push(t); });
+    });
+    return Object.entries(g).sort(([a], [b]) => a.localeCompare(b)).map(([d, ts]) => [d, [...ts].sort((x, y) => String(x.deadline).localeCompare(String(y.deadline)))]);
+  }, [rows, view]);
+
   const counts = useMemo(() => ({
+    week: rows.filter(t => t.status !== "Completed" && t.deadline && t.deadline >= todayISO() && t.deadline <= new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10)).length,
     open: rows.filter(t => t.status !== "Completed").length,
     overdue: rows.filter(t => t.overdue).length,
     today: rows.filter(t => t.due_today).length,
@@ -47,7 +58,9 @@ export default function WorkTasks({ token, role, initialView = "mine" }) {
     if (r.ok) { setMsg("Deleted."); load(); } else { const d = await r.json().catch(() => ({})); setMsg(d.message || "Could not delete."); }
   }
 
-  const tabs = [["mine", "Assigned to me"], ["created", "Created by me"], ...(canSeeTeam ? [["team", role === "manager" ? "My team" : "Everyone"]] : [])];
+  const tabs = canSeeTeam
+    ? [["ongoing", "Ongoing work"], ["mine", "Assigned to me"], ["created", "Created by me"], ["team", role === "manager" ? "All team work" : "All work"]]
+    : [["mine", "Assigned to me"], ["created", "Created by me"]];
 
   return (
     <div>
@@ -62,7 +75,9 @@ export default function WorkTasks({ token, role, initialView = "mine" }) {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginBottom: 14 }}>
-        {[["Open", counts.open, "#0f172a"], ["Due today", counts.today, "#d97706"], ["Overdue", counts.overdue, "#b91c1c"], ["Completed", counts.done, "#16a34a"]].map(([l, n, c]) => (
+        {(view === "ongoing"
+          ? [["Ongoing", counts.open, "#0f172a"], ["Due today", counts.today, "#d97706"], ["Due in 7 days", counts.week, "#2563eb"], ["Overdue", counts.overdue, "#b91c1c"]]
+          : [["Open", counts.open, "#0f172a"], ["Due today", counts.today, "#d97706"], ["Overdue", counts.overdue, "#b91c1c"], ["Completed", counts.done, "#16a34a"]]).map(([l, n, c]) => (
           <div key={l} className="card" style={{ padding: "10px 14px", margin: 0 }}>
             <div style={{ fontSize: 11.5, color: "#64748b", fontWeight: 600 }}>{l}</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: c }}>{n}</div>
@@ -78,6 +93,23 @@ export default function WorkTasks({ token, role, initialView = "mine" }) {
           <TbCalendarDue size={34} style={{ opacity: 0.25, marginBottom: 8 }} />
           <p style={{ margin: 0 }}>{view === "mine" ? "Nothing assigned to you right now." : "No work here yet."} Use <b>New Work</b> to create one.</p>
         </div>
+      ) : view === "ongoing" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {groups.map(([dept, list]) => (
+            <div key={dept}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "0 0 8px 2px" }}>
+                <span style={{ fontWeight: 800, fontSize: 12.5, letterSpacing: 0.5, textTransform: "uppercase", color: "#475569" }}>{dept}</span>
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>{list.length} ongoing{list.some(t => t.overdue) ? ` · ${list.filter(t => t.overdue).length} overdue` : ""}</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {list.map(t => (
+                  <TaskCard key={`${dept}-${t._id}`} t={t} headers={headers} onlyDept={dept} expanded={open === `${dept}-${t._id}`} onToggle={() => setOpen(open === `${dept}-${t._id}` ? null : `${dept}-${t._id}`)}
+                    onChanged={() => load()} onDelete={() => remove(t)} canDelete showPeople canComment />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {rows.map(t => (
@@ -92,7 +124,10 @@ export default function WorkTasks({ token, role, initialView = "mine" }) {
   );
 }
 
-function TaskCard({ t, headers, expanded, onToggle, onChanged, onDelete, canDelete, showPeople, canComment }) {
+function TaskCard({ t, headers, expanded, onToggle, onChanged, onDelete, canDelete, showPeople, canComment, onlyDept }) {
+  const people = onlyDept ? t.assignees.filter(a => ((a.department_list && a.department_list[0]) || a.department || "Unassigned") === onlyDept) : t.assignees;
+  const finished = people.filter(a => a.status === "Completed").length;
+  const left = t.deadline ? Math.round((new Date(`${t.deadline}T00:00:00`) - new Date(`${todayISO()}T00:00:00`)) / 864e5) : null;
   const [comment, setComment] = useState("");
   const [cErr, setCErr] = useState("");
   const [status, setStatus] = useState(t.my_status && t.my_status !== "Pending" ? t.my_status : "In Progress");
@@ -129,12 +164,13 @@ function TaskCard({ t, headers, expanded, onToggle, onChanged, onDelete, canDele
           <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{t.title}</div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4, fontSize: 12, color: "#64748b", alignItems: "center" }}>
             <span style={{ color: t.overdue ? "#b91c1c" : t.due_today ? "#d97706" : "#64748b", fontWeight: t.overdue || t.due_today ? 700 : 500, display: "inline-flex", alignItems: "center", gap: 4 }}>
-              {t.overdue && <TbAlertTriangle />} Due {fmt(t.deadline)}{t.overdue ? " · overdue" : t.due_today ? " · today" : ""}
+              {t.overdue && <TbAlertTriangle />} Due {fmt(t.deadline)}{t.overdue ? ` · ${Math.abs(left)} day(s) overdue` : t.due_today ? " · today" : left != null ? ` · ${left} day(s) left` : ""}
             </span>
             <span style={{ color: PRIORITY_COLOR[t.priority], fontWeight: 700 }}>{t.priority}</span>
             {t.client && <span style={{ color: "#0f766e", fontWeight: 600 }}>🏢 {t.client}</span>}
             <span>by {t.created_by_name}</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><TbUsers /> {t.assignees.map(a => a.name).join(", ")}</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><TbUsers /> {people.map(a => a.name).join(", ")}</span>
+            <span style={{ fontWeight: 600 }}>{finished}/{people.length} done</span>
           </div>
         </div>
         {mine && <Pill s={t.my_status} />}
@@ -147,10 +183,11 @@ function TaskCard({ t, headers, expanded, onToggle, onChanged, onDelete, canDele
         <div style={{ padding: "0 14px 14px", borderTop: "1px solid #f1f5f9" }}>
           {t.description && <p style={{ fontSize: 13, color: "#334155", margin: "10px 0" }}>{t.description}</p>}
 
+          <Insight taskId={t._id} headers={headers} updates={t.updates.length} />
           {(showPeople || t.assignees.length > 1) && (
             <table className="styled-table-global" style={{ width: "100%", marginTop: 8 }}>
-              <thead><tr><th>Person</th><th>Department</th><th>Status</th><th>Latest remarks</th></tr></thead>
-              <tbody>{t.assignees.map(a => (
+              <thead><tr><th>Doing it</th><th>Department</th><th>Status</th><th>Latest remarks</th></tr></thead>
+              <tbody>{people.map(a => (
                 <tr key={a.user_id}><td style={{ fontWeight: 600 }}>{a.name}</td><td style={{ fontSize: 12.5, color: "#64748b" }}>{a.department || "—"}</td><td><Pill s={a.status} /></td><td style={{ fontSize: 12.5 }}>{a.remarks || "—"}</td></tr>
               ))}</tbody>
             </table>
@@ -194,6 +231,25 @@ function TaskCard({ t, headers, expanded, onToggle, onChanged, onDelete, canDele
           {canDelete && <div style={{ marginTop: 12, textAlign: "right" }}><button className="btn ghost" onClick={onDelete} style={{ fontSize: 12, color: "#b91c1c", borderColor: "#fecaca", display: "inline-flex", alignItems: "center", gap: 6 }}><TbTrash /> Delete</button></div>}
         </div>
       )}
+    </div>
+  );
+}
+
+function Insight({ taskId, headers, updates }) {
+  const [text, setText] = useState(null);
+  const [ai, setAi] = useState(false);
+  useEffect(() => {
+    let live = true;
+    setText(null);
+    fetch(`${BASE}/work-tasks/${taskId}/insight`, { headers }).then(r => (r.ok ? r.json() : null))
+      .then(d => { if (live) { setText(d?.insight || ""); setAi(!!d?.ai); } }).catch(() => { if (live) setText(""); });
+    return () => { live = false; };
+  }, [taskId, updates, headers]);
+  if (text === "") return null;
+  return (
+    <div style={{ margin: "10px 0", padding: "10px 12px", borderRadius: 10, background: "#f5f3ff", border: "1px solid #ddd6fe", color: "#4c1d95", fontSize: 13, lineHeight: 1.5 }}>
+      <div style={{ fontWeight: 700, fontSize: 11.5, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 3 }}>{ai ? "AI insight" : "Quick read"}</div>
+      {text === null ? "Reading the latest updates…" : text}
     </div>
   );
 }

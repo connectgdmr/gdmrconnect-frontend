@@ -29,7 +29,8 @@ const nice = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { 
 const done = (t) => ["completed", "done"].includes(String(t.status || "").toLowerCase());
 
 export default function AdminWorkByTeam({ token, role = "admin" }) {
-  const [tab, setTab] = useState("today");
+  const canSeeAssigned = ["admin", "owner", "manager"].includes(role);
+  const [tab, setTab] = useState(canSeeAssigned ? "assigned" : "today");
   const [date, setDate] = useState(isoToday());
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +40,6 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
   const [filter, setFilter] = useState("all");
   const [expanded, setExpanded] = useState(null);
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}`, "Content-Type": "application/json" }), [token]);
-  const canSeeAssigned = ["admin", "owner", "manager"].includes(role);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -108,8 +108,8 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
       </div>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 14, background: "#f1f5f9", borderRadius: 10, padding: 4, flexWrap: "wrap", width: "fit-content", maxWidth: "100%" }}>
-        {tabBtn("today", "Today")}
         {tabBtn("assigned", "Assigned work", canSeeAssigned)}
+        {tabBtn("today", "Today")}
         {tabBtn("insights", "Insights")}
         {tabBtn("export", "Export")}
       </div>
