@@ -319,7 +319,7 @@ export default function ClientsWorkspace({ token, api, ownDepartments }) {
 
 function ClientDetail({ clientId, baseUrl, headers, jsonHeaders, onBack }) {
   const [client, setClient]   = useState(null);
-  const [tab, setTab]         = useState("files");
+  const [tab, setTab]         = useState("updates");
 
   function loadClient() {
     fetch(`${baseUrl}/api/clients/${clientId}`, { headers })
@@ -343,14 +343,14 @@ function ClientDetail({ clientId, baseUrl, headers, jsonHeaders, onBack }) {
       </div>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "#f1f5f9", borderRadius: 10, padding: 4, width: "fit-content" }}>
-        <button onClick={() => setTab("files")} style={{
-          padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
-          background: tab === "files" ? "var(--red)" : "transparent", color: tab === "files" ? "#fff" : "#64748b",
-        }}>Files</button>
         <button onClick={() => setTab("updates")} style={{
           padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
           background: tab === "updates" ? "var(--red)" : "transparent", color: tab === "updates" ? "#fff" : "#64748b",
         }}>Work Updates</button>
+        <button onClick={() => setTab("files")} style={{
+          padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13,
+          background: tab === "files" ? "var(--red)" : "transparent", color: tab === "files" ? "#fff" : "#64748b",
+        }}>Files</button>
       </div>
 
       {tab === "files"
