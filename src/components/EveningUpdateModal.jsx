@@ -24,7 +24,7 @@ export default function EveningUpdateModal({ token, date, onClose, onDone }) {
       fetch(`${BASE}/work-tasks?view=mine`, { headers }).then(r => (r.ok ? r.json() : [])),
     ]).then(([p, a]) => {
       setPlan(p);
-      setRows((p?.tasks || []).filter(t => String(t.title || "").trim()).map(t => ({ id: t.id || t._id, title: t.title, client: t.client, status: t.status || "Pending", remarks: t.remarks || "" })));
+      setRows((p?.status === "submitted" ? (p?.tasks || []) : []).filter(t => String(t.title || "").trim()).map(t => ({ id: t.id || t._id, title: t.title, client: t.client, status: t.status || "Pending", remarks: t.remarks || "" })));
       setAssigned((Array.isArray(a) ? a : []).filter(t => t.my_status && t.my_status !== "Completed").map(t => ({
         id: t._id, title: t.title, deadline: t.deadline, overdue: t.overdue, status: t.my_status === "Pending" ? "In Progress" : t.my_status, remarks: "", updatedToday: t.updated_today,
       })));
@@ -88,14 +88,14 @@ export default function EveningUpdateModal({ token, date, onClose, onDone }) {
 
         <div style={{ padding: 20, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           {loading ? <div className="loader" style={{ margin: "30px auto" }} />
-          : !plan || plan.status !== "submitted" ? (
+          : (!plan || plan.status !== "submitted") && assigned.length === 0 ? (
             <div style={{ padding: 16, borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e", fontSize: 13.5 }}>
-              You haven't submitted today's work plan yet. Close this, add your tasks and press <b>Submit Plan</b>, then come back for the end-of-day update.
+              You haven't added any work today. Close this and use <b>Add work</b> (or submit your work plan on the Dashboard), then come back for the end-of-day update.
             </div>
           ) : (
             <>
-              <div style={{ fontWeight: 700, color: "#334155", fontSize: 13 }}>Today's plan ({rows.length})</div>
-              {rows.map(x => <Row key={x.id} x={x} onChange={patchRow} />)}
+              {rows.length > 0 && <div style={{ fontWeight: 700, color: "#334155", fontSize: 13 }}>Today's plan ({rows.length})</div>}
+              {plan?.status === "submitted" && rows.map(x => <Row key={x.id} x={x} onChange={patchRow} />)}
               {assigned.length > 0 && (
                 <>
                   <div style={{ fontWeight: 700, color: "#334155", fontSize: 13, marginTop: 6 }}>Work assigned to you ({assigned.length})</div>
@@ -111,7 +111,7 @@ export default function EveningUpdateModal({ token, date, onClose, onDone }) {
 
         <div style={{ padding: "12px 20px", borderTop: "1px solid #eef2f6", display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn" onClick={submit} disabled={saving || loading || !plan || plan.status !== "submitted"}>{saving ? "Saving…" : "Submit update"}</button>
+          <button className="btn" onClick={submit} disabled={saving || loading || ((!plan || plan.status !== "submitted") && assigned.length === 0)}>{saving ? "Saving…" : "Submit update"}</button>
         </div>
       </div>
     </div>

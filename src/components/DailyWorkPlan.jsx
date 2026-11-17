@@ -17,7 +17,7 @@ const STATUS_META = (s) => TASK_STATUSES.find(x => x.v === s) || TASK_STATUSES[0
 // priority/est_time/project are kept in the data model (older payloads may still carry
 // them, and Work History/reporting still reads them) but are no longer shown in this
 // entry form — work_type + client now carry that classification instead.
-const blankTask = () => ({ id: Date.now() + Math.random(), title: "", work_type: "", priority: "Medium", est_time: "", project: "", client: "", status: "Pending", remarks: "" });
+const blankTask = () => ({ id: Date.now() + Math.random(), title: "", work_type: "", priority: "Medium", est_time: "", project: "", client: "", status: "Pending", remarks: "", deadline: new Date().toISOString().slice(0, 10) });
 // Preserve the backend's task identifier so per-task status updates target the
 // right task (otherwise the client-only random id never matches server-side).
 const normalizeTasks = (raw = []) => raw.map(t => { const b = blankTask(); return { ...b, ...t, id: t.id ?? t._id ?? b.id }; });
@@ -304,6 +304,9 @@ export default function DailyWorkPlan({ token, user }) {
                   </select>
                 )}
               </div>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 8, margin: "8px 0 0", fontSize: 12, fontWeight: 600, color: "#475569" }}>Deadline
+                <input type="date" className="modern-input" style={{ margin: 0, fontSize: 12.5, width: 150 }} value={t.deadline || today} min={today} onChange={e => updateTask(t.id, { deadline: e.target.value || today })} />
+              </label>
               <input className="modern-input" style={{ margin: "8px 0 0", fontSize: 12.5 }} placeholder="Remarks (optional now — required at end of day if not completed)"
                 value={t.remarks || ""} maxLength={1000} onChange={e => updateTask(t.id, { remarks: e.target.value })} />
             </div>
