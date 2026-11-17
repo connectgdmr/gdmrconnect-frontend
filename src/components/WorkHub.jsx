@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   TbPlus, TbX, TbChevronDown, TbChevronRight, TbMoonStars, TbCircleCheck, TbAlertTriangle, TbMessageDots,
-  TbDownload, TbSparkles, TbChecklist, TbSearch,
+  TbDownload, TbSparkles, TbChecklist, TbSearch, TbFileTypePdf, TbFileTypeXls,
 } from "react-icons/tb";
 import { API_URL as BASE } from "../api";
+import { escHtml } from "../utils/security";
 import EveningUpdateModal from "./EveningUpdateModal";
 
 // One Work page for everyone.
@@ -40,6 +41,7 @@ export default function WorkHub({ token, role = "employee" }) {
   const [showAdd, setShowAdd] = useState(false);
   const [showDay, setShowDay] = useState(false);
   const [msg, setMsg] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
 
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -69,13 +71,36 @@ export default function WorkHub({ token, role = "employee" }) {
   const showMine = !isTop || me.items.length > 0;
   const needsDay = !isTop && me.day_state && me.day_state !== "ok";
 
-  function exportCSV() {
-    const rows = [["Department", "Person", "Work", "Deadline", "Status", "Remarks"]];
-    (team?.people || []).forEach(p => p.items.forEach(i => rows.push([p.department, p.name, i.title, i.deadline, i.status, i.remarks || ""])));
-    const csv = rows.map(r => r.map(c => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  // rows for both downloads: one line per piece of work
+  const exportRows = () => {
+    const rows = [["Department", "Person", "Day status", "Work", "Deadline", "Status", "Remarks"]];
+    (team?.people || []).forEach(p => {
+      const st = (PERSON[p.status] || PERSON.off).t;
+      if (p.items.length === 0) rows.push([p.department, p.name, st, "—", "", "", ""]);
+      p.items.forEach(i => rows.push([p.department, p.name, st, i.title, i.deadline || "", i.status, i.remarks || ""]));
+    });
+    return rows;
+  };
+  const tableHtml = (rows, headStyle, cellStyle) => `<table style="border-collapse:collapse;width:100%"><thead><tr>${rows[0].map(h => `<th style="${headStyle}">${escHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.slice(1).map(r => `<tr>${r.map(c => `<td style="${cellStyle}">${escHtml(String(c ?? ""))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  function downloadExcel() {
+    setExportOpen(false);
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><h3>Work status — ${todayISO()}</h3>${tableHtml(exportRows(), "background:#e2e8f0;border:1px solid #94a3b8;padding:4px 8px;text-align:left", "border:1px solid #cbd5e1;padding:4px 8px")}</body></html>`;
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-    a.download = `work-${todayISO()}.csv`; a.click();
+    a.href = URL.createObjectURL(new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8" }));
+    a.download = `work-status-${todayISO()}.xls`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  function downloadPDF() {
+    setExportOpen(false);
+    const w = window.open("", "_blank", "width=1000,height=750");
+    if (!w) { setMsg("Allow pop-ups for this site to download the PDF."); return; }
+    const rows = exportRows();
+    w.document.write(`<html><head><title>Work status ${todayISO()}</title></head><body style="font-family:Arial,sans-serif;padding:18px;color:#0f172a">
+      <h2 style="margin:0 0 4px">Work status</h2><div style="color:#64748b;font-size:12px;margin-bottom:12px">${escHtml(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }))}${team ? ` · ${team.totals.updated}/${team.totals.people} updated · ${team.totals.open} ongoing · ${team.totals.overdue} overdue` : ""}</div>
+      ${tableHtml(rows, "text-align:left;padding:7px 8px;border-bottom:2px solid #334155;font-size:11px;text-transform:uppercase;color:#475569", "padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px;vertical-align:top")}
+      </body></html>`);
+    w.document.close();
+    setTimeout(() => { w.focus(); w.print(); }, 300);
   }
 
   return (
@@ -89,7 +114,20 @@ export default function WorkHub({ token, role = "employee" }) {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {team && <button className="btn ghost" onClick={exportCSV} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}><TbDownload /> Export</button>}
+          {team && (
+            <div style={{ position: "relative" }}>
+              <button className="btn ghost" onClick={() => setExportOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}><TbDownload /> Export <TbChevronDown size={12} /></button>
+              {exportOpen && (
+                <>
+                  <div onClick={() => setExportOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+                  <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 41, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 10px 28px rgba(15,23,42,.14)", minWidth: 190, overflow: "hidden" }}>
+                    <button onClick={downloadPDF} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "#0f172a", textAlign: "left" }}><TbFileTypePdf size={18} color="#dc2626" /> Download PDF</button>
+                    <button onClick={downloadExcel} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 14px", border: "none", borderTop: "1px solid #f1f5f9", background: "none", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "#0f172a", textAlign: "left" }}><TbFileTypeXls size={18} color="#16a34a" /> Download Excel (.xls)</button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           <button className="btn" onClick={() => setShowAdd(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}><TbPlus /> Add work</button>
         </div>
       </div>
