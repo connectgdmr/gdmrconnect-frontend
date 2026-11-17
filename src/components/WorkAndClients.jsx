@@ -4,6 +4,7 @@ import AdminWorkByTeam from "./AdminWorkByTeam";
 import WorkAnalytics from "./WorkAnalytics";
 import ClientsWorkspace from "./ClientsWorkspace";
 import GoalsBoard from "./GoalsBoard";
+import WorkTasks from "./WorkTasks";
 
 // "Work" (by-team for admin/manager, personal for an employee) and "Clients"
 // used to be two separate sidebar entries that were really two views into
@@ -37,6 +38,10 @@ export default function WorkAndClients({ token, api, user, role, ownDepartments,
         }}>
           {isPersonal ? <TbChartArea size={12} /> : <TbChecklist size={12} />} {isPersonal ? "My Work" : "Work by Team"}
         </button>
+        <button onClick={() => setTab("tasks")} style={{
+          padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 7,
+          background: tab === "tasks" ? "var(--red)" : "transparent", color: tab === "tasks" ? "#fff" : "#64748b",
+        }}><TbChecklist size={12} /> Tasks</button>
         <button onClick={() => setTab("clients")} style={{
           padding: "8px 18px", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 7,
           background: tab === "clients" ? "var(--red)" : "transparent", color: tab === "clients" ? "#fff" : "#64748b",
@@ -50,6 +55,7 @@ export default function WorkAndClients({ token, api, user, role, ownDepartments,
       </div>
 
       {tab === "work" && (isPersonal ? <WorkAnalytics token={token} user={user} /> : <AdminWorkByTeam token={token} role={role} />)}
+      {tab === "tasks" && <WorkTasks token={token} role={role} />}
       {tab === "clients" && <ClientsWorkspace token={token} api={api} ownDepartments={ownDepartments} />}
       {tab === "goals" && showGoals && <GoalsBoard token={token} />}
     </div>

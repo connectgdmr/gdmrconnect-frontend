@@ -42,7 +42,7 @@ export default function WorkHistory({ token, user }) {
   // Flatten day-plans into one row per task — matches the Date | Work Done | Type | Client | Status table
   const allRows = useMemo(() => plans.flatMap(p => (p.tasks || []).map(t => ({
     planId: p._id, date: p.date, taskId: t.id || t._id,
-    title: t.title, work_type: t.work_type || "", client: t.client || "", status: t.status || "Pending",
+    title: t.title, work_type: t.work_type || "", client: t.client || "", status: t.status || "Pending", remarks: t.remarks || "",
   }))), [plans]);
 
   const typeOptions = useMemo(() => [...new Set(allRows.map(r => r.work_type).filter(Boolean))].sort(), [allRows]);
@@ -189,6 +189,7 @@ export default function WorkHistory({ token, user }) {
                 <th>Type</th>
                 <th>Client</th>
                 <th>Status</th>
+                <th>Remarks</th>
                 <th></th>
               </tr>
             </thead>
@@ -235,6 +236,7 @@ export default function WorkHistory({ token, user }) {
                         </button>
                       )}
                     </td>
+                    <td style={{ fontSize: 12.5, color: "#475569", maxWidth: 260 }}>{r.remarks || <span style={{ color: "#cbd5e1" }}>—</span>}</td>
                   </tr>
                 );
               })}

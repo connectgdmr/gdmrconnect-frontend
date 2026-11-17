@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { TbPlus, TbX, TbCircleCheck, TbSend, TbChecklist, TbCopy, TbShare } from "react-icons/tb";
+import { TbPlus, TbX, TbCircleCheck, TbSend, TbChecklist, TbCopy, TbShare, TbMoonStars } from "react-icons/tb";
+import EveningUpdateModal from "./EveningUpdateModal";
 
 import { API_URL as BASE } from "../api";
 
@@ -16,7 +17,7 @@ const STATUS_META = (s) => TASK_STATUSES.find(x => x.v === s) || TASK_STATUSES[0
 // priority/est_time/project are kept in the data model (older payloads may still carry
 // them, and Work History/reporting still reads them) but are no longer shown in this
 // entry form — work_type + client now carry that classification instead.
-const blankTask = () => ({ id: Date.now() + Math.random(), title: "", work_type: "", priority: "Medium", est_time: "", project: "", client: "", status: "Pending" });
+const blankTask = () => ({ id: Date.now() + Math.random(), title: "", work_type: "", priority: "Medium", est_time: "", project: "", client: "", status: "Pending", remarks: "" });
 // Preserve the backend's task identifier so per-task status updates target the
 // right task (otherwise the client-only random id never matches server-side).
 const normalizeTasks = (raw = []) => raw.map(t => { const b = blankTask(); return { ...b, ...t, id: t.id ?? t._id ?? b.id }; });
@@ -35,6 +36,8 @@ export default function DailyWorkPlan({ token, user }) {
   const [workTypes, setWorkTypes] = useState(DEFAULT_WORK_TYPES);
   const [customStatusIds, setCustomStatusIds] = useState(new Set());
   const [sharing, setSharing]   = useState(false);
+  const [eveningDone, setEveningDone] = useState(false);
+  const [showEvening, setShowEvening] = useState(false);
 
   const department = Array.isArray(user?.department) ? user.department[0] : user?.department;
 
@@ -69,6 +72,7 @@ export default function DailyWorkPlan({ token, user }) {
           const existing = normalizeTasks(d.tasks);
           setTasks(carried.length ? [...existing, ...carried] : existing);
           setStatus(d.status || "draft");
+          setEveningDone(!!d.evening_submitted_at);
           setPlanId(d._id || null);
           setEditing(d.status !== "submitted" || carried.length > 0);
           if (carried.length) setMsg(`${carried.length} task(s) carried forward — review and submit.`);
@@ -141,6 +145,13 @@ export default function DailyWorkPlan({ token, user }) {
     finally { setSharing(false); }
   }
 
+  useEffect(() => {
+    const open = () => setShowEvening(true);
+    window.addEventListener("gdmr:open-evening-update", open);
+    if (window.__gdmrOpenEvening) { window.__gdmrOpenEvening = false; setShowEvening(true); }
+    return () => window.removeEventListener("gdmr:open-evening-update", open);
+  }, []);
+
   if (loading) return null;
 
   const completed = tasks.filter(t => t.status === "Completed").length;
@@ -157,12 +168,17 @@ export default function DailyWorkPlan({ token, user }) {
             <h4 style={{ margin: 0, fontSize: 15, color: "#0f172a" }}>What are you working on right now?</h4>
             <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
               {status === "submitted"
-                ? <span style={{ color: "#16a34a", fontWeight: 600 }}><TbCircleCheck size={11} /> Plan submitted · {completed}/{withTitles} done</span>
-                : status === "draft" ? "Draft saved — submit when ready" : "Log it so your manager knows your focus"}
+                ? <span style={{ color: "#16a34a", fontWeight: 600 }}><TbCircleCheck size={11} /> Plan submitted · {completed}/{withTitles} done{eveningDone ? " · end-of-day update done" : " · end-of-day update pending"}</span>
+                : status === "draft" ? "Draft saved — submit when ready" : "After you check in, submit your plan. Before you check out, update the status of each task."}
             </div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          {status === "submitted" && (
+            <button className="btn" style={{ fontSize: 12, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }} onClick={() => setShowEvening(true)}>
+              <TbMoonStars size={12} /> {eveningDone ? "Edit end-of-day update" : "End-of-day update"}
+            </button>
+          )}
           <button className="btn ghost" style={{ fontSize: 12, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }} onClick={copyStatus} disabled={withTitles === 0}>
             <TbCopy size={10} /> Copy Status
           </button>
@@ -209,6 +225,7 @@ export default function DailyWorkPlan({ token, user }) {
                     {t.work_type && <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", borderRadius: 8, padding: "1px 8px" }}>{t.work_type}</span>}
                     {t.client && <span style={{ fontSize: 11, color: "#0f766e", fontWeight: 600 }}>🏢 {t.client}</span>}
                   </div>
+                  {t.remarks && <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>Remarks: {t.remarks}</div>}
                 </div>
                 {/* Status selector — change as you work */}
                 {(customStatusIds.has(t.id) || (t.status && !TASK_STATUSES.some(s => s.v === t.status))) ? (
@@ -282,6 +299,8 @@ export default function DailyWorkPlan({ token, user }) {
                   </select>
                 )}
               </div>
+              <input className="modern-input" style={{ margin: "8px 0 0", fontSize: 12.5 }} placeholder="Remarks (optional now — required at end of day if not completed)"
+                value={t.remarks || ""} maxLength={1000} onChange={e => updateTask(t.id, { remarks: e.target.value })} />
             </div>
           );
         })}
@@ -302,6 +321,10 @@ export default function DailyWorkPlan({ token, user }) {
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
           <button className="btn ghost" style={{ fontSize: 12, padding: "6px 12px" }} onClick={() => setEditing(true)}>Edit Plan</button>
         </div>
+      )}
+      {showEvening && (
+        <EveningUpdateModal token={token} date={today} onClose={() => setShowEvening(false)}
+          onDone={(plan) => { setShowEvening(false); setEveningDone(true); if (plan?.tasks) setTasks(normalizeTasks(plan.tasks)); setMsg("End-of-day update saved — you can check out now."); }} />
       )}
     </div>
   );

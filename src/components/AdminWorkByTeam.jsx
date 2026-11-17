@@ -65,8 +65,8 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
 
   // ── Exports ──
   function exportRows() {
-    const rows = [["Employee", "Department", "Check-in", "Task", "Priority", "Project", "Status"]];
-    filtered.forEach(p => (p.tasks || []).forEach(t => rows.push([p.employee_name, p.department || "", p.check_in_time || "", t.title, t.priority || "", t.project || "", t.status || "Pending"])));
+    const rows = [["Employee", "Department", "Check-in", "Task", "Priority", "Project", "Status", "Remarks"]];
+    filtered.forEach(p => (p.tasks || []).forEach(t => rows.push([p.employee_name, p.department || "", p.check_in_time || "", t.title, t.priority || "", t.project || "", t.status || "Pending", t.remarks || ""])));
     return rows;
   }
   function download(content, filename, type) {
@@ -232,6 +232,7 @@ export default function AdminWorkByTeam({ token, role = "admin" }) {
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 13, color: "#334155" }}>{t.title}</div>
                                 {(t.project || t.est_time) && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{t.project} {t.est_time && `· ${t.est_time}`}</div>}
+                                {t.remarks && <div style={{ fontSize: 12, color: "#475569", marginTop: 3 }}><b>Remarks:</b> {t.remarks}</div>}
                               </div>
                               <span style={{ fontSize: 10.5, fontWeight: 700, color: st.c, background: st.b, padding: "2px 8px", borderRadius: 4, flexShrink: 0 }}>{t.status || "Pending"}</span>
                             </div>

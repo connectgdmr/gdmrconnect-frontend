@@ -786,6 +786,13 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
       if (err?.blocked) {
         alert(err.message);
         closeCamera();
+      } else if (/work update required/i.test(err?.message || "")) {
+        // Check-out is held until the end-of-day work update is submitted: take the person straight to it.
+        closeCamera();
+        window.__gdmrOpenEvening = true;
+        setView("dashboard");
+        window.dispatchEvent(new Event("gdmr:open-evening-update"));
+        alert(err.message);
       } else {
         alert("Error submitting attendance: " + (err.message || ""));
       }
