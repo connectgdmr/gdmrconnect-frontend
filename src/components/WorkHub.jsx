@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   TbPlus, TbX, TbChevronDown, TbChevronRight, TbMoonStars, TbCircleCheck, TbAlertTriangle, TbMessageDots,
-  TbDownload, TbSparkles, TbChecklist, TbSearch, TbFileTypePdf, TbFileTypeXls,
+  TbDownload, TbSparkles, TbChecklist, TbSearch, TbFileTypePdf, TbFileTypeXls, TbHistory,
 } from "react-icons/tb";
 import { API_URL as BASE } from "../api";
 import { escHtml } from "../utils/security";
@@ -23,6 +23,10 @@ const PERSON = {
 };
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const daysBetween = (a, b) => Math.round((new Date(`${a}T00:00:00`) - new Date(`${b}T00:00:00`)) / 864e5);
+const fmtTime = (s) => {                       // "2026-11-17T10:12:18+05:30" -> "10:12" (the company's own clock)
+  const m = String(s).match(/T(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : s;
+};
 const niceDate = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—");
 
 function DeadlineChip({ item }) {
@@ -166,6 +170,7 @@ export default function WorkHub({ token, role = "employee" }) {
 // ── my work ─────────────────────────────────────────────────────────────────
 function MyWork({ items, headers, onChanged, onAdd, onDay, showDay, title }) {
   const [showDone, setShowDone] = useState(false);
+  const [hist, setHist] = useState(false);
   const open = items.filter(i => !i.done);
   const groups = [
     ["Overdue", open.filter(i => i.overdue), "#b91c1c"],
@@ -177,7 +182,10 @@ function MyWork({ items, headers, onChanged, onAdd, onDay, showDay, title }) {
     <div style={{ marginTop: title ? 22 : 0 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 2px 10px", flexWrap: "wrap", gap: 8 }}>
         <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a" }}>{title || "My work"} <span style={{ fontWeight: 500, color: "#94a3b8", fontSize: 13 }}>· {open.length} open</span></div>
-        {showDay && items.length > 0 && <button className="btn ghost" onClick={onDay} style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}><TbMoonStars /> Update my day</button>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn ghost" onClick={() => setHist(true)} style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}><TbHistory /> My history</button>
+          {showDay && items.length > 0 && <button className="btn ghost" onClick={onDay} style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}><TbMoonStars /> Update my day</button>}
+        </div>
       </div>
       {items.length === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8" }}>
@@ -204,6 +212,7 @@ function MyWork({ items, headers, onChanged, onAdd, onDay, showDay, title }) {
           )}
         </>
       )}
+      {hist && <HistoryModal headers={headers} userId={null} name="My" onClose={() => setHist(false)} />}
     </div>
   );
 }
@@ -395,6 +404,7 @@ function DeptBlock({ name, people, headers, onChanged, startOpen }) {
 
 function PersonBlock({ p, headers, onChanged }) {
   const [open, setOpen] = useState(false);
+  const [hist, setHist] = useState(false);
   const m = PERSON[p.status] || PERSON.off;
   return (
     <div style={{ borderBottom: "1px solid #f6f8fa" }}>
@@ -402,11 +412,14 @@ function PersonBlock({ p, headers, onChanged }) {
         <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--brand-light)", color: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13 }}>{p.name?.[0]?.toUpperCase()}</div>
         <div style={{ flex: 1, minWidth: 150 }}>
           <div style={{ fontWeight: 700, fontSize: 13.5, color: "#0f172a" }}>{p.name}{p.role === "manager" && <span style={{ marginLeft: 6, fontSize: 10.5, color: "#64748b" }}>Manager</span>}</div>
-          <div style={{ fontSize: 12, color: "#64748b" }}>{p.open} open{p.overdue ? ` · ${p.overdue} overdue` : ""}{p.check_in_time ? ` · in at ${p.check_in_time}` : ""}</div>
+          <div style={{ fontSize: 12, color: "#64748b" }}>{p.open} open{p.overdue ? ` · ${p.overdue} overdue` : ""}{p.check_in_time ? ` · in at ${fmtTime(p.check_in_time)}` : ""}</div>
         </div>
+        <button className="btn ghost" onClick={e => { e.stopPropagation(); setHist(true); }} title="Work history"
+          style={{ fontSize: 12, padding: "4px 10px", display: "flex", alignItems: "center", gap: 5 }}><TbHistory /> History</button>
         <span style={{ fontSize: 11.5, fontWeight: 700, color: m.c, background: m.b, border: `1px solid ${m.e}`, borderRadius: 7, padding: "3px 10px", whiteSpace: "nowrap" }}>{m.t}</span>
         {open ? <TbChevronDown color="#94a3b8" /> : <TbChevronRight color="#94a3b8" />}
       </div>
+      {hist && <HistoryModal headers={headers} userId={p.user_id} name={p.name} onClose={() => setHist(false)} />}
       {open && (
         <div style={{ padding: "0 16px 12px 40px" }}>
           {p.items.length === 0 ? <div style={{ fontSize: 13, color: "#94a3b8", padding: "6px 0" }}>No work added yet today.</div>
@@ -414,6 +427,69 @@ function PersonBlock({ p, headers, onChanged }) {
           {p.day_note && <div style={{ marginTop: 6, padding: "7px 11px", background: "#f5f3ff", borderRadius: 8, fontSize: 12.5, color: "#4c1d95" }}><b>End-of-day note:</b> {p.day_note}</div>}
         </div>
       )}
+    </div>
+  );
+}
+
+// A person's work, day by day: what was on their plan and every status/remark they posted on assigned work.
+function HistoryModal({ headers, userId, name, onClose }) {
+  const [days, setDays] = useState(30);
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    let live = true;
+    setData(null); setErr("");
+    fetch(`${BASE}/work/history?days=${days}${userId ? `&user_id=${userId}` : ""}`, { headers })
+      .then(async r => { const d = await r.json().catch(() => ({})); if (!live) return; if (r.ok) setData(d); else setErr(d.message || "Could not load the history."); })
+      .catch(() => live && setErr("Network error."));
+    return () => { live = false; };
+  }, [days, userId, headers]);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const dayLabel = (d) => new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.5)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" style={{ background: "#fff", borderRadius: 16, width: "min(860px, 100%)", maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 60px rgba(15,23,42,.28)" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #eef2f6", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontWeight: 800, fontSize: 17 }}>{userId ? `${name} — work history` : "My work history"}</div>
+            {data && <div style={{ fontSize: 12.5, color: "#64748b" }}>{data.person.department}{data.person.department ? " · " : ""}{data.totals.days_with_work} day(s) with work · {data.totals.entries} entries · {data.totals.completed} completed</div>}
+          </div>
+          <select className="modern-input" value={days} onChange={e => setDays(Number(e.target.value))} style={{ margin: 0, width: 150 }}>
+            <option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option>
+          </select>
+          <button onClick={onClose} aria-label="Close" style={{ border: "none", background: "#f1f5f9", borderRadius: 8, width: 32, height: 32, cursor: "pointer" }}><TbX /></button>
+        </div>
+        <div style={{ overflow: "auto", padding: "4px 20px 20px" }}>
+          {err ? <div style={{ padding: 30, textAlign: "center", color: "#b91c1c" }}>{err}</div>
+          : !data ? <div className="loader" style={{ margin: "40px auto" }} />
+          : data.history.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>No work recorded in this period.</div>
+          : data.history.map(day => (
+            <div key={day.date} style={{ marginTop: 16 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, borderBottom: "1px solid #eef2f6", paddingBottom: 5, marginBottom: 4 }}>
+                <span style={{ fontWeight: 800, fontSize: 13.5, color: "#0f172a" }}>{dayLabel(day.date)}</span>
+                <span style={{ fontSize: 12, color: "#64748b" }}>{day.completed} of {day.entries.length} completed</span>
+              </div>
+              {day.entries.map((e, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "7px 0", borderBottom: "1px solid #f8fafc", flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 220 }}>
+                    <div style={{ fontSize: 13.5, color: "#1e293b", fontWeight: 600 }}>{e.title}
+                      <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 700, color: e.kind === "assigned" ? "#6d28d9" : "#475569", background: e.kind === "assigned" ? "#f5f3ff" : "#f1f5f9", borderRadius: 5, padding: "1px 7px" }}>{e.kind === "assigned" ? "Assigned" : "Daily plan"}</span>
+                      {e.client && <span style={{ marginLeft: 8, fontSize: 11, color: "#0f766e", fontWeight: 600 }}>🏢 {e.client}</span>}
+                    </div>
+                    {e.remarks && <div style={{ fontSize: 12.5, color: "#475569", marginTop: 2 }}><b>Remarks:</b> {e.remarks}</div>}
+                  </div>
+                  <span style={{ fontSize: 12, color: "#64748b", whiteSpace: "nowrap" }}>{e.deadline ? `due ${niceDate(e.deadline)}` : ""}</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: SC[e.status] || "#334155", border: `1px solid ${(SC[e.status] || "#334155")}33`, borderRadius: 7, padding: "2px 9px", whiteSpace: "nowrap" }}>{e.status}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
