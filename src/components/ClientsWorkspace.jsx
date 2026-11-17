@@ -536,7 +536,7 @@ function UpdatesTab({ clientId, baseUrl, headers, jsonHeaders, canWrite }) {
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0f766e", background: "#fff", padding: "2px 8px", borderRadius: 8, whiteSpace: "nowrap" }}>{u.status || "Pending"}</span>
               </div>
               <div style={{ fontSize: 11.5, color: "#0f766e", marginTop: 4 }}>
-                {u.employee_name || "—"}{u.work_type ? ` · ${u.work_type}` : ""} · {u.department || "—"} · {u.date || fmtWhen(u.at)}
+                {u.employee_name || "—"} · {u.department || "—"} · {u.date || fmtWhen(u.at)}
               </div>
             </div>
           ))}

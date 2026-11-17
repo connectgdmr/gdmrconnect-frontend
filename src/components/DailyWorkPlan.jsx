@@ -4,7 +4,6 @@ import EveningUpdateModal from "./EveningUpdateModal";
 
 import { API_URL as BASE } from "../api";
 
-const DEFAULT_WORK_TYPES = ["Development", "Service", "Support"];
 
 // ClickUp-style task statuses
 export const TASK_STATUSES = [
@@ -16,8 +15,8 @@ export const TASK_STATUSES = [
 const STATUS_META = (s) => TASK_STATUSES.find(x => x.v === s) || TASK_STATUSES[0];
 // priority/est_time/project are kept in the data model (older payloads may still carry
 // them, and Work History/reporting still reads them) but are no longer shown in this
-// entry form — work_type + client now carry that classification instead.
-const blankTask = () => ({ id: Date.now() + Math.random(), title: "", work_type: "", priority: "Medium", est_time: "", project: "", client: "", status: "Pending", remarks: "", deadline: new Date().toISOString().slice(0, 10) });
+// entry form — the client now carries that classification.
+const blankTask = () => ({ id: Date.now() + Math.random(), title: "", priority: "Medium", est_time: "", project: "", client: "", status: "Pending", remarks: "", deadline: new Date().toISOString().slice(0, 10) });
 // Preserve the backend's task identifier so per-task status updates target the
 // right task (otherwise the client-only random id never matches server-side).
 const normalizeTasks = (raw = []) => raw.map(t => { const b = blankTask(); return { ...b, ...t, id: t.id ?? t._id ?? b.id }; });
@@ -33,14 +32,12 @@ export default function DailyWorkPlan({ token, user }) {
   const [editing, setEditing]   = useState(true);
   const [msg, setMsg]           = useState("");
   const [clients, setClients]   = useState([]);
-  const [workTypes, setWorkTypes] = useState(DEFAULT_WORK_TYPES);
   const [customStatusIds, setCustomStatusIds] = useState(new Set());
   const [sharing, setSharing]   = useState(false);
   const [eveningDone, setEveningDone] = useState(false);
   const [planComment, setPlanComment] = useState("");
   const [showEvening, setShowEvening] = useState(false);
 
-  const department = Array.isArray(user?.department) ? user.department[0] : user?.department;
 
   // Pull any "continue previous work" tasks queued from Work History
   const drainCarryForward = () => {
@@ -56,14 +53,6 @@ export default function DailyWorkPlan({ token, user }) {
     // Clients for the dropdown
     fetch(`${BASE}/clients`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : []).then(d => setClients(Array.isArray(d) ? d : (d?.clients || []))).catch(() => {});
-
-    // Department-configured work types (falls back to defaults if not set up yet)
-    if (department) {
-      fetch(`${BASE}/departments/${encodeURIComponent(department)}/work-types`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { if (Array.isArray(d?.types) && d.types.length) setWorkTypes(d.types); })
-        .catch(() => {});
-    }
 
     fetch(`${BASE}/my/work-plan?date=${today}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
@@ -119,7 +108,7 @@ export default function DailyWorkPlan({ token, user }) {
     const dateLabel = new Date(today + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     const lines = [`My Work Status — ${dateLabel}`, ""];
     named.forEach((t, i) => {
-      const bits = [t.work_type, t.client].filter(Boolean).join(" · ");
+      const bits = [t.client].filter(Boolean).join(" · ");
       lines.push(`${i + 1}. [${t.status || "Pending"}] ${t.title}${bits ? ` (${bits})` : ""}`);
     });
     return lines.join("\n");
@@ -226,7 +215,6 @@ export default function DailyWorkPlan({ token, user }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 500, color: done ? "#94a3b8" : "#334155", textDecoration: done ? "line-through" : "none" }}>{t.title}</div>
                   <div style={{ display: "flex", gap: 10, marginTop: 3, flexWrap: "wrap" }}>
-                    {t.work_type && <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", borderRadius: 8, padding: "1px 8px" }}>{t.work_type}</span>}
                     {t.client && <span style={{ fontSize: 11, color: "#0f766e", fontWeight: 600 }}>🏢 {t.client}</span>}
                   </div>
                   {t.remarks && <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>Remarks: {t.remarks}</div>}
@@ -274,10 +262,6 @@ export default function DailyWorkPlan({ token, user }) {
                 {tasks.length > 1 && <button onClick={() => removeTask(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", flexShrink: 0 }}><TbX size={13} /></button>}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
-                <select className="modern-input" style={{ margin: 0, fontSize: 12.5 }} value={t.work_type} onChange={e => updateTask(t.id, { work_type: e.target.value })}>
-                  <option value="">Type</option>
-                  {workTypes.map(wt => <option key={wt} value={wt}>{wt}</option>)}
-                </select>
                 {clients.length > 0 ? (
                   <select className="modern-input" style={{ margin: 0, fontSize: 12.5 }} value={t.client} onChange={e => updateTask(t.id, { client: e.target.value })}>
                     <option value="">Client</option>

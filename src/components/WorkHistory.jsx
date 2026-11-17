@@ -13,10 +13,10 @@ const RANGES = [
 ];
 
 function toCSV(rows) {
-  const header = ["Date", "Work Done", "Type", "Client", "Status"];
+  const header = ["Date", "Work Done", "Client", "Status"];
   const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const lines = [header.map(esc).join(",")];
-  rows.forEach(r => lines.push([r.date, r.title, r.work_type, r.client, r.status].map(esc).join(",")));
+  rows.forEach(r => lines.push([r.date, r.title, r.client, r.status].map(esc).join(",")));
   return lines.join("\n");
 }
 
@@ -26,7 +26,6 @@ export default function WorkHistory({ token, user }) {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusF, setStatusF] = useState("all");
-  const [typeF, setTypeF]     = useState("all");
   const [clientF, setClientF] = useState("all");
   const [toast, setToast]   = useState("");
   const [customStatusIds, setCustomStatusIds] = useState(new Set());
@@ -42,10 +41,9 @@ export default function WorkHistory({ token, user }) {
   // Flatten day-plans into one row per task — matches the Date | Work Done | Type | Client | Status table
   const allRows = useMemo(() => plans.flatMap(p => (p.tasks || []).map(t => ({
     planId: p._id, date: p.date, taskId: t.id || t._id,
-    title: t.title, work_type: t.work_type || "", client: t.client || "", status: t.status || "Pending", remarks: t.remarks || "",
+    title: t.title, client: t.client || "", status: t.status || "Pending", remarks: t.remarks || "",
   }))), [plans]);
 
-  const typeOptions = useMemo(() => [...new Set(allRows.map(r => r.work_type).filter(Boolean))].sort(), [allRows]);
   const clientOptions = useMemo(() => [...new Set(allRows.map(r => r.client).filter(Boolean))].sort(), [allRows]);
   // Custom (non-standard) statuses that show up in the data, so the filter can find them too
   const customStatusOptions = useMemo(() => [...new Set(allRows.map(r => r.status).filter(s => s && !TASK_STATUSES.some(x => x.v === s)))].sort(), [allRows]);
@@ -53,7 +51,6 @@ export default function WorkHistory({ token, user }) {
   const rows = allRows
     .filter(r => !search || r.title.toLowerCase().includes(search.toLowerCase()))
     .filter(r => statusF === "all" || r.status === statusF)
-    .filter(r => typeF === "all" || r.work_type === typeF)
     .filter(r => clientF === "all" || r.client === clientF)
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
@@ -91,7 +88,7 @@ export default function WorkHistory({ token, user }) {
     try {
       const k = carryKey(user?._id);
       const q = JSON.parse(localStorage.getItem(k) || "[]");
-      q.push({ title: r.title, work_type: r.work_type || "", client: r.client || "" });
+      q.push({ title: r.title, client: r.client || "" });
       localStorage.setItem(k, JSON.stringify(q));
       setToast(`"${r.title}" added to today's plan — open your Dashboard to review & submit.`);
       setTimeout(() => setToast(""), 4000);
@@ -158,10 +155,6 @@ export default function WorkHistory({ token, user }) {
           <TbSearch style={{ position: "absolute", left: 12, top: 12, color: "#94a3b8" }} />
           <input className="modern-input" placeholder="Search work done…" value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 36, margin: 0 }} />
         </div>
-        <select className="modern-input" value={typeF} onChange={e => setTypeF(e.target.value)} style={{ margin: 0, maxWidth: 160 }}>
-          <option value="all">All Types</option>
-          {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
         <select className="modern-input" value={clientF} onChange={e => setClientF(e.target.value)} style={{ margin: 0, maxWidth: 160 }}>
           <option value="all">All Clients</option>
           {clientOptions.map(c => <option key={c} value={c}>{c}</option>)}
@@ -186,7 +179,6 @@ export default function WorkHistory({ token, user }) {
               <tr>
                 <th>Date</th>
                 <th>Work Done</th>
-                <th>Type</th>
                 <th>Client</th>
                 <th>Status</th>
                 <th>Remarks</th>
@@ -200,7 +192,6 @@ export default function WorkHistory({ token, user }) {
                   <tr key={`${r.planId}-${r.taskId}-${i}`}>
                     <td style={{ whiteSpace: "nowrap", fontSize: 13, color: "#64748b" }}>{fmtDate(r.date)}</td>
                     <td style={{ fontSize: 13.5, color: r.status === "Completed" ? "#94a3b8" : "#334155", textDecoration: r.status === "Completed" ? "line-through" : "none" }}>{r.title}</td>
-                    <td>{r.work_type ? <span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", borderRadius: 8, padding: "2px 9px" }}>{r.work_type}</span> : <span style={{ color: "#cbd5e1" }}>—</span>}</td>
                     <td style={{ fontSize: 12.5, color: "#0f766e", fontWeight: 600 }}>{r.client || <span style={{ color: "#cbd5e1", fontWeight: 400 }}>—</span>}</td>
                     <td>
                       {(() => {
