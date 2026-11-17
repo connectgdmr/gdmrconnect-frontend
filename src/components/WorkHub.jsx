@@ -521,7 +521,8 @@ function TeamItem({ item, plan, headers, onChanged }) {
 
 // ── add work ────────────────────────────────────────────────────────────────
 function AddWork({ headers, onClose, onCreated }) {
-  const [f, setF] = useState({ title: "", deadline: "", description: "" });
+  const [f, setF] = useState({ title: "", deadline: "", description: "", client: "" });
+  const [clients, setClients] = useState([]);
   const [people, setPeople] = useState([]);
   const [picked, setPicked] = useState([]);
   const [others, setOthers] = useState(true);
@@ -538,9 +539,12 @@ function AddWork({ headers, onClose, onCreated }) {
       .finally(() => setLoaded(true));
   }, [headers]);
   useEffect(() => { loadPeople(); }, [loadPeople]);
+  useEffect(() => {
+    fetch(`${BASE}/clients`, { headers }).then(r => (r.ok ? r.json() : [])).then(d => setClients(Array.isArray(d) ? d.map(c => c.name).filter(Boolean) : [])).catch(() => {});
+  }, [headers]);
   const needle = q.trim().toLowerCase();
   // type any letters of a name or department: matches anywhere, names starting with them come first
-  const list = people.filter(p => !p.me && (!needle || `${p.name} ${p.department}`.toLowerCase().includes(needle)))
+  const list = !needle ? [] : people.filter(p => !p.me && ( `${p.name} ${p.department}`.toLowerCase().includes(needle)))
     .sort((a, b) => Number(b.name.toLowerCase().startsWith(needle)) - Number(a.name.toLowerCase().startsWith(needle)) || a.name.localeCompare(b.name));
   const chosen = people.filter(p => picked.includes(p._id));
 
@@ -569,10 +573,14 @@ function AddWork({ headers, onClose, onCreated }) {
           <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>Deadline (required)
             <input type="date" className="modern-input" style={{ margin: "4px 0 0" }} min={todayISO()} value={f.deadline} onChange={e => setF({ ...f, deadline: e.target.value })} />
           </label>
+          <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>Client (optional)
+            <input className="modern-input" style={{ margin: "4px 0 0" }} list="work-clients-list" maxLength={200} placeholder="Pick a client or type a new one" value={f.client} onChange={e => setF({ ...f, client: e.target.value })} />
+            <datalist id="work-clients-list">{clients.map(c => <option key={c} value={c} />)}</datalist>
+          </label>
           <textarea className="modern-input" rows={2} style={{ margin: 0 }} placeholder="Details (optional)" maxLength={2000} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />
           <div>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>For: <span style={{ color: "#0f172a" }}>{picked.length ? `${picked.length} selected` : "just me"}</span>{" "}
-              <button type="button" onClick={() => setOthers(!others)} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontWeight: 700, fontSize: 12.5 }}>{others ? "Hide list" : "Assign to others…"}</button>
+              <button type="button" onClick={() => setOthers(!others)} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontWeight: 700, fontSize: 12.5 }}>{others ? "Hide" : "Assign to others…"}</button>
             </div>
             {chosen.length > 0 && (
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
@@ -586,7 +594,7 @@ function AddWork({ headers, onClose, onCreated }) {
             {others && (
               <div style={{ marginTop: 6 }}>
                 <input className="modern-input" style={{ margin: "0 0 6px" }} autoFocus placeholder="Type a name or department…" value={q} onChange={e => setQ(e.target.value)} />
-                <div style={{ maxHeight: 220, overflow: "auto", border: "1px solid #e2e8f0", borderRadius: 10 }}>
+                {needle && <div style={{ maxHeight: 220, overflow: "auto", border: "1px solid #e2e8f0", borderRadius: 10 }}>
                   {list.map(p => (
                     <label key={p._id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 12px", borderBottom: "1px solid #f1f5f9", cursor: "pointer", fontSize: 13 }}>
                       <input type="checkbox" checked={picked.includes(p._id)} onChange={() => setPicked(x => (x.includes(p._id) ? x.filter(i => i !== p._id) : [...x, p._id]))} />
@@ -594,7 +602,7 @@ function AddWork({ headers, onClose, onCreated }) {
                     </label>
                   ))}
                   {list.length === 0 && <div style={{ padding: 12, color: "#94a3b8", fontSize: 13 }}>{!loaded ? "Loading people…" : loadErr ? <>Couldn't load the people list ({loadErr}). <button type="button" onClick={loadPeople} style={{ background: "none", border: "none", color: "var(--brand)", fontWeight: 700, cursor: "pointer" }}>Try again</button></> : people.length <= 1 ? "No other colleagues found." : "No one matches that."}</div>}
-                </div>
+                </div>}
               </div>
             )}
           </div>
