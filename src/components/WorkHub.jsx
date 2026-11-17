@@ -422,12 +422,19 @@ function AddWork({ headers, onClose, onCreated }) {
   const [f, setF] = useState({ title: "", deadline: "", description: "" });
   const [people, setPeople] = useState([]);
   const [picked, setPicked] = useState([]);
-  const [others, setOthers] = useState(false);
+  const [others, setOthers] = useState(true);
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
-  useEffect(() => { fetch(`${BASE}/work-tasks/assignable`, { headers }).then(r => (r.ok ? r.json() : [])).then(setPeople).catch(() => {}); }, [headers]);
-  const list = people.filter(p => !p.me && (!q || `${p.name} ${p.department}`.toLowerCase().includes(q.toLowerCase())));
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    fetch(`${BASE}/work-tasks/assignable`, { headers }).then(r => (r.ok ? r.json() : [])).then(d => setPeople(Array.isArray(d) ? d : [])).catch(() => {}).finally(() => setLoaded(true));
+  }, [headers]);
+  const needle = q.trim().toLowerCase();
+  // type any letters of a name or department: matches anywhere, names starting with them come first
+  const list = people.filter(p => !p.me && (!needle || `${p.name} ${p.department}`.toLowerCase().includes(needle)))
+    .sort((a, b) => Number(b.name.toLowerCase().startsWith(needle)) - Number(a.name.toLowerCase().startsWith(needle)) || a.name.localeCompare(b.name));
+  const chosen = people.filter(p => picked.includes(p._id));
 
   async function create() {
     setErr("");
@@ -457,19 +464,28 @@ function AddWork({ headers, onClose, onCreated }) {
           <textarea className="modern-input" rows={2} style={{ margin: 0 }} placeholder="Details (optional)" maxLength={2000} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />
           <div>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>For: <span style={{ color: "#0f172a" }}>{picked.length ? `${picked.length} selected` : "just me"}</span>{" "}
-              <button type="button" onClick={() => setOthers(!others)} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontWeight: 700, fontSize: 12.5 }}>{others ? "Hide" : "Assign to others…"}</button>
+              <button type="button" onClick={() => setOthers(!others)} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontWeight: 700, fontSize: 12.5 }}>{others ? "Hide list" : "Assign to others…"}</button>
             </div>
+            {chosen.length > 0 && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                {chosen.map(p => (
+                  <span key={p._id} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--brand-light)", color: "var(--brand)", borderRadius: 99, padding: "3px 6px 3px 11px", fontSize: 12.5, fontWeight: 600 }}>
+                    {p.name}<button type="button" onClick={() => setPicked(x => x.filter(i => i !== p._id))} aria-label={`Remove ${p.name}`} style={{ border: "none", background: "transparent", cursor: "pointer", color: "inherit", display: "flex" }}><TbX size={13} /></button>
+                  </span>
+                ))}
+              </div>
+            )}
             {others && (
               <div style={{ marginTop: 6 }}>
-                <input className="modern-input" style={{ margin: "0 0 6px" }} placeholder="Search people…" value={q} onChange={e => setQ(e.target.value)} />
-                <div style={{ maxHeight: 180, overflow: "auto", border: "1px solid #e2e8f0", borderRadius: 10 }}>
+                <input className="modern-input" style={{ margin: "0 0 6px" }} autoFocus placeholder="Type a name or department…" value={q} onChange={e => setQ(e.target.value)} />
+                <div style={{ maxHeight: 220, overflow: "auto", border: "1px solid #e2e8f0", borderRadius: 10 }}>
                   {list.map(p => (
                     <label key={p._id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 12px", borderBottom: "1px solid #f1f5f9", cursor: "pointer", fontSize: 13 }}>
                       <input type="checkbox" checked={picked.includes(p._id)} onChange={() => setPicked(x => (x.includes(p._id) ? x.filter(i => i !== p._id) : [...x, p._id]))} />
                       <span style={{ fontWeight: 600 }}>{p.name}</span><span style={{ color: "#94a3b8", fontSize: 12 }}>{p.department}</span>
                     </label>
                   ))}
-                  {list.length === 0 && <div style={{ padding: 12, color: "#94a3b8", fontSize: 13 }}>No one found.</div>}
+                  {list.length === 0 && <div style={{ padding: 12, color: "#94a3b8", fontSize: 13 }}>{!loaded ? "Loading people…" : people.length <= 1 ? "Couldn't load the people list. Close this and try again." : "No one matches that."}</div>}
                 </div>
               </div>
             )}
