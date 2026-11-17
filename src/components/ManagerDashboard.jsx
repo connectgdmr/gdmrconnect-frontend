@@ -22,6 +22,8 @@ const JobsAndRecruitment = lazy(() => import("./JobsAndRecruitment"));
 import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
 import useChatUnread from "./useChatUnread";
+import useWorkAlerts from "./useWorkAlerts";
+import WorkAlertToast from "./WorkAlertToast";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 import { getCurrentLocation } from "../utils/geolocation";
 import LeaveCalendar from "./LeaveCalendar";
@@ -192,6 +194,7 @@ const DELEGATED_MODULES = [
 export default function ManagerDashboard({ token, api, user, setUser, onLogout, passwordChanged = true }) {
 
   const chatUnread = useChatUnread(token, api);
+  const workAlerts = useWorkAlerts(token);
   // Insights banner / daily quote / "what are you working on" — visible for
   // the first 30 minutes after today's first dashboard view, then hidden.
   const showDailyWidgets = useShowDailyWidgets(user?._id);
@@ -1241,10 +1244,13 @@ export default function ManagerDashboard({ token, api, user, setUser, onLogout, 
           "attendance": notificationCounts?.corrections || 0,
           "announcements": notificationCounts?.announcements || 0,
           "team-assets": notificationCounts?.assets || 0,
+          "work-clients": workAlerts.count,
         }}
+        navBlink={{ "work-clients": workAlerts.count > 0 }}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
+      <WorkAlertToast alerts={workAlerts} onOpen={() => setView("work-clients")} />
       <div className="main-area">
         <div className="main-topbar">
           <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><TbMenu2 /></button>

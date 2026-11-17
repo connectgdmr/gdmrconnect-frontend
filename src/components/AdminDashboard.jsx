@@ -54,6 +54,8 @@ import SettingsModal from "./SettingsModal";
 import AdminInsights from "./AdminInsights";
 import ErrorBoundary from "./ErrorBoundary";
 import useChatUnread from "./useChatUnread";
+import useWorkAlerts from "./useWorkAlerts";
+import WorkAlertToast from "./WorkAlertToast";
 import ChatBot from "./ChatBot";
 import PMSWorkspace from "./PMSWorkspace";
 import { SkeletonTable } from "./Skeleton";
@@ -123,6 +125,7 @@ function StatItem({ icon, label, count, colorClass, onClick }) {
 export default function AdminDashboard({ token, api, user, setUser, onLogout }) {
 
   const chatUnread = useChatUnread(token, api);
+  const workAlerts = useWorkAlerts(token);
 
   // — Core States —
   const [employees, setEmployees] = useState([]);
@@ -609,10 +612,13 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
           announcements: notifCounts?.announcements || 0,
           attendance: notifCounts?.corrections || 0,
           "jobs-recruitment": notifCounts?.referrals || 0,
+          "work-clients": workAlerts.count,
         }}
+        navBlink={{ "work-clients": workAlerts.count > 0 }}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
+      <WorkAlertToast alerts={workAlerts} onOpen={() => setView("work-clients")} />
       <div className="main-area">
         <div className="main-topbar">
           <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><TbMenu2 /></button>

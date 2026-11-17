@@ -57,6 +57,15 @@ export default function WorkHub({ token, role = "employee" }) {
   }, [headers]);
   useEffect(() => { load(); }, [load]);
 
+  // opening the Work page counts as seeing newly assigned work (after a moment, so the "New" tags are noticed)
+  useEffect(() => {
+    if (!board?.me?.items?.some(i => i.is_new)) return undefined;
+    const t = setTimeout(() => {
+      fetch(`${BASE}/work/alerts/seen`, { method: "POST", headers }).then(() => window.dispatchEvent(new Event("gdmr:work-alerts-refresh"))).catch(() => {});
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [board, headers]);
+
   const hasTeam = !!board?.team;
   useEffect(() => {
     if (!hasTeam) return;
@@ -239,7 +248,9 @@ function EditableItem({ item, headers, onSaved }) {
     <div className="card" style={{ margin: 0, padding: "12px 14px", borderLeft: `4px solid ${edge}`, opacity: item.done ? 0.8 : 1 }}>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14, textDecoration: item.done ? "line-through" : "none" }}>{item.title}</div>
+          <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14, textDecoration: item.done ? "line-through" : "none" }}>{item.title}
+            {item.is_new && <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 800, letterSpacing: 0.4, color: "#fff", background: "#ef4444", borderRadius: 5, padding: "1px 7px", verticalAlign: 1 }}>NEW</span>}
+          </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 4, fontSize: 12, color: "#64748b" }}>
             <DeadlineChip item={item} />
             {item.by && <span>from {item.by}</span>}

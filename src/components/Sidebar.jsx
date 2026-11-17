@@ -93,7 +93,7 @@ function getActiveItem(view) {
   return view;
 }
 
-export default function Sidebar({ role, user, view, setView, onLogout, navBadges = {}, navDots = {}, isOpen, onClose }) {
+export default function Sidebar({ role, user, view, setView, onLogout, navBadges = {}, navDots = {}, navBlink = {}, isOpen, onClose }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const navItems = NAV_ITEMS[role] || NAV_ITEMS.employee;
   const activeItem = getActiveItem(view);
@@ -121,7 +121,7 @@ export default function Sidebar({ role, user, view, setView, onLogout, navBadges
             return (
               <button
                 key={item.view}
-                className={`sidebar-nav-item${activeItem === item.view ? " active" : ""}`}
+                className={`sidebar-nav-item${activeItem === item.view ? " active" : ""}${navBlink[item.view] ? " blink" : ""}`}
                 onClick={() => { setView(item.view); onClose?.(); }}
               >
                 <span className="sidebar-nav-icon">{item.icon}</span>

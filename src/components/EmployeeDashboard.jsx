@@ -7,6 +7,8 @@ import ErrorBoundary from "./ErrorBoundary";
 import { SkeletonTable } from "./Skeleton";
 import { RATING_SCALE, getRatingInfo } from "../constants";
 import useChatUnread from "./useChatUnread";
+import useWorkAlerts from "./useWorkAlerts";
+import WorkAlertToast from "./WorkAlertToast";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 import { getCurrentLocation } from "../utils/geolocation";
 import { resolveAttachmentUrl } from "../utils/security";
@@ -212,6 +214,7 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
   // 1. CORE DATA STATES
   // ============================================================================
   const chatUnread = useChatUnread(token, api);
+  const workAlerts = useWorkAlerts(token);
   // Insights banner / daily quote / "what are you working on" — visible for
   // the first 30 minutes after today's first dashboard view, then hidden.
   const showDailyWidgets = useShowDailyWidgets(user?._id);
@@ -1085,11 +1088,13 @@ export default function EmployeeDashboard({ token, api, user, setUser, onLogout,
         view={view}
         setView={setView}
         onLogout={onLogout}
-        navBadges={{ chat: chatUnread }}
+        navBadges={{ chat: chatUnread, "work-clients": workAlerts.count }}
+        navBlink={{ "work-clients": workAlerts.count > 0 }}
         navDots={{ announcements: hasNewAnnouncements }}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
+      <WorkAlertToast alerts={workAlerts} onOpen={() => setView("work-clients")} />
       <div className="main-area">
         <div className="main-topbar">
           <button className="topbar-hamburger" onClick={() => setSidebarOpen(true)}><TbMenu2 /></button>
