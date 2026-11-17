@@ -14,9 +14,9 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const fmt = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
 const Pill = ({ s }) => { const [c, bg] = COLORS[s] || COLORS.Pending; return <span style={{ fontSize: 11, fontWeight: 700, color: c, background: bg, border: `1px solid ${c}33`, borderRadius: 7, padding: "2px 9px", whiteSpace: "nowrap" }}>{s}</span>; };
 
-export default function WorkTasks({ token, role }) {
+export default function WorkTasks({ token, role, initialView = "mine" }) {
   const canSeeTeam = role === "admin" || role === "owner" || role === "manager";
-  const [view, setView] = useState("mine");
+  const [view, setView] = useState(initialView === "team" && canSeeTeam ? "team" : "mine");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(null);
@@ -82,7 +82,7 @@ export default function WorkTasks({ token, role }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {rows.map(t => (
             <TaskCard key={t._id} t={t} headers={headers} expanded={open === t._id} onToggle={() => setOpen(open === t._id ? null : t._id)}
-              onChanged={() => load()} onDelete={() => remove(t)} canDelete={view !== "mine" || t.created_by_me} showPeople={view !== "mine"} />
+              onChanged={() => load()} onDelete={() => remove(t)} canDelete={view !== "mine" || t.created_by_me} showPeople={view !== "mine"} canComment={canSeeTeam || t.created_by_me} />
           ))}
         </div>
       )}
@@ -92,7 +92,9 @@ export default function WorkTasks({ token, role }) {
   );
 }
 
-function TaskCard({ t, headers, expanded, onToggle, onChanged, onDelete, canDelete, showPeople }) {
+function TaskCard({ t, headers, expanded, onToggle, onChanged, onDelete, canDelete, showPeople, canComment }) {
+  const [comment, setComment] = useState("");
+  const [cErr, setCErr] = useState("");
   const [status, setStatus] = useState(t.my_status && t.my_status !== "Pending" ? t.my_status : "In Progress");
   const [remarks, setRemarks] = useState("");
   const [saving, setSaving] = useState(false);
@@ -108,6 +110,16 @@ function TaskCard({ t, headers, expanded, onToggle, onChanged, onDelete, canDele
       if (!r.ok) { setErr(d.message || "Could not save."); return; }
       setRemarks(""); onChanged();
     } catch { setErr("Network error."); } finally { setSaving(false); }
+  }
+
+  async function postComment() {
+    setCErr("");
+    try {
+      const r = await fetch(`${BASE}/work-tasks/${t._id}/comment`, { method: "POST", headers, body: JSON.stringify({ comment }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { setCErr(d.message || "Could not save the comment."); return; }
+      setComment(""); onChanged();
+    } catch { setCErr("Network error."); }
   }
 
   return (
@@ -163,10 +175,20 @@ function TaskCard({ t, headers, expanded, onToggle, onChanged, onDelete, canDele
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {[...t.updates].reverse().slice(0, 10).map((u, i) => (
                   <div key={i} style={{ fontSize: 12.5, color: "#334155", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "baseline" }}>
-                    <span style={{ color: "#94a3b8", minWidth: 78 }}>{fmt(u.date)}</span><b>{u.name}</b><Pill s={u.status} /><span>{u.remarks}</span>
+                    <span style={{ color: "#94a3b8", minWidth: 78 }}>{fmt(u.date)}</span><b>{u.name}</b>
+                    {u.type === "comment" ? <span style={{ color: "#166534", background: "#f0fdf4", borderRadius: 6, padding: "1px 8px" }}>💬 {u.remarks}</span> : <><Pill s={u.status} /><span>{u.remarks}</span></>}
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+          {canComment && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input className="modern-input" style={{ margin: 0, flex: 1, fontSize: 12.5 }} maxLength={600} placeholder="Add a comment for the team on this work…" value={comment} onChange={e => setComment(e.target.value)} />
+                <button className="btn" style={{ fontSize: 12.5 }} disabled={!comment.trim()} onClick={postComment}>Comment</button>
+              </div>
+              {cErr && <div style={{ color: "#b91c1c", fontSize: 12.5, marginTop: 4 }}>{cErr}</div>}
             </div>
           )}
           {canDelete && <div style={{ marginTop: 12, textAlign: "right" }}><button className="btn ghost" onClick={onDelete} style={{ fontSize: 12, color: "#b91c1c", borderColor: "#fecaca", display: "inline-flex", alignItems: "center", gap: 6 }}><TbTrash /> Delete</button></div>}

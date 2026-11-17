@@ -37,6 +37,7 @@ export default function DailyWorkPlan({ token, user }) {
   const [customStatusIds, setCustomStatusIds] = useState(new Set());
   const [sharing, setSharing]   = useState(false);
   const [eveningDone, setEveningDone] = useState(false);
+  const [planComment, setPlanComment] = useState("");
   const [showEvening, setShowEvening] = useState(false);
 
   const department = Array.isArray(user?.department) ? user.department[0] : user?.department;
@@ -73,6 +74,7 @@ export default function DailyWorkPlan({ token, user }) {
           setTasks(carried.length ? [...existing, ...carried] : existing);
           setStatus(d.status || "draft");
           setEveningDone(!!d.evening_submitted_at);
+          setPlanComment(d.manager_comment || "");
           setPlanId(d._id || null);
           setEditing(d.status !== "submitted" || carried.length > 0);
           if (carried.length) setMsg(`${carried.length} task(s) carried forward — review and submit.`);
@@ -190,6 +192,8 @@ export default function DailyWorkPlan({ token, user }) {
 
       {msg && <div style={{ marginBottom: 12, padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 500, background: /submit|saved|copied|emailed/i.test(msg) ? "#f0fdf4" : "#fef2f2", color: /submit|saved|copied|emailed/i.test(msg) ? "#16a34a" : "#b91c1c" }}>{msg}</div>}
 
+      {planComment && <div style={{ marginBottom: 12, padding: "8px 14px", borderRadius: 8, fontSize: 12.5, background: "#f0fdf4", color: "#166534" }}>💬 <b>Comment on your day:</b> {planComment}</div>}
+
       {/* Task rows */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {tasks.map((t, i) => {
@@ -226,6 +230,7 @@ export default function DailyWorkPlan({ token, user }) {
                     {t.client && <span style={{ fontSize: 11, color: "#0f766e", fontWeight: 600 }}>🏢 {t.client}</span>}
                   </div>
                   {t.remarks && <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>Remarks: {t.remarks}</div>}
+                  {t.manager_comment?.text && <div style={{ fontSize: 12, color: "#166534", background: "#f0fdf4", borderRadius: 6, padding: "3px 9px", marginTop: 4, display: "inline-block" }}>💬 {t.manager_comment.by}: {t.manager_comment.text}</div>}
                 </div>
                 {/* Status selector — change as you work */}
                 {(customStatusIds.has(t.id) || (t.status && !TASK_STATUSES.some(s => s.v === t.status))) ? (
