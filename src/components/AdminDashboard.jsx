@@ -1190,7 +1190,7 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
     </div>
 
     <ProfilePanel user={user} setUser={setUser} token={token} api={api} isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
-    {settingsOpen && <SettingsModal token={token} api={api} onClose={() => setSettingsOpen(false)} />}
+    {settingsOpen && <SettingsModal token={token} api={api} showEmailCheck onClose={() => setSettingsOpen(false)} />}
     <ChatBot token={token} api={api} user={user} role="admin" onNavigate={setView} />
     </>
   );

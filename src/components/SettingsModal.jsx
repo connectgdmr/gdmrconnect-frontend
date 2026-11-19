@@ -3,6 +3,7 @@ import { TbX, TbSun, TbLock, TbEye, TbEyeOff, TbCheck } from "react-icons/tb";
 import { useTheme, ACCENTS } from "./ThemeContext";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 import MfaSettings from "./MfaSettings";
+import EmailCheck from "./EmailCheck";
 
 // Light-only for now — Dark / System were removed. ThemeContext also forces
 // light, so a stale "dark"/"system" preference can't leave anyone stuck.
@@ -12,7 +13,7 @@ const THEME_OPTIONS = [
 
 const STRONG_PW = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
-export default function SettingsModal({ token, api, onClose }) {
+export default function SettingsModal({ token, api, onClose, showEmailCheck = false }) {
   const { mode, setMode, accent, setAccent } = useTheme();
 
   const [oldPassword, setOldPassword] = useState("");
@@ -165,6 +166,7 @@ export default function SettingsModal({ token, api, onClose }) {
         </div>
 
         <MfaSettings token={token} />
+        {showEmailCheck && <EmailCheck token={token} />}
       </div>
     </div>
   );
