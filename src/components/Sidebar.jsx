@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Logo from "../assets/GDMR-LOGO-unit.png";
+import { IS_DEMO } from "../brand";
 // Tabler Icons (via react-icons/tb — already installed, no new dependency)
 // instead of Font Awesome — matches the Jampack reference theme's icon set
 // (see TRMPLATE UI/.../SidebarMenu.jsx, which imports straight from
@@ -12,6 +13,10 @@ import {
   TbLogout, TbBuilding, TbClipboardList, TbSchool, TbBriefcase, TbCurrencyDollar,
   TbChecklist, TbChartArea, TbMessageDots, TbCertificate
 } from "react-icons/tb";
+
+// aieque demo build: only these modules (dashboard, attendance, leave, asset requests, announcements, payroll)
+// plus the people / department screens the admin and manager need to set the team up.
+const DEMO_VIEWS = new Set(["dashboard", "attendance", "leave", "leaves", "team-leaves", "assets", "team-assets", "announcements", "payroll", "workforce", "departments", "dept-dashboard"]);
 
 const NAV_ITEMS = {
   admin: [
@@ -95,7 +100,7 @@ function getActiveItem(view) {
 
 export default function Sidebar({ role, user, view, setView, onLogout, navBadges = {}, navDots = {}, navBlink = {}, isOpen, onClose }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const navItems = NAV_ITEMS[role] || NAV_ITEMS.employee;
+  const navItems = (NAV_ITEMS[role] || NAV_ITEMS.employee).filter(i => !IS_DEMO || DEMO_VIEWS.has(i.view));   // the aieque demo only shows its core modules
   const activeItem = getActiveItem(view);
 
   return (

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { TbX, TbSend, TbBulb, TbMicrophone, TbMessageDots } from "react-icons/tb";
 import { GiLion } from "react-icons/gi";
+import { IS_DEMO } from "../brand";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  REXOR — the GDMR Connect in-app assistant.
@@ -131,7 +132,11 @@ function detectLangFromText(text) {
   return /[ഀ-ൿ]/.test(text) ? "ml" : "en";
 }
 
-export default function ChatBot({ user, role = "employee", onNavigate, token, api }) {
+export default function ChatBot(props) {
+  return IS_DEMO ? null : <ChatBotInner {...props} />;     // no AI assistant bubble in the aieque demo
+}
+
+function ChatBotInner({ user, role = "employee", onNavigate, token, api }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
