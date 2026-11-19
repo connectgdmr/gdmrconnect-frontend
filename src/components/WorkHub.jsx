@@ -534,7 +534,7 @@ function AddWork({ headers, onClose, onCreated }) {
   const [clientMsg, setClientMsg] = useState("");
   const [people, setPeople] = useState([]);
   const [picked, setPicked] = useState([]);
-  const [others, setOthers] = useState(true);
+  const [more, setMore] = useState([]);   // extra "what needs to be done" lines for the same client / deadline
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
@@ -577,13 +577,23 @@ function AddWork({ headers, onClose, onCreated }) {
     if (!f.deadline) return setErr("A deadline is required.");
     if (f.deadline < todayISO()) return setErr("The deadline can't be in the past.");
     if (newClient) return setErr(`“${clientName}” isn't a client yet — click “Add as new client”, or clear the client field.`);
+    const titles = [f.title.trim(), ...more.map(t => t.trim()).filter(Boolean)];
     setSaving(true);
+    let done = 0;
     try {
-      const r = await fetch(`${BASE}/work-tasks`, { method: "POST", headers, body: JSON.stringify({ ...f, assignee_ids: picked }) });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) return setErr(d.message || "Could not add the work.");
-      onCreated(picked.length ? `Work added and assigned to ${picked.length} ${picked.length === 1 ? "person" : "people"}.` : "Work added.");
-    } catch { setErr("Network error."); } finally { setSaving(false); }
+      for (const title of titles) {
+        const r = await fetch(`${BASE}/work-tasks`, { method: "POST", headers, body: JSON.stringify({ ...f, title, assignee_ids: picked }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          setMore(m => m.filter(t => !t.trim() || titles.indexOf(t.trim()) > done));   // keep only the ones not yet saved
+          if (done) setF(x => ({ ...x, title: titles[done] }));
+          return setErr(`${done ? `${done} added, but “${titles[done]}” failed: ` : ""}${d.message || "Could not add the work."}`);
+        }
+        done += 1;
+      }
+      const who = picked.length ? ` and assigned to ${picked.length} ${picked.length === 1 ? "person" : "people"}` : "";
+      onCreated(`${done === 1 ? "Work" : `${done} works`} added${who}.`);
+    } catch { setErr(`${done ? `${done} added, then a ` : ""}Network error.`); } finally { setSaving(false); }
   }
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.5)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -594,6 +604,14 @@ function AddWork({ headers, onClose, onCreated }) {
         </div>
         <div style={{ padding: 20, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <input className="modern-input" style={{ margin: 0 }} autoFocus placeholder="What needs to be done?" maxLength={200} value={f.title} onChange={e => setF({ ...f, title: e.target.value })} />
+          {more.map((t, i) => (
+            <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <span style={{ color: "#94a3b8", fontWeight: 700, fontSize: 13, width: 18, textAlign: "right" }}>{i + 2}.</span>
+              <input className="modern-input" style={{ margin: 0, flex: 1 }} placeholder="Another work for the same client" maxLength={200} value={t} onChange={e => setMore(m => m.map((x, j) => (j === i ? e.target.value : x)))} />
+              <button type="button" onClick={() => setMore(m => m.filter((_, j) => j !== i))} aria-label="Remove this work" style={{ border: "none", background: "#f1f5f9", borderRadius: 8, width: 32, height: 32, cursor: "pointer", flexShrink: 0 }}><TbX /></button>
+            </div>
+          ))}
+          <button type="button" onClick={() => setMore(m => [...m, ""])} style={{ alignSelf: "flex-start", background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontWeight: 700, fontSize: 13, padding: 0, marginTop: -4 }}>+ Add another work</button>
           <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>Deadline (required)
             <input type="date" className="modern-input" style={{ margin: "4px 0 0" }} min={todayISO()} value={f.deadline} onChange={e => setF({ ...f, deadline: e.target.value })} />
           </label>
@@ -611,9 +629,7 @@ function AddWork({ headers, onClose, onCreated }) {
           )}
           <textarea className="modern-input" rows={2} style={{ margin: 0 }} placeholder="Details (optional)" maxLength={2000} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />
           <div>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>For: <span style={{ color: "#0f172a" }}>{picked.length ? `${picked.length} selected` : "just me"}</span>{" "}
-              <button type="button" onClick={() => setOthers(!others)} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontWeight: 700, fontSize: 12.5 }}>{others ? "Hide" : "Assign to others…"}</button>
-            </div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>Assign work to other employee <span style={{ fontWeight: 500, color: "#94a3b8" }}>(optional)</span></div>
             {chosen.length > 0 && (
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
                 {chosen.map(p => (
@@ -623,9 +639,9 @@ function AddWork({ headers, onClose, onCreated }) {
                 ))}
               </div>
             )}
-            {others && (
+            {(
               <div style={{ marginTop: 6 }}>
-                <input className="modern-input" style={{ margin: "0 0 6px" }} autoFocus placeholder="Type a name or department…" value={q} onChange={e => setQ(e.target.value)} />
+                <input className="modern-input" style={{ margin: "0 0 6px" }} placeholder="Type a name or department…" value={q} onChange={e => setQ(e.target.value)} />
                 {needle && <div style={{ maxHeight: 220, overflow: "auto", border: "1px solid #e2e8f0", borderRadius: 10 }}>
                   {list.map(p => (
                     <label key={p._id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 12px", borderBottom: "1px solid #f1f5f9", cursor: "pointer", fontSize: 13 }}>
