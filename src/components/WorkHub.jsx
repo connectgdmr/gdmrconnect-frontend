@@ -556,7 +556,7 @@ function AddWork({ headers, onClose, onCreated }) {
   async function addClient() {
     setClientMsg(""); setAddingClient(true);
     try {
-      const r = await fetch(`${BASE}/admin/clients`, { method: "POST", headers, body: JSON.stringify({ name: clientName }) });
+      const r = await fetch(`${BASE}/admin/clients`, { method: "POST", headers, body: JSON.stringify({ name: clientName, auto_department: true }) });
       const d = await r.json().catch(() => ({}));
       if (r.status === 409) { setClients(c => [...c, clientName]); setClientMsg("That client already exists — selected."); return; }
       if (r.status === 403) return setClientMsg("You can't add clients (your account has no department). Ask an admin to add it.");
