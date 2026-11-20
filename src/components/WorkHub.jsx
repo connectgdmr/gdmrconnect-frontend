@@ -531,6 +531,7 @@ function AddWork({ headers, onClose, onCreated }) {
   const [f, setF] = useState({ title: "", deadline: "", description: "", client: "" });
   const [clients, setClients] = useState([]);
   const [addingClient, setAddingClient] = useState(false);
+  const [clientOpen, setClientOpen] = useState(false);   // our own dropdown: <datalist> doesn't open on most phones
   const [clientMsg, setClientMsg] = useState("");
   const [people, setPeople] = useState([]);
   const [picked, setPicked] = useState([]);
@@ -552,6 +553,7 @@ function AddWork({ headers, onClose, onCreated }) {
     fetch(`${BASE}/clients`, { headers }).then(r => (r.ok ? r.json() : [])).then(d => setClients(Array.isArray(d) ? d.map(c => c.name).filter(Boolean) : [])).catch(() => {});
   }, [headers]);
   const clientName = f.client.trim();
+  const clientMatches = clients.filter(c => !clientName || (c.toLowerCase().includes(clientName.toLowerCase()) && c.toLowerCase() !== clientName.toLowerCase()));
   const newClient = clientName && !clients.some(c => c.toLowerCase() === clientName.toLowerCase());
   async function addClient() {
     setClientMsg(""); setAddingClient(true);
@@ -616,9 +618,18 @@ function AddWork({ headers, onClose, onCreated }) {
             <input type="date" className="modern-input" style={{ margin: "4px 0 0" }} min={todayISO()} value={f.deadline} onChange={e => setF({ ...f, deadline: e.target.value })} />
           </label>
           <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>Client (optional)
-            <input className="modern-input" style={{ margin: "4px 0 0" }} list="work-clients-list" maxLength={200} placeholder="Pick a client or type a new one" value={f.client} onChange={e => setF({ ...f, client: e.target.value })} />
-            <datalist id="work-clients-list">{clients.map(c => <option key={c} value={c} />)}</datalist>
+            <input className="modern-input" style={{ margin: "4px 0 0" }} maxLength={200} autoComplete="off" placeholder="Pick a client or type a new one" value={f.client}
+              onFocus={() => setClientOpen(true)} onBlur={() => setTimeout(() => setClientOpen(false), 150)}
+              onChange={e => { setF({ ...f, client: e.target.value }); setClientOpen(true); }} />
           </label>
+          {clientOpen && clientMatches.length > 0 && (
+            <div role="listbox" style={{ marginTop: -8, maxHeight: 180, overflow: "auto", border: "1px solid #e2e8f0", borderRadius: 10, background: "#fff", WebkitOverflowScrolling: "touch" }}>
+              {clientMatches.map(c => (
+                <div key={c} role="option" onMouseDown={e => e.preventDefault()} onClick={() => { setF(x => ({ ...x, client: c })); setClientOpen(false); }}
+                  style={{ padding: "11px 14px", fontSize: 14, fontWeight: 600, color: "#0f172a", borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}>{c}</div>
+              ))}
+            </div>
+          )}
           {!newClient && clientMsg && <div style={{ marginTop: -6, fontSize: 12.5, color: "#166534", fontWeight: 600 }}>{clientMsg}</div>}
           {newClient && (
             <div style={{ marginTop: -6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "7px 10px", fontSize: 12.5, color: "#92400e" }}>
