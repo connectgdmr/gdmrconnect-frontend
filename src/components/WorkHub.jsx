@@ -233,8 +233,20 @@ function MyWork({ items, headers, onChanged, onAdd, onDay, showDay, title }) {
   );
 }
 
-function EditableItem({ item }) {
-  // View only: status and remarks are changed in "Update my day" (one place, once a day).
+function EditableItem({ item, headers, onSaved }) {
+  // Only the status can be changed here (one tap). Remarks are written at the end of the day in "Update my day".
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  async function setStatus(next) {
+    if (next === item.status) return;
+    setSaving(true); setErr("");
+    try {
+      const r = await fetch(`${BASE}/work/update`, { method: "POST", headers, body: JSON.stringify({ kind: item.kind, id: item.id, plan_id: item.plan_id, status: next, remarks: item.remarks || "" }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) setErr(d.message || "Could not change the status.");
+      else onSaved && onSaved();
+    } catch { setErr("Network error — status not changed."); } finally { setSaving(false); }
+  }
   const edge = item.done ? "#16a34a" : item.overdue ? "#b91c1c" : item.due_today ? "#d97706" : "#cbd5e1";
   const status = item.status;
   return (
@@ -251,8 +263,12 @@ function EditableItem({ item }) {
             {item.others?.length > 0 && <span>with {item.others.join(", ")}</span>}
           </div>
         </div>
-        <span style={{ fontSize: 12, fontWeight: 700, color: SC[status] || "#334155", border: "1px solid #e2e8f0", borderRadius: 8, padding: "5px 12px", background: "#f8fafc" }}>{status}</span>
+        <select aria-label={`Status of ${item.title}`} value={status} disabled={saving} onChange={e => setStatus(e.target.value)}
+          style={{ fontSize: 12.5, fontWeight: 700, color: SC[status] || "#334155", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", background: "#f8fafc", cursor: saving ? "wait" : "pointer", opacity: saving ? 0.6 : 1 }}>
+          {(STATUSES.includes(status) ? STATUSES : [status, ...STATUSES]).map(st => <option key={st} value={st}>{st}</option>)}
+        </select>
       </div>
+      {err && <div style={{ marginTop: 6, fontSize: 12, color: "#b91c1c" }}>{err}</div>}
       {item.remarks && <div style={{ marginTop: 8, fontSize: 12.5, color: "#475569" }}>Remarks: {item.remarks}</div>}
       {item.comment && <div style={{ marginTop: 8, fontSize: 12.5, color: "#166534", background: "#f0fdf4", borderRadius: 6, padding: "4px 9px", display: "inline-block" }}>💬 {item.comment.by}: {item.comment.text}</div>}
     </div>
