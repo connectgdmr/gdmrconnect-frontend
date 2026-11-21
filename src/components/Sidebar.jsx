@@ -16,7 +16,7 @@ import {
 
 // aieque demo build: only these modules (dashboard, attendance, leave, asset requests, announcements, payroll)
 // plus the people / department screens the admin and manager need to set the team up.
-const DEMO_VIEWS = new Set(["dashboard", "attendance", "leave", "leaves", "team-leaves", "assets", "team-assets", "announcements", "payroll", "workforce", "departments", "dept-dashboard"]);
+const DEMO_VIEWS = new Set(["dashboard", "attendance", "leave", "leaves", "team-leaves", "assets", "team-assets", "announcements", "payroll", "workforce", "departments", "dept-dashboard", "holidays", "jobs-recruitment"]);
 
 const NAV_ITEMS = {
   admin: [

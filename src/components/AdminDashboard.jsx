@@ -1,11 +1,14 @@
 import React, { useEffect, useState, lazy, Suspense } from "react";
 import Sidebar from "./Sidebar";
+import { IS_DEMO } from "../brand";
 
 // ============================================================================
 // COMPONENT IMPORTS — view-specific pages are lazy-loaded on demand
 // ============================================================================
 const Chat                   = lazy(() => import("./Chat"));
 const EmployeeForm           = lazy(() => import("./EmployeeForm"));
+const HrisWorkforce          = lazy(() => import("./hris/HrisWorkforce"));      // aieque demo only (see IS_DEMO)
+const HrisAttention          = lazy(() => import("./hris/HrisAttention"));
 const EmployeeList           = lazy(() => import("./EmployeeList"));
 const RegisterAdmin          = lazy(() => import("./RegisterAdmin"));
 const AdminLeavePage         = lazy(() => import("./AdminLeavePage"));
@@ -760,6 +763,7 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
               onClick={() => setView("jobs-recruitment")}
             />
           </div>
+          {IS_DEMO && <Suspense fallback={null}><HrisAttention token={token} isHr onOpen={(t) => { try { sessionStorage.setItem("hrisTab", t); } catch { /* private mode */ } setView("workforce"); }} /></Suspense>}
         </div>
 
         <AdminInsights
@@ -872,7 +876,8 @@ export default function AdminDashboard({ token, api, user, setUser, onLogout }) 
       {/* ============================================================================ */}
 
       {/* 1. WORKFORCE (Employees + Managers, tabbed — see workforceTab above) */}
-      {view === "workforce" && (
+      {view === "workforce" && IS_DEMO && <Suspense fallback={<SkeletonTable rows={6} cols={5} />}><HrisWorkforce token={token} onChanged={loadEmployees} /></Suspense>}
+      {view === "workforce" && !IS_DEMO && (
         <div style={{ marginTop: 16 }}>
           <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "#f1f5f9", borderRadius: 10, padding: 4, width: "fit-content" }}>
             <button onClick={() => setWorkforceTab("employees")} style={{
