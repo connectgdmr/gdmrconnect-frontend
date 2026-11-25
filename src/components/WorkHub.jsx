@@ -566,7 +566,7 @@ function AddWork({ headers, onClose, onCreated }) {
   }, [headers]);
   useEffect(() => { loadPeople(); }, [loadPeople]);
   useEffect(() => {
-    fetch(`${BASE}/clients`, { headers }).then(r => (r.ok ? r.json() : [])).then(d => setClients(Array.isArray(d) ? d.map(c => c.name).filter(Boolean) : [])).catch(() => {});
+    fetch(`${BASE}/clients?for=work`, { headers }).then(r => (r.ok ? r.json() : [])).then(d => setClients(Array.isArray(d) ? d.map(c => c.name).filter(Boolean) : [])).catch(() => {});
   }, [headers]);
   const clientName = f.client.trim();
   const clientMatches = clients.filter(c => !clientName || (c.toLowerCase().includes(clientName.toLowerCase()) && c.toLowerCase() !== clientName.toLowerCase()));
@@ -639,7 +639,7 @@ function AddWork({ headers, onClose, onCreated }) {
               onChange={e => { setF({ ...f, client: e.target.value }); setClientOpen(true); }} />
           </label>
           {clientOpen && clientMatches.length > 0 && (
-            <div role="listbox" style={{ marginTop: -8, maxHeight: 180, overflow: "auto", border: "1px solid #e2e8f0", borderRadius: 10, background: "#fff", WebkitOverflowScrolling: "touch" }}>
+            <div role="listbox" style={{ marginTop: -8, maxHeight: 180, flexShrink: 0, overflow: "auto", border: "1px solid #e2e8f0", borderRadius: 10, background: "#fff", WebkitOverflowScrolling: "touch" }}>
               {clientMatches.map(c => (
                 <div key={c} role="option" onMouseDown={e => e.preventDefault()} onClick={() => { setF(x => ({ ...x, client: c })); setClientOpen(false); }}
                   style={{ padding: "11px 14px", fontSize: 14, fontWeight: 600, color: "#0f172a", borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}>{c}</div>
